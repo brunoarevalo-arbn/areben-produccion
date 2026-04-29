@@ -33,13 +33,15 @@ const MAQUINAS = ['Recta', 'Collareta', 'Remalladora', 'Cadeneta', 'Cortacollare
 const LIBRE_ID = '__libre__';
 
 export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormTiemposProps) {
-  const [actividad,  setActividad]  = useState('');
-  const [ordenId,    setOrdenId]    = useState('');
-  const [maquina,    setMaquina]    = useState('');
-  const [cantidad,   setCantidad]   = useState('1');
-  const [defectos,   setDefectos]   = useState('0');
-  const [ordenes,    setOrdenes]    = useState<OrdenActiva[]>([]);
-  const [loadingQ,   setLoadingQ]   = useState(true);
+  const [actividad,      setActividad]      = useState('');
+  const [ordenId,        setOrdenId]        = useState('');
+  const [maquina,        setMaquina]        = useState('');
+  const [cantidad,       setCantidad]       = useState('1');
+  const [defectos,       setDefectos]       = useState('0');
+  const [ordenes,        setOrdenes]        = useState<OrdenActiva[]>([]);
+  const [loadingQ,       setLoadingQ]       = useState(true);
+  const [finalizando,    setFinalizando]    = useState(false);
+  const [confirmFin,     setConfirmFin]     = useState(false);
 
   const cargarCola = useCallback(async () => {
     setLoadingQ(true);
@@ -54,6 +56,22 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
   useEffect(() => { cargarCola(); }, [cargarCola]);
 
   const ordenSeleccionada = ordenes.find((o) => o.id === ordenId) ?? null;
+
+  const finalizarCorte = async () => {
+    if (!ordenSeleccionada) return;
+    setFinalizando(true);
+    const r = await fetch(`/api/produccion/cola/${ordenSeleccionada.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado: 'terminado' }),
+    });
+    if (r.ok) {
+      setOrdenes((prev) => prev.filter((o) => o.id !== ordenSeleccionada.id));
+      setOrdenId('');
+    }
+    setFinalizando(false);
+    setConfirmFin(false);
+  };
 
   const handleGuardar = async () => {
     if (!actividad) return;
@@ -123,7 +141,7 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
             {ordenes.map((orden) => (
               <button
                 key={orden.id}
-                onClick={() => setOrdenId(ordenId === orden.id ? '' : orden.id)}
+                onClick={() => { setOrdenId(ordenId === orden.id ? '' : orden.id); setConfirmFin(false); }}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all active:scale-95 ${
                   ordenId === orden.id
                     ? 'bg-amber-50 border-amber-400'
@@ -155,7 +173,7 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
 
             {/* Opción libre (sin orden) */}
             <button
-              onClick={() => setOrdenId(ordenId === LIBRE_ID ? '' : LIBRE_ID)}
+              onClick={() => { setOrdenId(ordenId === LIBRE_ID ? '' : LIBRE_ID); setConfirmFin(false); }}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border-2 text-left transition-all active:scale-95 ${
                 ordenId === LIBRE_ID
                   ? 'bg-stone-100 border-stone-400'
@@ -164,6 +182,41 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
             >
               <span className="text-xs text-stone-400 font-medium">Sin orden — trabajo libre</span>
             </button>
+
+            {/* Finalizar corte */}
+            {ordenSeleccionada && (
+              <div className="pt-1">
+                {!confirmFin ? (
+                  <button
+                    onClick={() => setConfirmFin(true)}
+                    className="w-full py-2.5 rounded-xl border-2 border-dashed border-red-200 text-red-500 text-xs font-bold uppercase tracking-wide hover:bg-red-50 transition active:scale-95"
+                  >
+                    Corte finalizado — {ordenSeleccionada.sku}
+                  </button>
+                ) : (
+                  <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 space-y-2">
+                    <p className="text-xs font-bold text-red-700 text-center">
+                      ¿Confirmar que el corte <span className="font-mono">{ordenSeleccionada.sku}</span> está terminado?
+                    </p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={finalizarCorte}
+                        disabled={finalizando}
+                        className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold transition active:scale-95"
+                      >
+                        {finalizando ? 'Finalizando...' : 'Sí, finalizar'}
+                      </button>
+                      <button
+                        onClick={() => setConfirmFin(false)}
+                        className="px-4 py-2 rounded-lg border border-stone-200 text-stone-500 text-xs font-semibold hover:border-stone-400 transition"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

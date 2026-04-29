@@ -6,7 +6,6 @@ import { useTiempos } from '@/lib/hooks/useTiempos';
 import { Cronometro } from '@/components/tiempos/Cronometro';
 import { LogRegistros } from '@/components/tiempos/LogRegistros';
 import { FormTiempos } from '@/components/tiempos/FormTiempos';
-import { ColaCosturera } from '@/components/produccion/ColaCosturera';
 
 interface SessionUser {
   id: string;
@@ -80,13 +79,8 @@ export default function TiemposPage() {
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
 
-        {/* Cola de producción */}
-        <div className="pt-3 pb-1 shrink-0">
-          <ColaCosturera />
-        </div>
-
         {/* Cronómetro */}
-        <div className="px-4 pt-2 pb-2 shrink-0">
+        <div className="px-4 pt-4 pb-2 shrink-0">
           <Cronometro
             tiempoDisplay={tiempos.tiempoDisplay}
             activo={tiempos.cronometroActivo}
