@@ -6,7 +6,7 @@ type Ctx = { params: Promise<{ id: string; pasoId: string }> };
 export async function PUT(req: NextRequest, { params }: Ctx) {
   try {
     const { pasoId }                                   = await params;
-    const { estado, observaciones, datos, saltado }    = await req.json();
+    const { estado, observaciones, datos, saltado, esTercero, responsableId, terceroNombre, responsableInternoId } = await req.json();
 
     const data: Record<string, unknown> = {};
 
@@ -27,8 +27,12 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       }
     }
 
-    if (observaciones !== undefined) data.observaciones = observaciones || null;
-    if (datos         !== undefined) data.datos         = datos         || null;
+    if (observaciones            !== undefined) data.observaciones            = observaciones            || null;
+    if (datos                    !== undefined) data.datos                    = datos                    || null;
+    if (esTercero                !== undefined) data.esTercero                = Boolean(esTercero);
+    if (responsableId            !== undefined) data.responsableId            = responsableId            || null;
+    if (terceroNombre            !== undefined) data.terceroNombre            = terceroNombre            || null;
+    if (responsableInternoId     !== undefined) data.responsableInternoId     = responsableInternoId     || null;
 
     const paso = await prisma.proyectoPaso.update({ where: { id: pasoId }, data });
     return NextResponse.json({

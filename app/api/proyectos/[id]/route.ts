@@ -86,7 +86,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 
     const campos = [
       'nombre', 'marca', 'estado', 'estadoDiseno', 'inspiracion',
-      'molderia', 'tela', 'costo', 'precioEstimado', 'estadoProduccion', 'cantidad',
+      'molderia', 'molderiaFormato', 'tela', 'costo', 'precioEstimado', 'estadoProduccion', 'cantidad',
     ] as const;
 
     for (const campo of campos) {

@@ -106,6 +106,7 @@ model ProyectoDiseno {
   inspiracion      String?
   moodboard        String?
   molderia         String?
+  molderiaFormato  String?
   tela             String?
   costo            Float              @default(0)
   precioEstimado   Float              @default(0)
@@ -130,12 +131,16 @@ model ProyectoPaso {
   nombrePaso      String
   estado          String         @default("pendiente")
   saltado         Boolean        @default(false)
-  observaciones   String?
-  datos           String?
-  fechaInicio     DateTime?
-  fechaCompletado DateTime?
-  createdAt       DateTime       @default(now())
-  updatedAt       DateTime       @updatedAt
+  observaciones        String?
+  datos                String?
+  fechaInicio          DateTime?
+  fechaCompletado      DateTime?
+  responsableId        String?
+  esTercero            Boolean        @default(false)
+  terceroNombre        String?
+  responsableInternoId String?
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   @@map("proyecto_pasos")
 }
@@ -238,4 +243,19 @@ model Usuario {
   updatedAt    DateTime @updatedAt
 
   @@map("usuarios")
+}
+
+model OrdenProduccion {
+  id          String    @id @default(cuid())
+  sku         String
+  descripcion String?
+  cantidad    Int       @default(1)
+  estado      String    @default("pendiente")
+  notas       String?
+  creadoPor   String    @default("admin")
+  terminadoAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("ordenes_produccion")
 }

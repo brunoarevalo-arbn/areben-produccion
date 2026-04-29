@@ -2,20 +2,21 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { ProyectoDiseno } from '@/types/diseno';
+import type { ProyectoDiseno, UsuarioSimple } from '@/types/diseno';
 import { calcularPrecioVenta, MARGEN_DEFAULT } from '@/lib/utils/calculos';
 import { TimelinePasos } from './TimelinePasos';
 
 const TELAS     = ['Algodón', 'Poliéster', 'Lino', 'Seda', 'Denim', 'Lycra', 'Modal', 'Otro'];
 const MOLDERIAS = ['Base recta', 'Base entallada', 'Base evasé', 'Moldería propia', 'Otro'];
 
-export function SeccionDesarrollo({ proyecto }: { proyecto: ProyectoDiseno }) {
+export function SeccionDesarrollo({ proyecto, usuarios }: { proyecto: ProyectoDiseno; usuarios: UsuarioSimple[] }) {
   const router  = useRouter();
   const [form,   setForm]   = useState({
-    molderia:       proyecto.molderia       ?? '',
-    tela:           proyecto.tela           ?? '',
-    costo:          proyecto.costo          ?? 0,
-    precioEstimado: proyecto.precioEstimado ?? 0,
+    molderia:        proyecto.molderia        ?? '',
+    molderiaFormato: proyecto.molderiaFormato ?? '',
+    tela:            proyecto.tela            ?? '',
+    costo:           proyecto.costo           ?? 0,
+    precioEstimado:  proyecto.precioEstimado  ?? 0,
   });
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
@@ -48,6 +49,25 @@ export function SeccionDesarrollo({ proyecto }: { proyecto: ProyectoDiseno }) {
               <option value="">— Seleccionar —</option>
               {MOLDERIAS.map((m) => <option key={m}>{m}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-stone-600 mb-1.5">Formato de moldería</label>
+            <div className="flex gap-2 h-[42px] items-center">
+              {(['fisica', 'digital'] as const).map((f) => (
+                <button
+                  key={f}
+                  type="button"
+                  onClick={() => setForm((p) => ({ ...p, molderiaFormato: p.molderiaFormato === f ? '' : f }))}
+                  className={`flex-1 py-2 rounded-xl text-xs font-semibold border transition ${
+                    form.molderiaFormato === f
+                      ? f === 'fisica' ? 'bg-amber-100 text-amber-700 border-transparent' : 'bg-violet-100 text-violet-700 border-transparent'
+                      : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'
+                  }`}
+                >
+                  {f === 'fisica' ? 'Física' : 'Digital'}
+                </button>
+              ))}
+            </div>
           </div>
           <div>
             <label className="block text-xs font-semibold text-stone-600 mb-1.5">Tela</label>
@@ -83,7 +103,7 @@ export function SeccionDesarrollo({ proyecto }: { proyecto: ProyectoDiseno }) {
       {/* Timeline de los 18 pasos */}
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Checklist de desarrollo (18 pasos)</p>
-        <TimelinePasos proyectoId={proyecto.id} pasos={proyecto.pasos} />
+        <TimelinePasos proyectoId={proyecto.id} pasos={proyecto.pasos} usuarios={usuarios} />
       </div>
     </div>
   );

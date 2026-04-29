@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import type { ProyectoDiseno, EstadoProyecto, EstadoCiclo } from '@/types/diseno';
+import type { ProyectoDiseno, EstadoProyecto, EstadoCiclo, UsuarioSimple } from '@/types/diseno';
 import { FlujoDiseno } from './FlujoDiseno';
 import { SeccionInspiracion } from './SeccionInspiracion';
 import { SeccionIdeas } from './SeccionIdeas';
@@ -62,7 +62,7 @@ const CICLO_LABEL: Record<EstadoCiclo, string> = {
 
 const ESTADOS_CICLO: EstadoCiclo[] = ['activo', 'standby', 'archivado'];
 
-export function ProyectoView({ proyecto }: { proyecto: ProyectoDiseno }) {
+export function ProyectoView({ proyecto, usuarios }: { proyecto: ProyectoDiseno; usuarios: UsuarioSimple[] }) {
   const router = useRouter();
 
   const [activeTab,    setActiveTab]    = useState<Tab>('inspiracion');
@@ -174,7 +174,7 @@ export function ProyectoView({ proyecto }: { proyecto: ProyectoDiseno }) {
       {/* Tab content */}
       {activeTab === 'inspiracion' && <SeccionInspiracion proyecto={proyecto} />}
       {activeTab === 'ideas'       && <SeccionIdeas       proyecto={proyecto} />}
-      {activeTab === 'desarrollo'  && <SeccionDesarrollo  proyecto={proyecto} />}
+      {activeTab === 'desarrollo'  && <SeccionDesarrollo  proyecto={proyecto} usuarios={usuarios} />}
       {activeTab === 'muestras'    && <SeccionMuestras    proyecto={proyecto} />}
       {activeTab === 'ajustes'     && <SeccionAjustes     proyecto={proyecto} />}
       {activeTab === 'insumos'     && <SeccionInsumos     proyecto={proyecto} />}

@@ -12,21 +12,31 @@ import {
 } from '@/lib/constants/diseno';
 
 interface Paso {
-  id:              string;
-  numeroPaso:      number;
-  nombrePaso:      string;
-  estado:          string;
-  saltado:         boolean;
-  observaciones?:  string | null;
-  datos?:          string | null;
-  fechaInicio?:    string | null;
-  fechaCompletado?: string | null;
-  updatedAt:       string;
+  id:                   string;
+  numeroPaso:           number;
+  nombrePaso:           string;
+  estado:               string;
+  saltado:              boolean;
+  observaciones?:       string | null;
+  datos?:               string | null;
+  fechaInicio?:         string | null;
+  fechaCompletado?:     string | null;
+  responsableId?:       string | null;
+  esTercero?:           boolean;
+  terceroNombre?:       string | null;
+  responsableInternoId?: string | null;
+  updatedAt:            string;
+}
+
+interface UsuarioSimple {
+  id:     string;
+  nombre: string;
 }
 
 interface Props {
   proyectoId: string;
   pasos:      Paso[];
+  usuarios:   UsuarioSimple[];
 }
 
 type DatosMap = Record<string, string>;
@@ -139,8 +149,8 @@ function FormEncogimiento({ datos, setDatos, onSave, saving, preData, postData }
 
 const CICLO: EstadoPaso[] = ['pendiente', 'en_proceso', 'completado'];
 
-function PasoRow({ paso, proyectoId, onUpdate, preData, postData }: {
-  paso: Paso; proyectoId: string; onUpdate: () => void; preData?: DatosMap; postData?: DatosMap;
+function PasoRow({ paso, proyectoId, onUpdate, preData, postData, usuarios }: {
+  paso: Paso; proyectoId: string; onUpdate: () => void; preData?: DatosMap; postData?: DatosMap; usuarios: UsuarioSimple[];
 }) {
   const [expanded,    setExpanded]    = useState(false);
   const [saving,      setSaving]      = useState(false);
@@ -151,6 +161,12 @@ function PasoRow({ paso, proyectoId, onUpdate, preData, postData }: {
     try { return paso.datos ? JSON.parse(paso.datos) : {}; } catch { return {}; }
   });
   const [savingDatos, setSavingDatos] = useState(false);
+
+  const [esTercero,            setEsTercero]            = useState(paso.esTercero ?? false);
+  const [responsableId,        setResponsableId]        = useState(paso.responsableId ?? '');
+  const [terceroNombre,        setTerceroNombre]        = useState(paso.terceroNombre ?? '');
+  const [responsableInternoId, setResponsableInternoId] = useState(paso.responsableInternoId ?? '');
+  const [savingResp,           setSavingResp]           = useState(false);
 
   const estado   = paso.estado as EstadoPaso;
   const saltado  = paso.saltado;
@@ -190,6 +206,28 @@ function PasoRow({ paso, proyectoId, onUpdate, preData, postData }: {
     setSavingDatos(false);
   };
 
+  const guardarResponsable = async () => {
+    setSavingResp(true);
+    await patchPaso({
+      esTercero:            esTercero,
+      responsableId:        esTercero ? null : (responsableId || null),
+      terceroNombre:        esTercero ? (terceroNombre || null) : null,
+      responsableInternoId: esTercero ? (responsableInternoId || null) : null,
+    });
+    setSavingResp(false);
+  };
+
+  const nombreResponsable = () => {
+    if (paso.esTercero) {
+      const interno = usuarios.find((u) => u.id === paso.responsableInternoId);
+      return paso.terceroNombre
+        ? `${paso.terceroNombre}${interno ? ` (resp. interno: ${interno.nombre})` : ''}`
+        : null;
+    }
+    const u = usuarios.find((u) => u.id === paso.responsableId);
+    return u ? u.nombre : null;
+  };
+
   const rowBg = saltado
     ? 'bg-stone-50 border-stone-100 opacity-60'
     : estado === 'completado' ? 'bg-emerald-50 border-emerald-100'
@@ -219,7 +257,12 @@ function PasoRow({ paso, proyectoId, onUpdate, preData, postData }: {
             : 'text-stone-700'
           }`}
         >
-          {paso.nombrePaso}
+          <span>{paso.nombrePaso}</span>
+          {nombreResponsable() && !saltado && (
+            <span className="ml-2 text-xs font-normal text-stone-400">
+              {paso.esTercero ? '🏢' : '👤'} {nombreResponsable()}
+            </span>
+          )}
           {(paso.observaciones || paso.datos) && !saltado && (
             <span className="ml-1.5 text-stone-300 text-xs">●</span>
           )}
@@ -263,6 +306,53 @@ function PasoRow({ paso, proyectoId, onUpdate, preData, postData }: {
         <div className="px-4 pb-4 space-y-4 border-t border-stone-100 pt-3">
           <p className="text-xs text-stone-400">Último cambio: {fechaCorta(paso.updatedAt)}</p>
 
+          {/* Responsable */}
+          <div>
+            <p className="text-xs font-semibold text-stone-500 mb-2 uppercase tracking-wide">Responsable</p>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setEsTercero(false)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${!esTercero ? 'bg-violet-100 text-violet-700 border-transparent' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'}`}>
+                  Interno
+                </button>
+                <button type="button" onClick={() => setEsTercero(true)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${esTercero ? 'bg-amber-100 text-amber-700 border-transparent' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'}`}>
+                  Tercero / Externo
+                </button>
+              </div>
+
+              {!esTercero && (
+                <select value={responsableId} onChange={(e) => setResponsableId(e.target.value)}
+                  className="w-full px-2.5 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400">
+                  <option value="">— Sin asignar —</option>
+                  {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                </select>
+              )}
+
+              {esTercero && (
+                <div className="space-y-2">
+                  <input type="text" value={terceroNombre} onChange={(e) => setTerceroNombre(e.target.value)}
+                    placeholder="Nombre del tercero / proveedor"
+                    className="w-full px-2.5 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+                  <div>
+                    <label className="text-xs text-stone-400 mb-0.5 block">Responsable interno que asume</label>
+                    <select value={responsableInternoId} onChange={(e) => setResponsableInternoId(e.target.value)}
+                      className="w-full px-2.5 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400">
+                      <option value="">— Sin asignar —</option>
+                      {usuarios.map((u) => <option key={u.id} value={u.id}>{u.nombre}</option>)}
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              <button onClick={guardarResponsable} disabled={savingResp}
+                className="text-xs bg-stone-800 hover:bg-stone-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg font-semibold transition">
+                {savingResp ? 'Guardando...' : 'Guardar responsable'}
+              </button>
+            </div>
+          </div>
+
+          {/* Observaciones */}
           <div>
             <label className="block text-xs font-semibold text-stone-500 mb-1.5">Observaciones</label>
             <textarea value={obs} onChange={(e) => setObs(e.target.value)} rows={2} placeholder="Agregar notas sobre este paso..." className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm resize-none focus:outline-none focus:border-violet-400" />
@@ -280,7 +370,7 @@ function PasoRow({ paso, proyectoId, onUpdate, preData, postData }: {
   );
 }
 
-export function TimelinePasos({ proyectoId, pasos }: Props) {
+export function TimelinePasos({ proyectoId, pasos, usuarios }: Props) {
   const router      = useRouter();
   const activos     = pasos.filter((p) => !p.saltado);
   const completados = activos.filter((p) => p.estado === 'completado').length;
@@ -323,6 +413,7 @@ export function TimelinePasos({ proyectoId, pasos }: Props) {
             paso={paso}
             proyectoId={proyectoId}
             onUpdate={() => router.refresh()}
+            usuarios={usuarios}
             preData={paso.nombrePaso  === 'ANÁLISIS DE ENCOGIMIENTO' ? preData  : undefined}
             postData={paso.nombrePaso === 'ANÁLISIS DE ENCOGIMIENTO' ? postData : undefined}
           />

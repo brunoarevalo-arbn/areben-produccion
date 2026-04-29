@@ -134,7 +134,16 @@ export interface PasoProyecto {
   datos?: string | null;
   fechaInicio?: string | null;
   fechaCompletado?: string | null;
+  responsableId?: string | null;
+  esTercero?: boolean;
+  terceroNombre?: string | null;
+  responsableInternoId?: string | null;
   updatedAt: string;
+}
+
+export interface UsuarioSimple {
+  id:     string;
+  nombre: string;
 }
 
 export interface ProyectoDiseno {
@@ -146,6 +155,7 @@ export interface ProyectoDiseno {
   inspiracion?: string | null;
   moodboard: string[];
   molderia?: string | null;
+  molderiaFormato?: string | null;
   tela?: string | null;
   costo: number;
   precioEstimado: number;

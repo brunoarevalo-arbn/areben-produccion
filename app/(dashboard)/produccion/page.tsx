@@ -1,4 +1,7 @@
 import Link from 'next/link';
+import { ColaAdmin } from '@/components/produccion/ColaAdmin';
+
+export const dynamic = 'force-dynamic';
 
 const ACCESOS = [
   {
@@ -19,14 +22,14 @@ const ACCESOS = [
 
 export default function ProduccionPage() {
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-8 max-w-4xl">
       <div className="mb-8">
         <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Módulo 2</span>
         <h1 className="text-2xl font-bold text-stone-900 mt-1">Control de Producción</h1>
-        <p className="text-stone-500 text-sm mt-1">Tiempos, reportes y métricas del taller.</p>
+        <p className="text-stone-500 text-sm mt-1">Cola de trabajo, tiempos y reportes del taller.</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
         {ACCESOS.map((a) => (
           <Link
             key={a.href}
@@ -38,6 +41,14 @@ export default function ProduccionPage() {
             <p className="text-stone-500 text-sm mt-1">{a.desc}</p>
           </Link>
         ))}
+      </div>
+
+      <div>
+        <h2 className="text-lg font-bold text-stone-900 mb-1">Cola de producción</h2>
+        <p className="text-stone-500 text-sm mb-5">
+          Agregá órdenes por SKU. Las costureras las ven en tiempo real y marcan cuando terminan.
+        </p>
+        <ColaAdmin />
       </div>
     </div>
   );
