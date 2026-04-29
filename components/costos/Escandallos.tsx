@@ -270,31 +270,43 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
                           className="text-stone-300 hover:text-red-400 transition text-xl shrink-0 leading-none">×</button>
                       )}
                     </div>
-                    <div className="grid grid-cols-5 gap-3">
+                    <div className="grid grid-cols-6 gap-3">
                       <div>
-                        <label className={lbl}>Precio/kg neto $</label>
+                        <label className={lbl}>Precio por kg $</label>
+                        <p className="text-xs text-stone-300 -mt-0.5 mb-1">precio de lista sin flete</p>
                         <input type="number" value={t.precioKgNeto || ''} onChange={e => updTela(i, 'precioKgNeto', e.target.value)}
                           placeholder="0" min="0" step="0.01" className={inp} />
                       </div>
                       <div>
                         <label className={lbl}>Flete %</label>
+                        <p className="text-xs text-stone-300 -mt-0.5 mb-1">% adicional sobre kg</p>
                         <input type="number" value={t.fletePercent || ''} onChange={e => updTela(i, 'fletePercent', e.target.value)}
                           placeholder="0" min="0" step="0.1" className={inp} />
                       </div>
                       <div>
-                        <label className={lbl}>Rinde m/kg</label>
+                        <label className={lbl}>Metros por kg</label>
+                        <p className="text-xs text-stone-300 -mt-0.5 mb-1">rendimiento de la tela</p>
                         <input type="number" value={t.rindeMetrosKg || ''} onChange={e => updTela(i, 'rindeMetrosKg', e.target.value)}
                           placeholder="0" min="0" step="0.01" className={inp} />
                       </div>
                       <div>
-                        <label className={lbl}>Consumo m</label>
+                        <label className={lbl}>Metros por prenda</label>
+                        <p className="text-xs text-stone-300 -mt-0.5 mb-1">consumo de esta tela</p>
                         <input type="number" value={t.consumoMetros || ''} onChange={e => updTela(i, 'consumoMetros', e.target.value)}
                           placeholder="0" min="0" step="0.01" className={inp} />
                       </div>
                       <div>
-                        <label className={lbl}>$/metro → costo</label>
-                        <div className="px-2.5 py-2 bg-white border border-stone-200 rounded-lg text-xs text-stone-600 tabular-nums">
-                          {fmt$(pMetro)} → <span className="font-bold text-violet-700">{fmt$(costoTela)}</span>
+                        <label className={lbl}>Precio por metro</label>
+                        <p className="text-xs text-stone-300 -mt-0.5 mb-1">calculado automático</p>
+                        <div className="px-2.5 py-2 bg-stone-100 border border-stone-200 rounded-lg text-sm text-stone-600 tabular-nums font-mono">
+                          {fmt$(pMetro)}
+                        </div>
+                      </div>
+                      <div>
+                        <label className={lbl}>Costo esta tela</label>
+                        <p className="text-xs text-stone-300 -mt-0.5 mb-1">precio/m × metros prenda</p>
+                        <div className="px-2.5 py-2 bg-violet-100 border border-violet-200 rounded-lg text-sm font-bold text-violet-700 tabular-nums font-mono">
+                          {fmt$(costoTela)}
                         </div>
                       </div>
                     </div>
