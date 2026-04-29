@@ -6,6 +6,7 @@ interface Orden {
   id: string;
   sku: string;
   descripcion: string | null;
+  marca: string;
   cantidad: number;
   estado: string;
   notas: string | null;
@@ -75,8 +76,9 @@ export function ColaCosturera() {
       {enProduccion.map((orden) => (
         <div key={orden.id} className="bg-emerald-900 border border-emerald-700 rounded-2xl px-4 py-3 flex items-center gap-3">
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono font-bold text-emerald-300 text-sm">{orden.sku}</span>
+              <span className="text-xs text-emerald-600">{orden.marca}</span>
               <span className="text-xs bg-emerald-700 text-emerald-200 px-1.5 py-0.5 rounded-full font-semibold">En curso</span>
             </div>
             {orden.descripcion && <p className="text-xs text-emerald-400 mt-0.5 truncate">{orden.descripcion}</p>}

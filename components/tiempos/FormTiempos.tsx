@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TiemposProduccion } from '@/types/tiempos';
 
 interface FormTiemposProps {
@@ -8,6 +8,15 @@ interface FormTiemposProps {
   tareaEnCurso: any | null;
   onGuardar: (tiempo: TiemposProduccion) => Promise<unknown>;
   loading: boolean;
+}
+
+interface OrdenActiva {
+  id:          string;
+  sku:         string;
+  descripcion: string | null;
+  marca:       string;
+  cantidad:    number;
+  estado:      string;
 }
 
 const ACTIVIDADES: { label: string; icon: string; color: string }[] = [
@@ -19,16 +28,32 @@ const ACTIVIDADES: { label: string; icon: string; color: string }[] = [
   { label: 'Cambio Hilo',        icon: '🧵', color: 'bg-yellow-50 border-yellow-400 text-yellow-800' },
 ];
 
-const MARCAS   = ['Zattia', 'Stunned', 'BDI'];
 const MAQUINAS = ['Recta', 'Collareta', 'Remalladora', 'Cadeneta', 'Cortacollareta'];
 
+const LIBRE_ID = '__libre__';
+
 export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormTiemposProps) {
-  const [actividad, setActividad] = useState('');
-  const [marca,     setMarca]     = useState('Zattia');
-  const [maquina,   setMaquina]   = useState('');
-  const [sku,       setSku]       = useState('');
-  const [cantidad,  setCantidad]  = useState('1');
-  const [defectos,  setDefectos]  = useState('0');
+  const [actividad,  setActividad]  = useState('');
+  const [ordenId,    setOrdenId]    = useState('');
+  const [maquina,    setMaquina]    = useState('');
+  const [cantidad,   setCantidad]   = useState('1');
+  const [defectos,   setDefectos]   = useState('0');
+  const [ordenes,    setOrdenes]    = useState<OrdenActiva[]>([]);
+  const [loadingQ,   setLoadingQ]   = useState(true);
+
+  const cargarCola = useCallback(async () => {
+    setLoadingQ(true);
+    try {
+      const r = await fetch('/api/produccion/cola?soloActivas=1');
+      if (r.ok) setOrdenes(await r.json());
+    } finally {
+      setLoadingQ(false);
+    }
+  }, []);
+
+  useEffect(() => { cargarCola(); }, [cargarCola]);
+
+  const ordenSeleccionada = ordenes.find((o) => o.id === ordenId) ?? null;
 
   const handleGuardar = async () => {
     if (!actividad) return;
@@ -37,13 +62,13 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
       usuario,
       actividad,
       fecha: new Date().toISOString().split('T')[0],
-      marca:      marca || undefined,
-      maquina:    maquina || undefined,
-      sku:        sku || undefined,
-      cantidad:   parseInt(cantidad) || 0,
-      defectos:   parseInt(defectos) || 0,
-      horaInicio: tareaEnCurso?.horaInicio?.toTimeString()?.split(' ')[0],
-      horaFin:    tareaEnCurso?.horaFin?.toTimeString()?.split(' ')[0],
+      marca:        ordenSeleccionada?.marca        || undefined,
+      maquina:      maquina                         || undefined,
+      sku:          ordenSeleccionada?.sku           || undefined,
+      cantidad:     parseInt(cantidad) || 0,
+      defectos:     parseInt(defectos) || 0,
+      horaInicio:   tareaEnCurso?.horaInicio?.toTimeString()?.split(' ')[0],
+      horaFin:      tareaEnCurso?.horaFin?.toTimeString()?.split(' ')[0],
       minutosNetos: tareaEnCurso?.minutosNetos || 0,
       estado: 'guardado',
     };
@@ -51,9 +76,8 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
     try {
       await onGuardar(tiempo);
       setActividad('');
-      setMarca('Zattia');
+      setOrdenId('');
       setMaquina('');
-      setSku('');
       setCantidad('1');
       setDefectos('0');
     } catch {
@@ -63,8 +87,9 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
 
   return (
     <div className="p-4 space-y-4">
-      <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Actividad</p>
 
+      {/* Actividad */}
+      <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Actividad</p>
       <div className="grid grid-cols-2 gap-2">
         {ACTIVIDADES.map(({ label, icon, color }) => (
           <button
@@ -82,18 +107,69 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-bold text-stone-500 mb-1 uppercase tracking-wide">Marca</label>
-          <select
-            value={marca}
-            onChange={(e) => setMarca(e.target.value)}
-            className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white text-stone-800 focus:outline-none focus:border-amber-400"
-          >
-            {MARCAS.map((m) => <option key={m}>{m}</option>)}
-          </select>
+      {/* Cola de producción como selector de SKU */}
+      <div>
+        <div className="flex items-center justify-between mb-2">
+          <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Orden / SKU</p>
+          <button onClick={cargarCola} className="text-xs text-stone-400 hover:text-stone-600 transition">
+            Actualizar
+          </button>
         </div>
 
+        {loadingQ ? (
+          <p className="text-xs text-stone-400 py-2">Cargando cola...</p>
+        ) : (
+          <div className="space-y-1.5">
+            {ordenes.map((orden) => (
+              <button
+                key={orden.id}
+                onClick={() => setOrdenId(ordenId === orden.id ? '' : orden.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all active:scale-95 ${
+                  ordenId === orden.id
+                    ? 'bg-amber-50 border-amber-400'
+                    : 'bg-white border-stone-200 hover:border-stone-300'
+                }`}
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono font-bold text-sm text-stone-800">{orden.sku}</span>
+                    <span className="text-xs text-stone-400">{orden.marca}</span>
+                    {orden.estado === 'en_produccion' && (
+                      <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">En curso</span>
+                    )}
+                  </div>
+                  {orden.descripcion && (
+                    <p className="text-xs text-stone-500 truncate mt-0.5">{orden.descripcion}</p>
+                  )}
+                </div>
+                <span className="text-xs text-stone-400 shrink-0">×{orden.cantidad}</span>
+                {ordenId === orden.id && (
+                  <span className="text-amber-500 text-base shrink-0">✓</span>
+                )}
+              </button>
+            ))}
+
+            {ordenes.length === 0 && (
+              <p className="text-xs text-stone-400 italic py-1">Sin órdenes activas en la cola</p>
+            )}
+
+            {/* Opción libre (sin orden) */}
+            <button
+              onClick={() => setOrdenId(ordenId === LIBRE_ID ? '' : LIBRE_ID)}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border-2 text-left transition-all active:scale-95 ${
+                ordenId === LIBRE_ID
+                  ? 'bg-stone-100 border-stone-400'
+                  : 'bg-white border-dashed border-stone-200 hover:border-stone-300'
+              }`}
+            >
+              <span className="text-xs text-stone-400 font-medium">Sin orden — trabajo libre</span>
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Resto del formulario */}
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-bold text-stone-500 mb-1 uppercase tracking-wide">Máquina</label>
           <select
@@ -104,17 +180,6 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
             <option value="">— Opcional —</option>
             {MAQUINAS.map((m) => <option key={m}>{m}</option>)}
           </select>
-        </div>
-
-        <div>
-          <label className="block text-xs font-bold text-stone-500 mb-1 uppercase tracking-wide">SKU</label>
-          <input
-            type="text"
-            value={sku}
-            onChange={(e) => setSku(e.target.value)}
-            placeholder="ej: ZATT-TOP-001"
-            className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white text-stone-800 placeholder-stone-300 focus:outline-none focus:border-amber-400"
-          />
         </div>
 
         <div>

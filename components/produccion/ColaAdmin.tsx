@@ -6,6 +6,7 @@ interface Orden {
   id: string;
   sku: string;
   descripcion: string | null;
+  marca: string;
   cantidad: number;
   estado: string;
   notas: string | null;
@@ -13,6 +14,8 @@ interface Orden {
   terminadoAt: string | null;
   createdAt: string;
 }
+
+const MARCAS = ['Zattia', 'Stunned', 'BDI'];
 
 const ESTADO_LABEL: Record<string, string> = {
   pendiente:     'Pendiente',
@@ -40,6 +43,7 @@ export function ColaAdmin() {
 
   const [sku,         setSku]         = useState('');
   const [descripcion, setDescripcion] = useState('');
+  const [marca,       setMarca]       = useState('Zattia');
   const [cantidad,    setCantidad]    = useState('1');
   const [notas,       setNotas]       = useState('');
   const [saving,      setSaving]      = useState(false);
@@ -62,14 +66,14 @@ export function ColaAdmin() {
     const r = await fetch('/api/produccion/cola', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku, descripcion, cantidad, notas }),
+      body: JSON.stringify({ sku, descripcion, marca, cantidad, notas }),
     });
     const data = await r.json();
     if (!r.ok) {
       setError(data.error || 'Error al crear');
     } else {
       setOrdenes((prev) => [data, ...prev]);
-      setSku(''); setDescripcion(''); setCantidad('1'); setNotas('');
+      setSku(''); setDescripcion(''); setMarca('Zattia'); setCantidad('1'); setNotas('');
       setShowForm(false);
     }
     setSaving(false);
@@ -147,7 +151,10 @@ export function ColaAdmin() {
               </span>
 
               <div className="min-w-0">
-                <p className="text-sm text-stone-800 font-medium truncate">{orden.descripcion || '—'}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-stone-800 font-medium truncate">{orden.descripcion || '—'}</p>
+                  <span className="text-xs text-stone-400 shrink-0">{orden.marca}</span>
+                </div>
                 {orden.notas && <p className="text-xs text-stone-400 truncate">{orden.notas}</p>}
                 <p className="text-xs text-stone-400">{fechaCorta(orden.createdAt)} · por {orden.creadoPor}</p>
               </div>
@@ -205,6 +212,12 @@ export function ColaAdmin() {
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">SKU <span className="text-red-400">*</span></label>
                 <input type="text" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())}
                   placeholder="Ej: ZATT-TOP-001" className={inputClass} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Marca</label>
+                <select value={marca} onChange={(e) => setMarca(e.target.value)} className={inputClass}>
+                  {MARCAS.map((m) => <option key={m}>{m}</option>)}
+                </select>
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad</label>

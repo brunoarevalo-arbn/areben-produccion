@@ -249,6 +249,7 @@ model OrdenProduccion {
   id          String    @id @default(cuid())
   sku         String
   descripcion String?
+  marca       String    @default("Zattia")
   cantidad    Int       @default(1)
   estado      String    @default("pendiente")
   notas       String?

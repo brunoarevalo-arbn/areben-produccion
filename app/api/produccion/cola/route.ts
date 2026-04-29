@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json();
-  const { sku, descripcion, cantidad, notas } = body;
+  const { sku, descripcion, marca, cantidad, notas } = body;
 
   if (!sku?.trim()) {
     return NextResponse.json({ error: 'El SKU es obligatorio' }, { status: 400 });
@@ -42,11 +42,12 @@ export async function POST(req: NextRequest) {
 
   const orden = await prisma.ordenProduccion.create({
     data: {
-      sku:        sku.trim().toUpperCase(),
+      sku:         sku.trim().toUpperCase(),
       descripcion: descripcion?.trim() || null,
-      cantidad:   Math.max(1, parseInt(cantidad) || 1),
-      notas:      notas?.trim() || null,
-      creadoPor:  session.nombre,
+      marca:       marca?.trim()       || 'Zattia',
+      cantidad:    Math.max(1, parseInt(cantidad) || 1),
+      notas:       notas?.trim()       || null,
+      creadoPor:   session.nombre,
     },
   });
 
