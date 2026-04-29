@@ -1,7 +1,6 @@
-// app/api/tiempos/route.ts
-
 import { NextRequest, NextResponse } from 'next/server';
 import { TiempoSchema } from '@/lib/validators/tiempos';
+import { prisma } from '@/lib/prisma';
 import { ZodError } from 'zod';
 
 export async function GET(req: NextRequest) {
@@ -14,9 +13,13 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Usuario requerido' }, { status: 400 });
     }
 
-    // Por ahora retorna array vacío (sin DB)
-    // Cuando conectemos Supabase, aquí haremos la query
-    const tiempos = [];
+    const tiempos = await prisma.tiemposProduccion.findMany({
+      where: {
+        usuario,
+        ...(fecha ? { fecha } : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+    });
 
     return NextResponse.json(tiempos);
   } catch (error) {
@@ -30,17 +33,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const validated = TiempoSchema.parse(body);
 
-    // Por ahora solo validamos y retornamos
-    // Cuando conectemos Supabase, aquí guardamos en DB
-    const tiempo = {
-      id: `tiempo-${Date.now()}`,
-      ...validated,
-    };
+    const tiempo = await prisma.tiemposProduccion.create({
+      data: validated,
+    });
 
     return NextResponse.json(tiempo, { status: 201 });
   } catch (error) {
     if (error instanceof ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      return NextResponse.json({ error: error.issues }, { status: 400 });
     }
     console.error('Error:', error);
     return NextResponse.json({ error: 'Error creating tiempo' }, { status: 500 });

@@ -15,7 +15,7 @@ export function useTiempos(usuario: string) {
   const [error, setError] = useState<string | null>(null);
 
   const horaInicioRef = useRef<Date | null>(null);
-  const cronometroIntervalRef = useRef<NodeJS.Timeout>();
+  const cronometroIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   // Cargar datos al iniciar
   useEffect(() => {

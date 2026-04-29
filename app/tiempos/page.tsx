@@ -1,114 +1,118 @@
-// app/tiempos/page.tsx
-
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useTiempos } from '@/lib/hooks/useTiempos';
+import { Cronometro } from '@/components/tiempos/Cronometro';
+import { LogRegistros } from '@/components/tiempos/LogRegistros';
+import { FormTiempos } from '@/components/tiempos/FormTiempos';
+
+interface SessionUser {
+  id: string;
+  nombre: string;
+  username: string;
+  rol: 'admin' | 'costurera';
+}
 
 export default function TiemposPage() {
-  const [usuario, setUsuario] = useState<string | null>(null);
-  const [nombreInput, setNombreInput] = useState('');
-  const tiempos = useTiempos(usuario || '');
+  const [usuario, setUsuario] = useState<SessionUser | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  const tiempos = useTiempos(usuario?.nombre ?? '');
 
   useEffect(() => {
-    const sesion = sessionStorage.getItem('costurera');
-    if (sesion) {
-      setUsuario(sesion);
-    }
-  }, []);
+    fetch('/api/auth/me')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d.user) setUsuario(d.user);
+        else router.push('/login');
+      })
+      .catch(() => router.push('/login'))
+      .finally(() => setLoading(false));
+  }, [router]);
 
-  const handleLogin = () => {
-    if (nombreInput.trim()) {
-      sessionStorage.setItem('costurera', nombreInput);
-      setUsuario(nombreInput);
-    }
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' });
+    router.push('/login');
   };
 
-  const handleLogout = () => {
-    sessionStorage.removeItem('costurera');
-    setUsuario(null);
-    setNombreInput('');
-  };
-
-  if (!usuario) {
+  if (loading || !usuario) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white">
-        <div className="text-center">
-          <h1 className="text-4xl font-bold text-blue-900 mb-4">⚙️ Areben v2.0</h1>
-          <p className="text-gray-600 mb-8">Control de Producción</p>
-          <input
-            type="text"
-            value={nombreInput}
-            onChange={(e) => setNombreInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
-            placeholder="Tu nombre"
-            autoFocus
-            className="px-4 py-2 border-2 border-gray-300 rounded-lg mb-4 w-80 text-lg"
-          />
-          <button
-            onClick={handleLogin}
-            className="block w-80 bg-blue-900 text-white py-3 rounded-lg font-bold uppercase"
-          >
-            Comenzar
-          </button>
-        </div>
+      <div className="flex h-screen items-center justify-center bg-stone-900">
+        <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
       </div>
     );
   }
 
+  const fecha = new Date().toLocaleDateString('es-AR', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-stone-50">
+
       {/* Header */}
-      <header className="bg-gradient-to-r from-blue-900 to-blue-700 text-white p-4 shadow-lg">
-        <h1 className="text-2xl font-bold">⚙️ Areben v2.0</h1>
-        <div className="text-sm mt-1">
-          <span>{usuario}</span> • <span>{new Date().toLocaleDateString('es-AR')}</span>
+      <header className="bg-stone-900 px-4 py-3 flex items-center justify-between shrink-0">
+        <div>
+          <p className="text-amber-400 text-xs font-bold uppercase tracking-widest">Areben</p>
+          <p className="text-white font-semibold text-sm leading-tight">{usuario.nombre}</p>
+          <p className="text-stone-400 text-xs capitalize">{fecha}</p>
+        </div>
+        <div className="flex items-center gap-2">
+          {usuario.rol === 'admin' && (
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="text-stone-400 hover:text-white text-xs border border-stone-700 hover:border-stone-500 px-3 py-1.5 rounded-lg transition"
+            >
+              Dashboard
+            </button>
+          )}
           <button
             onClick={handleLogout}
-            className="float-right bg-red-600 text-white px-3 py-1 rounded text-xs font-bold"
+            className="text-stone-400 hover:text-white text-xs border border-stone-700 hover:border-stone-500 px-3 py-1.5 rounded-lg transition"
           >
             Salir
           </button>
         </div>
       </header>
 
-      {/* Content */}
+      {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Log Area */}
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-          {tiempos.registros.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">
-              Los registros aparecerán aquí ↓
-            </div>
-          ) : (
-            tiempos.registros.map((reg) => (
-              <div
-                key={reg.id}
-                className="bg-white rounded-lg p-4 mb-3 border-l-4 border-blue-900 shadow-sm"
-              >
-                <div className="font-bold text-gray-800">{reg.actividad}</div>
-                <div className="text-sm text-gray-600">
-                  {reg.sku || ''} | {reg.cantidad ? `${reg.cantidad} prendas` : ''}
-                </div>
-                <div className="text-xs text-gray-500 mt-2">
-                  {reg.horaInicio} → {reg.horaFin} | {reg.minutosNetos.toFixed(1)} min
-                </div>
-              </div>
-            ))
-          )}
+
+        {/* Cronómetro */}
+        <div className="px-4 pt-4 pb-2 shrink-0">
+          <Cronometro
+            tiempoDisplay={tiempos.tiempoDisplay}
+            activo={tiempos.cronometroActivo}
+            onIniciar={tiempos.iniciarTarea}
+            onDetener={tiempos.terminarTarea}
+          />
         </div>
 
-        {/* Form Area */}
-        <div className="bg-white border-t border-gray-200 p-4 max-h-96 overflow-y-auto">
-          <p className="text-center text-gray-600">
-            {tiempos.loading ? 'Cargando...' : 'Formulario de tiempos'}
+        {tiempos.error && (
+          <div className="mx-4 bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl">
+            {tiempos.error}
+          </div>
+        )}
+
+        {/* Log */}
+        <div className="flex-1 overflow-y-auto px-4 py-2">
+          <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">
+            Registros de hoy
           </p>
-          {tiempos.error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-              {tiempos.error}
-            </div>
-          )}
+          <LogRegistros registros={tiempos.registros} loading={tiempos.loading} />
         </div>
+
+        {/* Formulario */}
+        <div className="bg-white border-t border-stone-200 overflow-y-auto max-h-[55vh] shrink-0">
+          <FormTiempos
+            usuario={usuario.nombre}
+            tareaEnCurso={tiempos.tareaEnCurso}
+            onGuardar={tiempos.guardarRegistro}
+            loading={tiempos.loading}
+          />
+        </div>
+
       </div>
     </div>
   );

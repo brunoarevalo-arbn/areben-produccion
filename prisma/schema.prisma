@@ -1,31 +1,241 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model TiemposProduccion {
-  id            String    @id @default(cuid())
-  usuario       String
-  actividad     String
-  fecha         String
-  marca         String?
-  maquina       String?
-  sku           String?
-  cantidad      Int       @default(0)
-  defectos      Int       @default(0)
-  horaInicio    String?
-  horaFin       String?
-  minutosNetos  Float     @default(0)
-  estado        String    @default("pendiente")
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String   @id @default(cuid())
+  usuario      String
+  actividad    String
+  fecha        String
+  marca        String?
+  maquina      String?
+  sku          String?
+  cantidad     Int      @default(0)
+  defectos     Int      @default(0)
+  horaInicio   String?
+  horaFin      String?
+  minutosNetos Float    @default(0)
+  estado       String   @default("pendiente")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   @@map("tiempos_produccion")
+}
+
+model Producto {
+  id          String            @id @default(cuid())
+  nombre      String
+  descripcion String?
+  molderia    String?
+  tela        String?
+  colores     String?
+  costoTela   Float             @default(0)
+  costoMO     Float             @default(0)
+  costoTotal  Float             @default(0)
+  estado      String            @default("borrador")
+  marca       String?
+  temporada   String?
+  fotos       Foto[]
+  historial   HistorialDiseno[]
+  stock       Stock?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("productos")
+}
+
+model Foto {
+  id         String   @id @default(cuid())
+  url        String
+  nombre     String?
+  productoId String
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@map("fotos")
+}
+
+model HistorialDiseno {
+  id         String   @id @default(cuid())
+  productoId String
+  producto   Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  version    Int
+  cambios    String?
+  snapshot   String
+  creadoPor  String
+  createdAt  DateTime @default(now())
+
+  @@map("historial_diseno")
+}
+
+model Stock {
+  id               String   @id @default(cuid())
+  productoId       String   @unique
+  producto         Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
+  cantidadDeposito Int      @default(0)
+  cantidadLocal    Int      @default(0)
+  stockMinimo      Int      @default(5)
+  precioVenta      Float    @default(0)
+  updatedAt        DateTime @updatedAt
+
+  @@map("stock")
+}
+
+model MovimientoStock {
+  id         String   @id @default(cuid())
+  productoId String
+  tipo       String
+  cantidad   Int
+  nota       String?
+  creadoPor  String   @default("sistema")
+  createdAt  DateTime @default(now())
+
+  @@map("movimientos_stock")
+}
+
+model ProyectoDiseno {
+  id               String             @id @default(cuid())
+  nombre           String
+  marca            String
+  estado           String             @default("activo")
+  estadoDiseno     String             @default("inspiracion")
+  inspiracion      String?
+  moodboard        String?
+  molderia         String?
+  tela             String?
+  costo            Float              @default(0)
+  precioEstimado   Float              @default(0)
+  estadoProduccion String?
+  cantidad         Int                @default(0)
+  pasos            ProyectoPaso[]
+  iteraciones      IteracionMuestra[]
+  ideas            IdeaDiseno[]
+  insumos          ProyectoInsumo[]
+  skus             SKUProyecto[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  @@map("proyectos_diseno")
+}
+
+model ProyectoPaso {
+  id              String         @id @default(cuid())
+  proyectoId      String
+  proyecto        ProyectoDiseno @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  numeroPaso      Int
+  nombrePaso      String
+  estado          String         @default("pendiente")
+  saltado         Boolean        @default(false)
+  observaciones   String?
+  datos           String?
+  fechaInicio     DateTime?
+  fechaCompletado DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@map("proyecto_pasos")
+}
+
+model IteracionMuestra {
+  id         String         @id @default(cuid())
+  proyectoId String
+  proyecto   ProyectoDiseno @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  version    Int
+  tipo       String         @default("muestra")
+  estado     String         @default("en_confeccion")
+  fotos      String?
+  notas      String?
+  ajustes    AjusteMuestra[]
+  insumos    InsumoMuestra[]
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@map("iteraciones_muestra")
+}
+
+model AjusteMuestra {
+  id             String           @id @default(cuid())
+  iteracionId    String
+  iteracion      IteracionMuestra @relation(fields: [iteracionId], references: [id], onDelete: Cascade)
+  descripcion    String
+  estado         String           @default("pendiente")
+  fechaRealizado DateTime?
+  createdAt      DateTime         @default(now())
+
+  @@map("ajustes_muestra")
+}
+
+model InsumoMuestra {
+  id          String           @id @default(cuid())
+  iteracionId String
+  iteracion   IteracionMuestra @relation(fields: [iteracionId], references: [id], onDelete: Cascade)
+  nombre      String
+  cantidad    Float            @default(1)
+  unidad      String?
+  costo       Float            @default(0)
+  notas       String?
+
+  @@map("insumos_muestra")
+}
+
+model ProyectoInsumo {
+  id            String         @id @default(cuid())
+  proyectoId    String
+  proyecto      ProyectoDiseno @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  nombre        String
+  tipo          String?
+  proveedor     String?
+  unidad        String         @default("m")
+  cantidad      Float          @default(0)
+  costoUnitario Float          @default(0)
+  notas         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("proyecto_insumos")
+}
+
+model IdeaDiseno {
+  id          String         @id @default(cuid())
+  proyectoId  String
+  proyecto    ProyectoDiseno @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  titulo      String?
+  descripcion String
+  foto        String?
+  etiquetas   String?
+  createdAt   DateTime       @default(now())
+
+  @@map("ideas_diseno")
+}
+
+model SKUProyecto {
+  id         String         @id @default(cuid())
+  proyectoId String
+  proyecto   ProyectoDiseno @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  codigo     String
+  talle      String?
+  color      String?
+  cantidad   Int            @default(0)
+  notas      String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  @@map("skus_proyecto")
+}
+
+model Usuario {
+  id           String   @id @default(cuid())
+  nombre       String
+  username     String   @unique
+  passwordHash String
+  rol          String   @default("admin")
+  activo       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("usuarios")
 }
