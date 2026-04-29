@@ -2,6 +2,8 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { ProyectosLista } from '@/components/diseno/ProyectosLista';
 
+export const dynamic = 'force-dynamic';
+
 export default async function DisenoPage() {
   const proyectos = await prisma.proyectoDiseno.findMany({
     include: {

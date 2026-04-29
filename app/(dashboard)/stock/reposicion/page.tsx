@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { necesitaReposicion } from '@/lib/utils/calculos';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ReposicionPage() {
   const alertas = await prisma.stock.findMany({
     include: { producto: { select: { id: true, nombre: true, marca: true } } },

@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { ProyectoView } from '@/components/diseno/ProyectoView';
 import type { ProyectoDiseno } from '@/types/diseno';
 
+export const dynamic = 'force-dynamic';
+
 export default async function ProyectoPage({
   params,
 }: {

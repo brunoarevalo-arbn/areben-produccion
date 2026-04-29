@@ -4,6 +4,8 @@ import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { UsuariosManager } from '@/components/configuracion/UsuariosManager';
 
+export const dynamic = 'force-dynamic';
+
 export default async function UsuariosPage() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
