@@ -29,6 +29,15 @@ const NAV = [
     ],
   },
   {
+    label: 'Costos',
+    href: '/costos',
+    icon: '💰',
+    sub: [
+      { label: 'Productividad',  href: '/costos' },
+      { label: 'Escandallos',    href: '/costos#escandallos' },
+    ],
+  },
+  {
     label: 'Configuración',
     href: '/configuracion',
     icon: '⚙',

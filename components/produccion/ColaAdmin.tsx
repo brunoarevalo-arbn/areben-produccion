@@ -15,7 +15,7 @@ interface Orden {
   createdAt: string;
 }
 
-const MARCAS = ['Zattia', 'Stunned', 'BDI'];
+const MARCAS = ['Zattia', 'Stunned'];
 
 const ESTADO_LABEL: Record<string, string> = {
   pendiente:     'Pendiente',

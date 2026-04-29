@@ -245,6 +245,58 @@ model Usuario {
   @@map("usuarios")
 }
 
+model GastoFijoTaller {
+  id          String   @id @default(cuid())
+  nombre      String
+  monto       Float    @default(0)
+  categoria   String   @default("otro")
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("gastos_fijos_taller")
+}
+
+model CostoCosturera {
+  id              String   @id @default(cuid())
+  usuarioId       String   @unique
+  sueldoBruto     Float    @default(0)
+  cargasSociales  Float    @default(0)
+  horasMes        Float    @default(160)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("costos_costureras")
+}
+
+model Escandallo {
+  id          String               @id @default(cuid())
+  nombre      String
+  sku         String?
+  marca       String?
+  proyectoId  String?
+  notas       String?
+  margen      Float                @default(2.5)
+  materiales  EscandalloMaterial[]
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@map("escandallos")
+}
+
+model EscandalloMaterial {
+  id           String     @id @default(cuid())
+  escandalloId String
+  escandallo   Escandallo @relation(fields: [escandalloId], references: [id], onDelete: Cascade)
+  nombre       String
+  cantidad     Float      @default(1)
+  unidad       String     @default("m")
+  costoUnitario Float     @default(0)
+  orden        Int        @default(0)
+
+  @@map("escandallo_materiales")
+}
+
 model OrdenProduccion {
   id          String    @id @default(cuid())
   sku         String

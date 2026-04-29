@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ProductoInput } from '@/types/diseno';
 import { calcularPrecioVenta, MARGEN_DEFAULT } from '@/lib/utils/calculos';
 
-const MARCAS     = ['Zattia', 'Stunned', 'BDI'];
+const MARCAS     = ['Zattia', 'Stunned'];
 const TELAS      = ['Algodón', 'Poliéster', 'Lino', 'Seda', 'Denim', 'Lycra', 'Modal', 'Otro'];
 const MOLDERIAS  = ['Base recta', 'Base entallada', 'Base evasé', 'Moldería propia', 'Otro'];
 const TEMPORADAS = ['Verano 2025', 'Invierno 2025', 'Verano 2026', 'Invierno 2026'];
