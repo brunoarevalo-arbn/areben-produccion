@@ -20,6 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const data: Record<string, unknown> = {};
 
   if (body.nombre)    data.nombre = body.nombre.trim();
+  if (body.username)  data.username = body.username.trim().toLowerCase();
   if (body.password)  data.passwordHash = await hashPassword(body.password);
   if (body.rol)       data.rol = body.rol === 'costurera' ? 'costurera' : 'admin';
   if (typeof body.activo === 'boolean') data.activo = body.activo;

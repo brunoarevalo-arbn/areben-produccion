@@ -22,12 +22,23 @@ const ROL_LABEL: Record<string, string> = {
   costurera: 'Costurera',
 };
 
+function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1.5">
+        <label className="text-xs font-semibold text-stone-600">{label}</label>
+        {hint && <span className="text-xs text-stone-400">{hint}</span>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
 export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usuario[]; sesionId: string }) {
   const router = useRouter();
   const [usuarios, setUsuarios] = useState(inicial);
   const [showForm, setShowForm] = useState(false);
 
-  // New user form
   const [nombre,   setNombre]   = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -35,9 +46,9 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
 
-  // Edit state
   const [editId,       setEditId]       = useState<string | null>(null);
   const [editNombre,   setEditNombre]   = useState('');
+  const [editUsername, setEditUsername] = useState('');
   const [editPassword, setEditPassword] = useState('');
   const [editRol,      setEditRol]      = useState<'admin' | 'costurera'>('admin');
   const [editActivo,   setEditActivo]   = useState(true);
@@ -74,6 +85,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
   const openEdit = (u: Usuario) => {
     setEditId(u.id);
     setEditNombre(u.nombre);
+    setEditUsername(u.username);
     setEditPassword('');
     setEditRol(u.rol as 'admin' | 'costurera');
     setEditActivo(u.activo);
@@ -85,7 +97,12 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
     if (!editId) return;
     setEditSaving(true);
     setEditError('');
-    const body: Record<string, unknown> = { nombre: editNombre, rol: editRol, activo: editActivo };
+    const body: Record<string, unknown> = {
+      nombre:   editNombre,
+      username: editUsername,
+      rol:      editRol,
+      activo:   editActivo,
+    };
     if (editPassword.trim()) body.password = editPassword;
     try {
       const res = await fetch(`/api/usuarios/${editId}`, {
@@ -124,27 +141,53 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
     }
   };
 
+  const inputClass = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400';
+
   return (
     <div className="max-w-2xl space-y-6">
+
       {/* User list */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        {/* Header */}
+        <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[1fr_1fr_auto] gap-4">
+          <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Nombre</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Usuario de ingreso</span>
+          <span />
+        </div>
+
         {usuarios.map((u, i) => (
-          <div key={u.id} className={`px-5 py-4 flex items-center gap-4 ${i !== 0 ? 'border-t border-stone-100' : ''}`}>
-            <div className="w-9 h-9 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 font-bold text-sm shrink-0">
-              {u.nombre.charAt(0).toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="font-semibold text-stone-900 text-sm">{u.nombre}</p>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${ROL_BADGE[u.rol] ?? 'bg-stone-100 text-stone-500'}`}>
-                  {ROL_LABEL[u.rol] ?? u.rol}
-                </span>
-                {!u.activo && (
-                  <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-600 font-semibold">Inactivo</span>
-                )}
+          <div
+            key={u.id}
+            className={`px-5 py-4 grid grid-cols-[1fr_1fr_auto] gap-4 items-center ${i !== 0 ? 'border-t border-stone-100' : ''} ${!u.activo ? 'opacity-50' : ''}`}
+          >
+            {/* Nombre */}
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 font-bold text-sm shrink-0">
+                {u.nombre.charAt(0).toUpperCase()}
               </div>
-              <p className="text-xs text-stone-400 mt-0.5">@{u.username}</p>
+              <div className="min-w-0">
+                <p className="font-semibold text-stone-900 text-sm truncate">{u.nombre}</p>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${ROL_BADGE[u.rol] ?? 'bg-stone-100 text-stone-500'}`}>
+                    {ROL_LABEL[u.rol] ?? u.rol}
+                  </span>
+                  {!u.activo && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-500 font-semibold">Inactivo</span>
+                  )}
+                </div>
+              </div>
             </div>
+
+            {/* Username */}
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1.5">
+                <span className="text-stone-400 text-xs font-mono">@</span>
+                <span className="text-stone-700 text-sm font-mono font-semibold">{u.username}</span>
+              </div>
+              <p className="text-xs text-stone-400 mt-1">Ingresa con este usuario</p>
+            </div>
+
+            {/* Actions */}
             <div className="flex gap-2 shrink-0">
               <button
                 onClick={() => openEdit(u)}
@@ -163,6 +206,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
             </div>
           </div>
         ))}
+
         {usuarios.length === 0 && (
           <div className="px-5 py-10 text-center text-stone-400 text-sm">Sin usuarios</div>
         )}
@@ -181,61 +225,48 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
       {/* New user form */}
       {showForm && (
         <div className="bg-white rounded-2xl border border-stone-200 p-5">
-          <h3 className="text-sm font-bold text-stone-800 mb-4">Nuevo usuario</h3>
-          <form onSubmit={handleCreate} className="space-y-3">
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              placeholder="Nombre completo"
-              className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400"
-            />
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Usuario (ej: maria)"
-              autoCapitalize="none"
-              className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400"
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Contraseña"
-              className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400"
-            />
-            <div>
-              <label className="block text-xs font-semibold text-stone-600 mb-1.5">Rol</label>
+          <h3 className="text-sm font-bold text-stone-800 mb-5">Nuevo usuario</h3>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <Field label="Nombre completo" hint="Se muestra en el sistema">
+              <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
+                placeholder="Ej: María García" className={inputClass} />
+            </Field>
+
+            <Field label="Usuario de ingreso" hint="Con esto entra al sistema">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm font-mono">@</span>
+                <input type="text" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                  placeholder="maria" autoCapitalize="none"
+                  className={`${inputClass} pl-7 font-mono`} />
+              </div>
+            </Field>
+
+            <Field label="Contraseña">
+              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+                placeholder="Mínimo 6 caracteres" className={inputClass} />
+            </Field>
+
+            <Field label="Rol">
               <div className="flex gap-2">
                 {(['costurera', 'admin'] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setRol(r)}
+                  <button key={r} type="button" onClick={() => setRol(r)}
                     className={`px-4 py-2 rounded-lg text-xs font-semibold border transition ${
                       rol === r ? `${ROL_BADGE[r]} border-transparent` : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'
-                    }`}
-                  >
+                    }`}>
                     {ROL_LABEL[r]}
                   </button>
                 ))}
               </div>
-            </div>
+            </Field>
+
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex-1 bg-stone-900 hover:bg-stone-800 text-white py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50"
-              >
+              <button type="submit" disabled={saving}
+                className="flex-1 bg-stone-900 hover:bg-stone-800 text-white py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50">
                 {saving ? 'Creando...' : 'Crear usuario'}
               </button>
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); setError(''); }}
-                className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition"
-              >
+              <button type="button" onClick={() => { setShowForm(false); setError(''); }}
+                className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
                 Cancelar
               </button>
             </div>
@@ -246,63 +277,57 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
       {/* Edit user form */}
       {editId && (
         <div className="bg-white rounded-2xl border border-violet-200 p-5">
-          <h3 className="text-sm font-bold text-stone-800 mb-4">Editar usuario</h3>
-          <form onSubmit={handleEdit} className="space-y-3">
-            <input
-              type="text"
-              value={editNombre}
-              onChange={(e) => setEditNombre(e.target.value)}
-              placeholder="Nombre completo"
-              className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400"
-            />
-            <input
-              type="password"
-              value={editPassword}
-              onChange={(e) => setEditPassword(e.target.value)}
-              placeholder="Nueva contraseña (dejar vacío para no cambiar)"
-              className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400"
-            />
-            <div>
-              <label className="block text-xs font-semibold text-stone-600 mb-1.5">Rol</label>
+          <h3 className="text-sm font-bold text-stone-800 mb-5">Editar usuario</h3>
+          <form onSubmit={handleEdit} className="space-y-4">
+            <Field label="Nombre completo" hint="Se muestra en el sistema">
+              <input type="text" value={editNombre} onChange={(e) => setEditNombre(e.target.value)}
+                placeholder="Nombre completo" className={inputClass} />
+            </Field>
+
+            <Field label="Usuario de ingreso" hint="Con esto entra al sistema">
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm font-mono">@</span>
+                <input type="text" value={editUsername}
+                  onChange={(e) => setEditUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
+                  autoCapitalize="none"
+                  className={`${inputClass} pl-7 font-mono`} />
+              </div>
+            </Field>
+
+            <Field label="Nueva contraseña" hint="Dejar vacío para no cambiar">
+              <input type="password" value={editPassword} onChange={(e) => setEditPassword(e.target.value)}
+                placeholder="••••••••" className={inputClass} />
+            </Field>
+
+            <Field label="Rol">
               <div className="flex gap-2">
                 {(['costurera', 'admin'] as const).map((r) => (
-                  <button
-                    key={r}
-                    type="button"
-                    onClick={() => setEditRol(r)}
+                  <button key={r} type="button" onClick={() => setEditRol(r)}
                     className={`px-4 py-2 rounded-lg text-xs font-semibold border transition ${
                       editRol === r ? `${ROL_BADGE[r]} border-transparent` : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'
-                    }`}
-                  >
+                    }`}>
                     {ROL_LABEL[r]}
                   </button>
                 ))}
               </div>
-            </div>
+            </Field>
+
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setEditActivo(!editActivo)}
-                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${editActivo ? 'bg-emerald-500' : 'bg-stone-300'}`}
-              >
+              <button type="button" onClick={() => setEditActivo(!editActivo)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${editActivo ? 'bg-emerald-500' : 'bg-stone-300'}`}>
                 <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${editActivo ? 'translate-x-4' : 'translate-x-0'}`} />
               </button>
               <span className="text-sm text-stone-600">{editActivo ? 'Activo' : 'Inactivo'}</span>
             </div>
+
             {editError && <p className="text-red-500 text-xs">{editError}</p>}
             <div className="flex gap-2 pt-1">
-              <button
-                type="submit"
-                disabled={editSaving}
-                className="flex-1 bg-violet-600 hover:bg-violet-700 text-white py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50"
-              >
+              <button type="submit" disabled={editSaving}
+                className="flex-1 bg-violet-600 hover:bg-violet-700 text-white py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50">
                 {editSaving ? 'Guardando...' : 'Guardar cambios'}
               </button>
-              <button
-                type="button"
-                onClick={() => { setEditId(null); setEditError(''); }}
-                className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition"
-              >
+              <button type="button" onClick={() => { setEditId(null); setEditError(''); }}
+                className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
                 Cancelar
               </button>
             </div>
