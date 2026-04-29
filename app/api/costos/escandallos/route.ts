@@ -11,27 +11,24 @@ async function requireAdmin(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   if (!token || !(await verifySession(token))) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
-  const escandallos = await prisma.escandallo.findMany({
-    include: { materiales: { orderBy: { orden: 'asc' } } },
-    orderBy: { updatedAt: 'desc' },
-  });
+  const escandallos = await prisma.escandallo.findMany({ orderBy: { updatedAt: 'desc' } });
   return NextResponse.json(escandallos);
 }
 
 export async function POST(req: NextRequest) {
   if (!await requireAdmin(req)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
-  const { nombre, sku, marca, proyectoId, notas, margen } = await req.json();
+  const { nombre, sku, marca, tipoPrenda, proyectoId, notas, datos } = await req.json();
   if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });
   const escandallo = await prisma.escandallo.create({
     data: {
-      nombre: nombre.trim(),
+      nombre:     nombre.trim(),
       sku:        sku?.trim()        || null,
       marca:      marca?.trim()      || null,
+      tipoPrenda: tipoPrenda?.trim() || null,
       proyectoId: proyectoId         || null,
       notas:      notas?.trim()      || null,
-      margen:     parseFloat(margen) || 2.5,
+      datos:      datos ? JSON.stringify(datos) : null,
     },
-    include: { materiales: true },
   });
   return NextResponse.json(escandallo, { status: 201 });
 }

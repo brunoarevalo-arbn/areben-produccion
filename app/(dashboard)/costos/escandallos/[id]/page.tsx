@@ -1,8 +1,36 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { PrintButton } from '@/components/costos/PrintButton';
 
 export const dynamic = 'force-dynamic';
+
+interface Tela { nombre: string; precioKgNeto: number; fletePercent: number; rindeMetrosKg: number; consumoMetros: number; }
+interface ItemExtra { nombre: string; costo: number; }
+interface DatosEscandallo {
+  telas: Tela[];
+  costoCorte: number;
+  costoTizada: number;
+  costoLavadero: number;
+  tiempoConfeccion: number;
+  varios: ItemExtra[];
+  avios: {
+    etiquetaPrincipal: number;
+    etiquetaComposicion: number;
+    bolsaPolipropileno: number;
+    tiempoEmbolsado: number;
+    extras: ItemExtra[];
+  };
+  margenDesarrollo: number;
+  margenFallas: number;
+}
+
+const EMPTY_DATOS: DatosEscandallo = {
+  telas: [], costoCorte: 0, costoTizada: 0, costoLavadero: 0, tiempoConfeccion: 0,
+  varios: [],
+  avios: { etiquetaPrincipal: 0, etiquetaComposicion: 0, bolsaPolipropileno: 0, tiempoEmbolsado: 0, extras: [] },
+  margenDesarrollo: 10, margenFallas: 5,
+};
 
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
@@ -10,10 +38,7 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
   const { id } = await params;
 
   const [escandallo, gastos, costureras] = await Promise.all([
-    prisma.escandallo.findUnique({
-      where: { id },
-      include: { materiales: { orderBy: { orden: 'asc' } } },
-    }),
+    prisma.escandallo.findUnique({ where: { id } }),
     prisma.gastoFijoTaller.findMany({ where: { activo: true } }),
     prisma.costoCosturera.findMany(),
   ]);
@@ -26,24 +51,36 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
   const valorHora     = totalHoras > 0 ? (totalGastos + totalCosturas) / totalHoras : 0;
   const costoMinuto   = valorHora / 60;
 
-  const costoMateriales = escandallo.materiales.reduce((s, m) => s + m.cantidad * m.costoUnitario, 0);
-  const costoTotal      = costoMateriales;
-  const precioSugerido  = costoTotal * escandallo.margen;
+  let datos: DatosEscandallo = EMPTY_DATOS;
+  try { if (escandallo.datos) datos = JSON.parse(escandallo.datos) as DatosEscandallo; } catch { /* use defaults */ }
+
+  const telasCosts = datos.telas.map(t => {
+    const pConFlete = t.precioKgNeto * (1 + t.fletePercent / 100);
+    const pMetro    = t.rindeMetrosKg > 0 ? pConFlete / t.rindeMetrosKg : 0;
+    return { ...t, pConFlete, pMetro, costo: pMetro * t.consumoMetros };
+  });
+
+  const costoTelas     = telasCosts.reduce((s, t) => s + t.costo, 0);
+  const costoServicios = datos.costoCorte + datos.costoTizada + datos.costoLavadero;
+  const costoMO        = datos.tiempoConfeccion * costoMinuto;
+  const costoVarios    = datos.varios.reduce((s, v) => s + v.costo, 0);
+  const costoEmbolsado = datos.avios.tiempoEmbolsado * costoMinuto;
+  const costoAvios     = datos.avios.etiquetaPrincipal + datos.avios.etiquetaComposicion +
+    datos.avios.bolsaPolipropileno + costoEmbolsado +
+    datos.avios.extras.reduce((s, e) => s + e.costo, 0);
+  const costoBase      = costoTelas + costoServicios + costoMO + costoVarios + costoAvios;
+  const conDesarrollo  = costoBase * (1 + datos.margenDesarrollo / 100);
+  const costoTotal     = conDesarrollo * (1 + datos.margenFallas / 100);
 
   const fecha = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
 
   return (
     <div>
-      {/* Barra de acción (no imprime) */}
+      {/* Barra de acción */}
       <div className="print:hidden sticky top-0 z-10 bg-white border-b border-stone-200 px-6 py-3 flex items-center gap-4">
         <Link href="/costos" className="text-sm text-stone-500 hover:text-stone-800 transition">← Volver</Link>
         <div className="flex-1" />
-        <button
-          onClick={() => window.print()}
-          className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2 rounded-xl text-sm font-semibold transition"
-        >
-          Imprimir / Guardar PDF
-        </button>
+        <PrintButton />
       </div>
 
       {/* Documento */}
@@ -55,8 +92,9 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
             <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-1">Ficha de Costo — Escandallo</p>
             <h1 className="text-2xl font-bold text-stone-900">{escandallo.nombre}</h1>
             <div className="flex items-center gap-3 mt-2">
-              {escandallo.sku  && <span className="font-mono text-sm bg-stone-100 px-2 py-0.5 rounded text-stone-700">{escandallo.sku}</span>}
-              {escandallo.marca && <span className="text-sm text-stone-500">{escandallo.marca}</span>}
+              {escandallo.sku        && <span className="font-mono text-sm bg-stone-100 px-2 py-0.5 rounded text-stone-700">{escandallo.sku}</span>}
+              {escandallo.marca      && <span className="text-sm text-stone-500">{escandallo.marca}</span>}
+              {escandallo.tipoPrenda && <span className="text-sm text-stone-400 italic">{escandallo.tipoPrenda}</span>}
             </div>
           </div>
           <div className="text-right">
@@ -65,40 +103,134 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* Materiales */}
+        {/* Telas */}
         <div className="mb-8">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Materiales e insumos</h2>
+          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Telas</h2>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-200">
-                <th className="text-left py-2 font-semibold text-stone-600 pr-4">Ítem</th>
-                <th className="text-center py-2 font-semibold text-stone-600 w-20">Cant.</th>
-                <th className="text-center py-2 font-semibold text-stone-600 w-16">Unid.</th>
-                <th className="text-right py-2 font-semibold text-stone-600 w-28">$/unid.</th>
-                <th className="text-right py-2 font-semibold text-stone-600 w-28">Subtotal</th>
+                <th className="text-left py-2 font-semibold text-stone-600 pr-4">Tela</th>
+                <th className="text-right py-2 font-semibold text-stone-600 w-24">$/kg neto</th>
+                <th className="text-right py-2 font-semibold text-stone-600 w-16">Flete</th>
+                <th className="text-right py-2 font-semibold text-stone-600 w-20">m/kg</th>
+                <th className="text-right py-2 font-semibold text-stone-600 w-24">$/metro</th>
+                <th className="text-right py-2 font-semibold text-stone-600 w-20">Cons.</th>
+                <th className="text-right py-2 font-semibold text-stone-600 w-24">Costo</th>
               </tr>
             </thead>
             <tbody>
-              {escandallo.materiales.map((m, i) => (
+              {telasCosts.map((t, i) => (
                 <tr key={i} className="border-b border-stone-100">
-                  <td className="py-2.5 pr-4 text-stone-800">{m.nombre}</td>
-                  <td className="py-2.5 text-center text-stone-700 tabular-nums">{m.cantidad}</td>
-                  <td className="py-2.5 text-center text-stone-500">{m.unidad}</td>
-                  <td className="py-2.5 text-right text-stone-700 tabular-nums">{fmt$(m.costoUnitario)}</td>
-                  <td className="py-2.5 text-right font-semibold text-stone-900 tabular-nums">{fmt$(m.cantidad * m.costoUnitario)}</td>
+                  <td className="py-2.5 pr-4 text-stone-800">{t.nombre || `Tela ${i + 1}`}</td>
+                  <td className="py-2.5 text-right tabular-nums text-stone-700">{fmt$(t.precioKgNeto)}</td>
+                  <td className="py-2.5 text-right tabular-nums text-stone-500">{t.fletePercent}%</td>
+                  <td className="py-2.5 text-right tabular-nums text-stone-700">{t.rindeMetrosKg}</td>
+                  <td className="py-2.5 text-right tabular-nums text-stone-700">{fmt$(t.pMetro)}</td>
+                  <td className="py-2.5 text-right tabular-nums text-stone-700">{t.consumoMetros}m</td>
+                  <td className="py-2.5 text-right font-semibold tabular-nums text-stone-900">{fmt$(t.costo)}</td>
                 </tr>
               ))}
-              {escandallo.materiales.length === 0 && (
-                <tr><td colSpan={5} className="py-4 text-center text-stone-400 text-sm italic">Sin materiales</td></tr>
+              {telasCosts.length === 0 && (
+                <tr><td colSpan={7} className="py-4 text-center text-stone-400 italic text-sm">Sin telas cargadas</td></tr>
               )}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-stone-300">
-                <td colSpan={4} className="pt-3 font-bold text-stone-700">Total materiales</td>
-                <td className="pt-3 text-right font-bold text-stone-900 tabular-nums">{fmt$(costoMateriales)}</td>
+                <td colSpan={6} className="pt-3 font-bold text-stone-700">Total telas</td>
+                <td className="pt-3 text-right font-bold tabular-nums text-stone-900">{fmt$(costoTelas)}</td>
               </tr>
             </tfoot>
           </table>
+        </div>
+
+        {/* Servicios fijos */}
+        <div className="mb-8">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Servicios fijos</h2>
+          <div className="space-y-1.5 text-sm">
+            {[
+              { label: 'Corte',    val: datos.costoCorte },
+              { label: 'Tizada',   val: datos.costoTizada },
+              { label: 'Lavadero', val: datos.costoLavadero },
+            ].map(r => (
+              <div key={r.label} className="flex justify-between">
+                <span className="text-stone-600">{r.label}</span>
+                <span className="tabular-nums font-semibold">{fmt$(r.val)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between border-t border-stone-200 pt-1.5 font-bold">
+              <span>Total servicios</span>
+              <span className="tabular-nums">{fmt$(costoServicios)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* MO Confección */}
+        <div className="mb-8">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">MO Confección</h2>
+          <div className="flex justify-between text-sm">
+            <span className="text-stone-600">{datos.tiempoConfeccion} min × {fmt$(costoMinuto)}/min</span>
+            <span className="font-bold tabular-nums">{fmt$(costoMO)}</span>
+          </div>
+        </div>
+
+        {/* Varios */}
+        {datos.varios.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Varios</h2>
+            <div className="space-y-1.5 text-sm">
+              {datos.varios.map((v, i) => (
+                <div key={i} className="flex justify-between">
+                  <span className="text-stone-600">{v.nombre}</span>
+                  <span className="tabular-nums font-semibold">{fmt$(v.costo)}</span>
+                </div>
+              ))}
+              <div className="flex justify-between border-t border-stone-200 pt-1.5 font-bold">
+                <span>Total varios</span>
+                <span className="tabular-nums">{fmt$(costoVarios)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Terminación y Avíos */}
+        <div className="mb-8">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Terminación y Avíos</h2>
+          <div className="space-y-1.5 text-sm">
+            {datos.avios.etiquetaPrincipal > 0 && (
+              <div className="flex justify-between">
+                <span className="text-stone-600">Etiqueta principal</span>
+                <span className="tabular-nums font-semibold">{fmt$(datos.avios.etiquetaPrincipal)}</span>
+              </div>
+            )}
+            {datos.avios.etiquetaComposicion > 0 && (
+              <div className="flex justify-between">
+                <span className="text-stone-600">Etiqueta composición</span>
+                <span className="tabular-nums font-semibold">{fmt$(datos.avios.etiquetaComposicion)}</span>
+              </div>
+            )}
+            {datos.avios.bolsaPolipropileno > 0 && (
+              <div className="flex justify-between">
+                <span className="text-stone-600">Bolsa polipropileno</span>
+                <span className="tabular-nums font-semibold">{fmt$(datos.avios.bolsaPolipropileno)}</span>
+              </div>
+            )}
+            {datos.avios.tiempoEmbolsado > 0 && (
+              <div className="flex justify-between">
+                <span className="text-stone-600">Embolsado ({datos.avios.tiempoEmbolsado} min)</span>
+                <span className="tabular-nums font-semibold">{fmt$(costoEmbolsado)}</span>
+              </div>
+            )}
+            {datos.avios.extras.map((e, i) => (
+              <div key={i} className="flex justify-between">
+                <span className="text-stone-600">{e.nombre}</span>
+                <span className="tabular-nums font-semibold">{fmt$(e.costo)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between border-t border-stone-200 pt-1.5 font-bold">
+              <span>Total avíos</span>
+              <span className="tabular-nums">{fmt$(costoAvios)}</span>
+            </div>
+          </div>
         </div>
 
         {/* Parámetros del taller */}
@@ -123,27 +255,35 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
         {/* Resumen de costos */}
         <div className="mb-8 border-t-2 border-stone-900 pt-6">
           <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">Resumen de costos</h2>
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-stone-600">Costo de materiales</span>
-              <span className="font-semibold tabular-nums">{fmt$(costoMateriales)}</span>
+          <div className="space-y-2 text-sm">
+            {[
+              { label: 'Telas',                                  val: costoTelas },
+              { label: 'Servicios (corte + tizada + lavadero)', val: costoServicios },
+              { label: 'MO Confección',                          val: costoMO },
+              ...(costoVarios > 0  ? [{ label: 'Varios',               val: costoVarios }]  : []),
+              { label: 'Terminación y avíos',                    val: costoAvios },
+            ].map(r => (
+              <div key={r.label} className="flex justify-between">
+                <span className="text-stone-600">{r.label}</span>
+                <span className="font-semibold tabular-nums">{fmt$(r.val)}</span>
+              </div>
+            ))}
+            <div className="flex justify-between border-t border-stone-200 pt-2 font-bold">
+              <span>Costo base</span>
+              <span className="tabular-nums">{fmt$(costoBase)}</span>
             </div>
-            <div className="flex justify-between text-sm text-stone-400 italic">
-              <span>Mano de obra (completar en escandallo)</span>
-              <span>—</span>
+            <div className="flex justify-between text-stone-400 text-xs">
+              <span>+ Margen desarrollo ({datos.margenDesarrollo}%)</span>
+              <span className="tabular-nums">+{fmt$(costoBase * datos.margenDesarrollo / 100)}</span>
             </div>
-            <div className="flex justify-between text-base font-bold pt-2 border-t border-stone-200">
-              <span>Costo total</span>
-              <span className="tabular-nums">{fmt$(costoTotal)}</span>
+            <div className="flex justify-between text-stone-400 text-xs">
+              <span>+ Margen fallas ({datos.margenFallas}%)</span>
+              <span className="tabular-nums">+{fmt$(conDesarrollo * datos.margenFallas / 100)}</span>
             </div>
             <div className="flex justify-between items-center pt-3 bg-stone-900 text-white rounded-xl px-4 py-3 mt-3">
               <div>
-                <p className="text-xs text-stone-400">Precio sugerido (×{escandallo.margen})</p>
-                <p className="text-2xl font-bold tabular-nums">{fmt$(precioSugerido)}</p>
-              </div>
-              <div className="text-right text-xs text-stone-400">
-                <p>Margen: ×{escandallo.margen}</p>
-                <p>Ganancia: {fmt$(precioSugerido - costoTotal)}</p>
+                <p className="text-xs text-stone-400 mb-0.5">Costo total unitario</p>
+                <p className="text-2xl font-bold tabular-nums">{fmt$(costoTotal)}</p>
               </div>
             </div>
           </div>

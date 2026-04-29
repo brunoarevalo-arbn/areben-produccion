@@ -270,31 +270,18 @@ model CostoCosturera {
 }
 
 model Escandallo {
-  id          String               @id @default(cuid())
+  id          String   @id @default(cuid())
   nombre      String
   sku         String?
   marca       String?
+  tipoPrenda  String?
   proyectoId  String?
   notas       String?
-  margen      Float                @default(2.5)
-  materiales  EscandalloMaterial[]
-  createdAt   DateTime             @default(now())
-  updatedAt   DateTime             @updatedAt
+  datos       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("escandallos")
-}
-
-model EscandalloMaterial {
-  id           String     @id @default(cuid())
-  escandalloId String
-  escandallo   Escandallo @relation(fields: [escandalloId], references: [id], onDelete: Cascade)
-  nombre       String
-  cantidad     Float      @default(1)
-  unidad       String     @default("m")
-  costoUnitario Float     @default(0)
-  orden        Int        @default(0)
-
-  @@map("escandallo_materiales")
 }
 
 model OrdenProduccion {
