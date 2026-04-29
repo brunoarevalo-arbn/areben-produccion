@@ -191,7 +191,7 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
                     onClick={() => setConfirmFin(true)}
                     className="w-full py-2.5 rounded-xl border-2 border-dashed border-red-200 text-red-500 text-xs font-bold uppercase tracking-wide hover:bg-red-50 transition active:scale-95"
                   >
-                    Corte finalizado — {ordenSeleccionada.sku}
+                    Finalizar corte — {ordenSeleccionada.sku}
                   </button>
                 ) : (
                   <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 space-y-2">
