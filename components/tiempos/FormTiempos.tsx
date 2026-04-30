@@ -40,14 +40,23 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
   const [defectos,       setDefectos]       = useState('0');
   const [ordenes,        setOrdenes]        = useState<OrdenActiva[]>([]);
   const [loadingQ,       setLoadingQ]       = useState(true);
+  const [errorCola,      setErrorCola]      = useState('');
   const [finalizando,    setFinalizando]    = useState(false);
   const [confirmFin,     setConfirmFin]     = useState(false);
 
   const cargarCola = useCallback(async () => {
     setLoadingQ(true);
+    setErrorCola('');
     try {
       const r = await fetch('/api/produccion/cola?soloActivas=1');
-      if (r.ok) setOrdenes(await r.json());
+      if (r.ok) {
+        setOrdenes(await r.json());
+      } else {
+        const msg = r.status === 401 ? 'Sesión expirada — cerrá y volvé a ingresar' : `Error ${r.status} al cargar órdenes`;
+        setErrorCola(msg);
+      }
+    } catch {
+      setErrorCola('Sin conexión — revisá el internet');
     } finally {
       setLoadingQ(false);
     }
@@ -136,6 +145,8 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
 
         {loadingQ ? (
           <p className="text-xs text-stone-400 py-2">Cargando cola...</p>
+        ) : errorCola ? (
+          <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{errorCola}</p>
         ) : (
           <div className="space-y-1.5">
             {ordenes.map((orden) => (
