@@ -239,6 +239,7 @@ model Usuario {
   username     String   @unique
   passwordHash String
   rol          String   @default("admin")
+  permisos     String[] @default([])
   activo       Boolean  @default(true)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

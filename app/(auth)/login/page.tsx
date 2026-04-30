@@ -49,7 +49,14 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error || 'Error al ingresar');
       } else {
-        router.push(data.rol === 'costurera' ? '/tiempos' : '/dashboard');
+        if (data.rol === 'costurera') {
+          router.push('/tiempos');
+        } else if (data.rol === 'admin') {
+          router.push('/dashboard');
+        } else {
+          const primera = (data.permisos as string[] | undefined)?.[0];
+          router.push(primera ? `/${primera}` : '/dashboard');
+        }
       }
     } catch {
       setError('Error de conexión');

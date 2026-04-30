@@ -4,23 +4,82 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Usuario {
-  id: string;
-  nombre: string;
+  id:       string;
+  nombre:   string;
   username: string;
-  rol: string;
-  activo: boolean;
+  rol:      string;
+  permisos: string[];
+  activo:   boolean;
   createdAt: string | Date;
 }
 
-const ROL_BADGE: Record<string, string> = {
-  admin:     'bg-violet-100 text-violet-700',
-  costurera: 'bg-amber-100 text-amber-700',
-};
+const ROLES = [
+  { value: 'costurera',  label: 'Costurera',   color: 'bg-amber-100 text-amber-700' },
+  { value: 'diseñadora', label: 'Diseñadora',   color: 'bg-violet-100 text-violet-700' },
+  { value: 'admin',      label: 'Administrador', color: 'bg-stone-100 text-stone-700' },
+] as const;
 
-const ROL_LABEL: Record<string, string> = {
-  admin:     'Administrador',
-  costurera: 'Costurera',
-};
+const SECCIONES = [
+  { id: 'dashboard',     label: 'Dashboard' },
+  { id: 'diseno',        label: 'Diseño' },
+  { id: 'produccion',    label: 'Producción' },
+  { id: 'costos',        label: 'Costos' },
+  { id: 'configuracion', label: 'Configuración' },
+] as const;
+
+function rolColor(rol: string) {
+  return ROLES.find((r) => r.value === rol)?.color ?? 'bg-stone-100 text-stone-500';
+}
+function rolLabel(rol: string) {
+  return ROLES.find((r) => r.value === rol)?.label ?? rol;
+}
+
+function PermisosToggle({
+  rol,
+  permisos,
+  onChange,
+}: {
+  rol: string;
+  permisos: string[];
+  onChange: (p: string[]) => void;
+}) {
+  if (rol === 'admin') {
+    return (
+      <p className="text-xs text-stone-400 italic">El administrador tiene acceso completo.</p>
+    );
+  }
+  if (rol === 'costurera') {
+    return (
+      <p className="text-xs text-stone-400 italic">Las costureras solo acceden a la pantalla de tiempos.</p>
+    );
+  }
+  return (
+    <div className="space-y-1.5">
+      {SECCIONES.map(({ id, label }) => {
+        const on = permisos.includes(id);
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() =>
+              onChange(on ? permisos.filter((p) => p !== id) : [...permisos, id])
+            }
+            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition ${
+              on
+                ? 'bg-violet-50 border-violet-300 text-violet-800'
+                : 'bg-white border-stone-200 text-stone-400 hover:border-stone-300'
+            }`}
+          >
+            <span className="font-medium">{label}</span>
+            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-xs ${on ? 'bg-violet-500 border-violet-500 text-white' : 'border-stone-300'}`}>
+              {on && '✓'}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
@@ -42,7 +101,8 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
   const [nombre,   setNombre]   = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rol,      setRol]      = useState<'admin' | 'costurera'>('costurera');
+  const [rol,      setRol]      = useState<string>('costurera');
+  const [permisos, setPermisos] = useState<string[]>([]);
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
 
@@ -50,7 +110,8 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
   const [editNombre,   setEditNombre]   = useState('');
   const [editUsername, setEditUsername] = useState('');
   const [editPassword, setEditPassword] = useState('');
-  const [editRol,      setEditRol]      = useState<'admin' | 'costurera'>('admin');
+  const [editRol,      setEditRol]      = useState('admin');
+  const [editPermisos, setEditPermisos] = useState<string[]>([]);
   const [editActivo,   setEditActivo]   = useState(true);
   const [editSaving,   setEditSaving]   = useState(false);
   const [editError,    setEditError]    = useState('');
@@ -64,14 +125,14 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
       const res = await fetch('/api/usuarios', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, username, password, rol }),
+        body: JSON.stringify({ nombre, username, password, rol, permisos }),
       });
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || 'Error al crear usuario');
       } else {
         setUsuarios((prev) => [...prev, data]);
-        setNombre(''); setUsername(''); setPassword(''); setRol('costurera');
+        setNombre(''); setUsername(''); setPassword(''); setRol('costurera'); setPermisos([]);
         setShowForm(false);
         router.refresh();
       }
@@ -87,7 +148,8 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
     setEditNombre(u.nombre);
     setEditUsername(u.username);
     setEditPassword('');
-    setEditRol(u.rol as 'admin' | 'costurera');
+    setEditRol(u.rol);
+    setEditPermisos(u.permisos ?? []);
     setEditActivo(u.activo);
     setEditError('');
   };
@@ -101,6 +163,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
       nombre:   editNombre,
       username: editUsername,
       rol:      editRol,
+      permisos: editPermisos,
       activo:   editActivo,
     };
     if (editPassword.trim()) body.password = editPassword;
@@ -148,10 +211,9 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
 
       {/* User list */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-        {/* Header */}
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[1fr_1fr_auto] gap-4">
           <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Nombre</span>
-          <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Usuario de ingreso</span>
+          <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Usuario</span>
           <span />
         </div>
 
@@ -160,34 +222,33 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
             key={u.id}
             className={`px-5 py-4 grid grid-cols-[1fr_1fr_auto] gap-4 items-center ${i !== 0 ? 'border-t border-stone-100' : ''} ${!u.activo ? 'opacity-50' : ''}`}
           >
-            {/* Nombre */}
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 font-bold text-sm shrink-0">
                 {u.nombre.charAt(0).toUpperCase()}
               </div>
               <div className="min-w-0">
                 <p className="font-semibold text-stone-900 text-sm truncate">{u.nombre}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${ROL_BADGE[u.rol] ?? 'bg-stone-100 text-stone-500'}`}>
-                    {ROL_LABEL[u.rol] ?? u.rol}
+                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${rolColor(u.rol)}`}>
+                    {rolLabel(u.rol)}
                   </span>
                   {!u.activo && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-500 font-semibold">Inactivo</span>
+                  )}
+                  {u.rol !== 'admin' && u.rol !== 'costurera' && u.permisos?.length > 0 && (
+                    <span className="text-xs text-stone-400">{u.permisos.length} sección{u.permisos.length !== 1 ? 'es' : ''}</span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Username */}
             <div className="min-w-0">
               <div className="inline-flex items-center gap-1.5 bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1.5">
                 <span className="text-stone-400 text-xs font-mono">@</span>
                 <span className="text-stone-700 text-sm font-mono font-semibold">{u.username}</span>
               </div>
-              <p className="text-xs text-stone-400 mt-1">Ingresa con este usuario</p>
             </div>
 
-            {/* Actions */}
             <div className="flex gap-2 shrink-0">
               <button
                 onClick={() => openEdit(u)}
@@ -227,12 +288,12 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
         <div className="bg-white rounded-2xl border border-stone-200 p-5">
           <h3 className="text-sm font-bold text-stone-800 mb-5">Nuevo usuario</h3>
           <form onSubmit={handleCreate} className="space-y-4">
-            <Field label="Nombre completo" hint="Se muestra en el sistema">
+            <Field label="Nombre completo">
               <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)}
                 placeholder="Ej: María García" className={inputClass} />
             </Field>
 
-            <Field label="Usuario de ingreso" hint="Con esto entra al sistema">
+            <Field label="Usuario de ingreso">
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm font-mono">@</span>
                 <input type="text" value={username} onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/\s/g, ''))}
@@ -247,16 +308,20 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
             </Field>
 
             <Field label="Rol">
-              <div className="flex gap-2">
-                {(['costurera', 'admin'] as const).map((r) => (
-                  <button key={r} type="button" onClick={() => setRol(r)}
+              <div className="flex gap-2 flex-wrap">
+                {ROLES.map((r) => (
+                  <button key={r.value} type="button" onClick={() => { setRol(r.value); setPermisos([]); }}
                     className={`px-4 py-2 rounded-lg text-xs font-semibold border transition ${
-                      rol === r ? `${ROL_BADGE[r]} border-transparent` : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'
+                      rol === r.value ? `${r.color} border-transparent` : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'
                     }`}>
-                    {ROL_LABEL[r]}
+                    {r.label}
                   </button>
                 ))}
               </div>
+            </Field>
+
+            <Field label="Acceso a secciones">
+              <PermisosToggle rol={rol} permisos={permisos} onChange={setPermisos} />
             </Field>
 
             {error && <p className="text-red-500 text-xs">{error}</p>}
@@ -279,12 +344,12 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
         <div className="bg-white rounded-2xl border border-violet-200 p-5">
           <h3 className="text-sm font-bold text-stone-800 mb-5">Editar usuario</h3>
           <form onSubmit={handleEdit} className="space-y-4">
-            <Field label="Nombre completo" hint="Se muestra en el sistema">
+            <Field label="Nombre completo">
               <input type="text" value={editNombre} onChange={(e) => setEditNombre(e.target.value)}
                 placeholder="Nombre completo" className={inputClass} />
             </Field>
 
-            <Field label="Usuario de ingreso" hint="Con esto entra al sistema">
+            <Field label="Usuario de ingreso">
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400 text-sm font-mono">@</span>
                 <input type="text" value={editUsername}
@@ -300,16 +365,20 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
             </Field>
 
             <Field label="Rol">
-              <div className="flex gap-2">
-                {(['costurera', 'admin'] as const).map((r) => (
-                  <button key={r} type="button" onClick={() => setEditRol(r)}
+              <div className="flex gap-2 flex-wrap">
+                {ROLES.map((r) => (
+                  <button key={r.value} type="button" onClick={() => { setEditRol(r.value); setEditPermisos([]); }}
                     className={`px-4 py-2 rounded-lg text-xs font-semibold border transition ${
-                      editRol === r ? `${ROL_BADGE[r]} border-transparent` : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'
+                      editRol === r.value ? `${r.color} border-transparent` : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'
                     }`}>
-                    {ROL_LABEL[r]}
+                    {r.label}
                   </button>
                 ))}
               </div>
+            </Field>
+
+            <Field label="Acceso a secciones">
+              <PermisosToggle rol={editRol} permisos={editPermisos} onChange={setEditPermisos} />
             </Field>
 
             <div className="flex items-center gap-2">

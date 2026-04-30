@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 
     const token = await signSession(payload);
 
-    const res = NextResponse.json({ ok: true, rol: usuario.rol, nombre: usuario.nombre });
+    const res = NextResponse.json({ ok: true, rol: usuario.rol, nombre: usuario.nombre, permisos: usuario.permisos });
     res.cookies.set(SESSION_COOKIE, token, {
       httpOnly: true,
       sameSite: 'lax',

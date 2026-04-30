@@ -3,19 +3,27 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
+interface SidebarProps {
+  permisos: string[];
+  nombre:   string;
+  rol:      string;
+}
+
 interface SubItem { label: string; href: string; nuevoHref?: string; }
 
-const NAV: { label: string; href: string; icon: string; sub: SubItem[] }[] = [
+const NAV: { label: string; href: string; icon: string; seccion: string; sub: SubItem[] }[] = [
   {
     label: 'Dashboard',
     href: '/dashboard',
     icon: '⊞',
+    seccion: 'dashboard',
     sub: [],
   },
   {
     label: 'Diseño',
     href: '/diseno',
     icon: '📐',
+    seccion: 'diseno',
     sub: [
       { label: 'Proyectos', href: '/diseno', nuevoHref: '/diseno/nuevo' },
       { label: 'Molderías', href: '/configuracion/molderias' },
@@ -26,6 +34,7 @@ const NAV: { label: string; href: string; icon: string; sub: SubItem[] }[] = [
     label: 'Producción',
     href: '/produccion',
     icon: '⏱',
+    seccion: 'produccion',
     sub: [
       { label: 'Tiempos',  href: '/tiempos' },
       { label: 'Reportes', href: '/produccion/reportes' },
@@ -35,6 +44,7 @@ const NAV: { label: string; href: string; icon: string; sub: SubItem[] }[] = [
     label: 'Costos',
     href: '/costos',
     icon: '💰',
+    seccion: 'costos',
     sub: [
       { label: 'Escandallos', href: '/costos' },
     ],
@@ -43,6 +53,7 @@ const NAV: { label: string; href: string; icon: string; sub: SubItem[] }[] = [
     label: 'Configuración',
     href: '/configuracion',
     icon: '⚙',
+    seccion: 'configuracion',
     sub: [
       { label: 'Usuarios',  href: '/configuracion/usuarios' },
       { label: 'Molderías', href: '/configuracion/molderias' },
@@ -51,9 +62,11 @@ const NAV: { label: string; href: string; icon: string; sub: SubItem[] }[] = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
   const pathname = usePathname();
-  const router = useRouter();
+  const router   = useRouter();
+
+  const visible = NAV.filter((item) => permisos.includes(item.seccion));
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
@@ -67,11 +80,11 @@ export function Sidebar() {
     <aside className="w-56 bg-stone-900 flex flex-col h-full shrink-0">
       <div className="px-5 py-4 border-b border-stone-800">
         <p className="text-amber-400 text-xs font-bold uppercase tracking-widest">Areben</p>
-        <p className="text-stone-300 text-xs mt-0.5">Sistema de gestión</p>
+        <p className="text-stone-300 text-xs mt-0.5 truncate">{nombre}</p>
       </div>
 
       <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-        {NAV.map((item) => {
+        {visible.map((item) => {
           const active = isActive(item.href);
           return (
             <div key={item.href}>
@@ -119,7 +132,8 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="px-5 py-3 border-t border-stone-800">
+      <div className="px-5 py-3 border-t border-stone-800 space-y-1">
+        <p className="text-stone-600 text-xs truncate capitalize">{rol}</p>
         <button
           onClick={handleLogout}
           className="text-stone-600 hover:text-stone-400 text-xs transition w-full text-left"

@@ -19,16 +19,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const body = await req.json();
   const data: Record<string, unknown> = {};
 
+  const ROLES_VALIDOS = ['admin', 'costurera', 'diseñadora'];
   if (body.nombre)    data.nombre = body.nombre.trim();
   if (body.username)  data.username = body.username.trim().toLowerCase();
   if (body.password)  data.passwordHash = await hashPassword(body.password);
-  if (body.rol)       data.rol = body.rol === 'costurera' ? 'costurera' : 'admin';
+  if (body.rol && ROLES_VALIDOS.includes(body.rol)) data.rol = body.rol;
+  if (Array.isArray(body.permisos)) data.permisos = body.permisos;
   if (typeof body.activo === 'boolean') data.activo = body.activo;
 
   const updated = await prisma.usuario.update({
     where: { id },
     data,
-    select: { id: true, nombre: true, username: true, rol: true, activo: true },
+    select: { id: true, nombre: true, username: true, rol: true, permisos: true, activo: true },
   });
 
   return NextResponse.json(updated);

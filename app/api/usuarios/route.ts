@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/password';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 
+const ROLES_VALIDOS = ['admin', 'costurera', 'diseñadora'];
+
 async function requireAdmin(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   if (!token) return null;
@@ -14,14 +16,13 @@ async function requireAdmin(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const session = await requireAdmin(req);
   if (!session) {
-    // Bootstrap detection: return empty array only when no users exist
     const count = await prisma.usuario.count();
     if (count === 0) return NextResponse.json([]);
     return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   }
 
   const usuarios = await prisma.usuario.findMany({
-    select: { id: true, nombre: true, username: true, rol: true, activo: true, createdAt: true },
+    select: { id: true, nombre: true, username: true, rol: true, permisos: true, activo: true, createdAt: true },
     orderBy: { createdAt: 'asc' },
   });
 
@@ -29,14 +30,13 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  // Allow first user creation without auth (bootstrap)
   const count = await prisma.usuario.count();
   if (count > 0) {
     const session = await requireAdmin(req);
     if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   }
 
-  const { nombre, username, password, rol } = await req.json();
+  const { nombre, username, password, rol, permisos } = await req.json();
 
   if (!nombre?.trim() || !username?.trim() || !password?.trim()) {
     return NextResponse.json({ error: 'Faltan datos' }, { status: 400 });
@@ -45,15 +45,18 @@ export async function POST(req: NextRequest) {
   const exists = await prisma.usuario.findUnique({ where: { username: username.toLowerCase().trim() } });
   if (exists) return NextResponse.json({ error: 'El usuario ya existe' }, { status: 409 });
 
+  const rolValido = ROLES_VALIDOS.includes(rol) ? rol : 'costurera';
   const passwordHash = await hashPassword(password);
+
   const usuario = await prisma.usuario.create({
     data: {
-      nombre: nombre.trim(),
+      nombre:   nombre.trim(),
       username: username.toLowerCase().trim(),
       passwordHash,
-      rol: rol === 'costurera' ? 'costurera' : 'admin',
+      rol:      rolValido,
+      permisos: Array.isArray(permisos) ? permisos : [],
     },
-    select: { id: true, nombre: true, username: true, rol: true, activo: true, createdAt: true },
+    select: { id: true, nombre: true, username: true, rol: true, permisos: true, activo: true, createdAt: true },
   });
 
   return NextResponse.json(usuario, { status: 201 });
