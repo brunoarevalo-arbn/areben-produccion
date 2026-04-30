@@ -292,7 +292,7 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
                           className="text-stone-300 hover:text-red-400 transition text-xl shrink-0 leading-none">×</button>
                       )}
                     </div>
-                    <div className="grid grid-cols-6 gap-3">
+                    <div className="grid grid-cols-4 gap-3">
                       <div>
                         <label className={lbl}>Precio por kg $</label>
                         <p className="text-xs text-stone-300 -mt-0.5 mb-1">precio de lista sin flete</p>
@@ -317,20 +317,16 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
                         <input type="number" value={t.consumoMetros || ''} onChange={e => updTela(i, 'consumoMetros', e.target.value)}
                           placeholder="0" min="0" step="0.01" className={inp} />
                       </div>
-                      <div>
-                        <label className={lbl}>Precio por metro</label>
-                        <p className="text-xs text-stone-300 -mt-0.5 mb-1">calculado automático</p>
-                        <div className="px-2.5 py-2 bg-stone-100 border border-stone-200 rounded-lg text-sm text-stone-600 tabular-nums font-mono">
-                          {fmt$(pMetro)}
-                        </div>
-                      </div>
-                      <div>
-                        <label className={lbl}>Costo esta tela</label>
-                        <p className="text-xs text-stone-300 -mt-0.5 mb-1">precio/m × metros prenda</p>
-                        <div className="px-2.5 py-2 bg-violet-100 border border-violet-200 rounded-lg text-sm font-bold text-violet-700 tabular-nums font-mono">
-                          {fmt$(costoTela)}
-                        </div>
-                      </div>
+                    </div>
+                    {/* Resultado calculado */}
+                    <div className="flex items-center gap-4 mt-3 rounded-xl bg-stone-100 border border-stone-200 px-4 py-2.5">
+                      <span className="text-xs text-stone-400">Precio/metro:</span>
+                      <span className="text-sm font-mono tabular-nums text-stone-700 font-semibold">{fmt$(pMetro)}</span>
+                      <span className="text-stone-300">→</span>
+                      <span className="text-xs text-stone-400">Costo esta tela:</span>
+                      <span className={`text-base font-bold font-mono tabular-nums ml-auto ${costoTela > 0 ? 'text-violet-700' : 'text-stone-400'}`}>
+                        {fmt$(costoTela)}
+                      </span>
                     </div>
                   </div>
                 );
