@@ -23,6 +23,7 @@ const SECCIONES = [
   { id: 'dashboard',     label: 'Dashboard' },
   { id: 'diseno',        label: 'Diseño' },
   { id: 'produccion',    label: 'Producción' },
+  { id: 'gastos',        label: 'Gastos' },
   { id: 'costos',        label: 'Costos' },
   { id: 'configuracion', label: 'Configuración' },
 ] as const;

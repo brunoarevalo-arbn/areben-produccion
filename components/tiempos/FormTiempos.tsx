@@ -23,7 +23,8 @@ interface OrdenActiva {
 
 const ACTIVIDADES: { label: string; icon: string; color: string }[] = [
   { label: 'Proceso Completado', icon: '✅', color: 'bg-emerald-50 border-emerald-400 text-emerald-800' },
-  { label: 'Muestra/Prototipo',  icon: '📐', color: 'bg-violet-50 border-violet-400 text-violet-800' },
+  { label: 'Muestra Zattia',     icon: '📐', color: 'bg-violet-50 border-violet-400 text-violet-800' },
+  { label: 'Muestra Stunned',    icon: '📐', color: 'bg-pink-50 border-pink-400 text-pink-800' },
   { label: 'Descanso',           icon: '☕', color: 'bg-sky-50 border-sky-400 text-sky-800' },
   { label: 'Almuerzo',           icon: '🍽️', color: 'bg-orange-50 border-orange-400 text-orange-800' },
   { label: 'Falla Máquina',      icon: '⚠️', color: 'bg-red-50 border-red-400 text-red-800' },

@@ -321,3 +321,22 @@ model TelaCatalogo {
 
   @@map("tela_catalogo")
 }
+
+model Gasto {
+  id        String   @id @default(cuid())
+  categoria String   // 'desarrollo' | 'produccion'
+  tipo      String   // 'tela' | 'insumos' | 'periodo'
+  marca     String?  // 'Zattia' | 'Stunned' — para desarrollo
+  sku       String?
+  ordenId   String?  // FK a OrdenProduccion — para produccion
+  minutos   Int?
+  monto     Float    @default(0)
+  concepto  String?
+  fecha     String
+  creadoPor String
+  tiempoId  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gastos")
+}

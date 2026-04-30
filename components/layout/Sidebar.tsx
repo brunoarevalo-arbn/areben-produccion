@@ -41,6 +41,13 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     ],
   },
   {
+    label: 'Gastos',
+    href: '/gastos',
+    icon: '🧾',
+    seccion: 'gastos',
+    sub: [],
+  },
+  {
     label: 'Costos',
     href: '/costos',
     icon: '💰',
