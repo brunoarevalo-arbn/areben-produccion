@@ -5,25 +5,19 @@ import { useRouter } from 'next/navigation';
 import type { ProyectoDiseno, EstadoProyecto, EstadoCiclo, UsuarioSimple } from '@/types/diseno';
 import { FlujoDiseno } from './FlujoDiseno';
 import { SeccionInspiracion } from './SeccionInspiracion';
-import { SeccionIdeas } from './SeccionIdeas';
 import { SeccionDesarrollo } from './SeccionDesarrollo';
 import { SeccionMuestras } from './SeccionMuestras';
-import { SeccionAjustes } from './SeccionAjustes';
 import { SeccionInsumos } from './SeccionInsumos';
 import { SeccionSKUs } from './SeccionSKUs';
-import { SeccionProduccion } from './SeccionProduccion';
 
-type Tab = 'inspiracion' | 'ideas' | 'desarrollo' | 'muestras' | 'ajustes' | 'insumos' | 'skus' | 'produccion';
+type Tab = 'inspiracion' | 'desarrollo' | 'muestras' | 'insumos' | 'skus';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'inspiracion', label: 'Inspiración' },
-  { id: 'ideas',       label: 'Ideas' },
   { id: 'desarrollo',  label: 'Desarrollo' },
   { id: 'muestras',    label: 'Muestras' },
-  { id: 'ajustes',     label: 'Ajustes' },
   { id: 'insumos',     label: 'Insumos' },
-  { id: 'skus',        label: 'SKUs' },
-  { id: 'produccion',  label: 'Producción' },
+  { id: 'skus',        label: 'SKUs & Producción' },
 ];
 
 const DISENO_BADGE: Record<EstadoProyecto, string> = {
@@ -89,7 +83,7 @@ export function ProyectoView({ proyecto, usuarios }: { proyecto: ProyectoDiseno;
     patchProyecto({ estado: nuevoEstado });
   };
 
-  const totalPendientes = proyecto.iteraciones.flatMap((it) => it.ajustes).filter((a) => a.estado === 'pendiente').length;
+  const ajustesPendientes = proyecto.iteraciones.flatMap((it) => it.ajustes).filter((a) => a.estado === 'pendiente').length;
 
   return (
     <div className="p-6 max-w-3xl">
@@ -153,13 +147,10 @@ export function ProyectoView({ proyecto, usuarios }: { proyecto: ProyectoDiseno;
             }`}
           >
             {tab.label}
-            {tab.id === 'ajustes' && totalPendientes > 0 && (
+            {tab.id === 'muestras' && ajustesPendientes > 0 && (
               <span className="ml-1.5 bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded-full font-bold">
-                {totalPendientes}
+                {ajustesPendientes}
               </span>
-            )}
-            {tab.id === 'ideas' && proyecto.ideas.length > 0 && (
-              <span className="ml-1 text-stone-300 text-[10px]">{proyecto.ideas.length}</span>
             )}
             {tab.id === 'insumos' && proyecto.insumos.length > 0 && (
               <span className="ml-1 text-stone-300 text-[10px]">{proyecto.insumos.length}</span>
@@ -173,13 +164,10 @@ export function ProyectoView({ proyecto, usuarios }: { proyecto: ProyectoDiseno;
 
       {/* Tab content */}
       {activeTab === 'inspiracion' && <SeccionInspiracion proyecto={proyecto} />}
-      {activeTab === 'ideas'       && <SeccionIdeas       proyecto={proyecto} />}
       {activeTab === 'desarrollo'  && <SeccionDesarrollo  proyecto={proyecto} usuarios={usuarios} />}
       {activeTab === 'muestras'    && <SeccionMuestras    proyecto={proyecto} />}
-      {activeTab === 'ajustes'     && <SeccionAjustes     proyecto={proyecto} />}
       {activeTab === 'insumos'     && <SeccionInsumos     proyecto={proyecto} />}
       {activeTab === 'skus'        && <SeccionSKUs        proyecto={proyecto} />}
-      {activeTab === 'produccion'  && <SeccionProduccion  proyecto={proyecto} />}
     </div>
   );
 }

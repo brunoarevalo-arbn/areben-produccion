@@ -4,6 +4,19 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ProyectoDiseno, SKUProyecto } from '@/types/diseno';
 
+const ESTADO_PROD = ['listo', 'en_produccion', 'completado'] as const;
+type EstadoProd = typeof ESTADO_PROD[number];
+const ESTADO_PROD_LABEL: Record<EstadoProd, string> = {
+  listo:         'Listo para producir',
+  en_produccion: 'En producción',
+  completado:    'Completado',
+};
+const ESTADO_PROD_BADGE: Record<EstadoProd, string> = {
+  listo:         'bg-sky-100 text-sky-700',
+  en_produccion: 'bg-amber-100 text-amber-700',
+  completado:    'bg-emerald-100 text-emerald-700',
+};
+
 const TALLES = ['XS', 'S', 'M', 'L', 'XL', 'XXL', '34', '36', '38', '40', '42', '44', '46', 'Único'];
 const COLORES_SUGERIDOS = ['Negro', 'Blanco', 'Rojo', 'Azul', 'Verde', 'Crema', 'Gris', 'Rosa', 'Beige', 'Otro'];
 
@@ -107,6 +120,33 @@ export function SeccionSKUs({ proyecto }: { proyecto: ProyectoDiseno }) {
   const [saving, setSaving] = useState(false);
   const [form,   setForm]   = useState({ codigo: '', talle: '', color: '', cantidad: 0, notas: '' });
 
+  const ajustesPendientes = proyecto.iteraciones.flatMap((it) => it.ajustes).filter((a) => a.estado === 'pendiente').length;
+  const [estadoProd, setEstadoProd] = useState<EstadoProd | ''>((proyecto.estadoProduccion as EstadoProd) ?? '');
+  const [cantidad,   setCantidad]   = useState(proyecto.cantidad ?? 0);
+  const [savingProd, setSavingProd] = useState(false);
+  const [savedProd,  setSavedProd]  = useState(false);
+
+  const guardarProd = async () => {
+    setSavingProd(true);
+    await fetch(`/api/proyectos/${proyecto.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estadoProduccion: estadoProd || null, cantidad }),
+    });
+    setSavingProd(false); setSavedProd(true);
+    setTimeout(() => setSavedProd(false), 2000);
+    router.refresh();
+  };
+
+  const pasarAProduccion = async () => {
+    setSavingProd(true);
+    await fetch(`/api/proyectos/${proyecto.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estadoDiseno: 'produccion', estadoProduccion: 'en_produccion' }),
+    });
+    setSavingProd(false);
+    router.refresh();
+  };
+
   const totalUnidades = proyecto.skus.reduce((acc, s) => acc + s.cantidad, 0);
 
   const guardar = async () => {
@@ -201,6 +241,55 @@ export function SeccionSKUs({ proyecto }: { proyecto: ProyectoDiseno }) {
           ))}
         </div>
       )}
+
+      {/* Producción */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 space-y-4 mt-2">
+        <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400">Orden de producción</h3>
+
+        {ajustesPendientes > 0 && (
+          <p className="text-xs text-orange-600 bg-orange-50 border border-orange-100 rounded-lg px-3 py-2">
+            {ajustesPendientes} ajuste{ajustesPendientes > 1 ? 's' : ''} pendiente{ajustesPendientes > 1 ? 's' : ''} en muestras
+          </p>
+        )}
+
+        <div>
+          <label className="block text-xs font-semibold text-stone-600 mb-1.5">Estado</label>
+          <div className="flex gap-2 flex-wrap">
+            {ESTADO_PROD.map((est) => (
+              <button key={est} type="button" onClick={() => setEstadoProd(est)}
+                className={`px-4 py-2 rounded-lg text-xs font-semibold border transition ${
+                  estadoProd === est
+                    ? `${ESTADO_PROD_BADGE[est]} border-transparent`
+                    : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'
+                }`}>
+                {ESTADO_PROD_LABEL[est]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-stone-600 mb-1.5">Cantidad a producir</label>
+          <input type="number" value={cantidad} onChange={(e) => setCantidad(parseInt(e.target.value) || 0)}
+            min="0" className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400" />
+        </div>
+
+        <div className="flex gap-3">
+          <button onClick={guardarProd} disabled={savingProd}
+            className={`flex-1 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide transition ${
+              savedProd ? 'bg-emerald-600 text-white' : 'bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50'
+            }`}>
+            {savingProd ? 'Guardando...' : savedProd ? '✓ Guardado' : 'Guardar'}
+          </button>
+          {proyecto.estadoDiseno !== 'produccion' && (
+            <button onClick={pasarAProduccion} disabled={savingProd || ajustesPendientes > 0}
+              className="flex-1 py-2.5 rounded-xl text-sm font-bold uppercase tracking-wide bg-emerald-600 hover:bg-emerald-700 text-white transition disabled:opacity-40"
+              title={ajustesPendientes > 0 ? 'Hay ajustes pendientes' : ''}>
+              Pasar a producción →
+            </button>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

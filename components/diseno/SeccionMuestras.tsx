@@ -287,26 +287,15 @@ export function SeccionMuestras({ proyecto }: { proyecto: ProyectoDiseno }) {
         <h3 className="text-xs font-bold uppercase tracking-widest text-stone-400">
           {proyecto.iteraciones.length === 0
             ? 'Sin muestras todavía'
-            : `${proyecto.iteraciones.length} iteración${proyecto.iteraciones.length > 1 ? 'es' : ''}`}
+            : `${proyecto.iteraciones.length} muestra${proyecto.iteraciones.length > 1 ? 's' : ''}`}
         </h3>
-        <div className="flex gap-2">
-          {proyecto.iteraciones.length > 0 && (
-            <button
-              onClick={() => crearIteracion('contramuestra')}
-              disabled={loading}
-              className="bg-orange-100 hover:bg-orange-200 text-orange-700 text-xs px-3 py-2 rounded-lg font-semibold transition disabled:opacity-50"
-            >
-              + Contramuestra
-            </button>
-          )}
-          <button
-            onClick={() => crearIteracion('muestra')}
-            disabled={loading}
-            className="bg-stone-900 hover:bg-stone-800 text-white text-xs px-4 py-2 rounded-lg font-semibold transition disabled:opacity-50"
-          >
-            {loading ? 'Creando...' : `+ Muestra v${nSiguiente}`}
-          </button>
-        </div>
+        <button
+          onClick={() => crearIteracion('muestra')}
+          disabled={loading}
+          className="bg-stone-900 hover:bg-stone-800 text-white text-xs px-4 py-2 rounded-lg font-semibold transition disabled:opacity-50"
+        >
+          {loading ? 'Creando...' : `+ Muestra v${nSiguiente}`}
+        </button>
       </div>
 
       {proyecto.iteraciones.length === 0 && (
