@@ -55,8 +55,8 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
         const msg = r.status === 401 ? 'Sesión expirada — cerrá y volvé a ingresar' : `Error ${r.status} al cargar órdenes`;
         setErrorCola(msg);
       }
-    } catch {
-      setErrorCola('Sin conexión — revisá el internet');
+    } catch (err) {
+      setErrorCola(`Error de red: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoadingQ(false);
     }
