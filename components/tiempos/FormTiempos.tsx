@@ -62,10 +62,14 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
       return;
     }
     try {
-      const data = await r.json();
-      setOrdenes(data);
+      const text = await r.text();
+      try {
+        setOrdenes(JSON.parse(text));
+      } catch {
+        setErrorCola(`Resp: ${text.slice(0, 300) || '(vacío)'}`);
+      }
     } catch (err) {
-      setErrorCola(`JSON inválido: ${err instanceof Error ? err.message : String(err)}`);
+      setErrorCola(`Text: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoadingQ(false);
     }
