@@ -23,30 +23,36 @@ const COLORES_SUGERIDOS = ['Negro', 'Blanco', 'Rojo', 'Azul', 'Verde', 'Crema', 
 function SKURow({
   sku,
   proyectoId,
-  onRefresh,
+  onUpdate,
+  onDelete,
 }: {
   sku: SKUProyecto;
   proyectoId: string;
-  onRefresh: () => void;
+  onUpdate: (updated: SKUProyecto) => void;
+  onDelete: (id: string) => void;
 }) {
   const [editing,     setEditing]     = useState(false);
   const [form,        setForm]        = useState({ ...sku });
   const [saving,      setSaving]      = useState(false);
   const [confirmando, setConfirmando] = useState(false);
+  const [error,       setError]       = useState('');
 
   const guardar = async () => {
     setSaving(true);
-    await fetch(`/api/proyectos/${proyectoId}/skus/${sku.id}`, {
+    setError('');
+    const r = await fetch(`/api/proyectos/${proyectoId}/skus/${sku.id}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form),
     });
     setSaving(false);
+    if (!r.ok) { setError('Error al guardar. Intentá de nuevo.'); return; }
+    const updated = await r.json();
     setEditing(false);
-    onRefresh();
+    onUpdate(updated);
   };
 
   const eliminar = async () => {
-    await fetch(`/api/proyectos/${proyectoId}/skus/${sku.id}`, { method: 'DELETE' });
-    onRefresh();
+    const r = await fetch(`/api/proyectos/${proyectoId}/skus/${sku.id}`, { method: 'DELETE' });
+    if (r.ok) onDelete(sku.id);
   };
 
   if (editing) {
@@ -78,9 +84,10 @@ function SKURow({
             <input type="text" value={form.notas ?? ''} onChange={(e) => setForm((p) => ({ ...p, notas: e.target.value || null }))} placeholder="Opcional" className="w-full border border-stone-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:border-violet-400" />
           </div>
         </div>
+        {error && <p className="text-xs text-red-600">{error}</p>}
         <div className="flex gap-2">
           <button onClick={guardar} disabled={saving} className="bg-stone-900 text-white text-xs px-4 py-2 rounded-lg disabled:opacity-40">{saving ? 'Guardando...' : 'Guardar'}</button>
-          <button onClick={() => { setEditing(false); setForm({ ...sku }); }} className="text-xs text-stone-500 px-3 py-2">Cancelar</button>
+          <button onClick={() => { setEditing(false); setForm({ ...sku }); setError(''); }} className="text-xs text-stone-500 px-3 py-2">Cancelar</button>
         </div>
       </div>
     );
@@ -115,16 +122,58 @@ function SKURow({
 }
 
 export function SeccionSKUs({ proyecto }: { proyecto: ProyectoDiseno }) {
-  const router  = useRouter();
-  const [open,   setOpen]   = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form,   setForm]   = useState({ codigo: '', talle: '', color: '', cantidad: 0, notas: '' });
+  const router = useRouter();
+
+  const [localSkus,  setLocalSkus]  = useState<SKUProyecto[]>(proyecto.skus);
+  const [open,       setOpen]       = useState(false);
+  const [saving,     setSaving]     = useState(false);
+  const [error,      setError]      = useState('');
+  const [form,       setForm]       = useState({ codigo: '', talle: '', color: '', cantidad: 0, notas: '' });
 
   const ajustesPendientes = proyecto.iteraciones.flatMap((it) => it.ajustes).filter((a) => a.estado === 'pendiente').length;
   const [estadoProd, setEstadoProd] = useState<EstadoProd | ''>((proyecto.estadoProduccion as EstadoProd) ?? '');
   const [cantidad,   setCantidad]   = useState(proyecto.cantidad ?? 0);
   const [savingProd, setSavingProd] = useState(false);
   const [savedProd,  setSavedProd]  = useState(false);
+
+  const totalUnidades = localSkus.reduce((acc, s) => acc + s.cantidad, 0);
+
+  const guardar = async () => {
+    if (!form.codigo.trim()) return;
+    setSaving(true);
+    setError('');
+    const r = await fetch(`/api/proyectos/${proyecto.id}/skus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        codigo:   form.codigo.trim(),
+        talle:    form.talle  || undefined,
+        color:    form.color  || undefined,
+        cantidad: form.cantidad,
+        notas:    form.notas  || undefined,
+      }),
+    });
+    setSaving(false);
+    if (!r.ok) {
+      setError('Error al guardar el SKU. Intentá de nuevo.');
+      return;
+    }
+    const newSku = await r.json();
+    setLocalSkus((prev) => [...prev, newSku]);
+    setForm({ codigo: '', talle: '', color: '', cantidad: 0, notas: '' });
+    setOpen(false);
+    router.refresh();
+  };
+
+  const handleUpdate = (updated: SKUProyecto) => {
+    setLocalSkus((prev) => prev.map((s) => s.id === updated.id ? updated : s));
+    router.refresh();
+  };
+
+  const handleDelete = (id: string) => {
+    setLocalSkus((prev) => prev.filter((s) => s.id !== id));
+    router.refresh();
+  };
 
   const guardarProd = async () => {
     setSavingProd(true);
@@ -147,35 +196,13 @@ export function SeccionSKUs({ proyecto }: { proyecto: ProyectoDiseno }) {
     router.refresh();
   };
 
-  const totalUnidades = proyecto.skus.reduce((acc, s) => acc + s.cantidad, 0);
-
-  const guardar = async () => {
-    if (!form.codigo.trim()) return;
-    setSaving(true);
-    await fetch(`/api/proyectos/${proyecto.id}/skus`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        codigo:   form.codigo.trim(),
-        talle:    form.talle  || undefined,
-        color:    form.color  || undefined,
-        cantidad: form.cantidad,
-        notas:    form.notas  || undefined,
-      }),
-    });
-    setForm({ codigo: '', talle: '', color: '', cantidad: 0, notas: '' });
-    setOpen(false);
-    setSaving(false);
-    router.refresh();
-  };
-
   return (
     <div className="space-y-5">
       {/* Resumen */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white rounded-xl border border-stone-200 p-4">
           <p className="text-xs text-stone-400 mb-0.5">SKUs registrados</p>
-          <p className="text-2xl font-bold text-stone-800">{proyecto.skus.length}</p>
+          <p className="text-2xl font-bold text-stone-800">{localSkus.length}</p>
         </div>
         <div className="bg-emerald-50 rounded-xl border border-emerald-100 p-4">
           <p className="text-xs text-emerald-500 mb-0.5">Unidades totales</p>
@@ -185,7 +212,7 @@ export function SeccionSKUs({ proyecto }: { proyecto: ProyectoDiseno }) {
 
       <div className="flex justify-between items-center">
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Gestión de SKUs</p>
-        <button onClick={() => setOpen((v) => !v)} className="bg-stone-900 hover:bg-stone-800 text-white text-xs px-4 py-2 rounded-lg font-semibold transition">
+        <button onClick={() => { setOpen((v) => !v); setError(''); }} className="bg-stone-900 hover:bg-stone-800 text-white text-xs px-4 py-2 rounded-lg font-semibold transition">
           {open ? 'Cancelar' : '+ Nuevo SKU'}
         </button>
       </div>
@@ -220,24 +247,25 @@ export function SeccionSKUs({ proyecto }: { proyecto: ProyectoDiseno }) {
               <input type="text" value={form.notas} onChange={(e) => setForm((p) => ({ ...p, notas: e.target.value }))} placeholder="Opcional" className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-violet-400" />
             </div>
           </div>
+          {error && <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>}
           <div className="flex gap-2">
             <button onClick={guardar} disabled={saving || !form.codigo.trim()} className="bg-stone-900 text-white text-sm px-5 py-2.5 rounded-xl font-semibold disabled:opacity-40">
               {saving ? 'Guardando...' : 'Guardar SKU'}
             </button>
-            <button onClick={() => setOpen(false)} className="text-sm text-stone-500 px-4 py-2.5">Cancelar</button>
+            <button onClick={() => { setOpen(false); setError(''); }} className="text-sm text-stone-500 px-4 py-2.5">Cancelar</button>
           </div>
         </div>
       )}
 
       {/* Lista */}
-      {proyecto.skus.length === 0 ? (
+      {localSkus.length === 0 ? (
         <div className="border-2 border-dashed border-stone-200 rounded-2xl p-10 text-center">
           <p className="text-stone-400 text-sm">Registrá los SKUs de este diseño con talle y color.</p>
         </div>
       ) : (
         <div className="space-y-2">
-          {proyecto.skus.map((sku) => (
-            <SKURow key={sku.id} sku={sku} proyectoId={proyecto.id} onRefresh={() => router.refresh()} />
+          {localSkus.map((sku) => (
+            <SKURow key={sku.id} sku={sku} proyectoId={proyecto.id} onUpdate={handleUpdate} onDelete={handleDelete} />
           ))}
         </div>
       )}
