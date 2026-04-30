@@ -48,6 +48,11 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
     setLoadingQ(true);
     setErrorCola('');
     try {
+      // diagnóstico: primero verificar que el routing funciona
+      const ping = await fetch('/api/produccion/ping').catch(() => null);
+      if (!ping) { setErrorCola('PING FALLÓ: routing roto'); setLoadingQ(false); return; }
+      if (!ping.ok) { setErrorCola(`PING ${ping.status}`); setLoadingQ(false); return; }
+
       const r = await fetch('/api/produccion/cola');
       if (r.ok) {
         const todas: OrdenActiva[] = await r.json();
@@ -56,8 +61,8 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
         const body = await r.text().catch(() => '');
         setErrorCola(r.status === 401 ? 'Sesión expirada — cerrá y volvé a ingresar' : `Error ${r.status}: ${body.slice(0, 150)}`);
       }
-    } catch {
-      setErrorCola('Sin conexión — revisá el internet');
+    } catch (err) {
+      setErrorCola(`Cola falló: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoadingQ(false);
     }
