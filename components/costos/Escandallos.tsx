@@ -30,7 +30,7 @@ interface Escandallo {
 
 const MARCAS = ['Zattia', 'Stunned'];
 const DEFAULT_DATOS: DatosEscandallo = {
-  telas: [{ nombre: '', precioKgNeto: 0, fletePercent: 0, rindeMetrosKg: 0, consumoMetros: 0 }],
+  telas: [{ nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0 }],
   costoCorte: 0, costoTizada: 0, costoLavadero: 0, tiempoConfeccion: 0,
   varios: [],
   avios: { etiquetaPrincipal: 0, etiquetaComposicion: 0, bolsaPolipropileno: 0, tiempoEmbolsado: 0, extras: [] },
@@ -75,6 +75,10 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
   const [datos,      setDatos]      = useState<DatosEscandallo>(deepClone(DEFAULT_DATOS));
   const [saving,     setSaving]     = useState(false);
 
+  const [loadingTiempo,      setLoadingTiempo]      = useState(false);
+  const [tiempoProduccion,   setTiempoProduccion]   = useState<{ minutos: number; registros: number; cantidadTotal: number } | null>(null);
+  const [sinDatosProduccion, setSinDatosProduccion] = useState(false);
+
   const cargar = useCallback(async () => {
     setLoading(true);
     const r = await fetch('/api/costos/escandallos');
@@ -83,10 +87,12 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => { setTiempoProduccion(null); setSinDatosProduccion(false); }, [sku]);
 
   const resetForm = () => {
     setNombre(''); setSku(''); setMarca(''); setTipoPrenda(''); setNotas('');
     setDatos(deepClone(DEFAULT_DATOS)); setEditId(null); setShowForm(false);
+    setTiempoProduccion(null); setSinDatosProduccion(false);
   };
 
   const openEdit = (e: Escandallo) => {
@@ -99,7 +105,7 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
   };
 
   // Telas
-  const addTela = () => setDatos(prev => ({ ...prev, telas: [...prev.telas, { nombre: '', precioKgNeto: 0, fletePercent: 0, rindeMetrosKg: 0, consumoMetros: 0 }] }));
+  const addTela = () => setDatos(prev => ({ ...prev, telas: [...prev.telas, { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0 }] }));
   const updTela = (i: number, field: string, val: string) =>
     setDatos(prev => ({ ...prev, telas: prev.telas.map((t, idx) => idx !== i ? t : ({ ...t, [field]: field === 'nombre' ? val : pf(val) } as Tela)) }));
   const delTela = (i: number) => setDatos(prev => ({ ...prev, telas: prev.telas.filter((_, idx) => idx !== i) }));
@@ -118,6 +124,22 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
 
   const updDatos = (field: string, val: string) => setDatos(prev => ({ ...prev, [field]: pf(val) }));
   const updAvios = (field: string, val: string) => setDatos(prev => ({ ...prev, avios: { ...prev.avios, [field]: pf(val) } }));
+
+  const fetchTiempoSku = async () => {
+    if (!sku.trim()) return;
+    setLoadingTiempo(true);
+    setTiempoProduccion(null);
+    setSinDatosProduccion(false);
+    try {
+      const r = await fetch(`/api/produccion/tiempo-sku?sku=${encodeURIComponent(sku)}`);
+      if (r.ok) {
+        const d = await r.json();
+        if (d.encontrado) setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
+        else setSinDatosProduccion(true);
+      }
+    } catch { /* ignore */ }
+    setLoadingTiempo(false);
+  };
 
   const calc = calcular(datos, costoMinuto);
 
@@ -349,6 +371,54 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
                 {costoMinuto === 0 && <p className="text-xs text-amber-500 mt-0.5">Sin valor hora configurado</p>}
               </div>
             </div>
+
+            {/* Obtener desde producción real */}
+            {sku.trim() && (
+              <div className="mt-4 border-t border-stone-100 pt-4">
+                {!tiempoProduccion && !sinDatosProduccion && (
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs text-stone-400">
+                      Calcular promedio real desde registros de producción del SKU{' '}
+                      <span className="font-mono font-semibold text-stone-600">{sku}</span>
+                    </p>
+                    <button type="button" onClick={fetchTiempoSku} disabled={loadingTiempo}
+                      className="shrink-0 text-xs px-3 py-1.5 border border-stone-200 rounded-lg text-stone-600 hover:border-violet-400 hover:text-violet-700 transition disabled:opacity-50">
+                      {loadingTiempo ? 'Consultando...' : '↓ Obtener de producción'}
+                    </button>
+                  </div>
+                )}
+                {sinDatosProduccion && (
+                  <div className="flex items-center justify-between gap-4">
+                    <p className="text-xs text-stone-400">
+                      Sin registros de producción para <span className="font-mono">{sku}</span>
+                    </p>
+                    <button type="button" onClick={() => setSinDatosProduccion(false)}
+                      className="text-xs text-stone-300 hover:text-stone-500 px-1">✕</button>
+                  </div>
+                )}
+                {tiempoProduccion && (
+                  <div className="flex items-center justify-between gap-4 bg-violet-50 rounded-xl px-4 py-3">
+                    <div>
+                      <p className="text-xs font-semibold text-violet-700">
+                        Promedio real: {tiempoProduccion.minutos} min/prenda
+                      </p>
+                      <p className="text-xs text-stone-400 mt-0.5">
+                        {tiempoProduccion.registros} registros · {tiempoProduccion.cantidadTotal} prendas producidas
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <button type="button"
+                        onClick={() => { updDatos('tiempoConfeccion', String(tiempoProduccion.minutos)); setTiempoProduccion(null); }}
+                        className="text-xs px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold transition">
+                        Usar {tiempoProduccion.minutos} min
+                      </button>
+                      <button type="button" onClick={() => setTiempoProduccion(null)}
+                        className="text-xs text-stone-400 hover:text-stone-600 px-1">✕</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Varios */}
