@@ -1,12 +1,11 @@
 export const MARCAS_DISENO = ['Zattia', 'Stunned'] as const;
 
-export type TipoDatos = 'calce' | 'medidas' | 'encogimiento';
+export type TipoDatos = 'calce' | 'medidas';
 
 export const PASOS_CON_DATOS: Record<string, TipoDatos> = {
-  'PRUEBA DE CALCE':          'calce',
-  'MEDIDAS PRE-LAVADO':       'medidas',
-  'MEDIDAS POST-LAVADO':      'medidas',
-  'ANÁLISIS DE ENCOGIMIENTO': 'encogimiento',
+  'PRUEBA DE CALCE':    'calce',
+  'MEDIDAS PRE-LAVADO': 'medidas',
+  'MEDIDAS POST-LAVADO': 'medidas',
 };
 
 export const CAMPOS_MEDIDAS = [
@@ -31,7 +30,6 @@ export const PASOS_DISENO = [
   'LAVADO',
   'MEDIDAS PRE-LAVADO',
   'MEDIDAS POST-LAVADO',
-  'ANÁLISIS DE ENCOGIMIENTO',
   'ARREGLO DE MOLDERÍA (FINAL)',
   'PLANIFICACIÓN DE PRODUCCIÓN',
   'PEDIDO DE TELA',

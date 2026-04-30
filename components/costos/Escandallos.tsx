@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 interface Tela { nombre: string; precioKgNeto: number; fletePercent: number; rindeMetrosKg: number; consumoMetros: number; }
 interface ItemExtra { nombre: string; costo: number; }
+interface MedidasLavado { largo: number; ancho: number; talle: string; }
 interface DatosEscandallo {
   telas: Tela[];
   costoCorte: number;
@@ -19,6 +20,8 @@ interface DatosEscandallo {
     tiempoEmbolsado: number;
     extras: ItemExtra[];
   };
+  medidasPreLavado?: MedidasLavado;
+  medidasPostLavado?: MedidasLavado;
   margenDesarrollo: number;
   margenFallas: number;
 }
@@ -29,11 +32,14 @@ interface Escandallo {
 }
 
 const MARCAS = ['Zattia', 'Stunned'];
+const MEDIDAS_LAVADO_EMPTY: MedidasLavado = { largo: 0, ancho: 0, talle: '' };
 const DEFAULT_DATOS: DatosEscandallo = {
   telas: [{ nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0 }],
   costoCorte: 0, costoTizada: 0, costoLavadero: 0, tiempoConfeccion: 0,
   varios: [],
   avios: { etiquetaPrincipal: 0, etiquetaComposicion: 0, bolsaPolipropileno: 0, tiempoEmbolsado: 0, extras: [] },
+  medidasPreLavado:  { ...MEDIDAS_LAVADO_EMPTY },
+  medidasPostLavado: { ...MEDIDAS_LAVADO_EMPTY },
   margenDesarrollo: 10, margenFallas: 5,
 };
 
@@ -124,6 +130,11 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
 
   const updDatos = (field: string, val: string) => setDatos(prev => ({ ...prev, [field]: pf(val) }));
   const updAvios = (field: string, val: string) => setDatos(prev => ({ ...prev, avios: { ...prev.avios, [field]: pf(val) } }));
+  const updMedidas = (cual: 'medidasPreLavado' | 'medidasPostLavado', field: keyof MedidasLavado, val: string) =>
+    setDatos(prev => ({
+      ...prev,
+      [cual]: { ...(prev[cual] ?? MEDIDAS_LAVADO_EMPTY), [field]: field === 'talle' ? val : pf(val) },
+    }));
 
   const fetchTiempoSku = async () => {
     if (!sku.trim()) return;
@@ -495,6 +506,66 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
                 ))}
               </div>
             </div>
+          </div>
+
+          {/* Medidas pre/post lavado + encogimiento */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+            <p className={`${sec} mb-4`}>Medidas pre/post lavado</p>
+            <div className="grid grid-cols-2 gap-6">
+              {(['medidasPreLavado', 'medidasPostLavado'] as const).map((cual) => {
+                const m = datos[cual] ?? MEDIDAS_LAVADO_EMPTY;
+                const titulo = cual === 'medidasPreLavado' ? 'Pre lavado' : 'Post lavado';
+                return (
+                  <div key={cual} className="space-y-2">
+                    <p className="text-xs font-semibold text-stone-500">{titulo}</p>
+                    <div>
+                      <label className={lbl}>Talle</label>
+                      <input type="text" value={m.talle} onChange={e => updMedidas(cual, 'talle', e.target.value)}
+                        placeholder="Ej: M" className={inp} />
+                    </div>
+                    <div>
+                      <label className={lbl}>Largo (cm)</label>
+                      <input type="number" value={m.largo || ''} onChange={e => updMedidas(cual, 'largo', e.target.value)}
+                        onFocus={e => e.currentTarget.select()} placeholder="0" min="0" step="0.1" className={inp} />
+                    </div>
+                    <div>
+                      <label className={lbl}>Ancho (cm)</label>
+                      <input type="number" value={m.ancho || ''} onChange={e => updMedidas(cual, 'ancho', e.target.value)}
+                        onFocus={e => e.currentTarget.select()} placeholder="0" min="0" step="0.1" className={inp} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Análisis encogimiento automático */}
+            {(() => {
+              const pre  = datos.medidasPreLavado;
+              const post = datos.medidasPostLavado;
+              const encLargo = pre && post && pre.largo > 0 ? ((Math.abs(post.largo - pre.largo) / pre.largo) * 100) : null;
+              const encAncho = pre && post && pre.ancho > 0 ? ((Math.abs(post.ancho - pre.ancho) / pre.ancho) * 100) : null;
+              if (!encLargo && !encAncho) return null;
+              return (
+                <div className="mt-4 border-t border-stone-100 pt-4">
+                  <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Análisis de encogimiento</p>
+                  <div className="grid grid-cols-2 gap-4">
+                    {encLargo !== null && (
+                      <div className="bg-amber-50 rounded-xl px-4 py-3 text-center">
+                        <p className="text-xs text-stone-400 mb-0.5">Encogimiento largo</p>
+                        <p className={`text-xl font-bold ${encLargo > 3 ? 'text-red-600' : 'text-amber-600'}`}>{encLargo.toFixed(1)}%</p>
+                        <p className="text-xs text-stone-400 mt-0.5">{pre?.largo} → {post?.largo} cm</p>
+                      </div>
+                    )}
+                    {encAncho !== null && (
+                      <div className="bg-amber-50 rounded-xl px-4 py-3 text-center">
+                        <p className="text-xs text-stone-400 mb-0.5">Encogimiento ancho</p>
+                        <p className={`text-xl font-bold ${encAncho > 3 ? 'text-red-600' : 'text-amber-600'}`}>{encAncho.toFixed(1)}%</p>
+                        <p className="text-xs text-stone-400 mt-0.5">{pre?.ancho} → {post?.ancho} cm</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           {/* Márgenes */}

@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 
-const NAV = [
+interface SubItem { label: string; href: string; nuevoHref?: string; }
+
+const NAV: { label: string; href: string; icon: string; sub: SubItem[] }[] = [
   {
     label: 'Dashboard',
     href: '/dashboard',
@@ -15,8 +17,9 @@ const NAV = [
     href: '/diseno',
     icon: '📐',
     sub: [
-      { label: 'Proyectos', href: '/diseno' },
-      { label: 'Nuevo',     href: '/diseno/nuevo' },
+      { label: 'Proyectos', href: '/diseno', nuevoHref: '/diseno/nuevo' },
+      { label: 'Molderías', href: '/configuracion/molderias' },
+      { label: 'Telas',     href: '/configuracion/telas' },
     ],
   },
   {
@@ -33,8 +36,7 @@ const NAV = [
     href: '/costos',
     icon: '💰',
     sub: [
-      { label: 'Productividad',  href: '/costos' },
-      { label: 'Escandallos',    href: '/costos#escandallos' },
+      { label: 'Escandallos', href: '/costos' },
     ],
   },
   {
@@ -42,7 +44,9 @@ const NAV = [
     href: '/configuracion',
     icon: '⚙',
     sub: [
-      { label: 'Usuarios', href: '/configuracion/usuarios' },
+      { label: 'Usuarios',  href: '/configuracion/usuarios' },
+      { label: 'Molderías', href: '/configuracion/molderias' },
+      { label: 'Telas',     href: '/configuracion/telas' },
     ],
   },
 ];
@@ -86,17 +90,27 @@ export function Sidebar() {
               {item.sub.length > 0 && active && (
                 <div className="ml-9 mt-0.5 mb-1 space-y-0.5">
                   {item.sub.map((s) => (
-                    <Link
-                      key={s.href}
-                      href={s.href}
-                      className={`block px-3 py-1.5 rounded-lg text-xs transition-colors ${
-                        pathname === s.href
-                          ? 'text-amber-400 font-semibold'
-                          : 'text-stone-500 hover:text-stone-300'
-                      }`}
-                    >
-                      {s.label}
-                    </Link>
+                    <div key={s.href} className="flex items-center gap-1">
+                      <Link
+                        href={s.href}
+                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                          pathname === s.href
+                            ? 'text-amber-400 font-semibold'
+                            : 'text-stone-500 hover:text-stone-300'
+                        }`}
+                      >
+                        {s.label}
+                      </Link>
+                      {s.nuevoHref && (
+                        <Link
+                          href={s.nuevoHref}
+                          title="Nuevo"
+                          className="px-1.5 py-1 rounded-md text-stone-600 hover:text-stone-300 hover:bg-stone-800 transition text-sm leading-none"
+                        >
+                          +
+                        </Link>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

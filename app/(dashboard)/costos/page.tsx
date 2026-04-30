@@ -1,20 +1,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Productividad } from '@/components/costos/Productividad';
-import { Parametros }    from '@/components/costos/Parametros';
-import { Escandallos }   from '@/components/costos/Escandallos';
+import { Parametros }  from '@/components/costos/Parametros';
+import { Escandallos } from '@/components/costos/Escandallos';
 
-type Tab = 'productividad' | 'parametros' | 'escandallos';
+type Tab = 'parametros' | 'escandallos';
 
 const TABS: { id: Tab; label: string }[] = [
-  { id: 'productividad', label: 'Productividad' },
-  { id: 'parametros',    label: 'Parámetros de costo' },
-  { id: 'escandallos',   label: 'Escandallos' },
+  { id: 'parametros',  label: 'Parámetros de costo' },
+  { id: 'escandallos', label: 'Escandallos' },
 ];
 
 export default function CostosPage() {
-  const [tab, setTab] = useState<Tab>('productividad');
+  const [tab, setTab] = useState<Tab>('escandallos');
   const [costoMinuto, setCostoMinuto] = useState(0);
 
   useEffect(() => {
@@ -35,7 +33,7 @@ export default function CostosPage() {
       <div className="mb-8">
         <span className="text-xs font-bold uppercase tracking-widest text-emerald-600">Módulo 3</span>
         <h1 className="text-2xl font-bold text-stone-900 mt-1">Costos de Producción</h1>
-        <p className="text-stone-500 text-sm mt-1">Productividad, parámetros y escandallos del taller.</p>
+        <p className="text-stone-500 text-sm mt-1">Parámetros y escandallos del taller.</p>
       </div>
 
       {/* Tabs */}
@@ -55,9 +53,8 @@ export default function CostosPage() {
         ))}
       </div>
 
-      {tab === 'productividad' && <Productividad />}
-      {tab === 'parametros'    && <Parametros />}
-      {tab === 'escandallos'   && <Escandallos costoMinuto={costoMinuto} />}
+      {tab === 'parametros'  && <Parametros />}
+      {tab === 'escandallos' && <Escandallos costoMinuto={costoMinuto} />}
     </div>
   );
 }

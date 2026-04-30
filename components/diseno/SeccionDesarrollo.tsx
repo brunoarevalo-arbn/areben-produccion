@@ -1,13 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import type { ProyectoDiseno, UsuarioSimple } from '@/types/diseno';
-import { calcularPrecioVenta, MARGEN_DEFAULT } from '@/lib/utils/calculos';
 import { TimelinePasos } from './TimelinePasos';
 
-const TELAS     = ['Algodón', 'Poliéster', 'Lino', 'Seda', 'Denim', 'Lycra', 'Modal', 'Otro'];
-const MOLDERIAS = ['Base recta', 'Base entallada', 'Base evasé', 'Moldería propia', 'Otro'];
+interface CatalogoItem { id: string; nombre: string; }
 
 export function SeccionDesarrollo({ proyecto, usuarios }: { proyecto: ProyectoDiseno; usuarios: UsuarioSimple[] }) {
   const router  = useRouter();
@@ -15,20 +13,26 @@ export function SeccionDesarrollo({ proyecto, usuarios }: { proyecto: ProyectoDi
     molderia:        proyecto.molderia        ?? '',
     molderiaFormato: proyecto.molderiaFormato ?? '',
     tela:            proyecto.tela            ?? '',
-    costo:           proyecto.costo           ?? 0,
-    precioEstimado:  proyecto.precioEstimado  ?? 0,
+    fechaObjetivo:   proyecto.fechaObjetivo
+      ? proyecto.fechaObjetivo.slice(0, 10)
+      : '',
   });
-  const [saving, setSaving] = useState(false);
-  const [saved,  setSaved]  = useState(false);
+  const [saving,    setSaving]    = useState(false);
+  const [saved,     setSaved]     = useState(false);
+  const [molderias, setMolderias] = useState<CatalogoItem[]>([]);
+  const [telas,     setTelas]     = useState<CatalogoItem[]>([]);
 
-  const precioVenta = calcularPrecioVenta(form.costo);
+  useEffect(() => {
+    fetch('/api/molderias').then((r) => r.ok ? r.json() : []).then(setMolderias).catch(() => {});
+    fetch('/api/telas-catalogo').then((r) => r.ok ? r.json() : []).then(setTelas).catch(() => {});
+  }, []);
 
   const guardar = async () => {
     setSaving(true);
     await fetch(`/api/proyectos/${proyecto.id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, precioEstimado: precioVenta }),
+      body: JSON.stringify(form),
     });
     setSaving(false);
     setSaved(true);
@@ -47,7 +51,7 @@ export function SeccionDesarrollo({ proyecto, usuarios }: { proyecto: ProyectoDi
             <label className="block text-xs font-semibold text-stone-600 mb-1.5">Moldería</label>
             <select value={form.molderia} onChange={(e) => setForm((p) => ({ ...p, molderia: e.target.value }))} className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm bg-white focus:outline-none focus:border-violet-400">
               <option value="">— Seleccionar —</option>
-              {MOLDERIAS.map((m) => <option key={m}>{m}</option>)}
+              {molderias.map((m) => <option key={m.id} value={m.nombre}>{m.nombre}</option>)}
             </select>
           </div>
           <div>
@@ -73,22 +77,18 @@ export function SeccionDesarrollo({ proyecto, usuarios }: { proyecto: ProyectoDi
             <label className="block text-xs font-semibold text-stone-600 mb-1.5">Tela</label>
             <select value={form.tela} onChange={(e) => setForm((p) => ({ ...p, tela: e.target.value }))} className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm bg-white focus:outline-none focus:border-violet-400">
               <option value="">— Seleccionar —</option>
-              {TELAS.map((t) => <option key={t}>{t}</option>)}
+              {telas.map((t) => <option key={t.id} value={t.nombre}>{t.nombre}</option>)}
             </select>
           </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-stone-600 mb-1.5">Costo de producción ($)</label>
-          <input type="number" value={form.costo} onChange={(e) => setForm((p) => ({ ...p, costo: parseFloat(e.target.value) || 0 }))} min="0" step="0.01" className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400" />
-        </div>
-
-        <div className="bg-stone-50 rounded-xl px-4 py-3 flex items-center justify-between">
           <div>
-            <p className="text-xs text-stone-500">Precio de venta estimado</p>
-            <p className="text-xs text-stone-400">costo × {MARGEN_DEFAULT}</p>
+            <label className="block text-xs font-semibold text-stone-600 mb-1.5">Fecha objetivo</label>
+            <input
+              type="date"
+              value={form.fechaObjetivo}
+              onChange={(e) => setForm((p) => ({ ...p, fechaObjetivo: e.target.value }))}
+              className="w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm bg-white focus:outline-none focus:border-violet-400"
+            />
           </div>
-          <span className="text-xl font-bold text-violet-700">${precioVenta.toFixed(0)}</span>
         </div>
 
         <button

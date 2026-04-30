@@ -68,6 +68,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         createdAt: s.createdAt.toISOString(),
         updatedAt: s.updatedAt.toISOString(),
       })),
+      fechaObjetivo: proyecto.fechaObjetivo?.toISOString() ?? null,
       createdAt: proyecto.createdAt.toISOString(),
       updatedAt: proyecto.updatedAt.toISOString(),
     }));
@@ -99,6 +100,10 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 
     if (body.moodboard !== undefined) {
       data.moodboard = JSON.stringify(body.moodboard);
+    }
+
+    if (body.fechaObjetivo !== undefined) {
+      data.fechaObjetivo = body.fechaObjetivo ? new Date(body.fechaObjetivo) : null;
     }
 
     const proyecto = await prisma.proyectoDiseno.update({ where: { id }, data });

@@ -112,6 +112,7 @@ model ProyectoDiseno {
   precioEstimado   Float              @default(0)
   estadoProduccion String?
   cantidad         Int                @default(0)
+  fechaObjetivo    DateTime?
   pasos            ProyectoPaso[]
   iteraciones      IteracionMuestra[]
   ideas            IdeaDiseno[]
@@ -298,4 +299,24 @@ model OrdenProduccion {
   updatedAt   DateTime  @updatedAt
 
   @@map("ordenes_produccion")
+}
+
+model MolderiaCatalogo {
+  id        String   @id @default(cuid())
+  nombre    String   @unique
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("molderia_catalogo")
+}
+
+model TelaCatalogo {
+  id          String   @id @default(cuid())
+  nombre      String   @unique
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("tela_catalogo")
 }

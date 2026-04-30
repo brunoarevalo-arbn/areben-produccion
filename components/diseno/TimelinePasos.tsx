@@ -94,63 +94,11 @@ function FormMedidas({ datos, setDatos, onSave, saving }: {
   );
 }
 
-function FormEncogimiento({ datos, setDatos, onSave, saving, preData, postData }: {
-  datos: DatosMap; setDatos: (fn: (d: DatosMap) => DatosMap) => void; onSave: () => void; saving: boolean; preData?: DatosMap; postData?: DatosMap;
-}) {
-  const medidas  = CAMPOS_MEDIDAS.filter((c) => c.key !== 'talle');
-  const hayDatos = preData || postData;
-  return (
-    <div className="space-y-3 pt-1">
-      <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Análisis de encogimiento</p>
-      {hayDatos ? (
-        <div className="overflow-x-auto rounded-lg border border-stone-100">
-          <table className="w-full text-xs">
-            <thead className="bg-stone-50">
-              <tr className="text-stone-400">
-                <th className="text-left px-3 py-2 font-semibold">Medida</th>
-                <th className="text-center px-2 py-2 font-semibold">Pre (cm)</th>
-                <th className="text-center px-2 py-2 font-semibold">Post (cm)</th>
-                <th className="text-center px-2 py-2 font-semibold">Dif.</th>
-                <th className="text-center px-2 py-2 font-semibold">Enc. %</th>
-              </tr>
-            </thead>
-            <tbody>
-              {medidas.map(({ key, label }) => {
-                const pre  = preData?.[key]  ? parseFloat(preData[key])  : null;
-                const post = postData?.[key] ? parseFloat(postData[key]) : null;
-                const diff = pre !== null && post !== null ? post - pre : null;
-                const pct  = pre !== null && diff !== null && pre !== 0 ? ((Math.abs(diff) / pre) * 100).toFixed(1) : null;
-                return (
-                  <tr key={key} className="border-t border-stone-50">
-                    <td className="px-3 py-2 text-stone-600 font-medium">{label}</td>
-                    <td className="px-2 py-2 text-center text-stone-500">{pre ?? '—'}</td>
-                    <td className="px-2 py-2 text-center text-stone-500">{post ?? '—'}</td>
-                    <td className={`px-2 py-2 text-center font-semibold ${diff !== null && diff < 0 ? 'text-amber-600' : 'text-stone-400'}`}>{diff !== null ? (diff > 0 ? '+' : '') + diff.toFixed(1) : '—'}</td>
-                    <td className={`px-2 py-2 text-center font-bold ${pct ? 'text-red-500' : 'text-stone-300'}`}>{pct ? pct + '%' : '—'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <p className="text-xs text-stone-400 italic">Completá los pasos de Medidas pre y post lavado para ver el cálculo automático.</p>
-      )}
-      <div>
-        <label className="text-xs text-stone-400 mb-0.5 block">Recomendación de ajuste de moldería</label>
-        <textarea value={datos.recomendacion ?? ''} onChange={(e) => setDatos((d) => ({ ...d, recomendacion: e.target.value }))} rows={2} placeholder="Ajuste recomendado según encogimiento..." className="w-full px-2.5 py-1.5 border border-stone-200 rounded-lg text-sm resize-none focus:outline-none focus:border-violet-400" />
-      </div>
-      <button onClick={onSave} disabled={saving} className="text-xs bg-violet-600 hover:bg-violet-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg font-semibold transition">
-        {saving ? 'Guardando...' : 'Guardar análisis'}
-      </button>
-    </div>
-  );
-}
 
 const CICLO: EstadoPaso[] = ['pendiente', 'en_proceso', 'completado'];
 
-function PasoRow({ paso, proyectoId, onUpdate, preData, postData, usuarios }: {
-  paso: Paso; proyectoId: string; onUpdate: () => void; preData?: DatosMap; postData?: DatosMap; usuarios: UsuarioSimple[];
+function PasoRow({ paso, proyectoId, onUpdate, usuarios }: {
+  paso: Paso; proyectoId: string; onUpdate: () => void; usuarios: UsuarioSimple[];
 }) {
   const [expanded,    setExpanded]    = useState(false);
   const [saving,      setSaving]      = useState(false);
@@ -361,9 +309,8 @@ function PasoRow({ paso, proyectoId, onUpdate, preData, postData, usuarios }: {
             </button>
           </div>
 
-          {tipoDatos === 'calce'       && <FormCalce       datos={datosForm} setDatos={setDatosForm} onSave={guardarDatos} saving={savingDatos} />}
-          {tipoDatos === 'medidas'     && <FormMedidas     datos={datosForm} setDatos={setDatosForm} onSave={guardarDatos} saving={savingDatos} />}
-          {tipoDatos === 'encogimiento'&& <FormEncogimiento datos={datosForm} setDatos={setDatosForm} onSave={guardarDatos} saving={savingDatos} preData={preData} postData={postData} />}
+          {tipoDatos === 'calce'   && <FormCalce   datos={datosForm} setDatos={setDatosForm} onSave={guardarDatos} saving={savingDatos} />}
+          {tipoDatos === 'medidas' && <FormMedidas datos={datosForm} setDatos={setDatosForm} onSave={guardarDatos} saving={savingDatos} />}
         </div>
       )}
     </div>
@@ -377,13 +324,6 @@ export function TimelinePasos({ proyectoId, pasos, usuarios }: Props) {
   const enProceso   = activos.filter((p) => p.estado === 'en_proceso').length;
   const saltados    = pasos.filter((p) => p.saltado).length;
   const pct         = activos.length > 0 ? Math.round((completados / activos.length) * 100) : 0;
-
-  const parseDatos = (paso: Paso): DatosMap => {
-    try { return paso.datos ? JSON.parse(paso.datos) : {}; } catch { return {}; }
-  };
-
-  const preData  = parseDatos(pasos.find((p) => p.nombrePaso === 'MEDIDAS PRE-LAVADO')  ?? { datos: null } as Paso);
-  const postData = parseDatos(pasos.find((p) => p.nombrePaso === 'MEDIDAS POST-LAVADO') ?? { datos: null } as Paso);
 
   return (
     <div className="space-y-4">
@@ -414,8 +354,6 @@ export function TimelinePasos({ proyectoId, pasos, usuarios }: Props) {
             proyectoId={proyectoId}
             onUpdate={() => router.refresh()}
             usuarios={usuarios}
-            preData={paso.nombrePaso  === 'ANÁLISIS DE ENCOGIMIENTO' ? preData  : undefined}
-            postData={paso.nombrePaso === 'ANÁLISIS DE ENCOGIMIENTO' ? postData : undefined}
           />
         ))}
       </div>

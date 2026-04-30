@@ -161,6 +161,7 @@ export interface ProyectoDiseno {
   precioEstimado: number;
   estadoProduccion?: string | null;
   cantidad: number;
+  fechaObjetivo?: string | null;
   pasos: PasoProyecto[];
   iteraciones: IteracionMuestra[];
   ideas: IdeaDiseno[];
