@@ -47,16 +47,25 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
   const cargarCola = useCallback(async () => {
     setLoadingQ(true);
     setErrorCola('');
+    let r: Response;
     try {
-      const r = await fetch('/api/produccion/cola?soloActivas=1');
-      if (r.ok) {
-        setOrdenes(await r.json());
-      } else {
-        const msg = r.status === 401 ? 'Sesión expirada — cerrá y volvé a ingresar' : `Error ${r.status} al cargar órdenes`;
-        setErrorCola(msg);
-      }
+      r = await fetch('/api/produccion/cola?soloActivas=1');
     } catch (err) {
-      setErrorCola(`Error de red: ${err instanceof Error ? err.message : String(err)}`);
+      setErrorCola(`Fetch falló: ${err instanceof Error ? err.message : String(err)}`);
+      setLoadingQ(false);
+      return;
+    }
+    if (!r.ok) {
+      const body = await r.text().catch(() => '');
+      setErrorCola(`HTTP ${r.status}: ${body.slice(0, 120) || r.statusText}`);
+      setLoadingQ(false);
+      return;
+    }
+    try {
+      const data = await r.json();
+      setOrdenes(data);
+    } catch (err) {
+      setErrorCola(`JSON inválido: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setLoadingQ(false);
     }
