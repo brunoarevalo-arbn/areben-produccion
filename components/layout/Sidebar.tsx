@@ -26,8 +26,8 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     seccion: 'diseno',
     sub: [
       { label: 'Proyectos', href: '/diseno', nuevoHref: '/diseno/nuevo' },
-      { label: 'Molderías', href: '/configuracion/molderias' },
-      { label: 'Telas',     href: '/configuracion/telas' },
+      { label: 'Molderías', href: '/diseno/molderias' },
+      { label: 'Telas',     href: '/diseno/telas' },
     ],
   },
   {
@@ -55,9 +55,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     icon: '⚙',
     seccion: 'configuracion',
     sub: [
-      { label: 'Usuarios',  href: '/configuracion/usuarios' },
-      { label: 'Molderías', href: '/configuracion/molderias' },
-      { label: 'Telas',     href: '/configuracion/telas' },
+      { label: 'Usuarios', href: '/configuracion/usuarios' },
     ],
   },
 ];
