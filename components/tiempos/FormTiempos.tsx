@@ -53,7 +53,8 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
         const todas: OrdenActiva[] = await r.json();
         setOrdenes(todas.filter((o) => o.estado === 'pendiente' || o.estado === 'en_produccion'));
       } else {
-        setErrorCola(r.status === 401 ? 'Sesión expirada — cerrá y volvé a ingresar' : `Error ${r.status}`);
+        const body = await r.text().catch(() => '');
+        setErrorCola(r.status === 401 ? 'Sesión expirada — cerrá y volvé a ingresar' : `Error ${r.status}: ${body.slice(0, 150)}`);
       }
     } catch {
       setErrorCola('Sin conexión — revisá el internet');

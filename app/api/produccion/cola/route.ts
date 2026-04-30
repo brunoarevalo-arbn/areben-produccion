@@ -9,22 +9,19 @@ async function getSession(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
+  try {
+    const session = await getSession(req);
+    if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
 
-  const { searchParams } = new URL(req.url);
-  const soloActivas = searchParams.get('soloActivas') === '1';
+    const ordenes = await prisma.ordenProduccion.findMany({
+      orderBy: [{ estado: 'asc' }, { createdAt: 'asc' }],
+    });
 
-  const where = soloActivas
-    ? { estado: { in: ['pendiente', 'en_produccion'] } }
-    : {};
-
-  const ordenes = await prisma.ordenProduccion.findMany({
-    where,
-    orderBy: [{ estado: 'asc' }, { createdAt: 'asc' }],
-  });
-
-  return NextResponse.json(ordenes);
+    return NextResponse.json(ordenes);
+  } catch (err) {
+    console.error('[cola GET]', err);
+    return NextResponse.json({ error: 'Error interno', detail: String(err) }, { status: 500 });
+  }
 }
 
 export async function POST(req: NextRequest) {
