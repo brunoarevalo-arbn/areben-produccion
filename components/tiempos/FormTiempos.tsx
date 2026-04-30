@@ -47,29 +47,16 @@ export function FormTiempos({ usuario, tareaEnCurso, onGuardar, loading }: FormT
   const cargarCola = useCallback(async () => {
     setLoadingQ(true);
     setErrorCola('');
-    let r: Response;
     try {
-      r = await fetch('/api/produccion/cola?soloActivas=1');
-    } catch (err) {
-      setErrorCola(`Fetch falló: ${err instanceof Error ? err.message : String(err)}`);
-      setLoadingQ(false);
-      return;
-    }
-    if (!r.ok) {
-      const body = await r.text().catch(() => '');
-      setErrorCola(`HTTP ${r.status}: ${body.slice(0, 120) || r.statusText}`);
-      setLoadingQ(false);
-      return;
-    }
-    try {
-      const text = await r.text();
-      try {
-        setOrdenes(JSON.parse(text));
-      } catch {
-        setErrorCola(`Resp: ${text.slice(0, 300) || '(vacío)'}`);
+      const r = await fetch('/api/produccion/cola');
+      if (r.ok) {
+        const todas: OrdenActiva[] = await r.json();
+        setOrdenes(todas.filter((o) => o.estado === 'pendiente' || o.estado === 'en_produccion'));
+      } else {
+        setErrorCola(r.status === 401 ? 'Sesión expirada — cerrá y volvé a ingresar' : `Error ${r.status}`);
       }
-    } catch (err) {
-      setErrorCola(`Text: ${err instanceof Error ? err.message : String(err)}`);
+    } catch {
+      setErrorCola('Sin conexión — revisá el internet');
     } finally {
       setLoadingQ(false);
     }
