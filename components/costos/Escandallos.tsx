@@ -296,26 +296,30 @@ export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
                       <div>
                         <label className={lbl}>Precio por kg $</label>
                         <p className="text-xs text-stone-300 -mt-0.5 mb-1">precio de lista sin flete</p>
-                        <input type="number" value={t.precioKgNeto || ''} onChange={e => updTela(i, 'precioKgNeto', e.target.value)}
-                          placeholder="0" min="0" step="0.01" className={inp} />
+                        <input type="number" value={t.precioKgNeto} onChange={e => updTela(i, 'precioKgNeto', e.target.value)}
+                          onFocus={e => e.currentTarget.select()}
+                          min="0" step="any" className={inp} />
                       </div>
                       <div>
                         <label className={lbl}>Flete %</label>
                         <p className="text-xs text-stone-300 -mt-0.5 mb-1">% adicional sobre kg</p>
-                        <input type="number" value={t.fletePercent || ''} onChange={e => updTela(i, 'fletePercent', e.target.value)}
-                          placeholder="0" min="0" step="0.1" className={inp} />
+                        <input type="number" value={t.fletePercent} onChange={e => updTela(i, 'fletePercent', e.target.value)}
+                          onFocus={e => e.currentTarget.select()}
+                          min="0" step="any" className={inp} />
                       </div>
                       <div>
                         <label className={lbl}>Metros por kg</label>
                         <p className="text-xs text-stone-300 -mt-0.5 mb-1">rendimiento de la tela</p>
-                        <input type="number" value={t.rindeMetrosKg || ''} onChange={e => updTela(i, 'rindeMetrosKg', e.target.value)}
-                          placeholder="0" min="0" step="0.01" className={inp} />
+                        <input type="number" value={t.rindeMetrosKg} onChange={e => updTela(i, 'rindeMetrosKg', e.target.value)}
+                          onFocus={e => e.currentTarget.select()}
+                          min="0" step="any" className={inp} />
                       </div>
                       <div>
                         <label className={lbl}>Metros por prenda</label>
                         <p className="text-xs text-stone-300 -mt-0.5 mb-1">consumo de esta tela</p>
-                        <input type="number" value={t.consumoMetros || ''} onChange={e => updTela(i, 'consumoMetros', e.target.value)}
-                          placeholder="0" min="0" step="0.01" className={inp} />
+                        <input type="number" value={t.consumoMetros} onChange={e => updTela(i, 'consumoMetros', e.target.value)}
+                          onFocus={e => e.currentTarget.select()}
+                          min="0" step="any" className={inp} />
                       </div>
                     </div>
                     {/* Resultado calculado */}
