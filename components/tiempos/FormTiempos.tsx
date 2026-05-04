@@ -152,7 +152,16 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, onGuardar
           {ordenes.map((orden) => (
             <button
               key={orden.id}
-              onClick={() => { setOrdenId(ordenId === orden.id ? '' : orden.id); setConfirmFin(false); }}
+              onClick={() => {
+                if (ordenId === orden.id) {
+                  setOrdenId('');
+                  setCantidad('1');
+                } else {
+                  setOrdenId(orden.id);
+                  setCantidad(String(orden.cantidad));
+                }
+                setConfirmFin(false);
+              }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all active:scale-95 ${
                 ordenId === orden.id ? 'bg-amber-50 border-amber-400' : 'bg-white border-stone-200 hover:border-stone-300'
               }`}
@@ -179,7 +188,11 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, onGuardar
           )}
 
           <button
-            onClick={() => { setOrdenId(ordenId === LIBRE_ID ? '' : LIBRE_ID); setConfirmFin(false); }}
+            onClick={() => {
+              setOrdenId(ordenId === LIBRE_ID ? '' : LIBRE_ID);
+              setCantidad('1');
+              setConfirmFin(false);
+            }}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border-2 text-left transition-all active:scale-95 ${
               ordenId === LIBRE_ID ? 'bg-stone-100 border-stone-400' : 'bg-white border-dashed border-stone-200 hover:border-stone-300'
             }`}
