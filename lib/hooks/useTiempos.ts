@@ -6,6 +6,17 @@ import { useState, useRef, useEffect } from 'react';
 import { TiemposProduccion, TareaCurso } from '@/types/tiempos';
 import { crearTiempo, getTiempos } from '@/lib/api/tiempos';
 
+const MAX_AGE_MS = 9 * 60 * 60 * 1000; // 9 horas
+const storageKey = (usuario: string) => `cronometro:${usuario}`;
+
+function formatDisplay(ms: number) {
+  const total = Math.floor(ms / 1000);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+}
+
 export function useTiempos(usuario: string) {
   const [registros, setRegistros] = useState<TiemposProduccion[]>([]);
   const [tareaEnCurso, setTareaEnCurso] = useState<TareaCurso | null>(null);
@@ -24,27 +35,56 @@ export function useTiempos(usuario: string) {
     }
   }, [usuario]);
 
+  // Restaurar cronómetro desde localStorage si quedó pendiente
+  useEffect(() => {
+    if (!usuario || typeof window === 'undefined') return;
+
+    const raw = localStorage.getItem(storageKey(usuario));
+    if (!raw) return;
+
+    try {
+      const { horaInicio, horaFin } = JSON.parse(raw) as { horaInicio: string; horaFin?: string };
+      const inicio = new Date(horaInicio);
+      if (isNaN(inicio.getTime()) || Date.now() - inicio.getTime() > MAX_AGE_MS) {
+        localStorage.removeItem(storageKey(usuario));
+        return;
+      }
+
+      horaInicioRef.current = inicio;
+
+      if (horaFin) {
+        // Tarea ya detenida, esperando guardar
+        const fin = new Date(horaFin);
+        const ms = fin.getTime() - inicio.getTime();
+        const display = formatDisplay(ms);
+        setTiempoDisplay(display);
+        setTareaEnCurso({
+          horaInicio: inicio,
+          horaFin: fin,
+          minutosNetos: Math.floor(ms / 60000),
+          tiempoDisplay: display,
+        });
+      } else {
+        // Cronómetro estaba corriendo
+        setTareaEnCurso({
+          horaInicio: inicio,
+          minutosNetos: 0,
+          tiempoDisplay: formatDisplay(Date.now() - inicio.getTime()),
+        });
+        setCronometroActivo(true);
+      }
+    } catch {
+      localStorage.removeItem(storageKey(usuario));
+    }
+  }, [usuario]);
+
   // Cronómetro
   useEffect(() => {
     if (!cronometroActivo || !horaInicioRef.current) return;
 
     cronometroIntervalRef.current = setInterval(() => {
       if (!horaInicioRef.current) return;
-
-      const ahora = new Date();
-      const diff = Math.floor(
-        (ahora.getTime() - horaInicioRef.current.getTime()) / 1000
-      );
-
-      const h = Math.floor(diff / 3600);
-      const m = Math.floor((diff % 3600) / 60);
-      const s = diff % 60;
-
-      setTiempoDisplay(
-        `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(
-          s
-        ).padStart(2, '0')}`
-      );
+      setTiempoDisplay(formatDisplay(Date.now() - horaInicioRef.current.getTime()));
     }, 100);
 
     return () => clearInterval(cronometroIntervalRef.current);
@@ -65,13 +105,17 @@ export function useTiempos(usuario: string) {
   };
 
   const iniciarTarea = () => {
-    horaInicioRef.current = new Date();
+    const ahora = new Date();
+    horaInicioRef.current = ahora;
     setCronometroActivo(true);
     setTareaEnCurso({
-      horaInicio: new Date(),
+      horaInicio: ahora,
       minutosNetos: 0,
       tiempoDisplay: '00:00:00',
     });
+    if (typeof window !== 'undefined' && usuario) {
+      localStorage.setItem(storageKey(usuario), JSON.stringify({ horaInicio: ahora.toISOString() }));
+    }
   };
 
   const terminarTarea = () => {
@@ -89,6 +133,13 @@ export function useTiempos(usuario: string) {
       minutosNetos,
       tiempoDisplay,
     });
+
+    if (typeof window !== 'undefined' && usuario) {
+      localStorage.setItem(storageKey(usuario), JSON.stringify({
+        horaInicio: horaInicioRef.current.toISOString(),
+        horaFin: horaFin.toISOString(),
+      }));
+    }
 
     return {
       horaInicio: horaInicioRef.current.toTimeString().split(' ')[0],
@@ -108,6 +159,11 @@ export function useTiempos(usuario: string) {
       setTareaEnCurso(null);
       setCronometroActivo(false);
       setTiempoDisplay('00:00:00');
+      horaInicioRef.current = null;
+
+      if (typeof window !== 'undefined' && usuario) {
+        localStorage.removeItem(storageKey(usuario));
+      }
 
       setError(null);
       return resultado;
