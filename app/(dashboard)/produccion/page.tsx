@@ -18,6 +18,13 @@ const ACCESOS = [
     icon: '📊',
     color: 'bg-stone-50 border-stone-200 hover:border-stone-400',
   },
+  {
+    label: 'Costos por SKU',
+    desc: 'Minutos totales y desglose por máquina de cada corte terminado.',
+    href: '/produccion/reportes/sku',
+    icon: '📦',
+    color: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400',
+  },
 ];
 
 export default function ProduccionPage() {
