@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { TiemposProduccion } from '@/types/tiempos';
 
 interface FormTiemposProps {
@@ -43,26 +43,50 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, onGuardar
   const [ordenes,     setOrdenes]     = useState<OrdenActiva[]>(ordenesIniciales);
   const [finalizando, setFinalizando] = useState(false);
   const [confirmFin,  setConfirmFin]  = useState(false);
+  const [errorFin,    setErrorFin]    = useState<string | null>(null);
 
-  useEffect(() => { setOrdenes(ordenesIniciales); }, [ordenesIniciales]);
+  const fetchOrdenes = useCallback(async () => {
+    try {
+      const r = await fetch('/api/tiempos/cola');
+      if (r.ok) {
+        const data: OrdenActiva[] = await r.json();
+        setOrdenes(data);
+      }
+    } catch { /* silencioso */ }
+  }, []);
+
+  useEffect(() => { fetchOrdenes(); }, [fetchOrdenes]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchOrdenes, 30_000);
+    return () => clearInterval(interval);
+  }, [fetchOrdenes]);
 
   const ordenSeleccionada = ordenes.find((o) => o.id === ordenId) ?? null;
 
   const finalizarCorte = async () => {
     if (!ordenSeleccionada) return;
     setFinalizando(true);
-    const r = await fetch(`/api/produccion/cola/${ordenSeleccionada.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ estado: 'terminado' }),
-    });
-    if (r.ok) {
-      setOrdenes((prev) => prev.filter((o) => o.id !== ordenSeleccionada.id));
-      setOrdenId('');
+    setErrorFin(null);
+    try {
+      const r = await fetch(`/api/tiempos/cola/${ordenSeleccionada.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ estado: 'terminado' }),
+      });
+      if (r.ok) {
+        setOrdenId('');
+        setConfirmFin(false);
+        await fetchOrdenes();
+      } else {
+        const data = await r.json().catch(() => ({}));
+        setErrorFin(`Error ${r.status}: ${data.error ?? 'No se pudo finalizar'}`);
+      }
+    } catch (e) {
+      setErrorFin(`Error de red: ${String(e)}`);
+    } finally {
+      setFinalizando(false);
     }
-    setFinalizando(false);
-    setConfirmFin(false);
-    onRefresh();
   };
 
   const handleGuardar = async () => {
@@ -119,7 +143,7 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, onGuardar
       <div>
         <div className="flex items-center justify-between mb-2">
           <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Orden / SKU</p>
-          <button onClick={onRefresh} className="text-xs text-stone-400 hover:text-stone-600 transition">
+          <button onClick={fetchOrdenes} className="text-xs text-stone-400 hover:text-stone-600 transition">
             Actualizar
           </button>
         </div>
@@ -177,6 +201,11 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, onGuardar
                   <p className="text-xs font-bold text-red-700 text-center">
                     ¿Confirmar que el corte <span className="font-mono">{ordenSeleccionada.sku}</span> está terminado?
                   </p>
+                  {errorFin && (
+                    <p className="text-xs text-red-800 bg-red-100 border border-red-300 rounded-lg px-2 py-1.5 font-mono break-all">
+                      {errorFin}
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     <button
                       onClick={finalizarCorte}
@@ -186,7 +215,7 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, onGuardar
                       {finalizando ? 'Finalizando...' : 'Sí, finalizar'}
                     </button>
                     <button
-                      onClick={() => setConfirmFin(false)}
+                      onClick={() => { setConfirmFin(false); setErrorFin(null); }}
                       className="px-4 py-2 rounded-lg border border-stone-200 text-stone-500 text-xs font-semibold hover:border-stone-400 transition"
                     >
                       Cancelar
