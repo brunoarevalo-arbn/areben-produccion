@@ -7,6 +7,8 @@ interface FormTiemposProps {
   usuario: string;
   ordenesIniciales: OrdenActiva[];
   tareaEnCurso: any | null;
+  cronometroActivo: boolean;
+  onDetenerCronometro: () => { horaInicio: string; horaFin: string; minutosNetos: number } | undefined;
   onGuardar: (tiempo: TiemposProduccion) => Promise<unknown>;
   onRefresh: () => void;
   loading: boolean;
@@ -34,7 +36,7 @@ const ACTIVIDADES: { label: string; icon: string; color: string }[] = [
 const MAQUINAS = ['Recta', 'Collareta', 'Remalladora', 'Cadeneta', 'Cortacollareta'];
 const LIBRE_ID = '__libre__';
 
-export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, onGuardar, onRefresh, loading }: FormTiemposProps) {
+export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometroActivo, onDetenerCronometro, onGuardar, onRefresh, loading }: FormTiemposProps) {
   const [actividad,   setActividad]   = useState('');
   const [ordenId,     setOrdenId]     = useState('');
   const [maquina,     setMaquina]     = useState('');
@@ -91,6 +93,22 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, onGuardar
 
   const handleGuardar = async () => {
     if (!actividad) return;
+
+    let horaInicio: string | undefined;
+    let horaFin: string | undefined;
+    let minutosNetos = 0;
+
+    if (cronometroActivo) {
+      const r = onDetenerCronometro();
+      horaInicio   = r?.horaInicio;
+      horaFin      = r?.horaFin;
+      minutosNetos = r?.minutosNetos ?? 0;
+    } else {
+      horaInicio   = tareaEnCurso?.horaInicio?.toTimeString()?.split(' ')[0];
+      horaFin      = tareaEnCurso?.horaFin?.toTimeString()?.split(' ')[0];
+      minutosNetos = tareaEnCurso?.minutosNetos || 0;
+    }
+
     const tiempo: TiemposProduccion = {
       usuario,
       actividad,
@@ -100,9 +118,9 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, onGuardar
       sku:          ordenSeleccionada?.sku     || undefined,
       cantidad:     parseInt(cantidad) || 0,
       defectos:     parseInt(defectos) || 0,
-      horaInicio:   tareaEnCurso?.horaInicio?.toTimeString()?.split(' ')[0],
-      horaFin:      tareaEnCurso?.horaFin?.toTimeString()?.split(' ')[0],
-      minutosNetos: tareaEnCurso?.minutosNetos || 0,
+      horaInicio,
+      horaFin,
+      minutosNetos,
       estado: 'guardado',
     };
     try {

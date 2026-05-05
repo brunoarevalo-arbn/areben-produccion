@@ -94,6 +94,8 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
             usuario={usuario.nombre}
             ordenesIniciales={ordenesIniciales}
             tareaEnCurso={tiempos.tareaEnCurso}
+            cronometroActivo={tiempos.cronometroActivo}
+            onDetenerCronometro={tiempos.terminarTarea}
             onGuardar={tiempos.guardarRegistro}
             onRefresh={() => router.refresh()}
             loading={tiempos.loading}
