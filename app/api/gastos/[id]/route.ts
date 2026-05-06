@@ -7,8 +7,9 @@ async function requireAccess(req: NextRequest) {
   const session = token ? await verifySession(token) : null;
   if (!session) return null;
   if (session.rol === 'admin') return session;
+  if (session.rol === 'costurera') return null;
   const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-  if (user?.permisos.includes('gastos')) return session;
+  if (!user?.permisos.includes('gastos')) return session;
   return null;
 }
 

@@ -51,11 +51,8 @@ export default function LoginPage() {
       } else {
         if (data.rol === 'costurera') {
           router.push('/tiempos');
-        } else if (data.rol === 'admin') {
-          router.push('/dashboard');
         } else {
-          const primera = (data.permisos as string[] | undefined)?.[0];
-          router.push(primera ? `/${primera}` : '/dashboard');
+          router.push('/dashboard');
         }
       }
     } catch {

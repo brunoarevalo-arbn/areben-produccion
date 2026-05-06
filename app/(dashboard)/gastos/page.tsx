@@ -14,7 +14,7 @@ export default async function GastosPage() {
 
   if (session.rol !== 'admin') {
     const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-    if (!user?.permisos.includes('gastos')) redirect('/dashboard');
+    if (user?.permisos.includes('gastos')) redirect('/dashboard');
   }
 
   const [gastosDesarrollo, gastosProduccion, ordenes] = await Promise.all([

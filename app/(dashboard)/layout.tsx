@@ -20,7 +20,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
       where: { id: session.id },
       select: { permisos: true },
     });
-    permisos = user?.permisos ?? [];
+    const bloqueadas = user?.permisos ?? [];
+    permisos = ALL_PERMISOS.filter((s) => !bloqueadas.includes(s));
   }
 
   return (

@@ -54,26 +54,28 @@ function PermisosToggle({
       <p className="text-xs text-stone-400 italic">Las costureras solo acceden a la pantalla de tiempos.</p>
     );
   }
+  // permisos = denylist: las secciones presentes en el array están BLOQUEADAS
   return (
     <div className="space-y-1.5">
+      <p className="text-xs text-stone-400 mb-1">Por defecto tiene acceso a todo. Desactivá lo que no debería ver.</p>
       {SECCIONES.map(({ id, label }) => {
-        const on = permisos.includes(id);
+        const tieneAcceso = !permisos.includes(id);
         return (
           <button
             key={id}
             type="button"
             onClick={() =>
-              onChange(on ? permisos.filter((p) => p !== id) : [...permisos, id])
+              onChange(tieneAcceso ? [...permisos, id] : permisos.filter((p) => p !== id))
             }
             className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition ${
-              on
+              tieneAcceso
                 ? 'bg-violet-50 border-violet-300 text-violet-800'
                 : 'bg-white border-stone-200 text-stone-400 hover:border-stone-300'
             }`}
           >
             <span className="font-medium">{label}</span>
-            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-xs ${on ? 'bg-violet-500 border-violet-500 text-white' : 'border-stone-300'}`}>
-              {on && '✓'}
+            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-xs ${tieneAcceso ? 'bg-violet-500 border-violet-500 text-white' : 'border-stone-300'}`}>
+              {tieneAcceso && '✓'}
             </span>
           </button>
         );
@@ -237,7 +239,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
                     <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-500 font-semibold">Inactivo</span>
                   )}
                   {u.rol !== 'admin' && u.rol !== 'costurera' && u.permisos?.length > 0 && (
-                    <span className="text-xs text-stone-400">{u.permisos.length} sección{u.permisos.length !== 1 ? 'es' : ''}</span>
+                    <span className="text-xs text-stone-400">{u.permisos.length} bloqueada{u.permisos.length !== 1 ? 's' : ''}</span>
                   )}
                 </div>
               </div>
