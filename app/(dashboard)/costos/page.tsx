@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Parametros }  from '@/components/costos/Parametros';
 import { Escandallos } from '@/components/costos/Escandallos';
 
@@ -13,20 +13,6 @@ const TABS: { id: Tab; label: string }[] = [
 
 export default function CostosPage() {
   const [tab, setTab] = useState<Tab>('escandallos');
-  const [costoMinuto, setCostoMinuto] = useState(0);
-
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/costos/gastos').then((r) => r.json()),
-      fetch('/api/costos/costureras').then((r) => r.json()),
-    ]).then(([gastos, { costureras }]) => {
-      const totalGastos   = gastos.filter((g: { activo: boolean; monto: number }) => g.activo).reduce((s: number, g: { monto: number }) => s + g.monto, 0);
-      const totalCosturas = costureras.reduce((s: number, c: { sueldoBruto: number; cargasSociales: number }) => s + c.sueldoBruto + c.cargasSociales, 0);
-      const totalHoras    = costureras.reduce((s: number, c: { horasMes: number }) => s + c.horasMes, 0);
-      const valorHora     = totalHoras > 0 ? (totalGastos + totalCosturas) / totalHoras : 0;
-      setCostoMinuto(valorHora / 60);
-    }).catch(() => {});
-  }, []);
 
   return (
     <div className="p-8">
@@ -54,7 +40,7 @@ export default function CostosPage() {
       </div>
 
       {tab === 'parametros'  && <Parametros />}
-      {tab === 'escandallos' && <Escandallos costoMinuto={costoMinuto} />}
+      {tab === 'escandallos' && <Escandallos />}
     </div>
   );
 }

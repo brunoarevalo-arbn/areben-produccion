@@ -66,12 +66,27 @@ function calcular(d: DatosEscandallo, costoMinuto: number) {
   return { costoTelas, costoServicios, costoMO, costoVarios, costoAvios, costoBase, conDesarrollo, costoTotal };
 }
 
-export function Escandallos({ costoMinuto = 0 }: { costoMinuto?: number }) {
+export function Escandallos() {
   const router = useRouter();
   const [lista,    setLista]    = useState<Escandallo[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editId,   setEditId]   = useState<string | null>(null);
+  const [costoMinuto, setCostoMinuto] = useState(0);
+
+  useEffect(() => {
+    Promise.all([
+      fetch('/api/costos/gastos').then((r) => r.json()),
+      fetch('/api/costos/costureras').then((r) => r.json()),
+    ]).then(([gastos, { costureras }]) => {
+      if (!Array.isArray(gastos) || !Array.isArray(costureras)) return;
+      const totalGastos   = gastos.filter((g: { activo: boolean; monto: number }) => g.activo).reduce((s: number, g: { monto: number }) => s + g.monto, 0);
+      const totalCosturas = costureras.reduce((s: number, c: { sueldoBruto: number; cargasSociales: number }) => s + c.sueldoBruto + c.cargasSociales, 0);
+      const totalHoras    = costureras.reduce((s: number, c: { horasMes: number }) => s + c.horasMes, 0);
+      const valorHora     = totalHoras > 0 ? (totalGastos + totalCosturas) / totalHoras : 0;
+      setCostoMinuto(valorHora / 60);
+    }).catch(() => {});
+  }, []);
 
   const [nombre,     setNombre]     = useState('');
   const [sku,        setSku]        = useState('');
