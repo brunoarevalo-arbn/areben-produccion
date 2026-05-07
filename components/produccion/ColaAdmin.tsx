@@ -38,7 +38,7 @@ function fechaCorta(iso: string) {
 export function ColaAdmin() {
   const [ordenes, setOrdenes]   = useState<Orden[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [filtro,  setFiltro]    = useState<'todos' | 'pendiente' | 'en_produccion' | 'terminado'>('todos');
+  const [filtro,  setFiltro]    = useState<'activos' | 'pendiente' | 'en_produccion' | 'terminado'>('activos');
   const [showForm, setShowForm] = useState(false);
 
   const [sku,         setSku]         = useState('');
@@ -97,9 +97,12 @@ export function ColaAdmin() {
     if (r.ok) setOrdenes((prev) => prev.filter((o) => o.id !== id));
   };
 
-  const filtradas = filtro === 'todos' ? ordenes : ordenes.filter((o) => o.estado === filtro);
+  const filtradas = filtro === 'activos'
+    ? ordenes.filter((o) => o.estado !== 'terminado')
+    : ordenes.filter((o) => o.estado === filtro);
 
   const counts = {
+    activos:       ordenes.filter((o) => o.estado !== 'terminado').length,
     pendiente:     ordenes.filter((o) => o.estado === 'pendiente').length,
     en_produccion: ordenes.filter((o) => o.estado === 'en_produccion').length,
     terminado:     ordenes.filter((o) => o.estado === 'terminado').length,
@@ -112,7 +115,7 @@ export function ColaAdmin() {
 
       {/* Stats + filtros */}
       <div className="flex flex-wrap gap-2">
-        {([['todos', 'Todos', ordenes.length], ['pendiente', 'Pendientes', counts.pendiente], ['en_produccion', 'En producción', counts.en_produccion], ['terminado', 'Terminados', counts.terminado]] as const).map(([k, label, n]) => (
+        {([['activos', 'Activos', counts.activos], ['pendiente', 'Pendientes', counts.pendiente], ['en_produccion', 'En producción', counts.en_produccion], ['terminado', 'Terminados', counts.terminado]] as const).map(([k, label, n]) => (
           <button
             key={k}
             onClick={() => setFiltro(k)}
