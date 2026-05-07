@@ -29,6 +29,17 @@ interface Props {
   gastosDesarrollo: Gasto[];
   gastosProduccion: Gasto[];
   ordenes:          OrdenActiva[];
+  costoMinuto:      number;
+}
+
+// Para gastos auto-derivados de un tiempo (muestras), el monto guardado puede
+// estar desactualizado o ser 0 si los costos no estaban configurados al momento
+// del registro. Calculamos al vuelo con la tarifa vigente.
+function montoEfectivo(g: Gasto, costoMinuto: number): number {
+  if (g.tiempoId && g.minutos && g.minutos > 0) {
+    return Math.round(g.minutos * costoMinuto);
+  }
+  return g.monto;
 }
 
 type Tab = 'desarrollo' | 'produccion';
@@ -40,12 +51,12 @@ function fmt$(n: number) {
   return `$${Math.round(n).toLocaleString('es-AR')}`;
 }
 
-function TotalCards({ gastos }: { gastos: Gasto[] }) {
+function TotalCards({ gastos, costoMinuto }: { gastos: Gasto[]; costoMinuto: number }) {
   const porTipo = TIPOS.map((t) => ({
     tipo:  t,
-    total: gastos.filter((g) => g.tipo === t).reduce((s, g) => s + g.monto, 0),
+    total: gastos.filter((g) => g.tipo === t).reduce((s, g) => s + montoEfectivo(g, costoMinuto), 0),
   }));
-  const total = gastos.reduce((s, g) => s + g.monto, 0);
+  const total = gastos.reduce((s, g) => s + montoEfectivo(g, costoMinuto), 0);
 
   return (
     <div className="grid grid-cols-4 gap-3 mb-6">
@@ -63,7 +74,8 @@ function TotalCards({ gastos }: { gastos: Gasto[] }) {
   );
 }
 
-function GastoRow({ gasto, onDelete }: { gasto: Gasto; onDelete: (id: string) => void }) {
+function GastoRow({ gasto, costoMinuto, onDelete }: { gasto: Gasto; costoMinuto: number; onDelete: (id: string) => void }) {
+  const monto = montoEfectivo(gasto, costoMinuto);
   const [confirming, setConfirming] = useState(false);
   const [deleting,   setDeleting]   = useState(false);
 
@@ -91,7 +103,7 @@ function GastoRow({ gasto, onDelete }: { gasto: Gasto; onDelete: (id: string) =>
         {gasto.concepto && <p className="text-sm text-stone-700 mt-0.5">{gasto.concepto}</p>}
         <p className="text-xs text-stone-400 mt-0.5">{gasto.fecha} · {gasto.creadoPor}{gasto.minutos ? ` · ${gasto.minutos}min` : ''}</p>
       </div>
-      <span className="font-bold text-stone-900 tabular-nums shrink-0">{fmt$(gasto.monto)}</span>
+      <span className="font-bold text-stone-900 tabular-nums shrink-0">{fmt$(monto)}</span>
       {!confirming ? (
         <button onClick={() => setConfirming(true)} className="text-stone-300 hover:text-red-400 text-sm transition shrink-0">×</button>
       ) : (
@@ -256,7 +268,7 @@ function FormProduccion({ ordenes, onCreado }: { ordenes: OrdenActiva[]; onCread
   );
 }
 
-export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, ordenes }: Props) {
+export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, ordenes, costoMinuto }: Props) {
   const [tab,              setTab]              = useState<Tab>('desarrollo');
   const [gastosDesarrollo, setGastosDesarrollo] = useState<Gasto[]>(gd0);
   const [gastosProduccion, setGastosProduccion] = useState<Gasto[]>(gp0);
@@ -294,14 +306,14 @@ export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, ord
             ))}
           </div>
 
-          <TotalCards gastos={gastosD} />
+          <TotalCards gastos={gastosD} costoMinuto={costoMinuto} />
 
           <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
             {gastosD.length === 0 && (
               <p className="px-4 py-10 text-center text-stone-400 text-sm">Sin gastos de desarrollo</p>
             )}
             {gastosD.map((g) => (
-              <GastoRow key={g.id} gasto={g}
+              <GastoRow key={g.id} gasto={g} costoMinuto={costoMinuto}
                 onDelete={(id) => setGastosDesarrollo((prev) => prev.filter((x) => x.id !== id))} />
             ))}
           </div>
@@ -312,14 +324,14 @@ export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, ord
 
       {tab === 'produccion' && (
         <div className="space-y-6">
-          <TotalCards gastos={gastosProduccion} />
+          <TotalCards gastos={gastosProduccion} costoMinuto={costoMinuto} />
 
           <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
             {gastosProduccion.length === 0 && (
               <p className="px-4 py-10 text-center text-stone-400 text-sm">Sin gastos de producción</p>
             )}
             {gastosProduccion.map((g) => (
-              <GastoRow key={g.id} gasto={g}
+              <GastoRow key={g.id} gasto={g} costoMinuto={costoMinuto}
                 onDelete={(id) => setGastosProduccion((prev) => prev.filter((x) => x.id !== id))} />
             ))}
           </div>

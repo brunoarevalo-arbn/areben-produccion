@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { calcularCostoMinuto } from '@/lib/costoMinuto';
 import { GastosClient } from '@/components/gastos/GastosClient';
 
 export const dynamic = 'force-dynamic';
@@ -17,7 +18,7 @@ export default async function GastosPage() {
     if (user?.permisos.includes('gastos')) redirect('/dashboard');
   }
 
-  const [gastosDesarrollo, gastosProduccion, ordenes] = await Promise.all([
+  const [gastosDesarrollo, gastosProduccion, ordenes, costoMinuto] = await Promise.all([
     prisma.gasto.findMany({ where: { categoria: 'desarrollo' }, orderBy: { createdAt: 'desc' } }),
     prisma.gasto.findMany({ where: { categoria: 'produccion' }, orderBy: { createdAt: 'desc' } }),
     prisma.ordenProduccion.findMany({
@@ -25,6 +26,7 @@ export default async function GastosPage() {
       orderBy: { createdAt: 'asc' },
       select: { id: true, sku: true, descripcion: true, marca: true },
     }),
+    calcularCostoMinuto(),
   ]);
 
   return (
@@ -39,6 +41,7 @@ export default async function GastosPage() {
         gastosDesarrollo={gastosDesarrollo.map((g) => ({ ...g, createdAt: g.createdAt.toISOString() }))}
         gastosProduccion={gastosProduccion.map((g) => ({ ...g, createdAt: g.createdAt.toISOString() }))}
         ordenes={ordenes}
+        costoMinuto={costoMinuto}
       />
     </div>
   );
