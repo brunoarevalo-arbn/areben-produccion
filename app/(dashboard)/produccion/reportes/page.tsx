@@ -17,6 +17,7 @@ interface ReporteData {
     usuario: string;
     actividad: string;
     maquina?: string;
+    sku?: string;
     cantidad: number;
     minutosNetos: number;
     horaInicio?: string;
@@ -226,6 +227,7 @@ export default function ReportesPage() {
                 <tr className="border-b border-stone-50 text-xs text-stone-400">
                   <th className="px-5 py-2 text-left font-semibold">Costurera</th>
                   <th className="px-5 py-2 text-left font-semibold">Actividad</th>
+                  <th className="px-5 py-2 text-left font-semibold">SKU</th>
                   <th className="px-5 py-2 text-center font-semibold">Horario</th>
                   <th className="px-5 py-2 text-center font-semibold">Tiempo</th>
                   <th className="px-5 py-2 text-right font-semibold">Prendas</th>
@@ -236,6 +238,7 @@ export default function ReportesPage() {
                   <tr key={r.id} className="border-b border-stone-50 hover:bg-stone-50">
                     <td className="px-5 py-2.5 font-medium text-stone-700">{r.usuario}</td>
                     <td className="px-5 py-2.5 text-stone-600">{r.actividad}</td>
+                    <td className="px-5 py-2.5 text-stone-500 font-mono text-xs">{r.sku ?? '—'}</td>
                     <td className="px-5 py-2.5 text-center text-stone-400 text-xs">
                       {r.horaInicio && r.horaFin ? `${r.horaInicio} – ${r.horaFin}` : '—'}
                     </td>
