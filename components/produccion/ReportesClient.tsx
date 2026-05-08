@@ -244,6 +244,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                   <th className="px-5 py-2 text-left font-semibold">Costurera</th>
                   <th className="px-5 py-2 text-left font-semibold">Actividad</th>
                   <th className="px-5 py-2 text-left font-semibold">SKU</th>
+                  <th className="px-5 py-2 text-left font-semibold">Máquina</th>
                   <th className="px-5 py-2 text-center font-semibold">Horario</th>
                   <th className="px-5 py-2 text-center font-semibold">Tiempo</th>
                   <th className="px-5 py-2 text-right font-semibold">Prendas</th>
@@ -259,6 +260,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                       <td className="px-5 py-2.5 font-medium text-stone-700">{r.usuario}</td>
                       <td className="px-5 py-2.5 text-stone-600">{r.actividad}</td>
                       <td className="px-5 py-2.5 text-stone-500 font-mono text-xs">{r.sku ?? '—'}</td>
+                      <td className="px-5 py-2.5 text-stone-500 text-xs">{r.maquina ?? '—'}</td>
                       <td className="px-5 py-2.5 text-center text-stone-400 text-xs">
                         {r.horaInicio && r.horaFin ? `${r.horaInicio} – ${r.horaFin}` : '—'}
                       </td>
@@ -330,7 +332,7 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
 
   return (
     <tr className="bg-amber-50/40 border-b border-stone-50">
-      <td colSpan={7} className="px-5 py-3">
+      <td colSpan={8} className="px-5 py-3">
         <div className="space-y-2">
           <div className="text-xs font-bold uppercase tracking-widest text-stone-500 mb-1">Editando — {registro.usuario}</div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
