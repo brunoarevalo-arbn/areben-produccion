@@ -15,6 +15,8 @@ export const TiempoSchema = z.object({
   horaFin: z.string().optional(),
   minutosNetos: z.number().default(0),
   estado: z.string().default('pendiente'),
+  inconveniente:      z.string().optional(),
+  inconvenienteNotas: z.string().optional(),
 });
 
 export type TiempoInput = z.infer<typeof TiempoSchema>;

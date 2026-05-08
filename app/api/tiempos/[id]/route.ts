@@ -4,13 +4,15 @@ import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 
 const PatchSchema = z.object({
-  actividad:  z.string().min(1).optional(),
-  horaInicio: z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
-  horaFin:    z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
-  cantidad:   z.number().int().nonnegative().optional(),
-  defectos:   z.number().int().nonnegative().optional(),
-  sku:        z.string().nullable().optional(),
-  maquina:    z.string().nullable().optional(),
+  actividad:          z.string().min(1).optional(),
+  horaInicio:         z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
+  horaFin:            z.string().regex(/^\d{2}:\d{2}(:\d{2})?$/).optional(),
+  cantidad:           z.number().int().nonnegative().optional(),
+  defectos:           z.number().int().nonnegative().optional(),
+  sku:                z.string().nullable().optional(),
+  maquina:            z.string().nullable().optional(),
+  inconveniente:      z.string().nullable().optional(),
+  inconvenienteNotas: z.string().nullable().optional(),
 });
 
 function horaASegundos(h: string): number {

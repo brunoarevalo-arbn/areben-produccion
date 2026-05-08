@@ -15,6 +15,8 @@ export async function GET(req: NextRequest) {
     const porCosturera: Record<string, { minutos: number; registros: number; prendas: number }> = {};
     const porActividad: Record<string, { minutos: number; registros: number }> = {};
     const porMaquina:   Record<string, { minutos: number; registros: number }> = {};
+    const porInconveniente:     Record<string, { registros: number; minutos: number }>  = {};
+    const inconvenientesPorSku: Record<string, { registros: number; minutos: number; categorias: Record<string, number> }> = {};
 
     for (const r of registros) {
       // por costurera
@@ -34,6 +36,20 @@ export async function GET(req: NextRequest) {
         porMaquina[r.maquina].minutos   += r.minutosNetos;
         porMaquina[r.maquina].registros += 1;
       }
+
+      // inconvenientes
+      if (r.inconveniente) {
+        if (!porInconveniente[r.inconveniente]) porInconveniente[r.inconveniente] = { registros: 0, minutos: 0 };
+        porInconveniente[r.inconveniente].registros += 1;
+        porInconveniente[r.inconveniente].minutos   += r.minutosNetos;
+
+        const skuKey = r.sku ?? '(sin SKU)';
+        if (!inconvenientesPorSku[skuKey]) inconvenientesPorSku[skuKey] = { registros: 0, minutos: 0, categorias: {} };
+        inconvenientesPorSku[skuKey].registros += 1;
+        inconvenientesPorSku[skuKey].minutos   += r.minutosNetos;
+        inconvenientesPorSku[skuKey].categorias[r.inconveniente] =
+          (inconvenientesPorSku[skuKey].categorias[r.inconveniente] ?? 0) + 1;
+      }
     }
 
     return NextResponse.json({
@@ -44,6 +60,8 @@ export async function GET(req: NextRequest) {
       porCosturera,
       porActividad,
       porMaquina,
+      porInconveniente,
+      inconvenientesPorSku,
       registros,
     });
   } catch (error) {

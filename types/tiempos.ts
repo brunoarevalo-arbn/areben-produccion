@@ -14,6 +14,8 @@ export interface TiemposProduccion {
   horaFin?: string;
   minutosNetos: number;
   estado?: string;
+  inconveniente?: string;
+  inconvenienteNotas?: string;
   createdAt?: Date;
   updatedAt?: Date;
 }

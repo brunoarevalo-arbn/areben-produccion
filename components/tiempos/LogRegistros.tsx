@@ -86,6 +86,15 @@ export function LogRegistros({ registros, loading }: LogRegistrosProps) {
                 {reg.horaInicio} → {reg.horaFin}
               </p>
             )}
+
+            {reg.inconveniente && (
+              <div className="mt-2 bg-amber-100 border border-amber-300 rounded-lg px-2 py-1.5">
+                <p className="text-xs font-bold text-amber-800">⚠ {reg.inconveniente}</p>
+                {reg.inconvenienteNotas && (
+                  <p className="text-xs text-amber-700 mt-0.5">{reg.inconvenienteNotas}</p>
+                )}
+              </div>
+            )}
           </div>
         );
       })}

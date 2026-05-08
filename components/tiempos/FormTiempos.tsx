@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { TiemposProduccion } from '@/types/tiempos';
+import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
 
 interface FormTiemposProps {
   usuario: string;
@@ -46,6 +47,9 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometr
   const [finalizando, setFinalizando] = useState(false);
   const [confirmFin,  setConfirmFin]  = useState(false);
   const [errorFin,    setErrorFin]    = useState<string | null>(null);
+  const [inconveniente,      setInconveniente]      = useState<string>('');
+  const [inconvenienteNotas, setInconvenienteNotas] = useState<string>('');
+  const [showInconv,         setShowInconv]         = useState(false);
 
   const fetchOrdenes = useCallback(async () => {
     try {
@@ -122,6 +126,8 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometr
       horaFin,
       minutosNetos,
       estado: 'guardado',
+      inconveniente:      inconveniente || undefined,
+      inconvenienteNotas: inconveniente && inconvenienteNotas.trim() ? inconvenienteNotas.trim() : undefined,
     };
     try {
       await onGuardar(tiempo);
@@ -130,6 +136,9 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometr
       setMaquina('');
       setCantidad('1');
       setDefectos('0');
+      setInconveniente('');
+      setInconvenienteNotas('');
+      setShowInconv(false);
     } catch {
       alert('Error guardando registro');
     }
@@ -292,6 +301,57 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometr
             className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white text-stone-800 focus:outline-none focus:border-amber-400"
           />
         </div>
+      </div>
+
+      {/* Inconveniente */}
+      <div>
+        {!showInconv && !inconveniente && (
+          <button
+            type="button"
+            onClick={() => setShowInconv(true)}
+            className="w-full py-2.5 rounded-xl border-2 border-dashed border-amber-200 text-amber-600 text-xs font-bold uppercase tracking-wide hover:bg-amber-50 transition active:scale-95"
+          >
+            ⚠ Reportar inconveniente
+          </button>
+        )}
+
+        {(showInconv || inconveniente) && (
+          <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-bold uppercase tracking-widest text-amber-800">Inconveniente</p>
+              <button
+                type="button"
+                onClick={() => { setInconveniente(''); setInconvenienteNotas(''); setShowInconv(false); }}
+                className="text-xs text-amber-700 hover:text-amber-900 transition"
+              >
+                Quitar
+              </button>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {INCONVENIENTES.map((opt) => (
+                <button
+                  key={opt}
+                  type="button"
+                  onClick={() => setInconveniente(opt)}
+                  className={`px-2.5 py-2 rounded-lg border text-xs font-semibold transition active:scale-95 ${
+                    inconveniente === opt
+                      ? 'bg-amber-500 border-amber-500 text-white'
+                      : 'bg-white border-amber-200 text-amber-700 hover:border-amber-400'
+                  }`}
+                >
+                  {opt}
+                </button>
+              ))}
+            </div>
+            <textarea
+              value={inconvenienteNotas}
+              onChange={(e) => setInconvenienteNotas(e.target.value)}
+              placeholder="Notas (opcional)"
+              rows={2}
+              className="w-full px-2.5 py-1.5 border border-amber-200 rounded-lg text-xs bg-white focus:outline-none focus:border-amber-500 resize-none"
+            />
+          </div>
+        )}
       </div>
 
       <button

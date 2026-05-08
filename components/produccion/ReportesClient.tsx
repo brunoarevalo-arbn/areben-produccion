@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { minutosAHorasMin } from '@/lib/utils/calculos';
+import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
 
 interface Registro {
   id: string;
@@ -15,6 +16,8 @@ interface Registro {
   minutosNetos: number;
   horaInicio?: string;
   horaFin?: string;
+  inconveniente?: string;
+  inconvenienteNotas?: string;
 }
 
 interface ReporteData {
@@ -25,6 +28,8 @@ interface ReporteData {
   porCosturera: Record<string, { minutos: number; registros: number; prendas: number }>;
   porActividad: Record<string, { minutos: number; registros: number }>;
   porMaquina:   Record<string, { minutos: number; registros: number }>;
+  porInconveniente:     Record<string, { registros: number; minutos: number }>;
+  inconvenientesPorSku: Record<string, { registros: number; minutos: number; categorias: Record<string, number> }>;
   registros: Registro[];
 }
 
@@ -233,6 +238,76 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
             </div>
           )}
 
+          {/* Inconvenientes */}
+          {Object.keys(data.porInconveniente).length > 0 && (
+            <div className="bg-amber-50/40 rounded-2xl border border-amber-200 overflow-hidden">
+              <div className="px-5 py-3 border-b border-amber-200 flex items-center justify-between">
+                <h2 className="text-xs font-bold uppercase tracking-widest text-amber-800">⚠ Inconvenientes del día</h2>
+                <span className="text-xs text-amber-700 font-semibold">
+                  {Object.values(data.porInconveniente).reduce((s, v) => s + v.registros, 0)} registros · {minutosAHorasMin(Object.values(data.porInconveniente).reduce((s, v) => s + v.minutos, 0))}
+                </span>
+              </div>
+
+              {/* Por categoría */}
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-amber-100 text-xs text-amber-700">
+                    <th className="px-5 py-2 text-left font-semibold">Categoría</th>
+                    <th className="px-5 py-2 text-center font-semibold">Registros</th>
+                    <th className="px-5 py-2 text-right font-semibold">Tiempo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(data.porInconveniente)
+                    .sort((a, b) => b[1].registros - a[1].registros)
+                    .map(([cat, stats]) => (
+                      <tr key={cat} className="border-b border-amber-100 hover:bg-amber-50">
+                        <td className="px-5 py-3 font-medium text-amber-900">{cat}</td>
+                        <td className="px-5 py-3 text-center text-amber-700">{stats.registros}</td>
+                        <td className="px-5 py-3 text-right font-semibold text-amber-700">{minutosAHorasMin(stats.minutos)}</td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+
+              {/* Por SKU */}
+              {Object.keys(data.inconvenientesPorSku).length > 0 && (
+                <div className="border-t border-amber-200">
+                  <div className="px-5 py-2 bg-amber-50/60">
+                    <p className="text-xs font-bold uppercase tracking-widest text-amber-700">Por SKU</p>
+                  </div>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-amber-100 text-xs text-amber-700">
+                        <th className="px-5 py-2 text-left font-semibold">SKU</th>
+                        <th className="px-5 py-2 text-left font-semibold">Categorías</th>
+                        <th className="px-5 py-2 text-center font-semibold">Registros</th>
+                        <th className="px-5 py-2 text-right font-semibold">Tiempo</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(data.inconvenientesPorSku)
+                        .sort((a, b) => b[1].registros - a[1].registros)
+                        .map(([sku, stats]) => (
+                          <tr key={sku} className="border-b border-amber-100 hover:bg-amber-50">
+                            <td className="px-5 py-3 font-mono text-xs font-bold text-amber-900">{sku}</td>
+                            <td className="px-5 py-3 text-xs text-amber-800">
+                              {Object.entries(stats.categorias)
+                                .sort((a, b) => b[1] - a[1])
+                                .map(([cat, n]) => `${cat} (${n})`)
+                                .join(', ')}
+                            </td>
+                            <td className="px-5 py-3 text-center text-amber-700">{stats.registros}</td>
+                            <td className="px-5 py-3 text-right font-semibold text-amber-700">{minutosAHorasMin(stats.minutos)}</td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Detalle */}
           <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
             <div className="px-5 py-3 border-b border-stone-100">
@@ -258,7 +333,15 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                   ) : (
                     <tr key={r.id} className="border-b border-stone-50 hover:bg-stone-50">
                       <td className="px-5 py-2.5 font-medium text-stone-700">{r.usuario}</td>
-                      <td className="px-5 py-2.5 text-stone-600">{r.actividad}</td>
+                      <td className="px-5 py-2.5 text-stone-600">
+                        {r.actividad}
+                        {r.inconveniente && (
+                          <span className="ml-2 text-xs bg-amber-100 text-amber-800 border border-amber-200 px-1.5 py-0.5 rounded font-semibold whitespace-nowrap"
+                            title={r.inconvenienteNotas ?? r.inconveniente}>
+                            ⚠ {r.inconveniente}
+                          </span>
+                        )}
+                      </td>
                       <td className="px-5 py-2.5 text-stone-500 font-mono text-xs">{r.sku ?? '—'}</td>
                       <td className="px-5 py-2.5 text-stone-500 text-xs">{r.maquina ?? '—'}</td>
                       <td className="px-5 py-2.5 text-center text-stone-400 text-xs">
@@ -294,6 +377,8 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
   const [horaFin,    setHoraFin]    = useState(registro.horaFin ?? '');
   const [cantidad,   setCantidad]   = useState(String(registro.cantidad));
   const [defectos,   setDefectos]   = useState(String(registro.defectos ?? 0));
+  const [inconv,      setInconv]      = useState(registro.inconveniente ?? '');
+  const [inconvNotas, setInconvNotas] = useState(registro.inconvenienteNotas ?? '');
   const [saving,     setSaving]     = useState(false);
   const [error,      setError]      = useState<string | null>(null);
 
@@ -306,6 +391,8 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
       defectos: parseInt(defectos) || 0,
       sku:     sku.trim()     ? sku.trim()     : null,
       maquina: maquina.trim() ? maquina.trim() : null,
+      inconveniente:      inconv ? inconv : null,
+      inconvenienteNotas: inconv && inconvNotas.trim() ? inconvNotas.trim() : null,
     };
     if (horaInicio) body.horaInicio = horaInicio.length === 5 ? `${horaInicio}:00` : horaInicio;
     if (horaFin)    body.horaFin    = horaFin.length    === 5 ? `${horaFin}:00`    : horaFin;
@@ -369,6 +456,19 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
             <label className="text-xs text-stone-500">
               Defectos
               <input type="number" min="0" value={defectos} onChange={(e) => setDefectos(e.target.value)} className={inputCls + ' mt-0.5'} />
+            </label>
+            <label className="text-xs text-stone-500 col-span-2 md:col-span-2">
+              Inconveniente
+              <select value={inconv} onChange={(e) => setInconv(e.target.value)} className={inputCls + ' mt-0.5'}>
+                <option value="">— Ninguno —</option>
+                {INCONVENIENTES.map((opt) => <option key={opt}>{opt}</option>)}
+                {inconv && !INCONVENIENTES.includes(inconv as typeof INCONVENIENTES[number]) && <option>{inconv}</option>}
+              </select>
+            </label>
+            <label className="text-xs text-stone-500 col-span-2 md:col-span-2">
+              Notas inconveniente
+              <input type="text" value={inconvNotas} onChange={(e) => setInconvNotas(e.target.value)} disabled={!inconv}
+                className={inputCls + ' mt-0.5 disabled:bg-stone-50 disabled:text-stone-400'} />
             </label>
           </div>
           {error && <p className="text-xs text-red-600">{error}</p>}

@@ -7,21 +7,23 @@ datasource db {
 }
 
 model TiemposProduccion {
-  id           String   @id @default(cuid())
-  usuario      String
-  actividad    String
-  fecha        String
-  marca        String?
-  maquina      String?
-  sku          String?
-  cantidad     Int      @default(0)
-  defectos     Int      @default(0)
-  horaInicio   String?
-  horaFin      String?
-  minutosNetos Float    @default(0)
-  estado       String   @default("pendiente")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  usuario            String
+  actividad          String
+  fecha              String
+  marca              String?
+  maquina            String?
+  sku                String?
+  cantidad           Int      @default(0)
+  defectos           Int      @default(0)
+  horaInicio         String?
+  horaFin            String?
+  minutosNetos       Float    @default(0)
+  estado             String   @default("pendiente")
+  inconveniente      String?
+  inconvenienteNotas String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   @@map("tiempos_produccion")
 }
