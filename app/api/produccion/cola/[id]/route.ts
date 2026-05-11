@@ -8,11 +8,23 @@ async function getSession(req: NextRequest) {
   return verifySession(token);
 }
 
+async function requireProduccionAccess(req: NextRequest) {
+  const session = await getSession(req);
+  if (!session) return null;
+  if (session.rol === 'admin') return session;
+  if (session.rol === 'costurera') return null;
+  const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
+  if (!user?.permisos.includes('produccion')) return session;
+  return null;
+}
+
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
+  // PATCH (cambiar estado) lo puede hacer cualquier usuario logueado — costureras
+  // marcan 'terminado' desde /tiempos al finalizar un corte.
 
   const { id } = await params;
   const { estado } = await req.json();
@@ -31,8 +43,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const session = await getSession(req);
-  if (!session || session.rol !== 'admin') {
+  const session = await requireProduccionAccess(req);
+  if (!session) {
     return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   }
 
