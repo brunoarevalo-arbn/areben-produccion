@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 
 interface Orden {
   id: string;
@@ -15,7 +16,13 @@ interface Orden {
   createdAt: string;
 }
 
-const MARCAS = ['Zattia', 'Stunned'];
+interface CatalogoEntry {
+  id: string;
+  categoria: 'marca' | 'prenda' | 'color';
+  nombre: string;
+  abreviatura: string;
+  activo: boolean;
+}
 
 const ESTADO_LABEL: Record<string, string> = {
   pendiente:     'Pendiente',
@@ -41,13 +48,42 @@ export function ColaAdmin() {
   const [filtro,  setFiltro]    = useState<'activos' | 'pendiente' | 'en_produccion' | 'terminado'>('activos');
   const [showForm, setShowForm] = useState(false);
 
-  const [sku,         setSku]         = useState('');
+  const [catalogo,    setCatalogo]    = useState<CatalogoEntry[]>([]);
+  const [marcaAbrev,  setMarcaAbrev]  = useState('');
+  const [prendaAbrev, setPrendaAbrev] = useState('');
+  const [colorAbrev,  setColorAbrev]  = useState('');
+  const [skuSugerido, setSkuSugerido] = useState<string | null>(null);
+  const [loadingSku,  setLoadingSku]  = useState(false);
   const [descripcion, setDescripcion] = useState('');
-  const [marca,       setMarca]       = useState('Zattia');
   const [cantidad,    setCantidad]    = useState('1');
   const [notas,       setNotas]       = useState('');
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState('');
+
+  const marcas  = catalogo.filter((c) => c.categoria === 'marca'  && c.activo);
+  const prendas = catalogo.filter((c) => c.categoria === 'prenda' && c.activo);
+  const colores = catalogo.filter((c) => c.categoria === 'color'  && c.activo);
+
+  // Cargar catálogo al abrir el form
+  useEffect(() => {
+    if (!showForm) return;
+    fetch('/api/sku-catalogo').then((r) => r.ok ? r.json() : []).then(setCatalogo).catch(() => {});
+  }, [showForm]);
+
+  // Sugerir próximo SKU cuando los 3 segmentos están elegidos
+  useEffect(() => {
+    if (!marcaAbrev || !prendaAbrev || !colorAbrev) { setSkuSugerido(null); return; }
+    setLoadingSku(true);
+    fetch('/api/sku/next', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ marca: marcaAbrev, prenda: prendaAbrev, color: colorAbrev }),
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => setSkuSugerido(data?.sku ?? null))
+      .catch(() => setSkuSugerido(null))
+      .finally(() => setLoadingSku(false));
+  }, [marcaAbrev, prendaAbrev, colorAbrev]);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -60,20 +96,23 @@ export function ColaAdmin() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sku.trim()) return;
+    if (!skuSugerido) return;
+    const marcaEntry = marcas.find((m) => m.abreviatura === marcaAbrev);
+    if (!marcaEntry) { setError('Marca inválida'); return; }
     setSaving(true);
     setError('');
     const r = await fetch('/api/produccion/cola', {
-      method: 'POST',
+      method:  'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku, descripcion, marca, cantidad, notas }),
+      body:    JSON.stringify({ sku: skuSugerido, descripcion, marca: marcaEntry.nombre, cantidad, notas }),
     });
     const data = await r.json();
     if (!r.ok) {
       setError(data.error || 'Error al crear');
     } else {
       setOrdenes((prev) => [data, ...prev]);
-      setSku(''); setDescripcion(''); setMarca('Zattia'); setCantidad('1'); setNotas('');
+      setMarcaAbrev(''); setPrendaAbrev(''); setColorAbrev('');
+      setSkuSugerido(null); setDescripcion(''); setCantidad('1'); setNotas('');
       setShowForm(false);
     }
     setSaving(false);
@@ -208,31 +247,58 @@ export function ColaAdmin() {
       {/* Formulario */}
       {showForm && (
         <div className="bg-white rounded-2xl border border-stone-200 p-5">
-          <h3 className="text-sm font-bold text-stone-800 mb-4">Nueva orden de producción</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-bold text-stone-800">Nueva orden de producción</h3>
+            <Link href="/produccion/catalogo-sku" className="text-xs text-stone-500 hover:text-stone-800 transition">
+              Editar catálogo →
+            </Link>
+          </div>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">SKU <span className="text-red-400">*</span></label>
-                <input type="text" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())}
-                  placeholder="Ej: ZATT-TOP-001" className={inputClass} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Marca</label>
-                <select value={marca} onChange={(e) => setMarca(e.target.value)} className={inputClass}>
-                  {MARCAS.map((m) => <option key={m}>{m}</option>)}
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Marca <span className="text-red-400">*</span></label>
+                <select value={marcaAbrev} onChange={(e) => setMarcaAbrev(e.target.value)} required className={inputClass}>
+                  <option value="">—</option>
+                  {marcas.map((m) => <option key={m.id} value={m.abreviatura}>{m.nombre} ({m.abreviatura})</option>)}
                 </select>
               </div>
+              <div>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Prenda <span className="text-red-400">*</span></label>
+                <select value={prendaAbrev} onChange={(e) => setPrendaAbrev(e.target.value)} required className={inputClass}>
+                  <option value="">—</option>
+                  {prendas.map((p) => <option key={p.id} value={p.abreviatura}>{p.nombre} ({p.abreviatura})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Color <span className="text-red-400">*</span></label>
+                <select value={colorAbrev} onChange={(e) => setColorAbrev(e.target.value)} required className={inputClass}>
+                  <option value="">—</option>
+                  {colores.map((c) => <option key={c.id} value={c.abreviatura}>{c.nombre} ({c.abreviatura})</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">SKU generado</p>
+                <p className="font-mono font-bold text-base text-stone-800">
+                  {loadingSku ? '…' : skuSugerido ?? (marcaAbrev && prendaAbrev && colorAbrev ? '—' : `${marcaAbrev || '???'}-${prendaAbrev || '???'}-${colorAbrev || '???'}-NNN`)}
+                </p>
+              </div>
+              {skuSugerido && <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-1 rounded">próximo libre</span>}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad</label>
                 <input type="number" value={cantidad} onChange={(e) => setCantidad(e.target.value)}
                   min="1" className={inputClass} />
               </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Descripción</label>
-              <input type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)}
-                placeholder="Ej: Remera manga corta blanca" className={inputClass} />
+              <div>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Descripción</label>
+                <input type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)}
+                  placeholder="Opcional" className={inputClass} />
+              </div>
             </div>
 
             <div>
@@ -244,7 +310,7 @@ export function ColaAdmin() {
 
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="submit" disabled={saving || !sku.trim()}
+              <button type="submit" disabled={saving || !skuSugerido}
                 className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
                 {saving ? 'Agregando...' : 'Agregar a la cola'}
               </button>

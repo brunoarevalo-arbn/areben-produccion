@@ -28,6 +28,21 @@ model TiemposProduccion {
   @@map("tiempos_produccion")
 }
 
+model SkuCatalogo {
+  id          String   @id @default(cuid())
+  categoria   String   // 'marca' | 'prenda' | 'color' (extensible)
+  nombre      String
+  abreviatura String
+  orden       Int      @default(0)
+  activo      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([categoria, abreviatura])
+  @@index([categoria, activo])
+  @@map("sku_catalogo")
+}
+
 model Producto {
   id          String            @id @default(cuid())
   nombre      String

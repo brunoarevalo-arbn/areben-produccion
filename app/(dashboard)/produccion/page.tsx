@@ -25,6 +25,13 @@ const ACCESOS = [
     icon: '📦',
     color: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400',
   },
+  {
+    label: 'Catálogo de SKU',
+    desc: 'Marcas, prendas y colores con sus abreviaturas para generar SKUs.',
+    href: '/produccion/catalogo-sku',
+    icon: '🏷',
+    color: 'bg-violet-50 border-violet-200 hover:border-violet-400',
+  },
 ];
 
 export default function ProduccionPage() {
