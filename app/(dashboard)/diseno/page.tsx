@@ -1,36 +1,56 @@
 import Link from 'next/link';
+import { prisma } from '@/lib/prisma';
+import { KanbanDiseno } from '@/components/diseno/KanbanDiseno';
+import { calcularEstado, faseActual } from '@/lib/diseno/estado';
 
 export const dynamic = 'force-dynamic';
 
-export default function DisenoPage() {
+export default async function DisenoPage() {
+  const proyectos = await prisma.proyectoDiseno.findMany({
+    orderBy: { updatedAt: 'desc' },
+    include: {
+      iteraciones: { select: { estado: true } },
+      fases:       { include: { fase: { select: { orden: true, nombre: true } } } },
+    },
+  });
+
+  const items = proyectos.map((p) => ({
+    id:          p.id,
+    nombre:      p.nombre,
+    marca:       p.marca,
+    inspiracion: p.inspiracion,
+    moodboard:   p.moodboard,
+    archivado:   p.archivado,
+    updatedAt:   p.updatedAt.toISOString(),
+    estado:      calcularEstado(p),
+    faseActual:  faseActual(p),
+  }));
+
   return (
-    <div className="p-8 max-w-3xl">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-violet-500">Diseño</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Proyectos</h1>
-        <p className="text-stone-500 text-sm mt-1">La nueva vista Kanban llega en el próximo cambio.</p>
+    <div className="p-6 max-w-[1400px]">
+      <div className="flex items-start justify-between mb-6 gap-4">
+        <div>
+          <span className="text-xs font-bold uppercase tracking-widest text-violet-500">Módulo 1</span>
+          <h1 className="text-2xl font-bold text-stone-900 mt-1">Diseño</h1>
+          <p className="text-stone-500 text-sm mt-1">{items.filter((p) => !p.archivado).length} proyecto{items.filter((p) => !p.archivado).length !== 1 ? 's' : ''} activo{items.filter((p) => !p.archivado).length !== 1 ? 's' : ''}</p>
+        </div>
+        <div className="flex gap-2">
+          <Link href="/diseno/fases-catalogo"
+            className="text-xs px-3 py-2 rounded-xl border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+            Fases
+          </Link>
+          <Link href="/diseno/molderias"
+            className="text-xs px-3 py-2 rounded-xl border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+            Molderías
+          </Link>
+          <Link href="/diseno/telas"
+            className="text-xs px-3 py-2 rounded-xl border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+            Telas
+          </Link>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Link href="/diseno/fases-catalogo"
-          className="block bg-white border-2 border-violet-200 hover:border-violet-400 rounded-2xl p-6 transition">
-          <div className="text-3xl mb-3">🏷</div>
-          <h2 className="font-bold text-stone-800 text-base">Catálogo de fases</h2>
-          <p className="text-stone-500 text-sm mt-1">Tela, ficha, corte, confección, lavadero, bordado…</p>
-        </Link>
-        <Link href="/diseno/molderias"
-          className="block bg-white border-2 border-stone-200 hover:border-stone-400 rounded-2xl p-6 transition">
-          <div className="text-3xl mb-3">📐</div>
-          <h2 className="font-bold text-stone-800 text-base">Molderías</h2>
-          <p className="text-stone-500 text-sm mt-1">Catálogo de molderías disponibles.</p>
-        </Link>
-        <Link href="/diseno/telas"
-          className="block bg-white border-2 border-stone-200 hover:border-stone-400 rounded-2xl p-6 transition">
-          <div className="text-3xl mb-3">🧵</div>
-          <h2 className="font-bold text-stone-800 text-base">Telas</h2>
-          <p className="text-stone-500 text-sm mt-1">Catálogo de telas disponibles.</p>
-        </Link>
-      </div>
+      <KanbanDiseno proyectos={items} />
     </div>
   );
 }
