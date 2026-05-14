@@ -5,13 +5,14 @@ type Ctx = { params: Promise<{ id: string; muestraId: string }> };
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
   try {
-    const { muestraId }              = await params;
-    const { estado, notas, fotos }   = await req.json();
+    const { muestraId } = await params;
+    const { estado, notas, fotos, ajustesMolderia } = await req.json();
 
     const data: Record<string, unknown> = {};
-    if (estado !== undefined) data.estado = estado;
-    if (notas  !== undefined) data.notas  = notas  || null;
-    if (fotos  !== undefined) data.fotos  = JSON.stringify(fotos);
+    if (estado           !== undefined) data.estado          = estado;
+    if (notas            !== undefined) data.notas           = notas            || null;
+    if (fotos            !== undefined) data.fotos           = JSON.stringify(fotos);
+    if (ajustesMolderia  !== undefined) data.ajustesMolderia = ajustesMolderia  || null;
 
     const it = await prisma.iteracionMuestra.update({
       where:   { id: muestraId },

@@ -6,12 +6,13 @@ import { useRouter } from 'next/navigation';
 import { ESTADO_LABEL, ESTADO_COLOR, type EstadoProyecto } from '@/lib/diseno/estado';
 
 interface Iteracion {
-  id:        string;
-  version:   number;
-  estado:    string;
-  fotos:     string[];
-  notas:     string | null;
-  createdAt: string;
+  id:              string;
+  version:         number;
+  estado:          string;
+  fotos:           string[];
+  notas:           string | null;
+  ajustesMolderia: string | null;
+  createdAt:       string;
 }
 
 interface FaseProy {
@@ -373,10 +374,11 @@ function MuestraRow({
 }: {
   proyectoId: string; iteracion: Iteracion; onChange: () => void;
 }) {
-  const [expanded, setExpanded] = useState(iteracion.estado !== 'aprobada');
-  const [notas,    setNotas]    = useState(iteracion.notas ?? '');
-  const [fotos,    setFotos]    = useState<string>(iteracion.fotos.join('\n'));
-  const [saving,   setSaving]   = useState(false);
+  const [expanded,        setExpanded]        = useState(iteracion.estado !== 'aprobada');
+  const [notas,           setNotas]           = useState(iteracion.notas ?? '');
+  const [ajustesMolderia, setAjustesMolderia] = useState(iteracion.ajustesMolderia ?? '');
+  const [fotos,           setFotos]           = useState<string>(iteracion.fotos.join('\n'));
+  const [saving,          setSaving]          = useState(false);
 
   const guardar = async (extra: Record<string, unknown> = {}) => {
     setSaving(true);
@@ -384,7 +386,12 @@ function MuestraRow({
     await fetch(`/api/proyectos/${proyectoId}/muestras/${iteracion.id}`, {
       method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ notas: notas.trim(), fotos: fotosArr, ...extra }),
+      body:    JSON.stringify({
+        notas:           notas.trim(),
+        ajustesMolderia: ajustesMolderia.trim(),
+        fotos:           fotosArr,
+        ...extra,
+      }),
     });
     setSaving(false);
     onChange();
@@ -416,18 +423,32 @@ function MuestraRow({
           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${MUESTRA_ESTADO_COLOR[iteracion.estado] ?? 'bg-stone-100 text-stone-500'}`}>
             {MUESTRA_ESTADO_LABEL[iteracion.estado] ?? iteracion.estado}
           </span>
+          {iteracion.ajustesMolderia && (
+            <span className="text-xs text-violet-600" title="Tiene ajustes de molderia">📐</span>
+          )}
         </div>
         <span className="text-stone-400 text-xs">{expanded ? '▾' : '▸'}</span>
       </button>
 
       {expanded && (
         <div className="p-4 space-y-3">
-          <div>
-            <label className="text-xs font-semibold text-stone-500 mb-1 block">Qué falló / qué falta</label>
-            <textarea value={notas} onChange={(e) => setNotas(e.target.value)}
-              placeholder="Largo corto, hilo equivocado, falta etiqueta…"
-              rows={3}
-              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400 resize-none" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-stone-500 mb-1 block">Qué falló de la muestra</label>
+              <textarea value={notas} onChange={(e) => setNotas(e.target.value)}
+                placeholder="Largo corto, hilo equivocado, falta etiqueta…"
+                rows={4}
+                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400 resize-none" />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-stone-500 mb-1 block">Ajustes a la molderia</label>
+              <textarea value={ajustesMolderia} onChange={(e) => setAjustesMolderia(e.target.value)}
+                placeholder={iteracion.version === 1
+                  ? 'Molderia base por crear, o usar existente "Top básico mod 12"…'
+                  : 'Subí 2 cm el largo, ajusté la espalda, etc.'}
+                rows={4}
+                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400 resize-none" />
+            </div>
           </div>
           <div>
             <label className="text-xs font-semibold text-stone-500 mb-1 block">Fotos (un link por línea)</label>

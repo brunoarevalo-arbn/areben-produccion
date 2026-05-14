@@ -168,18 +168,19 @@ model FaseProyecto {
 }
 
 model IteracionMuestra {
-  id         String         @id @default(cuid())
-  proyectoId String
-  proyecto   ProyectoDiseno @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
-  version    Int
-  tipo       String         @default("muestra")
-  estado     String         @default("en_confeccion")
-  fotos      String?
-  notas      String?
-  ajustes    AjusteMuestra[]
-  insumos    InsumoMuestra[]
-  createdAt  DateTime       @default(now())
-  updatedAt  DateTime       @updatedAt
+  id              String          @id @default(cuid())
+  proyectoId      String
+  proyecto        ProyectoDiseno  @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
+  version         Int
+  tipo            String          @default("muestra")
+  estado          String          @default("en_confeccion")
+  fotos           String?
+  notas           String?         // qué falló / qué falta de la muestra física
+  ajustesMolderia String?         // qué se cambió / se va a cambiar en la molderia
+  ajustes         AjusteMuestra[]
+  insumos         InsumoMuestra[]
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
 
   @@map("iteraciones_muestra")
 }
