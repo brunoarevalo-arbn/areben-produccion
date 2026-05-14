@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { PASOS_DISENO } from '@/lib/constants/diseno';
 
 export async function GET(req: NextRequest) {
   try {
@@ -8,9 +7,8 @@ export async function GET(req: NextRequest) {
     const marca = searchParams.get('marca') ?? undefined;
 
     const proyectos = await prisma.proyectoDiseno.findMany({
-      where: marca ? { marca } : undefined,
-      include: { pasos: { orderBy: { numeroPaso: 'asc' } } },
-      orderBy: { createdAt: 'desc' },
+      where:    marca ? { marca } : undefined,
+      orderBy:  { createdAt: 'desc' },
     });
 
     return NextResponse.json(proyectos);
@@ -27,13 +25,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: 'IDs requeridos' }, { status: 400 });
     }
 
-    const update: Record<string, string> = {};
-    if (data.estado && ['activo', 'standby', 'archivado'].includes(data.estado)) {
-      update.estado = data.estado;
-    }
-    if (data.marca && ['Zattia', 'Stunned'].includes(data.marca)) {
-      update.marca = data.marca;
-    }
+    const update: Record<string, unknown> = {};
+    if (typeof data.archivado === 'boolean') update.archivado = data.archivado;
+    if (data.marca && ['Zattia', 'Stunned'].includes(data.marca)) update.marca = data.marca;
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'Sin cambios válidos' }, { status: 400 });
@@ -73,18 +67,10 @@ export async function POST(req: NextRequest) {
 
     const proyecto = await prisma.proyectoDiseno.create({
       data: {
-        nombre: nombre.trim(),
+        nombre:      nombre.trim(),
         marca,
         inspiracion: inspiracion?.trim() || null,
-        pasos: {
-          create: PASOS_DISENO.map((nombrePaso, i) => ({
-            numeroPaso: i + 1,
-            nombrePaso,
-            estado: 'pendiente',
-          })),
-        },
       },
-      include: { pasos: { orderBy: { numeroPaso: 'asc' } } },
     });
 
     return NextResponse.json(proyecto, { status: 201 });

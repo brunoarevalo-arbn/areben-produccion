@@ -115,52 +115,56 @@ model MovimientoStock {
 }
 
 model ProyectoDiseno {
-  id               String             @id @default(cuid())
-  nombre           String
-  marca            String
-  estado           String             @default("activo")
-  estadoDiseno     String             @default("inspiracion")
-  inspiracion      String?
-  moodboard        String?
-  molderia         String?
-  molderiaFormato  String?
-  tela             String?
-  costo            Float              @default(0)
-  precioEstimado   Float              @default(0)
-  estadoProduccion String?
-  cantidad         Int                @default(0)
-  fechaObjetivo    DateTime?
-  pasos            ProyectoPaso[]
-  iteraciones      IteracionMuestra[]
-  ideas            IdeaDiseno[]
-  insumos          ProyectoInsumo[]
-  skus             SKUProyecto[]
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
+  id              String             @id @default(cuid())
+  nombre          String
+  marca           String
+  archivado       Boolean            @default(false)
+  inspiracion     String?
+  moodboard       String?
+  molderia        String?
+  molderiaFormato String?
+  tela            String?
+  fechaObjetivo   DateTime?
+  fases           FaseProyecto[]
+  iteraciones     IteracionMuestra[]
+  insumos         ProyectoInsumo[]
+  skus            SKUProyecto[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
   @@map("proyectos_diseno")
 }
 
-model ProyectoPaso {
+model FaseCatalogo {
+  id        String         @id @default(cuid())
+  nombre    String         @unique
+  orden     Int            @default(0)
+  activo    Boolean        @default(true)
+  fases     FaseProyecto[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  @@map("fase_catalogo")
+}
+
+model FaseProyecto {
   id              String         @id @default(cuid())
   proyectoId      String
   proyecto        ProyectoDiseno @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
-  numeroPaso      Int
-  nombrePaso      String
-  estado          String         @default("pendiente")
-  saltado         Boolean        @default(false)
-  observaciones        String?
-  datos                String?
-  fechaInicio          DateTime?
-  fechaCompletado      DateTime?
-  responsableId        String?
-  esTercero            Boolean        @default(false)
-  terceroNombre        String?
-  responsableInternoId String?
-  createdAt            DateTime       @default(now())
-  updatedAt            DateTime       @updatedAt
+  faseId          String
+  fase            FaseCatalogo   @relation(fields: [faseId], references: [id])
+  estado          String         @default("en_progreso") // en_progreso | completada
+  responsable     String?
+  externo         Boolean        @default(false)
+  seguidorInterno String?
+  fechaInicio     DateTime?
+  fechaFin        DateTime?
+  notas           String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
 
-  @@map("proyecto_pasos")
+  @@unique([proyectoId, faseId])
+  @@map("fase_proyecto")
 }
 
 model IteracionMuestra {
@@ -220,19 +224,6 @@ model ProyectoInsumo {
   updatedAt     DateTime       @updatedAt
 
   @@map("proyecto_insumos")
-}
-
-model IdeaDiseno {
-  id          String         @id @default(cuid())
-  proyectoId  String
-  proyecto    ProyectoDiseno @relation(fields: [proyectoId], references: [id], onDelete: Cascade)
-  titulo      String?
-  descripcion String
-  foto        String?
-  etiquetas   String?
-  createdAt   DateTime       @default(now())
-
-  @@map("ideas_diseno")
 }
 
 model SKUProyecto {

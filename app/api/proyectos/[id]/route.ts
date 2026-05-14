@@ -16,15 +16,11 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     const proyecto = await prisma.proyectoDiseno.findUnique({
       where: { id },
       include: {
-        pasos: { orderBy: { numeroPaso: 'asc' } },
+        fases: { include: { fase: true }, orderBy: { fase: { orden: 'asc' } } },
         iteraciones: {
-          include: {
-            ajustes: { orderBy: { createdAt: 'asc' } },
-            insumos: true,
-          },
+          include: { ajustes: { orderBy: { createdAt: 'asc' } }, insumos: true },
           orderBy: { version: 'asc' },
         },
-        ideas:   { orderBy: { createdAt: 'desc' } },
         insumos: { orderBy: { createdAt: 'asc' } },
         skus:    { orderBy: { codigo: 'asc' } },
       },
@@ -34,7 +30,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
     const iteraciones = proyecto.iteraciones.map((it) => ({
       ...it,
-      fotos:   it.fotos   ? JSON.parse(it.fotos)   : [],
+      fotos:   it.fotos ? JSON.parse(it.fotos) : [],
       ajustes: it.ajustes.map((aj) => ({
         ...aj,
         fechaRealizado: aj.fechaRealizado?.toISOString() ?? null,
@@ -42,21 +38,15 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       })),
     }));
 
-    const ideas = proyecto.ideas.map((idea) => ({
-      ...idea,
-      etiquetas: idea.etiquetas ? JSON.parse(idea.etiquetas) : [],
-      createdAt: idea.createdAt.toISOString(),
-    }));
-
     return NextResponse.json(serializeProyecto({
       ...proyecto,
       iteraciones,
-      ideas,
-      pasos: proyecto.pasos.map((p) => ({
-        ...p,
-        fechaInicio:     p.fechaInicio?.toISOString()     ?? null,
-        fechaCompletado: p.fechaCompletado?.toISOString() ?? null,
-        updatedAt:       p.updatedAt.toISOString(),
+      fases: proyecto.fases.map((f) => ({
+        ...f,
+        fechaInicio: f.fechaInicio?.toISOString() ?? null,
+        fechaFin:    f.fechaFin?.toISOString()    ?? null,
+        createdAt:   f.createdAt.toISOString(),
+        updatedAt:   f.updatedAt.toISOString(),
       })),
       insumos: proyecto.insumos.map((ins) => ({
         ...ins,
@@ -69,8 +59,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         updatedAt: s.updatedAt.toISOString(),
       })),
       fechaObjetivo: proyecto.fechaObjetivo?.toISOString() ?? null,
-      createdAt: proyecto.createdAt.toISOString(),
-      updatedAt: proyecto.updatedAt.toISOString(),
+      createdAt:     proyecto.createdAt.toISOString(),
+      updatedAt:     proyecto.updatedAt.toISOString(),
     }));
   } catch (error) {
     console.error(error);
@@ -84,11 +74,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const body   = await req.json();
 
     const data: Record<string, unknown> = {};
-
-    const campos = [
-      'nombre', 'marca', 'estado', 'estadoDiseno', 'inspiracion',
-      'molderia', 'molderiaFormato', 'tela', 'costo', 'precioEstimado', 'estadoProduccion', 'cantidad',
-    ] as const;
+    const campos = ['nombre', 'marca', 'inspiracion', 'molderia', 'molderiaFormato', 'tela'] as const;
 
     for (const campo of campos) {
       if (body[campo] !== undefined) {
@@ -97,6 +83,8 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
           : body[campo];
       }
     }
+
+    if (typeof body.archivado === 'boolean') data.archivado = body.archivado;
 
     if (body.moodboard !== undefined) {
       data.moodboard = JSON.stringify(body.moodboard);
