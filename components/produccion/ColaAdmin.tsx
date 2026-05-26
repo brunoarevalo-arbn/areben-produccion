@@ -47,6 +47,12 @@ export function ColaAdmin() {
   const [loading, setLoading]   = useState(true);
   const [filtro,  setFiltro]    = useState<'activos' | 'pendiente' | 'en_produccion' | 'terminado'>('activos');
   const [showForm, setShowForm] = useState(false);
+  const [editando, setEditando] = useState<Orden | null>(null);
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [editCantidad,    setEditCantidad]    = useState('1');
+  const [editNotas,       setEditNotas]       = useState('');
+  const [editSaving,      setEditSaving]      = useState(false);
+  const [editError,       setEditError]       = useState('');
 
   const [catalogo,    setCatalogo]    = useState<CatalogoEntry[]>([]);
   const [marcaAbrev,  setMarcaAbrev]  = useState('');
@@ -134,6 +140,43 @@ export function ColaAdmin() {
     if (!confirm(`¿Eliminar la orden "${sku}"?`)) return;
     const r = await fetch(`/api/produccion/cola/${id}`, { method: 'DELETE' });
     if (r.ok) setOrdenes((prev) => prev.filter((o) => o.id !== id));
+  };
+
+  const abrirEdicion = (orden: Orden) => {
+    setEditando(orden);
+    setEditDescripcion(orden.descripcion ?? '');
+    setEditCantidad(String(orden.cantidad));
+    setEditNotas(orden.notas ?? '');
+    setEditError('');
+  };
+
+  const cerrarEdicion = () => {
+    setEditando(null);
+    setEditError('');
+  };
+
+  const guardarEdicion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editando) return;
+    setEditSaving(true);
+    setEditError('');
+    const r = await fetch(`/api/produccion/cola/${editando.id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        descripcion: editDescripcion,
+        cantidad:    editCantidad,
+        notas:       editNotas,
+      }),
+    });
+    const data = await r.json();
+    if (!r.ok) {
+      setEditError(data.error || 'Error al guardar');
+    } else {
+      setOrdenes((prev) => prev.map((o) => o.id === data.id ? data : o));
+      setEditando(null);
+    }
+    setEditSaving(false);
   };
 
   const filtradas = filtro === 'activos'
@@ -226,6 +269,11 @@ export function ColaAdmin() {
                     Reabrir
                   </button>
                 )}
+                <button onClick={() => abrirEdicion(orden)}
+                  title="Editar"
+                  className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
+                  ✎
+                </button>
                 <button onClick={() => eliminar(orden.id, orden.sku)}
                   className="text-xs px-2.5 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition">
                   ×
@@ -320,6 +368,60 @@ export function ColaAdmin() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Modal edición */}
+      {editando && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4"
+          onClick={cerrarEdicion}>
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 w-full max-w-md shadow-xl"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-bold text-stone-800">Editar orden</h3>
+                <p className="font-mono text-xs text-stone-500 mt-0.5">{editando.sku}</p>
+              </div>
+              <button type="button" onClick={cerrarEdicion}
+                className="text-stone-400 hover:text-stone-700 text-lg leading-none">×</button>
+            </div>
+            <form onSubmit={guardarEdicion} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad</label>
+                  <input type="number" value={editCantidad}
+                    onChange={(e) => setEditCantidad(e.target.value)}
+                    min="1" className={inputClass} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Descripción</label>
+                  <input type="text" value={editDescripcion}
+                    onChange={(e) => setEditDescripcion(e.target.value)}
+                    placeholder="Opcional" className={inputClass} />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Notas internas</label>
+                <textarea value={editNotas} onChange={(e) => setEditNotas(e.target.value)}
+                  placeholder="Observaciones, prioridad, referencias..." rows={3}
+                  className={`${inputClass} resize-none`} />
+              </div>
+
+              {editError && <p className="text-red-500 text-xs">{editError}</p>}
+
+              <div className="flex gap-2 pt-1">
+                <button type="submit" disabled={editSaving}
+                  className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
+                  {editSaving ? 'Guardando...' : 'Guardar cambios'}
+                </button>
+                <button type="button" onClick={cerrarEdicion}
+                  className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+                  Cancelar
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

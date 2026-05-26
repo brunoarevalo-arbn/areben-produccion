@@ -23,20 +23,54 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function PATCH(req: NextRequest, { params }: Ctx) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
-  // PATCH (cambiar estado) lo puede hacer cualquier usuario logueado — costureras
-  // marcan 'terminado' desde /tiempos al finalizar un corte.
 
   const { id } = await params;
-  const { estado } = await req.json();
+  const body = await req.json();
+  const { estado, descripcion, cantidad, notas } = body;
 
-  const ESTADOS_VALIDOS = ['pendiente', 'en_produccion', 'terminado'];
-  if (!ESTADOS_VALIDOS.includes(estado)) {
-    return NextResponse.json({ error: 'Estado inválido' }, { status: 400 });
+  const editaContenido =
+    descripcion !== undefined || cantidad !== undefined || notas !== undefined;
+
+  // Cambiar estado lo puede hacer cualquier usuario logueado (costureras marcan
+  // 'terminado' desde /tiempos). Editar descripción/cantidad/notas requiere
+  // permiso de producción, igual que crear o eliminar.
+  if (editaContenido) {
+    const allowed = await requireProduccionAccess(req);
+    if (!allowed) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   }
 
-  const data: Record<string, unknown> = { estado };
-  if (estado === 'terminado') data.terminadoAt = new Date();
-  else data.terminadoAt = null;
+  const data: Record<string, unknown> = {};
+
+  if (estado !== undefined) {
+    const ESTADOS_VALIDOS = ['pendiente', 'en_produccion', 'terminado'];
+    if (!ESTADOS_VALIDOS.includes(estado)) {
+      return NextResponse.json({ error: 'Estado inválido' }, { status: 400 });
+    }
+    data.estado = estado;
+    data.terminadoAt = estado === 'terminado' ? new Date() : null;
+  }
+
+  if (descripcion !== undefined) {
+    data.descripcion = typeof descripcion === 'string' && descripcion.trim()
+      ? descripcion.trim()
+      : null;
+  }
+
+  if (cantidad !== undefined) {
+    const n = parseInt(cantidad);
+    if (!Number.isFinite(n) || n < 1) {
+      return NextResponse.json({ error: 'Cantidad inválida' }, { status: 400 });
+    }
+    data.cantidad = n;
+  }
+
+  if (notas !== undefined) {
+    data.notas = typeof notas === 'string' && notas.trim() ? notas.trim() : null;
+  }
+
+  if (Object.keys(data).length === 0) {
+    return NextResponse.json({ error: 'Sin cambios' }, { status: 400 });
+  }
 
   const orden = await prisma.ordenProduccion.update({ where: { id }, data });
   return NextResponse.json(orden);
