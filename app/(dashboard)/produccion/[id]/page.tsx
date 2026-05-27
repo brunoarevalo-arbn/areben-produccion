@@ -97,6 +97,12 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
             Ver ficha de corte
           </Link>
         )}
+        {orden.estado === 'CORTE' && (
+          <Link href={`/produccion/${orden.id}/consumo-tela`}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+            Registrar consumo de tela
+          </Link>
+        )}
       </div>
 
       {/* Historial de estados */}

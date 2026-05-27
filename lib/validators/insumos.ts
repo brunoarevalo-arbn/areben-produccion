@@ -20,6 +20,7 @@ export const InsumoCatalogoSchema = z.object({
   unidadDefault:    z.enum(['kg', 'metro', 'unidad']),
   stockMinimo:      z.number().min(0).optional(),
   manejaColor:      z.boolean().optional(),
+  rinde:            z.number().positive().optional(),
   activo:           z.boolean().optional(),
 });
 

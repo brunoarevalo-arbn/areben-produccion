@@ -15,11 +15,11 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     where: { id },
     include: {
       movimientosInsumo: {
-        where: { tipo: 'CONSUMO' },
         include: {
-          rollo: { include: { insumo: { select: { nombre: true, unidadDefault: true } }, color: { select: { nombre: true } } } },
+          rollo: { include: { insumo: { select: { nombre: true, rinde: true, unidadDefault: true } }, color: { select: { nombre: true } } } },
           lote: { include: { insumo: { select: { nombre: true, unidadDefault: true } }, color: { select: { nombre: true } } } },
         },
+        orderBy: { fecha: 'desc' },
       },
       transiciones: { orderBy: { fecha: 'desc' }, take: 10 },
     },
@@ -55,22 +55,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Solo se puede cargar ficha en estado PENDIENTE o CORTE' }, { status: 400 });
   }
 
-  const { consumoTela, consumoLotes, fichaFotoUrl, notas } = parsed.data;
+  const { insumoTelaId, consumoLotes, fichaFotoUrl, notas } = parsed.data;
 
-  // Validar rollos existen y tienen stock
-  const rolloIds = consumoTela.map((c) => c.rolloId);
-  const rollos = await prisma.rollo.findMany({ where: { id: { in: rolloIds } } });
-  const rollosMap = new Map(rollos.map((r) => [r.id, r]));
+  // Verificar que el insumo de tela existe
+  const insumoTela = await prisma.insumo.findUnique({ where: { id: insumoTelaId } });
+  if (!insumoTela) return NextResponse.json({ error: 'Insumo de tela no encontrado' }, { status: 400 });
 
-  for (const ct of consumoTela) {
-    const rollo = rollosMap.get(ct.rolloId);
-    if (!rollo) return NextResponse.json({ error: `Rollo ${ct.rolloId} no encontrado` }, { status: 400 });
-    if (Number(rollo.pesoActual) < ct.cantidad) {
-      return NextResponse.json({ error: `Rollo ${rollo.codigo}: stock insuficiente (${rollo.pesoActual} < ${ct.cantidad})` }, { status: 400 });
-    }
-  }
-
-  // Validar lotes
+  // Validar y preparar lotes secundarios
   const loteConsumos = consumoLotes || [];
   const loteIds = loteConsumos.map((c) => c.loteId);
   const lotes = loteIds.length > 0 ? await prisma.lote.findMany({ where: { id: { in: loteIds } } }) : [];
@@ -80,52 +71,19 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const lote = lotesMap.get(cl.loteId);
     if (!lote) return NextResponse.json({ error: `Lote ${cl.loteId} no encontrado` }, { status: 400 });
     if (Number(lote.cantidadActual) < cl.cantidad) {
-      return NextResponse.json({ error: `Lote ${lote.codigo}: stock insuficiente (${lote.cantidadActual} < ${cl.cantidad})` }, { status: 400 });
+      return NextResponse.json({ error: `Lote ${lote.codigo}: stock insuficiente` }, { status: 400 });
     }
   }
 
-  // Calcular costos
-  let costoTela = new Prisma.Decimal(0);
-  for (const ct of consumoTela) {
-    const rollo = rollosMap.get(ct.rolloId)!;
-    costoTela = costoTela.add(rollo.costoUnitario.mul(new Prisma.Decimal(ct.cantidad)));
-  }
-
+  // Calcular costo insumos secundarios
   let costoInsumosSec = new Prisma.Decimal(0);
   for (const cl of loteConsumos) {
     const lote = lotesMap.get(cl.loteId)!;
     costoInsumosSec = costoInsumosSec.add(lote.costoUnitario.mul(new Prisma.Decimal(cl.cantidad)));
   }
 
-  const costoTotal = costoTela.add(costoInsumosSec);
-
-  // Transaccion
   const result = await prisma.$transaction(async (tx) => {
-    // Descontar rollos
-    for (const ct of consumoTela) {
-      const rollo = rollosMap.get(ct.rolloId)!;
-      const nuevoPeso = rollo.pesoActual.sub(new Prisma.Decimal(ct.cantidad));
-      const nuevoEstado = nuevoPeso.lte(0) ? 'AGOTADO' as const
-        : nuevoPeso.lt(rollo.pesoInicial) ? 'EN_USO_PARCIAL' as const
-        : 'DISPONIBLE' as const;
-
-      await tx.rollo.update({
-        where: { id: ct.rolloId },
-        data: { pesoActual: nuevoPeso.lt(0) ? new Prisma.Decimal(0) : nuevoPeso, estado: nuevoEstado },
-      });
-      await tx.movimientoInsumo.create({
-        data: {
-          tipo: 'CONSUMO',
-          rolloId: ct.rolloId,
-          ordenId: id,
-          cantidad: new Prisma.Decimal(ct.cantidad).neg(),
-          motivo: `Ficha de corte OP ${orden.sku}`,
-          usuarioId: session.id,
-        },
-      });
-    }
-
-    // Descontar lotes
+    // Descontar lotes secundarios
     for (const cl of loteConsumos) {
       const lote = lotesMap.get(cl.loteId)!;
       const nuevaCant = lote.cantidadActual.sub(new Prisma.Decimal(cl.cantidad));
@@ -153,16 +111,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const data: Record<string, unknown> = {
       fichaCorteCargada: true,
       fichaFotoUrl: fichaFotoUrl || null,
-      costoTela,
       costoInsumosSecundarios: costoInsumosSec,
-      costoTotal,
+      costoTotal: costoInsumosSec,
     };
 
     if (notas?.trim()) {
       data.notas = (orden.notas ? orden.notas + '\n' : '') + `[Ficha] ${notas.trim()}`;
     }
 
-    // Transicionar a CORTE si estaba en PENDIENTE
     if (orden.estado === 'PENDIENTE') {
       data.estado = 'CORTE';
       await tx.estadoTransicion.create({

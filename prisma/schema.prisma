@@ -460,6 +460,7 @@ model Insumo {
   unidadDefault    String
   stockMinimo      Decimal?
   manejaColor      Boolean       @default(false)
+  rinde            Decimal?
   activo           Boolean       @default(true)
   colores          InsumoColor[]
   rollos           Rollo[]

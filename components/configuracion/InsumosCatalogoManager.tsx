@@ -11,6 +11,7 @@ interface InsumoItem {
   unidadDefault: string;
   stockMinimo: number | null;
   manejaColor: boolean;
+  rinde: number | null;
   activo: boolean;
 }
 
@@ -33,10 +34,11 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
   const [unidadDefault, setUnidadDefault]     = useState('kg');
   const [stockMinimo, setStockMinimo]         = useState('');
   const [manejaColor, setManejaColor]         = useState(false);
+  const [rinde, setRinde]                     = useState('');
 
   const resetForm = () => {
     setNombre(''); setCategoria('tela'); setTipoTrazabilidad('rollo');
-    setUnidadDefault('kg'); setStockMinimo(''); setManejaColor(false); setError('');
+    setUnidadDefault('kg'); setStockMinimo(''); setManejaColor(false); setRinde(''); setError('');
   };
 
   const abrirNuevo = () => { resetForm(); setEditando(null); setShowForm(true); };
@@ -48,6 +50,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
     setUnidadDefault(ins.unidadDefault);
     setStockMinimo(ins.stockMinimo != null ? String(ins.stockMinimo) : '');
     setManejaColor(ins.manejaColor);
+    setRinde(ins.rinde != null ? String(ins.rinde) : '');
     setEditando(ins);
     setShowForm(true);
     setError('');
@@ -66,6 +69,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
       unidadDefault,
       stockMinimo: stockMinimo ? Number(stockMinimo) : undefined,
       manejaColor,
+      rinde: rinde ? Number(rinde) : undefined,
     };
 
     const url = editando ? `/api/insumos/${editando.id}` : '/api/insumos';
@@ -154,6 +158,12 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Stock minimo</label>
                 <input type="number" value={stockMinimo} onChange={(e) => setStockMinimo(e.target.value)}
                   min="0" step="0.01" placeholder="Opcional" className={inp} />
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Rinde (m/kg)</label>
+                <input type="number" value={rinde} onChange={(e) => setRinde(e.target.value)}
+                  min="0" step="0.01" placeholder="Ej: 3.2" className={inp} />
+                <p className="text-xs text-stone-400 mt-1">Metros por kg. Solo para telas.</p>
               </div>
               <div className="flex items-end pb-1">
                 <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer">

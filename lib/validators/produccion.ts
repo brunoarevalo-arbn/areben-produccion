@@ -20,19 +20,26 @@ export const CambioEstadoSchema = z.object({
   notas:  z.string().optional(),
 });
 
-const ConsumoRolloSchema = z.object({
-  rolloId:  z.string().min(1),
-  cantidad: z.number().positive(),
-});
-
+// Ficha de corte: declara insumo de tela + insumos secundarios
 const ConsumoLoteSchema = z.object({
   loteId:   z.string().min(1),
   cantidad: z.number().positive(),
 });
 
 export const FichaCorteSchema = z.object({
-  consumoTela:    z.array(ConsumoRolloSchema).min(1, 'Debe asignar al menos un rollo'),
+  insumoTelaId:   z.string().min(1, 'Insumo de tela obligatorio'),
   consumoLotes:   z.array(ConsumoLoteSchema).optional(),
   fichaFotoUrl:   z.string().optional(),
+  notas:          z.string().optional(),
+});
+
+// Consumo de tela (paso separado, durante CORTE)
+const ConsumoRolloSchema = z.object({
+  rolloId:        z.string().min(1),
+  metrosUsados:   z.number().positive(),
+});
+
+export const ConsumoTelaSchema = z.object({
+  consumoRollos:  z.array(ConsumoRolloSchema).min(1, 'Debe asignar al menos un rollo'),
   notas:          z.string().optional(),
 });
