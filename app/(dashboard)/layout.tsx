@@ -4,7 +4,7 @@ import { SESSION_COOKIE, verifySession } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { Sidebar } from '@/components/layout/Sidebar';
 
-export const ALL_PERMISOS = ['dashboard', 'diseno', 'produccion', 'gastos', 'costos', 'configuracion'];
+export const ALL_PERMISOS = ['dashboard', 'diseno', 'insumos', 'produccion', 'gastos', 'costos', 'configuracion'];
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();

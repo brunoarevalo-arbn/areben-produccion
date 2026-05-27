@@ -349,3 +349,159 @@ model Gasto {
 
   @@map("gastos")
 }
+
+// ─── Capital de Producción — Fase 1 ────────────────────────────────
+
+model Proveedor {
+  id           String   @id @default(cuid())
+  nombre       String
+  cuit         String?
+  condicionIva String?
+  contacto     String?
+  notas        String?
+  activo       Boolean  @default(true)
+  compras      Compra[]
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("proveedores")
+}
+
+enum EstadoPago {
+  PENDIENTE
+  PARCIAL
+  PAGADA
+}
+
+model Compra {
+  id            String     @id @default(cuid())
+  proveedorId   String
+  proveedor     Proveedor  @relation(fields: [proveedorId], references: [id])
+  fecha         DateTime
+  numeroFactura String?
+  conIva        Boolean    @default(true)
+  totalBruto    Decimal
+  totalNeto     Decimal
+  formaPago     String?
+  estadoPago    EstadoPago @default(PENDIENTE)
+  montoPagado   Decimal    @default(0)
+  fechaPago     DateTime?
+  notas         String?
+  revertida     Boolean    @default(false)
+  revertidaAt   DateTime?
+  revertidaPor  String?
+  creadoPor     String
+  creadoAt      DateTime   @default(now())
+  lineas        CompraLinea[]
+  rollos        Rollo[]
+  lotes         Lote[]
+
+  @@map("compras")
+}
+
+model CompraLinea {
+  id             String  @id @default(cuid())
+  compraId       String
+  compra         Compra  @relation(fields: [compraId], references: [id], onDelete: Cascade)
+  insumoId       String
+  insumo         Insumo  @relation(fields: [insumoId], references: [id])
+  cantidad       Decimal
+  unidad         String
+  precioUnitario Decimal
+  subtotal       Decimal
+
+  @@map("compra_lineas")
+}
+
+model Insumo {
+  id               String        @id @default(cuid())
+  nombre           String
+  categoria        String
+  tipoTrazabilidad String
+  unidadDefault    String
+  stockMinimo      Decimal?
+  activo           Boolean       @default(true)
+  rollos           Rollo[]
+  lotes            Lote[]
+  lineasCompra     CompraLinea[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@map("insumos")
+}
+
+enum EstadoRollo {
+  DISPONIBLE
+  EN_USO_PARCIAL
+  AGOTADO
+  DESCARTADO
+}
+
+model Rollo {
+  id            String             @id @default(cuid())
+  codigo        String             @unique
+  insumoId      String
+  insumo        Insumo             @relation(fields: [insumoId], references: [id])
+  compraId      String
+  compra        Compra             @relation(fields: [compraId], references: [id])
+  pesoInicial   Decimal
+  pesoActual    Decimal
+  costoUnitario Decimal
+  estado        EstadoRollo        @default(DISPONIBLE)
+  ubicacion     String?
+  fotoUrl       String?
+  movimientos   MovimientoInsumo[]
+  createdAt     DateTime           @default(now())
+
+  @@map("rollos")
+}
+
+enum EstadoLote {
+  DISPONIBLE
+  EN_USO_PARCIAL
+  AGOTADO
+}
+
+model Lote {
+  id              String             @id @default(cuid())
+  codigo          String             @unique
+  insumoId        String
+  insumo          Insumo             @relation(fields: [insumoId], references: [id])
+  compraId        String
+  compra          Compra             @relation(fields: [compraId], references: [id])
+  cantidadInicial Decimal
+  cantidadActual  Decimal
+  costoUnitario   Decimal
+  estado          EstadoLote         @default(DISPONIBLE)
+  movimientos     MovimientoInsumo[]
+  createdAt       DateTime           @default(now())
+
+  @@map("lotes")
+}
+
+enum TipoMovimiento {
+  INGRESO
+  CONSUMO
+  AJUSTE
+  DESCARTE
+  REVERSION
+}
+
+model MovimientoInsumo {
+  id            String         @id @default(cuid())
+  tipo          TipoMovimiento
+  rolloId       String?
+  rollo         Rollo?         @relation(fields: [rolloId], references: [id])
+  loteId        String?
+  lote          Lote?          @relation(fields: [loteId], references: [id])
+  ordenId       String?
+  cantidad      Decimal
+  motivo        String?
+  fotoUrl       String?
+  usuarioId     String
+  fecha         DateTime       @default(now())
+  revertidoPor  String?
+  reversionNota String?
+
+  @@map("movimientos_insumo")
+}

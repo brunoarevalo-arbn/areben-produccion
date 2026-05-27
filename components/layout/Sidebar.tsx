@@ -31,6 +31,19 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     ],
   },
   {
+    label: 'Insumos',
+    href: '/insumos',
+    icon: '📦',
+    seccion: 'insumos',
+    sub: [
+      { label: 'Stock',       href: '/insumos' },
+      { label: 'Compras',     href: '/insumos/compras', nuevoHref: '/insumos/compras/nueva' },
+      { label: 'Rollos',      href: '/insumos/rollos' },
+      { label: 'Lotes',       href: '/insumos/lotes' },
+      { label: 'Movimientos', href: '/insumos/movimientos' },
+    ],
+  },
+  {
     label: 'Producción',
     href: '/produccion',
     icon: '⏱',
@@ -62,7 +75,9 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     icon: '⚙',
     seccion: 'configuracion',
     sub: [
-      { label: 'Usuarios', href: '/configuracion/usuarios' },
+      { label: 'Usuarios',     href: '/configuracion/usuarios' },
+      { label: 'Proveedores',  href: '/configuracion/proveedores' },
+      { label: 'Insumos',      href: '/configuracion/insumos-catalogo' },
     ],
   },
 ];

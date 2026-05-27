@@ -1,0 +1,27 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/lib/prisma';
+import { getSession } from '@/lib/auth';
+
+export async function GET(req: NextRequest) {
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
+
+  const url = new URL(req.url);
+  const insumoId = url.searchParams.get('insumoId');
+  const estado = url.searchParams.get('estado');
+
+  const where: Record<string, unknown> = {};
+  if (insumoId) where.insumoId = insumoId;
+  if (estado) where.estado = estado;
+
+  const lotes = await prisma.lote.findMany({
+    where,
+    include: {
+      insumo: { select: { nombre: true, categoria: true, unidadDefault: true } },
+      compra: { select: { id: true, fecha: true, proveedor: { select: { nombre: true } } } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  return NextResponse.json(lotes);
+}
