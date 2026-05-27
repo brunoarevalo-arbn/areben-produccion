@@ -177,7 +177,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
             <tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
               <th className="text-left py-2 font-bold">Insumo</th>
               <th className="text-right py-2 font-bold">Cantidad</th>
-              <th className="text-right py-2 font-bold">$/unidad</th>
+              <th className="text-right py-2 font-bold">Precio sin IVA</th>
               <th className="text-right py-2 font-bold">Subtotal</th>
             </tr>
           </thead>
@@ -208,7 +208,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
                 <th className="text-left py-2 font-bold">Insumo</th>
                 <th className="text-right py-2 font-bold">Peso inicial</th>
                 <th className="text-right py-2 font-bold">Peso actual</th>
-                <th className="text-right py-2 font-bold">$/unidad</th>
+                <th className="text-right py-2 font-bold">Precio sin IVA</th>
                 <th className="text-right py-2 font-bold">Estado</th>
               </tr>
             </thead>
@@ -242,7 +242,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
                 <th className="text-left py-2 font-bold">Codigo</th>
                 <th className="text-left py-2 font-bold">Insumo</th>
                 <th className="text-right py-2 font-bold">Cantidad</th>
-                <th className="text-right py-2 font-bold">$/unidad</th>
+                <th className="text-right py-2 font-bold">Precio sin IVA</th>
                 <th className="text-right py-2 font-bold">Estado</th>
               </tr>
             </thead>

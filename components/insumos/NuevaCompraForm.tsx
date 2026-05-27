@@ -108,7 +108,7 @@ export function NuevaCompraForm() {
   const sumaSubtotales = lineas.reduce((s, l) => s + subtotalLinea(l), 0);
   const totalBrutoNum = parseFloat(totalBruto) || 0;
   const totalNetoCalc = conIva ? totalBrutoNum / 1.21 : totalBrutoNum;
-  const diferenciaOk = totalBrutoNum === 0 || Math.abs(sumaSubtotales - totalBrutoNum) < 1;
+  const diferenciaOk = totalBrutoNum === 0 || Math.abs(sumaSubtotales - totalNetoCalc) < 1;
 
   const sumaRollos = (l: Linea) => l.rollos.reduce((s, r) => s + (parseFloat(r.pesoInicial) || 0), 0);
 
@@ -254,8 +254,8 @@ export function NuevaCompraForm() {
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-stone-800">Lineas de compra</h3>
           <div className="text-xs text-stone-500">
-            Suma: <span className={`font-bold ${diferenciaOk ? 'text-stone-800' : 'text-red-600'}`}>${fmt(sumaSubtotales)}</span>
-            {totalBrutoNum > 0 && !diferenciaOk && <span className="ml-1 text-red-500">(no coincide con total bruto)</span>}
+            Suma neto: <span className={`font-bold ${diferenciaOk ? 'text-stone-800' : 'text-red-600'}`}>${fmt(sumaSubtotales)}</span>
+            {totalBrutoNum > 0 && !diferenciaOk && <span className="ml-1 text-red-500">(no coincide con total neto ${fmt(totalNetoCalc)})</span>}
           </div>
         </div>
 
@@ -288,7 +288,7 @@ export function NuevaCompraForm() {
                     min="0" step="0.01" className={inpSm} />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-stone-600 mb-1 block">$/unidad</label>
+                  <label className="text-xs font-semibold text-stone-600 mb-1 block">Precio sin IVA</label>
                   <input type="number" value={l.precioUnitario} onChange={(e) => updateLinea(l.key, 'precioUnitario', e.target.value)}
                     min="0" step="0.01" className={inpSm} />
                 </div>

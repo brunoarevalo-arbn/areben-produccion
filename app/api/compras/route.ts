@@ -36,15 +36,14 @@ export async function POST(req: NextRequest) {
     ? totalBruto.div(new Prisma.Decimal('1.21'))
     : totalBruto;
 
-  // Validar suma de subtotales
+  // Validar suma de subtotales (precios ya son netos) contra totalNeto
   const sumaSubtotales = data.lineas.reduce(
     (sum, l) => sum + l.cantidad * l.precioUnitario,
     0
   );
-  const totalRef = data.conIva ? Number(totalNeto) : data.totalBruto;
-  if (Math.abs(sumaSubtotales - totalRef) > 0.5) {
+  if (Math.abs(sumaSubtotales - Number(totalNeto)) > 0.5) {
     return NextResponse.json(
-      { error: `La suma de subtotales ($${sumaSubtotales.toFixed(2)}) no coincide con el total neto ($${totalRef.toFixed(2)})` },
+      { error: `La suma de subtotales ($${sumaSubtotales.toFixed(2)}) no coincide con el total neto ($${Number(totalNeto).toFixed(2)})` },
       { status: 400 }
     );
   }
@@ -124,9 +123,7 @@ export async function POST(req: NextRequest) {
 
     for (const linea of data.lineas) {
       const subtotal = new Prisma.Decimal(linea.cantidad * linea.precioUnitario);
-      const costoUnitarioNeto = data.conIva
-        ? new Prisma.Decimal(linea.precioUnitario).div(new Prisma.Decimal('1.21'))
-        : new Prisma.Decimal(linea.precioUnitario);
+      const costoUnitarioNeto = new Prisma.Decimal(linea.precioUnitario);
 
       await tx.compraLinea.create({
         data: {
