@@ -60,9 +60,6 @@ export async function POST(req: NextRequest) {
     }
     // Fase 2 TODO: al asignar rollo a OP, inferir color del componente COLOR del SKU de la OP
     // matcheando contra SkuCatalogo.abreviatura
-    if (insumo.manejaColor && !linea.insumoColorId) {
-      return NextResponse.json({ error: `El insumo "${insumo.nombre}" requiere color` }, { status: 400 });
-    }
     if (insumo.tipoTrazabilidad === 'rollo') {
       if (!linea.rollos || linea.rollos.length === 0) {
         return NextResponse.json({ error: `El insumo "${insumo.nombre}" requiere desglose por rollos` }, { status: 400 });
@@ -151,7 +148,7 @@ export async function POST(req: NextRequest) {
             data: {
               codigo,
               insumoId:      linea.insumoId,
-              insumoColorId: linea.insumoColorId || null,
+              colorId: linea.colorId || null,
               compraId:      c.id,
               pesoInicial:   peso,
               pesoActual:    peso,
@@ -176,7 +173,7 @@ export async function POST(req: NextRequest) {
           data: {
             codigo,
             insumoId:        linea.insumoId,
-            insumoColorId:   linea.insumoColorId || null,
+            colorId:         linea.colorId || null,
             compraId:        c.id,
             cantidadInicial: cant,
             cantidadActual:  cant,

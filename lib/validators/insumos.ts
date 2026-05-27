@@ -32,7 +32,7 @@ const CompraRolloSchema = z.object({
 
 const CompraLineaSchema = z.object({
   insumoId:       z.string().min(1),
-  insumoColorId:  z.string().optional(),
+  colorId:        z.string().optional(),
   cantidad:       z.number().positive('Cantidad debe ser positiva'),
   unidad:         z.enum(['kg', 'metro', 'unidad']),
   precioUnitario: z.number().min(0, 'Precio no puede ser negativo'),

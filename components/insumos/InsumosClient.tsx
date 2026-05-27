@@ -3,10 +3,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-interface RolloResumen { id: string; codigo: string; pesoActual: string; costoUnitario: string; estado: string; insumoColorId: string | null; }
-interface LoteResumen  { id: string; codigo: string; cantidadActual: string; costoUnitario: string; estado: string; insumoColorId: string | null; }
-interface ColorInfo { id: string; skuCatalogo: { nombre: string; abreviatura: string }; }
-
+interface RolloResumen { id: string; codigo: string; pesoActual: string; costoUnitario: string; estado: string; colorId: string | null; }
+interface LoteResumen  { id: string; codigo: string; cantidadActual: string; costoUnitario: string; estado: string; colorId: string | null; }
 interface InsumoConStock {
   id: string;
   nombre: string;
@@ -14,10 +12,8 @@ interface InsumoConStock {
   tipoTrazabilidad: string;
   unidadDefault: string;
   stockMinimo: string | null;
-  manejaColor: boolean;
   activo: boolean;
   stockTotal: number;
-  colores: ColorInfo[];
   rollos: RolloResumen[];
   lotes: LoteResumen[];
 }
@@ -31,15 +27,19 @@ const ESTADO_COLOR: Record<string, string> = {
 
 export function InsumosClient() {
   const [insumos, setInsumos]   = useState<InsumoConStock[]>([]);
+  const [coloresMap, setColoresMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading]   = useState(true);
   const [expandido, setExpandido] = useState<string | null>(null);
   const [filtroCategoria, setFiltroCategoria] = useState('');
 
   useEffect(() => {
-    fetch('/api/insumos')
-      .then((r) => r.ok ? r.json() : [])
-      .then(setInsumos)
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch('/api/insumos').then((r) => r.ok ? r.json() : []),
+      fetch('/api/sku-catalogo?categoria=color').then((r) => r.ok ? r.json() : []),
+    ]).then(([ins, colores]) => {
+      setInsumos(ins);
+      setColoresMap(new Map(colores.map((c: { id: string; nombre: string }) => [c.id, c.nombre])));
+    }).finally(() => setLoading(false));
   }, []);
 
   const categorias = [...new Set(insumos.map((i) => i.categoria))].sort();
@@ -102,21 +102,21 @@ export function InsumosClient() {
 
                 {open && (
                   <div className="border-t border-stone-100 px-5 py-3">
-                    {ins.manejaColor && ins.colores.length > 0 && (() => {
+                    {(() => {
                       const items = ins.tipoTrazabilidad === 'rollo' ? ins.rollos : ins.lotes;
                       const porColor = new Map<string, { nombre: string; total: number }>();
                       let sinColor = 0;
                       for (const item of items) {
                         const cant = Number('pesoActual' in item ? item.pesoActual : (item as LoteResumen).cantidadActual);
-                        if (item.insumoColorId) {
-                          const c = ins.colores.find((c) => c.id === item.insumoColorId);
-                          const nombre = c?.skuCatalogo.nombre || '?';
-                          const prev = porColor.get(item.insumoColorId);
-                          porColor.set(item.insumoColorId, { nombre, total: (prev?.total || 0) + cant });
+                        if (item.colorId) {
+                          const nombre = coloresMap.get(item.colorId) || '?';
+                          const prev = porColor.get(item.colorId);
+                          porColor.set(item.colorId, { nombre, total: (prev?.total || 0) + cant });
                         } else {
                           sinColor += cant;
                         }
                       }
+                      if (porColor.size === 0 && sinColor === 0) return null;
                       return (
                         <div className="flex flex-wrap gap-3 mb-3">
                           {[...porColor.values()].map((v) => (

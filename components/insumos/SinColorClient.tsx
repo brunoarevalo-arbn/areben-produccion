@@ -27,30 +27,39 @@ export function SinColorClient() {
       fetch('/api/insumos/lotes').then((r) => r.ok ? r.json() : []),
       fetch('/api/insumos').then((r) => r.ok ? r.json() : []),
     ]).then(([rollos, lotes, insumos]) => {
-      const insMap = new Map(insumos.map((i: { id: string; nombre: string; manejaColor: boolean; colores: { id: string; skuCatalogo: { nombre: string } }[] }) => [i.id, i]));
+      type InsItem = { id: string; nombre: string };
+      const insMap = new Map<string, InsItem>(insumos.map((i: InsItem) => [i.id, i]));
       const huerfanos: Huerfano[] = [];
 
       for (const r of rollos) {
-        const ins = insMap.get(r.insumoId) as { manejaColor: boolean; nombre: string; colores: { id: string; skuCatalogo: { nombre: string } }[] } | undefined;
-        if (ins?.manejaColor && !r.insumoColorId && r.estado !== 'DESCARTADO') {
+        const ins = insMap.get(r.insumoId);
+        if (ins && !r.colorId && r.estado !== 'DESCARTADO') {
           huerfanos.push({
             id: r.id, tipo: 'rollo', codigo: r.codigo,
             cantidad: r.pesoActual, insumoId: r.insumoId, insumoNombre: ins.nombre,
-            coloresDisponibles: ins.colores.map((c) => ({ id: c.id, nombre: c.skuCatalogo.nombre })),
+            coloresDisponibles: [],
           });
         }
       }
 
       for (const l of lotes) {
-        const ins = insMap.get(l.insumoId) as { manejaColor: boolean; nombre: string; colores: { id: string; skuCatalogo: { nombre: string } }[] } | undefined;
-        if (ins?.manejaColor && !l.insumoColorId && l.estado !== 'AGOTADO') {
+        const ins = insMap.get(l.insumoId);
+        if (ins && !l.colorId && l.estado !== 'AGOTADO') {
           huerfanos.push({
             id: l.id, tipo: 'lote', codigo: l.codigo,
             cantidad: l.cantidadActual, insumoId: l.insumoId, insumoNombre: ins.nombre,
-            coloresDisponibles: ins.colores.map((c) => ({ id: c.id, nombre: c.skuCatalogo.nombre })),
+            coloresDisponibles: [],
           });
         }
       }
+
+      // Cargar colores del catalogo SKU
+      fetch('/api/sku-catalogo?categoria=color')
+        .then((r) => r.ok ? r.json() : [])
+        .then((colores: { id: string; nombre: string }[]) => {
+          const opts = colores.map((c) => ({ id: c.id, nombre: c.nombre }));
+          setItems(huerfanos.map((h) => ({ ...h, coloresDisponibles: opts })));
+        });
 
       setItems(huerfanos);
     }).finally(() => setLoading(false));
@@ -68,7 +77,7 @@ export function SinColorClient() {
     const r = await fetch(endpoint, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ insumoColorId: colorId }),
+      body: JSON.stringify({ colorId }),
     });
 
     if (r.ok) {

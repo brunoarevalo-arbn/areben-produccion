@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     where,
     include: {
       insumo: { select: { nombre: true, categoria: true, unidadDefault: true } },
-      insumoColor: { include: { skuCatalogo: { select: { nombre: true, abreviatura: true } } } },
+      color: { select: { id: true, nombre: true, abreviatura: true } },
       compra: { select: { id: true, fecha: true, proveedor: { select: { nombre: true } } } },
     },
     orderBy: { createdAt: 'desc' },

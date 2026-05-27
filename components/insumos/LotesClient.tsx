@@ -11,7 +11,7 @@ interface Lote {
   estado: string;
   createdAt: string;
   insumo: { nombre: string; categoria: string; unidadDefault: string };
-  insumoColor: { skuCatalogo: { nombre: string } } | null;
+  color: { nombre: string } | null;
   compra: { id: string; fecha: string; proveedor: { nombre: string } };
 }
 
@@ -68,7 +68,7 @@ export function LotesClient() {
               <span className="font-mono font-semibold text-sm text-stone-700">{l.codigo}</span>
               <div className="min-w-0">
                 <p className="text-sm text-stone-800 truncate">
-                  {l.insumo.nombre}{l.insumoColor ? ` · ${l.insumoColor.skuCatalogo.nombre}` : ''}
+                  {l.insumo.nombre}{l.color ? ` · ${l.color.nombre}` : ''}
                 </p>
                 <p className="text-xs text-stone-400">{l.insumo.categoria}</p>
               </div>
