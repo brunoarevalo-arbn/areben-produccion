@@ -13,6 +13,7 @@ interface Rollo {
   ubicacion: string | null;
   createdAt: string;
   insumo: { nombre: string; categoria: string; unidadDefault: string };
+  insumoColor: { skuCatalogo: { nombre: string } } | null;
   compra: { id: string; fecha: string; proveedor: { nombre: string } };
 }
 
@@ -70,7 +71,9 @@ export function RollosClient() {
               className={`px-5 py-3 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''}`}>
               <span className="font-mono font-semibold text-sm text-stone-700">{r.codigo}</span>
               <div className="min-w-0">
-                <p className="text-sm text-stone-800 truncate">{r.insumo.nombre}</p>
+                <p className="text-sm text-stone-800 truncate">
+                  {r.insumo.nombre}{r.insumoColor ? ` · ${r.insumoColor.skuCatalogo.nombre}` : ''}
+                </p>
                 <p className="text-xs text-stone-400">{r.insumo.categoria}</p>
               </div>
               <span className="text-xs text-stone-500">{r.compra.proveedor.nombre}</span>

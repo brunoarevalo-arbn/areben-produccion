@@ -146,6 +146,7 @@ export async function POST(req: NextRequest) {
             data: {
               codigo,
               insumoId:      linea.insumoId,
+              insumoColorId: linea.insumoColorId || null,
               compraId:      c.id,
               pesoInicial:   peso,
               pesoActual:    peso,
@@ -170,6 +171,7 @@ export async function POST(req: NextRequest) {
           data: {
             codigo,
             insumoId:        linea.insumoId,
+            insumoColorId:   linea.insumoColorId || null,
             compraId:        c.id,
             cantidadInicial: cant,
             cantidadActual:  cant,

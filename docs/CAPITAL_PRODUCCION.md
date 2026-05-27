@@ -54,7 +54,9 @@ Este módulo se construye sobre `areben-produccion` (Next.js 16 App Router, Type
 | **Foto ficha de corte** | Opcional |
 | **Reversión de movimientos** | Siempre permitida para admin, con auditoría completa |
 | **Cierre mensual** | Snapshot inmutable. Reversible con warning. |
-| **Migración inicial** | Automática para OPs viejas + costo Escandallo para stock terminado + conteo físico solo de telas |
+| **Migración inicial** | Automática para OPs viejas + costo Escandallo (si existe) o último costo conocido para stock terminado + conteo físico solo de telas |
+| **Escandallo** | Opcional siempre. Si existe, se usa como sugerencia. Si no, se carga manual. Datos reales de consumo se guardan en histórico desde Fase 3. Decisión sobre automatizar "aprendizaje" se toma después de Fase 3 con datos reales. |
+| **Colores de insumos** | Modelados como entidad `InsumoColor` que relaciona Insumo con SkuCatalogo (categoria='color'). Solo insumos con `manejaColor=true` requieren color. Una misma compra puede tener líneas del mismo insumo con colores distintos y precios distintos. El color de un rollo asignado a una OP se infiere automáticamente del SKU de la OP. |
 
 ## 3. Modelo de datos
 
@@ -114,7 +116,20 @@ model Insumo {
   tipoTrazabilidad String  // 'rollo' | 'lote'
   unidadDefault   String   // 'kg' | 'metro' | 'unidad'
   stockMinimo     Decimal?
+  manejaColor     Boolean  @default(false)  // true para telas, false para hilos genéricos
   activo          Boolean  @default(true)
+  colores         InsumoColor[]
+}
+
+model InsumoColor {
+  id              Int      @id @default(autoincrement())
+  insumoId        Int
+  insumo          Insumo   @relation(fields: [insumoId], references: [id])
+  skuCatalogoId   Int      // FK a SkuCatalogo con categoria='color'
+  skuCatalogo     SkuCatalogo @relation(fields: [skuCatalogoId], references: [id])
+  activo          Boolean  @default(true)
+  
+  @@unique([insumoId, skuCatalogoId])
 }
 
 model Rollo {
@@ -122,6 +137,8 @@ model Rollo {
   codigo          String   @unique  // R-0001, autogenerado
   insumoId        Int
   insumo          Insumo   @relation(fields: [insumoId], references: [id])
+  insumoColorId   Int?     // obligatorio si insumo.manejaColor=true (validación en app)
+  insumoColor     InsumoColor? @relation(fields: [insumoColorId], references: [id])
   compraId        Int
   compra          Compra   @relation(fields: [compraId], references: [id])
   pesoInicial     Decimal
@@ -140,6 +157,8 @@ model Lote {
   codigo          String   @unique  // L-0001
   insumoId        Int
   insumo          Insumo   @relation(fields: [insumoId], references: [id])
+  insumoColorId   Int?     // obligatorio si insumo.manejaColor=true
+  insumoColor     InsumoColor? @relation(fields: [insumoColorId], references: [id])
   compraId        Int
   compra          Compra   @relation(fields: [compraId], references: [id])
   cantidadInicial Decimal
@@ -650,8 +669,68 @@ Seguir las del repo:
 - Gastos no productivos (alquiler, sueldos) siguen en `/gastos`
 - Prorrateo de gastos fijos al costo unitario (puede sumarse en v2)
 - Predicción de stock, multi-depósito, integración AFIP, app móvil nativa
+- Automatización del Escandallo aprendido (se evalúa después de Fase 3, ver sección 12)
 
-## 12. Setup inicial requerido
+## 12. Escandallo: enfoque y conexión con el módulo
+
+### Contexto
+
+El Escandallo (receta de insumos por SKU) existe en el sistema actual. Históricamente se pensaba como predicción teórica que se cargaba antes de producir. La realidad operativa de Areben es al revés: **se corta con un rollo real y de ahí salen los datos**. El Escandallo se construye con datos reales, no se predice de antemano.
+
+### Principios
+
+1. **El Escandallo es opcional en todas las fases.** Ningún flujo del módulo se bloquea si un SKU no tiene Escandallo cargado.
+2. **Si existe, se usa como sugerencia** para pre-cargar la ficha de corte en Fase 2.
+3. **Si no existe, se cargan los insumos manualmente** al momento de cargar la ficha de corte.
+4. **Los datos reales de consumo se guardan en histórico** desde Fase 3 en adelante, sin tocar el Escandallo automáticamente.
+5. **La decisión de automatizar el aprendizaje del Escandallo se toma después de Fase 3** con datos reales en mano, no en abstracto.
+
+### Implicancias por fase
+
+**Fase 1**: el Escandallo no se toca. Solo se agrega el catálogo de Insumos del módulo nuevo, sin cantidades teóricas por SKU.
+
+**Fase 2**: la pantalla `/produccion/[id]/ficha`:
+- Si el SKU tiene Escandallo cargado: pre-carga la tabla de insumos secundarios con cantidades sugeridas y lotes FIFO. La diseñadora confirma o ajusta.
+- Si el SKU no tiene Escandallo: la tabla aparece vacía. La diseñadora agrega los insumos manualmente.
+- En ambos casos, el flujo funciona igual.
+
+**Fase 3**: al cerrar una OP se calcula automáticamente "consumo real por unidad" para cada insumo (cantidad consumida / unidades efectivas) y se guarda en una tabla `ConsumoRealHistorico`. Esto es **observación silenciosa**: no se pregunta nada al usuario, no se modifica el Escandallo. Es data para decisiones futuras.
+
+```prisma
+model ConsumoRealHistorico {
+  id              Int      @id @default(autoincrement())
+  ordenId         Int
+  sku             String   // código operativo
+  insumoId        Int
+  cantidadTotal   Decimal  // consumida en la OP
+  unidadesEfectivas Int    // de la OP cerrada
+  consumoPorUnidad  Decimal // cantidadTotal / unidadesEfectivas
+  fecha           DateTime
+}
+```
+
+**Después de Fase 3 (revisión)**: con 2-3 meses de datos acumulados, se revisa:
+- ¿Cuántos SKUs tienen variación significativa entre cortes?
+- ¿Qué patrón sigue la variación (estacional, por proveedor, aleatoria)?
+- ¿Vale la pena automatizar la actualización del Escandallo, o el flujo manual alcanza?
+
+Esa decisión se traduce en una posible Fase 6 con UX específica (preguntar al cerrar OP, alertas de desvío, etc.), o se descarta si no aporta valor.
+
+### Modelo de Escandallo: queda como está
+
+Por ahora **NO se migra a estructura relacional**. El modelo actual `Escandallo { sku, composicion }` se mantiene. Si en algún momento se decide automatizar el aprendizaje, ahí se evalúa la migración a `EscandalloItem` relacional como prerequisito.
+
+### Setup recomendado para Bruno (no bloqueante)
+
+Mientras se desarrollan las fases, en paralelo y sin urgencia:
+- Identificar el top 5-10 SKUs más producidos
+- Cargar Escandallos manualmente para esos pocos SKUs (datos del último corte conocido)
+- Esto da una base mínima para que Fase 2 muestre sugerencias en los SKUs más activos
+- Los demás SKUs se cargan sobre la marcha cuando se cortan
+
+Pero, repito, **esto es opcional**. El módulo funciona sin nada de esto.
+
+## 13. Setup inicial requerido
 
 Antes de Fase 1 productiva, Bruno debe:
 1. Listar proveedores estables
@@ -660,7 +739,7 @@ Antes de Fase 1 productiva, Bruno debe:
 4. Conteo físico de telas (cuántos rollos, peso de cada uno, costo estimado)
 5. Listar servicios externos vigentes (DTF y proveedor)
 
-Lo demás se carga sobre la marcha.
+**Lo demás se carga sobre la marcha**, incluido el Escandallo (que es opcional).
 
 ---
 

@@ -4,12 +4,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Proveedor { id: string; nombre: string; }
-interface InsumoOpt { id: string; nombre: string; categoria: string; tipoTrazabilidad: string; unidadDefault: string; activo: boolean; }
+interface ColorOpt { id: string; skuCatalogo: { nombre: string; abreviatura: string } }
+interface InsumoOpt { id: string; nombre: string; categoria: string; tipoTrazabilidad: string; unidadDefault: string; manejaColor: boolean; activo: boolean; colores: ColorOpt[]; }
 
 interface RolloLinea { pesoInicial: string; ubicacion: string; }
 interface Linea {
   key: number;
   insumoId: string;
+  insumoColorId: string;
   unidad: string;
   cantidad: string;
   precioUnitario: string;
@@ -42,7 +44,7 @@ export function NuevaCompraForm() {
 
   // Lineas
   const [lineas, setLineas] = useState<Linea[]>([
-    { key: ++keyCounter, insumoId: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] },
+    { key: ++keyCounter, insumoId: '', insumoColorId: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] },
   ]);
 
   useEffect(() => {
@@ -62,6 +64,7 @@ export function NuevaCompraForm() {
         const ins = insumosMap.get(value);
         if (ins) {
           updated.unidad = ins.unidadDefault;
+          updated.insumoColorId = '';
           if (ins.tipoTrazabilidad === 'rollo' && updated.rollos.length === 0) {
             updated.rollos = [{ pesoInicial: '', ubicacion: '' }];
           } else if (ins.tipoTrazabilidad === 'lote') {
@@ -74,7 +77,7 @@ export function NuevaCompraForm() {
   }, [insumosMap]);
 
   const addLinea = () => {
-    setLineas((prev) => [...prev, { key: ++keyCounter, insumoId: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] }]);
+    setLineas((prev) => [...prev, { key: ++keyCounter, insumoId: '', insumoColorId: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] }]);
   };
 
   const removeLinea = (key: number) => {
@@ -153,6 +156,7 @@ export function NuevaCompraForm() {
       notas: notas || undefined,
       lineas: lineas.map((l) => ({
         insumoId: l.insumoId,
+        insumoColorId: l.insumoColorId || undefined,
         cantidad: parseFloat(l.cantidad),
         unidad: l.unidad,
         precioUnitario: parseFloat(l.precioUnitario),
@@ -262,6 +266,7 @@ export function NuevaCompraForm() {
         {lineas.map((l) => {
           const ins = insumosMap.get(l.insumoId);
           const esRollo = ins?.tipoTrazabilidad === 'rollo';
+          const tieneColor = ins?.manejaColor && ins.colores.length > 0;
           return (
             <div key={l.key} className="border border-stone-100 rounded-xl p-4 space-y-3">
               <div className="grid grid-cols-[1fr_80px_100px_100px_100px_auto] gap-2 items-end">
@@ -301,6 +306,19 @@ export function NuevaCompraForm() {
                   x
                 </button>
               </div>
+
+              {/* Selector de color */}
+              {tieneColor && (
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-semibold text-stone-600">Color:</label>
+                  <select value={l.insumoColorId} onChange={(e) => updateLinea(l.key, 'insumoColorId', e.target.value)} className={inpSm}>
+                    <option value="">-- Color --</option>
+                    {ins!.colores.map((c) => (
+                      <option key={c.id} value={c.id}>{c.skuCatalogo.nombre}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               {/* Sub-tabla de rollos */}
               {esRollo && l.insumoId && (

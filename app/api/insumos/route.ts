@@ -10,13 +10,17 @@ export async function GET(req: NextRequest) {
   const insumos = await prisma.insumo.findMany({
     orderBy: { nombre: 'asc' },
     include: {
+      colores: {
+        where: { activo: true },
+        include: { skuCatalogo: { select: { nombre: true, abreviatura: true } } },
+      },
       rollos: {
         where: { estado: { not: 'DESCARTADO' } },
-        select: { id: true, codigo: true, pesoActual: true, costoUnitario: true, estado: true },
+        select: { id: true, codigo: true, pesoActual: true, costoUnitario: true, estado: true, insumoColorId: true },
       },
       lotes: {
         where: { estado: { not: 'AGOTADO' } },
-        select: { id: true, codigo: true, cantidadActual: true, costoUnitario: true, estado: true },
+        select: { id: true, codigo: true, cantidadActual: true, costoUnitario: true, estado: true, insumoColorId: true },
       },
     },
   });

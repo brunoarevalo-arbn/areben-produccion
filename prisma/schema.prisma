@@ -29,14 +29,15 @@ model TiemposProduccion {
 }
 
 model SkuCatalogo {
-  id          String   @id @default(cuid())
-  categoria   String   // 'marca' | 'prenda' | 'color' (extensible)
-  nombre      String
-  abreviatura String
-  orden       Int      @default(0)
-  activo      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String        @id @default(cuid())
+  categoria     String        // 'marca' | 'prenda' | 'color' (extensible)
+  nombre        String
+  abreviatura   String
+  orden         Int           @default(0)
+  activo        Boolean       @default(true)
+  insumoColores InsumoColor[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@unique([categoria, abreviatura])
   @@index([categoria, activo])
@@ -420,7 +421,9 @@ model Insumo {
   tipoTrazabilidad String
   unidadDefault    String
   stockMinimo      Decimal?
+  manejaColor      Boolean       @default(false)
   activo           Boolean       @default(true)
+  colores          InsumoColor[]
   rollos           Rollo[]
   lotes            Lote[]
   lineasCompra     CompraLinea[]
@@ -428,6 +431,20 @@ model Insumo {
   updatedAt        DateTime      @updatedAt
 
   @@map("insumos")
+}
+
+model InsumoColor {
+  id             String      @id @default(cuid())
+  insumoId       String
+  insumo         Insumo      @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  skuCatalogoId  String
+  skuCatalogo    SkuCatalogo @relation(fields: [skuCatalogoId], references: [id])
+  activo         Boolean     @default(true)
+  rollos         Rollo[]
+  lotes          Lote[]
+
+  @@unique([insumoId, skuCatalogoId])
+  @@map("insumo_colores")
 }
 
 enum EstadoRollo {
@@ -442,6 +459,8 @@ model Rollo {
   codigo        String             @unique
   insumoId      String
   insumo        Insumo             @relation(fields: [insumoId], references: [id])
+  insumoColorId String?
+  insumoColor   InsumoColor?       @relation(fields: [insumoColorId], references: [id])
   compraId      String
   compra        Compra             @relation(fields: [compraId], references: [id])
   pesoInicial   Decimal
@@ -467,6 +486,8 @@ model Lote {
   codigo          String             @unique
   insumoId        String
   insumo          Insumo             @relation(fields: [insumoId], references: [id])
+  insumoColorId   String?
+  insumoColor     InsumoColor?       @relation(fields: [insumoColorId], references: [id])
   compraId        String
   compra          Compra             @relation(fields: [compraId], references: [id])
   cantidadInicial Decimal

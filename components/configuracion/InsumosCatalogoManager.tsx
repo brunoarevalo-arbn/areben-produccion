@@ -9,6 +9,7 @@ interface InsumoItem {
   tipoTrazabilidad: string;
   unidadDefault: string;
   stockMinimo: number | null;
+  manejaColor: boolean;
   activo: boolean;
 }
 
@@ -30,10 +31,11 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
   const [tipoTrazabilidad, setTipoTrazabilidad] = useState('rollo');
   const [unidadDefault, setUnidadDefault]     = useState('kg');
   const [stockMinimo, setStockMinimo]         = useState('');
+  const [manejaColor, setManejaColor]         = useState(false);
 
   const resetForm = () => {
     setNombre(''); setCategoria('tela'); setTipoTrazabilidad('rollo');
-    setUnidadDefault('kg'); setStockMinimo(''); setError('');
+    setUnidadDefault('kg'); setStockMinimo(''); setManejaColor(false); setError('');
   };
 
   const abrirNuevo = () => { resetForm(); setEditando(null); setShowForm(true); };
@@ -44,6 +46,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
     setTipoTrazabilidad(ins.tipoTrazabilidad);
     setUnidadDefault(ins.unidadDefault);
     setStockMinimo(ins.stockMinimo != null ? String(ins.stockMinimo) : '');
+    setManejaColor(ins.manejaColor);
     setEditando(ins);
     setShowForm(true);
     setError('');
@@ -61,6 +64,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
       tipoTrazabilidad,
       unidadDefault,
       stockMinimo: stockMinimo ? Number(stockMinimo) : undefined,
+      manejaColor,
     };
 
     const url = editando ? `/api/insumos/${editando.id}` : '/api/insumos';
@@ -150,6 +154,13 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
                 <input type="number" value={stockMinimo} onChange={(e) => setStockMinimo(e.target.value)}
                   min="0" step="0.01" placeholder="Opcional" className={inp} />
               </div>
+              <div className="flex items-end pb-1">
+                <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer">
+                  <input type="checkbox" checked={manejaColor} onChange={(e) => setManejaColor(e.target.checked)}
+                    className="rounded border-stone-300" />
+                  Maneja color
+                </label>
+              </div>
             </div>
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2">
@@ -167,11 +178,12 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
       )}
 
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-        <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
+        <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Nombre</span>
           <span>Categoria</span>
           <span>Trazabilidad</span>
           <span>Unidad</span>
+          <span>Color</span>
           <span>Estado</span>
           <span />
         </div>
@@ -180,11 +192,12 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
         ) : (
           filtrados.map((ins, i) => (
             <div key={ins.id}
-              className={`px-5 py-3.5 grid grid-cols-[1fr_auto_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!ins.activo ? 'opacity-50' : ''}`}>
+              className={`px-5 py-3.5 grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!ins.activo ? 'opacity-50' : ''}`}>
               <p className="text-sm font-medium text-stone-800">{ins.nombre}</p>
               <span className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full">{ins.categoria}</span>
               <span className="text-xs text-stone-500">{ins.tipoTrazabilidad}</span>
               <span className="text-xs text-stone-500">{ins.unidadDefault}</span>
+              <span className="text-xs text-stone-500">{ins.manejaColor ? 'Si' : '--'}</span>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ins.activo ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
                 {ins.activo ? 'Activo' : 'Inactivo'}
               </span>

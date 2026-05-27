@@ -13,6 +13,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     where: { id },
     include: {
       insumo: { select: { nombre: true, categoria: true, unidadDefault: true } },
+      insumoColor: { include: { skuCatalogo: { select: { nombre: true, abreviatura: true } } } },
       compra: { select: { id: true, fecha: true, numeroFactura: true, proveedor: { select: { nombre: true } } } },
       movimientos: {
         orderBy: { fecha: 'desc' },
