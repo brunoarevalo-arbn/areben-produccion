@@ -26,7 +26,12 @@ export async function GET(req: NextRequest) {
   const session = await requireProduccionAccess(req);
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
+  const url = new URL(req.url);
+  const categoria = url.searchParams.get('categoria');
+  const where = categoria ? { categoria } : {};
+
   const entries = await prisma.skuCatalogo.findMany({
+    where,
     orderBy: [{ categoria: 'asc' }, { orden: 'asc' }, { nombre: 'asc' }],
   });
   return NextResponse.json(entries);

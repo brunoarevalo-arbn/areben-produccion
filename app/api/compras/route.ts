@@ -58,6 +58,11 @@ export async function POST(req: NextRequest) {
     if (!insumo) {
       return NextResponse.json({ error: `Insumo ${linea.insumoId} no encontrado` }, { status: 400 });
     }
+    // Fase 2 TODO: al asignar rollo a OP, inferir color del componente COLOR del SKU de la OP
+    // matcheando contra SkuCatalogo.abreviatura
+    if (insumo.manejaColor && !linea.insumoColorId) {
+      return NextResponse.json({ error: `El insumo "${insumo.nombre}" requiere color` }, { status: 400 });
+    }
     if (insumo.tipoTrazabilidad === 'rollo') {
       if (!linea.rollos || linea.rollos.length === 0) {
         return NextResponse.json({ error: `El insumo "${insumo.nombre}" requiere desglose por rollos` }, { status: 400 });

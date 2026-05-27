@@ -130,6 +130,9 @@ export function NuevaCompraForm() {
       if (!l.precioUnitario || parseFloat(l.precioUnitario) < 0) { setError('Precios invalidos'); return; }
 
       const ins = insumosMap.get(l.insumoId);
+      if (ins?.manejaColor && !l.insumoColorId) {
+        setError(`Selecciona un color para "${ins.nombre}"`); return;
+      }
       if (ins?.tipoTrazabilidad === 'rollo') {
         if (l.rollos.length === 0) { setError(`Agrega rollos para "${ins.nombre}"`); return; }
         const sr = sumaRollos(l);

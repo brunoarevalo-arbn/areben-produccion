@@ -9,6 +9,7 @@ const ACCESOS = [
   { label: 'Lotes',        desc: 'Etiquetas, badanas, hilos y otros por lote.',          href: '/insumos/lotes' },
   { label: 'Movimientos',  desc: 'Auditoria completa de ingresos, consumos y ajustes.', href: '/insumos/movimientos' },
   { label: 'Ajustes',      desc: 'Cargar ajustes fisicos (descarte, correccion).',       href: '/insumos/ajustes' },
+  { label: 'Sin color',    desc: 'Rollos y lotes pendientes de asignacion de color.',    href: '/insumos/rollos/sin-color' },
 ];
 
 export default function InsumosPage() {

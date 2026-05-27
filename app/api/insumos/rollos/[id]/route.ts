@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { getSession, requireInsumos } from '@/lib/auth';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -22,5 +22,20 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   });
 
   if (!rollo) return NextResponse.json({ error: 'Rollo no encontrado' }, { status: 404 });
+  return NextResponse.json(rollo);
+}
+
+export async function PATCH(req: NextRequest, { params }: Ctx) {
+  const session = await requireInsumos(req);
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+
+  const { id } = await params;
+  const { insumoColorId } = await req.json();
+
+  const rollo = await prisma.rollo.update({
+    where: { id },
+    data: { insumoColorId: insumoColorId || null },
+  });
+
   return NextResponse.json(rollo);
 }

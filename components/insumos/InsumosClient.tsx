@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-interface RolloResumen { id: string; codigo: string; pesoActual: string; costoUnitario: string; estado: string; }
-interface LoteResumen  { id: string; codigo: string; cantidadActual: string; costoUnitario: string; estado: string; }
+interface RolloResumen { id: string; codigo: string; pesoActual: string; costoUnitario: string; estado: string; insumoColorId: string | null; }
+interface LoteResumen  { id: string; codigo: string; cantidadActual: string; costoUnitario: string; estado: string; insumoColorId: string | null; }
+interface ColorInfo { id: string; skuCatalogo: { nombre: string; abreviatura: string }; }
 
 interface InsumoConStock {
   id: string;
@@ -13,8 +14,10 @@ interface InsumoConStock {
   tipoTrazabilidad: string;
   unidadDefault: string;
   stockMinimo: string | null;
+  manejaColor: boolean;
   activo: boolean;
   stockTotal: number;
+  colores: ColorInfo[];
   rollos: RolloResumen[];
   lotes: LoteResumen[];
 }
@@ -99,6 +102,38 @@ export function InsumosClient() {
 
                 {open && (
                   <div className="border-t border-stone-100 px-5 py-3">
+                    {ins.manejaColor && ins.colores.length > 0 && (() => {
+                      const items = ins.tipoTrazabilidad === 'rollo' ? ins.rollos : ins.lotes;
+                      const porColor = new Map<string, { nombre: string; total: number }>();
+                      let sinColor = 0;
+                      for (const item of items) {
+                        const cant = Number('pesoActual' in item ? item.pesoActual : (item as LoteResumen).cantidadActual);
+                        if (item.insumoColorId) {
+                          const c = ins.colores.find((c) => c.id === item.insumoColorId);
+                          const nombre = c?.skuCatalogo.nombre || '?';
+                          const prev = porColor.get(item.insumoColorId);
+                          porColor.set(item.insumoColorId, { nombre, total: (prev?.total || 0) + cant });
+                        } else {
+                          sinColor += cant;
+                        }
+                      }
+                      return (
+                        <div className="flex flex-wrap gap-3 mb-3">
+                          {[...porColor.values()].map((v) => (
+                            <div key={v.nombre} className="bg-stone-50 rounded-lg px-3 py-1.5 text-xs">
+                              <span className="text-stone-500">{v.nombre}:</span>{' '}
+                              <span className="font-bold text-stone-800 tabular-nums">{fmt(v.total)}</span>
+                            </div>
+                          ))}
+                          {sinColor > 0 && (
+                            <div className="bg-amber-50 rounded-lg px-3 py-1.5 text-xs">
+                              <span className="text-amber-600">Sin color:</span>{' '}
+                              <span className="font-bold text-amber-800 tabular-nums">{fmt(sinColor)}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {ins.tipoTrazabilidad === 'rollo' ? (
                       ins.rollos.length === 0 ? (
                         <p className="text-xs text-stone-400 py-2">Sin rollos activos</p>
