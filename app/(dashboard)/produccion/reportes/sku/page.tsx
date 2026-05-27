@@ -16,7 +16,7 @@ function fechaCorta(d: Date | null) {
 
 export default async function ReporteSkuPage() {
   const ordenes = await prisma.ordenProduccion.findMany({
-    where: { estado: 'terminado' },
+    where: { estado: 'CERRADA' },
     orderBy: { terminadoAt: 'desc' },
   });
 

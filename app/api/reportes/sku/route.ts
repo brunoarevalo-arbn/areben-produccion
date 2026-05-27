@@ -14,7 +14,7 @@ interface BreakdownCosturera extends Breakdown {
 export async function GET() {
   try {
     const ordenes = await prisma.ordenProduccion.findMany({
-      where: { estado: 'terminado' },
+      where: { estado: 'CERRADA' },
       orderBy: { terminadoAt: 'desc' },
     });
 

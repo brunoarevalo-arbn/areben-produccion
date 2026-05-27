@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const ordenes = await prisma.ordenProduccion.findMany({
-      where: { estado: { in: ['pendiente', 'en_produccion'] } },
+      where: { estado: { notIn: ['CERRADA'] } },
       orderBy: [{ estado: 'asc' }, { createdAt: 'asc' }],
       select: { id: true, sku: true, descripcion: true, marca: true, cantidad: true, estado: true },
     });

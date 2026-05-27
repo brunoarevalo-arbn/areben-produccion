@@ -197,8 +197,8 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometr
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-bold text-sm text-stone-800">{orden.sku}</span>
                   <span className="text-xs text-stone-400">{orden.marca}</span>
-                  {orden.estado === 'en_produccion' && (
-                    <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">En curso</span>
+                  {orden.estado === 'COSTURA' && (
+                    <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">Costura</span>
                   )}
                 </div>
                 {orden.descripcion && (

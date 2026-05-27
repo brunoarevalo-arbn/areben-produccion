@@ -298,20 +298,56 @@ model Escandallo {
   @@map("escandallos")
 }
 
+enum EstadoOP {
+  PENDIENTE
+  CORTE
+  COSTURA
+  TERMINADO_SIN_ESTAMPA
+  ESTAMPA
+  CONTROL_CALIDAD
+  CERRADA
+}
+
 model OrdenProduccion {
-  id          String    @id @default(cuid())
-  sku         String
-  descripcion String?
-  marca       String    @default("Zattia")
-  cantidad    Int       @default(1)
-  estado      String    @default("pendiente")
-  notas       String?
-  creadoPor   String    @default("admin")
-  terminadoAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                      String    @id @default(cuid())
+  sku                     String
+  descripcion             String?
+  marca                   String    @default("Zattia")
+  cantidad                Int       @default(1)
+  estado                  EstadoOP  @default(PENDIENTE)
+  notas                   String?
+  creadoPor               String    @default("admin")
+  terminadoAt             DateTime?
+
+  fichaCorteCargada       Boolean   @default(false)
+  fichaFotoUrl            String?
+
+  costoTela               Decimal   @default(0)
+  costoInsumosSecundarios Decimal   @default(0)
+  costoManoObra           Decimal   @default(0)
+  costoEstampa            Decimal   @default(0)
+  costoTotal              Decimal   @default(0)
+
+  transiciones            EstadoTransicion[]
+  movimientosInsumo       MovimientoInsumo[]
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   @@map("ordenes_produccion")
+}
+
+model EstadoTransicion {
+  id             String           @id @default(cuid())
+  ordenId        String
+  orden          OrdenProduccion  @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  estadoAnterior EstadoOP?
+  estadoNuevo    EstadoOP
+  fecha          DateTime         @default(now())
+  usuarioId      String
+  notas          String?
+
+  @@map("estado_transiciones")
 }
 
 model MolderiaCatalogo {
@@ -509,13 +545,14 @@ enum TipoMovimiento {
 }
 
 model MovimientoInsumo {
-  id            String         @id @default(cuid())
+  id            String            @id @default(cuid())
   tipo          TipoMovimiento
   rolloId       String?
-  rollo         Rollo?         @relation(fields: [rolloId], references: [id])
+  rollo         Rollo?            @relation(fields: [rolloId], references: [id])
   loteId        String?
-  lote          Lote?          @relation(fields: [loteId], references: [id])
+  lote          Lote?             @relation(fields: [loteId], references: [id])
   ordenId       String?
+  orden         OrdenProduccion?  @relation(fields: [ordenId], references: [id])
   cantidad      Decimal
   motivo        String?
   fotoUrl       String?

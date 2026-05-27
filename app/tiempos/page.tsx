@@ -15,7 +15,7 @@ export default async function TiemposPage() {
   if (!session) redirect('/login');
 
   const ordenes = await prisma.ordenProduccion.findMany({
-    where: { estado: { in: ['pendiente', 'en_produccion'] } },
+    where: { estado: { notIn: ['CERRADA'] } },
     orderBy: [{ estado: 'asc' }, { createdAt: 'asc' }],
     select: { id: true, sku: true, descripcion: true, marca: true, cantidad: true, estado: true },
   });
