@@ -330,11 +330,24 @@ model OrdenProduccion {
 
   transiciones            EstadoTransicion[]
   movimientosInsumo       MovimientoInsumo[]
+  cortesPorTalle          CortePorTalle[]
 
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
   @@map("ordenes_produccion")
+}
+
+model CortePorTalle {
+  id        String          @id @default(cuid())
+  ordenId   String
+  orden     OrdenProduccion @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  talle     String
+  cantidad  Int
+  createdAt DateTime        @default(now())
+
+  @@unique([ordenId, talle])
+  @@map("cortes_por_talle")
 }
 
 model EstadoTransicion {

@@ -291,9 +291,9 @@ export function ColaAdmin() {
                 </span>
                 <div className="flex gap-1.5 shrink-0">
                   {!orden.fichaCorteCargada && orden.estado === 'PENDIENTE' && (
-                    <Link href={`/produccion/${orden.id}/ficha`}
+                    <Link href={`/produccion/${orden.id}/corte`}
                       className="text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition">
-                      Ficha
+                      Corte
                     </Link>
                   )}
                   {siguientes.length > 0 && (

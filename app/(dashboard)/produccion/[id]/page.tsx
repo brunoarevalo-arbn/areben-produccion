@@ -25,6 +25,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
     where: { id },
     include: {
       transiciones: { orderBy: { fecha: 'desc' } },
+      cortesPorTalle: { orderBy: { talle: 'asc' } },
       movimientosInsumo: {
         include: {
           rollo: { select: { codigo: true, insumo: { select: { nombre: true } }, color: { select: { nombre: true } } } },
@@ -85,25 +86,38 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
 
       {/* Acciones */}
       <div className="flex gap-3 mb-6">
-        {!orden.fichaCorteCargada && (orden.estado === 'PENDIENTE' || orden.estado === 'CORTE') && (
-          <Link href={`/produccion/${orden.id}/ficha`}
+        {!orden.fichaCorteCargada && orden.estado === 'PENDIENTE' && (
+          <Link href={`/produccion/${orden.id}/corte`}
             className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-            Cargar ficha de corte
+            Registrar corte
           </Link>
         )}
         {orden.fichaCorteCargada && (
-          <Link href={`/produccion/${orden.id}/ficha`}
+          <Link href={`/produccion/${orden.id}/corte`}
             className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
-            Ver ficha de corte
-          </Link>
-        )}
-        {orden.estado === 'CORTE' && (
-          <Link href={`/produccion/${orden.id}/consumo-tela`}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-            Registrar consumo de tela
+            Ver corte
           </Link>
         )}
       </div>
+
+      {/* Talles cortados */}
+      {orden.cortesPorTalle.length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
+          <h3 className="text-sm font-bold text-stone-800 mb-3">Desglose por talle</h3>
+          <div className="flex flex-wrap gap-3">
+            {orden.cortesPorTalle.map((c) => (
+              <div key={c.id} className="bg-stone-50 rounded-lg px-4 py-2 text-sm border border-stone-200">
+                <span className="text-stone-500 mr-2">{c.talle}</span>
+                <strong className="text-stone-900 text-lg tabular-nums">{c.cantidad}</strong>
+              </div>
+            ))}
+            <div className="bg-stone-900 text-white rounded-lg px-4 py-2 text-sm ml-auto">
+              <span className="opacity-70 mr-2">Total</span>
+              <strong className="text-lg tabular-nums">{orden.cortesPorTalle.reduce((s, c) => s + c.cantidad, 0)}</strong>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Historial de estados */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
