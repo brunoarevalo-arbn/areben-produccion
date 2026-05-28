@@ -323,6 +323,8 @@ model OrdenProduccion {
   fichaFotoUrl            String?
 
   cortador                String?
+  cortadorId              String?
+  cortadorRef             Cortador? @relation(fields: [cortadorId], references: [id])
   costoCorte              Decimal   @default(0)
   pagoCorteId             String?
   pagoCorte               PagoCorte? @relation(fields: [pagoCorteId], references: [id])
@@ -367,6 +369,33 @@ model PagoCorte {
   ordenes        OrdenProduccion[]
 
   @@map("pagos_cortes")
+}
+
+model Cortador {
+  id            String            @id @default(cuid())
+  nombre        String            @unique
+  contacto      String?
+  tarifaDefault Decimal?
+  tarifaModo    String?           // 'total' | 'unidad'
+  notas         String?
+  activo        Boolean           @default(true)
+  ordenes       OrdenProduccion[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@map("cortadores")
+}
+
+model MotivoDescarte {
+  id          String             @id @default(cuid())
+  nombre      String             @unique
+  categoria   String             // 'proveedor' | 'corte' | 'costura' | 'estampa' | 'otro'
+  activo      Boolean            @default(true)
+  movimientos MovimientoInsumo[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@map("motivos_descarte")
 }
 
 model EstadoTransicion {
@@ -578,21 +607,23 @@ enum TipoMovimiento {
 }
 
 model MovimientoInsumo {
-  id            String            @id @default(cuid())
-  tipo          TipoMovimiento
-  rolloId       String?
-  rollo         Rollo?            @relation(fields: [rolloId], references: [id])
-  loteId        String?
-  lote          Lote?             @relation(fields: [loteId], references: [id])
-  ordenId       String?
-  orden         OrdenProduccion?  @relation(fields: [ordenId], references: [id])
-  cantidad      Decimal
-  motivo        String?
-  fotoUrl       String?
-  usuarioId     String
-  fecha         DateTime       @default(now())
-  revertidoPor  String?
-  reversionNota String?
+  id               String            @id @default(cuid())
+  tipo             TipoMovimiento
+  rolloId          String?
+  rollo            Rollo?            @relation(fields: [rolloId], references: [id])
+  loteId           String?
+  lote             Lote?             @relation(fields: [loteId], references: [id])
+  ordenId          String?
+  orden            OrdenProduccion?  @relation(fields: [ordenId], references: [id])
+  cantidad         Decimal
+  motivo           String?
+  motivoDescarteId String?
+  motivoDescarte   MotivoDescarte?   @relation(fields: [motivoDescarteId], references: [id])
+  fotoUrl          String?
+  usuarioId        String
+  fecha            DateTime          @default(now())
+  revertidoPor     String?
+  reversionNota    String?
 
   @@map("movimientos_insumo")
 }

@@ -55,7 +55,15 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Solo se puede registrar corte desde estado PENDIENTE' }, { status: 400 });
   }
 
-  const { consumoRollos, consumoLotes, cortesPorTalle, cortador, costoCorte, fichaFotoUrl, notas } = parsed.data;
+  const { consumoRollos, consumoLotes, cortesPorTalle, cortadorId, costoCorte, fichaFotoUrl, notas } = parsed.data;
+
+  // Buscar cortador para guardar denormalizado
+  let cortadorNombre: string | null = null;
+  if (cortadorId) {
+    const c = await prisma.cortador.findUnique({ where: { id: cortadorId } });
+    if (!c) return NextResponse.json({ error: 'Cortador no encontrado' }, { status: 400 });
+    cortadorNombre = c.nombre;
+  }
 
   // Validar rollos y rinde
   const rolloIds = consumoRollos.map((c) => c.rolloId);
@@ -184,7 +192,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const data: Record<string, unknown> = {
       fichaCorteCargada: true,
       fichaFotoUrl: fichaFotoUrl || null,
-      cortador: cortador?.trim() || null,
+      cortador: cortadorNombre,
+      cortadorId: cortadorId || null,
       costoCorte: costoCorteDec,
       costoTela,
       costoInsumosSecundarios: costoInsumosSec,

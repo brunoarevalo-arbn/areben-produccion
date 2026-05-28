@@ -12,6 +12,9 @@ interface LoteDisp {
   id: string; codigo: string; cantidadActual: string; costoUnitario: string;
   insumo: { nombre: string }; color: { nombre: string } | null;
 }
+interface CortadorOpt {
+  id: string; nombre: string; tarifaDefault: string | null; tarifaModo: string | null; activo: boolean;
+}
 
 interface ConsumoRollo { rolloId: string; metros: string; codigo: string; pesoActual: number; costoUnitario: number; rinde: number; nombre: string; }
 interface ConsumoLote { loteId: string; cantidad: string; codigo: string; cantActual: number; costoUnitario: number; nombre: string; }
@@ -24,15 +27,26 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
   const router = useRouter();
   const [rollosDisp, setRollosDisp] = useState<RolloDisp[]>([]);
   const [lotesDisp, setLotesDisp] = useState<LoteDisp[]>([]);
+  const [cortadores, setCortadores] = useState<CortadorOpt[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const [consumoRollos, setConsumoRollos] = useState<ConsumoRollo[]>([]);
   const [consumoLotes, setConsumoLotes] = useState<ConsumoLote[]>([]);
   const [talles, setTalles] = useState<Record<string, string>>({});
-  const [cortador, setCortador] = useState('');
+  const [cortadorId, setCortadorId] = useState('');
   const [costoCorte, setCostoCorte] = useState('');
   const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>('total');
+
+  // Autocompletar tarifa al elegir cortador
+  const onCortadorChange = (id: string) => {
+    setCortadorId(id);
+    const c = cortadores.find((x) => x.id === id);
+    if (c && c.tarifaDefault) {
+      setCostoCorte(String(Number(c.tarifaDefault)));
+      if (c.tarifaModo === 'total' || c.tarifaModo === 'unidad') setModoCosto(c.tarifaModo);
+    }
+  };
   const [notas, setNotas] = useState('');
 
   useEffect(() => {
@@ -41,10 +55,12 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
       fetch('/api/insumos/rollos?estado=EN_USO_PARCIAL').then((r) => r.ok ? r.json() : []),
       fetch('/api/insumos/lotes?estado=DISPONIBLE').then((r) => r.ok ? r.json() : []),
       fetch('/api/insumos/lotes?estado=EN_USO_PARCIAL').then((r) => r.ok ? r.json() : []),
-    ]).then(([r1, r2, l1, l2]) => {
+      fetch('/api/cortadores').then((r) => r.ok ? r.json() : []),
+    ]).then(([r1, r2, l1, l2, ct]) => {
       const allRollos = [...r1, ...r2] as RolloDisp[];
       setRollosDisp(allRollos.filter((r) => r.insumo.rinde && Number(r.insumo.rinde) > 0).sort((a, b) => a.codigo.localeCompare(b.codigo)));
       setLotesDisp([...l1, ...l2]);
+      setCortadores((ct as CortadorOpt[]).filter((c) => c.activo));
     });
   }, []);
 
@@ -125,7 +141,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
         consumoRollos: consumoRollos.map((c) => ({ rolloId: c.rolloId, metrosUsados: parseFloat(c.metros) })),
         consumoLotes: consumoLotes.length > 0 ? consumoLotes.map((c) => ({ loteId: c.loteId, cantidad: parseFloat(c.cantidad) })) : undefined,
         cortesPorTalle: cortesArr,
-        cortador: cortador.trim() || undefined,
+        cortadorId: cortadorId || undefined,
         costoCorte: costoCorteNum > 0 ? costoCorteNum : undefined,
         notas: notas || undefined,
       }),
@@ -254,8 +270,10 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cortador</label>
-            <input type="text" value={cortador} onChange={(e) => setCortador(e.target.value)}
-              placeholder="Nombre del cortador" className={inp} />
+            <select value={cortadorId} onChange={(e) => onCortadorChange(e.target.value)} className={inp}>
+              <option value="">-- Seleccionar --</option>
+              {cortadores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+            </select>
           </div>
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Modo de pago</label>

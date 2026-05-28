@@ -65,8 +65,9 @@ export const PagoSchema = z.object({
 // ─── Ajuste físico ──────────────────────────────────────────────────
 
 export const AjusteSchema = z.object({
-  tipo:     z.enum(['rollo', 'lote']),
-  targetId: z.string().min(1, 'ID obligatorio'),
-  cantidad: z.number().refine((n) => n !== 0, 'Cantidad no puede ser 0'),
-  motivo:   z.string().min(1, 'Motivo obligatorio'),
+  tipo:             z.enum(['rollo', 'lote']),
+  targetId:         z.string().min(1, 'ID obligatorio'),
+  cantidad:         z.number().refine((n) => n !== 0, 'Cantidad no puede ser 0'),
+  motivo:           z.string().min(1, 'Motivo obligatorio'),
+  motivoDescarteId: z.string().optional(),
 });

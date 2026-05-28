@@ -14,7 +14,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { tipo, targetId, cantidad, motivo } = parsed.data;
+  const { tipo, targetId, cantidad, motivo, motivoDescarteId } = parsed.data;
   const cantidadDecimal = new Prisma.Decimal(cantidad);
 
   if (tipo === 'rollo') {
@@ -39,6 +39,7 @@ export async function POST(req: NextRequest) {
           rolloId: targetId,
           cantidad: cantidadDecimal,
           motivo,
+          motivoDescarteId: motivoDescarteId || null,
           usuarioId: session.id,
         },
       }),
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
         loteId: targetId,
         cantidad: cantidadDecimal,
         motivo,
+        motivoDescarteId: motivoDescarteId || null,
         usuarioId: session.id,
       },
     }),

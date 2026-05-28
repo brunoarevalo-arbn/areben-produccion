@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 interface RolloOpt { id: string; codigo: string; pesoActual: string; insumo: { nombre: string } }
 interface LoteOpt  { id: string; codigo: string; cantidadActual: string; insumo: { nombre: string } }
+interface MotivoOpt { id: string; nombre: string; categoria: string; activo: boolean; }
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 
@@ -13,41 +14,49 @@ export function AjusteForm() {
   const [tipo, setTipo] = useState<'rollo' | 'lote'>('rollo');
   const [rollos, setRollos] = useState<RolloOpt[]>([]);
   const [lotes, setLotes]   = useState<LoteOpt[]>([]);
+  const [motivos, setMotivos] = useState<MotivoOpt[]>([]);
   const [targetId, setTargetId] = useState('');
   const [cantidad, setCantidad] = useState('');
-  const [motivo, setMotivo]     = useState('');
+  const [motivoDescarteId, setMotivoDescarteId] = useState('');
+  const [motivoExtra, setMotivoExtra] = useState('');
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
   const [success, setSuccess]   = useState('');
 
   useEffect(() => {
-    fetch('/api/insumos/rollos?estado=DISPONIBLE')
-      .then((r) => r.ok ? r.json() : [])
-      .then(setRollos);
-    fetch('/api/insumos/lotes?estado=DISPONIBLE')
-      .then((r) => r.ok ? r.json() : [])
-      .then(setLotes);
+    fetch('/api/insumos/rollos?estado=DISPONIBLE').then((r) => r.ok ? r.json() : []).then(setRollos);
+    fetch('/api/insumos/lotes?estado=DISPONIBLE').then((r) => r.ok ? r.json() : []).then(setLotes);
+    fetch('/api/motivos-descarte').then((r) => r.ok ? r.json() : [])
+      .then((m: MotivoOpt[]) => setMotivos(m.filter((x) => x.activo)));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setSuccess('');
+    setError(''); setSuccess('');
 
     if (!targetId) { setError('Selecciona un rollo o lote'); return; }
     if (!cantidad || Number(cantidad) === 0) { setError('Cantidad no puede ser 0'); return; }
-    if (!motivo.trim()) { setError('Motivo obligatorio'); return; }
+    if (!motivoDescarteId) { setError('Selecciona un motivo'); return; }
+
+    const motivoEntry = motivos.find((m) => m.id === motivoDescarteId);
+    const motivoTexto = motivoEntry ? motivoEntry.nombre + (motivoExtra.trim() ? `: ${motivoExtra.trim()}` : '') : motivoExtra.trim();
+
+    if (!motivoTexto) { setError('Detalle obligatorio'); return; }
 
     setSaving(true);
     const r = await fetch('/api/insumos/ajustes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo, targetId, cantidad: Number(cantidad), motivo: motivo.trim() }),
+      body: JSON.stringify({
+        tipo, targetId, cantidad: Number(cantidad),
+        motivo: motivoTexto,
+        motivoDescarteId,
+      }),
     });
 
     if (r.ok) {
       setSuccess('Ajuste registrado correctamente');
-      setTargetId(''); setCantidad(''); setMotivo('');
+      setTargetId(''); setCantidad(''); setMotivoDescarteId(''); setMotivoExtra('');
       router.refresh();
     } else {
       const d = await r.json();
@@ -102,8 +111,18 @@ export function AjusteForm() {
 
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Motivo *</label>
-          <textarea value={motivo} onChange={(e) => setMotivo(e.target.value)}
-            rows={2} required placeholder="Ej: Rollo con falla de fabrica, descarte parcial..."
+          <select value={motivoDescarteId} onChange={(e) => setMotivoDescarteId(e.target.value)} required className={inp}>
+            <option value="">-- Seleccionar motivo --</option>
+            {motivos.map((m) => (
+              <option key={m.id} value={m.id}>{m.nombre} ({m.categoria})</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Detalle adicional</label>
+          <textarea value={motivoExtra} onChange={(e) => setMotivoExtra(e.target.value)}
+            rows={2} placeholder="Opcional: contexto extra del descarte/ajuste..."
             className={`${inp} resize-none`} />
         </div>
 

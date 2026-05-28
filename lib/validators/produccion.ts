@@ -42,10 +42,25 @@ export const RegistrarCorteSchema = z.object({
   consumoRollos:  z.array(ConsumoRolloSchema).min(1, 'Debe asignar al menos un rollo'),
   consumoLotes:   z.array(ConsumoLoteSchema).optional(),
   cortesPorTalle: z.array(TalleSchema).min(1, 'Debe cargar al menos un talle'),
-  cortador:       z.string().optional(),
+  cortadorId:     z.string().optional(),
   costoCorte:     z.number().min(0).optional(),
   fichaFotoUrl:   z.string().optional(),
   notas:          z.string().optional(),
+});
+
+export const CortadorSchema = z.object({
+  nombre:        z.string().min(1, 'Nombre obligatorio'),
+  contacto:      z.string().optional(),
+  tarifaDefault: z.number().min(0).optional(),
+  tarifaModo:    z.enum(['total', 'unidad']).optional(),
+  notas:         z.string().optional(),
+  activo:        z.boolean().optional(),
+});
+
+export const MotivoDescarteSchema = z.object({
+  nombre:    z.string().min(1, 'Nombre obligatorio'),
+  categoria: z.enum(['proveedor', 'corte', 'costura', 'estampa', 'otro']),
+  activo:    z.boolean().optional(),
 });
 
 export const PagoCorteSchema = z.object({

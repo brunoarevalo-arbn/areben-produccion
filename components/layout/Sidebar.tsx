@@ -76,9 +76,11 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     icon: '⚙',
     seccion: 'configuracion',
     sub: [
-      { label: 'Usuarios',     href: '/configuracion/usuarios' },
-      { label: 'Proveedores',  href: '/configuracion/proveedores' },
-      { label: 'Insumos',      href: '/configuracion/insumos-catalogo' },
+      { label: 'Usuarios',          href: '/configuracion/usuarios' },
+      { label: 'Proveedores',       href: '/configuracion/proveedores' },
+      { label: 'Insumos',           href: '/configuracion/insumos-catalogo' },
+      { label: 'Cortadores',        href: '/configuracion/cortadores' },
+      { label: 'Motivos descarte',  href: '/configuracion/motivos-descarte' },
     ],
   },
 ];
