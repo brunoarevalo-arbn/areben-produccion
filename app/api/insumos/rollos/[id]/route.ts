@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const rollo = await prisma.rollo.findUnique({
     where: { id },
     include: {
-      insumo: { select: { nombre: true, categoria: true, unidadDefault: true } },
+      insumo: { select: { nombre: true, categoria: true, unidadDefault: true, rinde: true } },
       color: { select: { id: true, nombre: true, abreviatura: true } },
       compra: { select: { id: true, fecha: true, numeroFactura: true, proveedor: { select: { nombre: true } } } },
       movimientos: {
