@@ -55,7 +55,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'Solo se puede registrar corte desde estado PENDIENTE' }, { status: 400 });
   }
 
-  const { consumoRollos, consumoLotes, cortesPorTalle, fichaFotoUrl, notas } = parsed.data;
+  const { consumoRollos, consumoLotes, cortesPorTalle, cortador, costoCorte, fichaFotoUrl, notas } = parsed.data;
 
   // Validar rollos y rinde
   const rolloIds = consumoRollos.map((c) => c.rolloId);
@@ -179,10 +179,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     }
 
     // Actualizar OP
-    const costoTotal = costoTela.add(costoInsumosSec);
+    const costoCorteDec = new Prisma.Decimal(costoCorte || 0);
+    const costoTotal = costoTela.add(costoInsumosSec).add(costoCorteDec);
     const data: Record<string, unknown> = {
       fichaCorteCargada: true,
       fichaFotoUrl: fichaFotoUrl || null,
+      cortador: cortador?.trim() || null,
+      costoCorte: costoCorteDec,
       costoTela,
       costoInsumosSecundarios: costoInsumosSec,
       costoTotal,

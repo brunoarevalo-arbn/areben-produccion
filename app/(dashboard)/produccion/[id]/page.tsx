@@ -26,6 +26,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
     include: {
       transiciones: { orderBy: { fecha: 'desc' } },
       cortesPorTalle: { orderBy: { talle: 'asc' } },
+      pagoCorte: { select: { id: true, fecha: true, beneficiario: true, montoTotal: true } },
       movimientosInsumo: {
         include: {
           rollo: { select: { codigo: true, insumo: { select: { nombre: true } }, color: { select: { nombre: true } } } },
@@ -40,6 +41,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
 
   const costoTela = Number(orden.costoTela);
   const costoInsSec = Number(orden.costoInsumosSecundarios);
+  const costoCorte = Number(orden.costoCorte);
   const costoMO = Number(orden.costoManoObra);
   const costoEstampa = Number(orden.costoEstampa);
   const costoTotal = Number(orden.costoTotal);
@@ -60,7 +62,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
       {/* Costos */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
         <h3 className="text-sm font-bold text-stone-800 mb-3">Costos acumulados</h3>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Tela</p>
             <p className="text-stone-800 tabular-nums font-semibold">{costoTela > 0 ? `$${fmt(costoTela)}` : '--'}</p>
@@ -68,6 +70,18 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Insumos sec.</p>
             <p className="text-stone-800 tabular-nums">{costoInsSec > 0 ? `$${fmt(costoInsSec)}` : '--'}</p>
+          </div>
+          <div>
+            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Corte</p>
+            <p className="text-stone-800 tabular-nums">
+              {costoCorte > 0 ? `$${fmt(costoCorte)}` : '--'}
+              {costoCorte > 0 && (
+                <span className={`ml-1 text-xs font-semibold px-1.5 py-0.5 rounded-full ${orden.pagoCorteId ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
+                  {orden.pagoCorteId ? 'Pagado' : 'Pte.'}
+                </span>
+              )}
+            </p>
+            {orden.cortador && <p className="text-xs text-stone-400 mt-0.5">{orden.cortador}</p>}
           </div>
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Mano de obra</p>

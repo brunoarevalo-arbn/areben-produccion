@@ -32,6 +32,13 @@ const ACCESOS = [
     icon: '🏷',
     color: 'bg-violet-50 border-violet-200 hover:border-violet-400',
   },
+  {
+    label: 'Pagos de cortes',
+    desc: 'Registrar pagos masivos a cortadores. Pendientes y pagados.',
+    href: '/produccion/pagos-cortes',
+    icon: '💵',
+    color: 'bg-blue-50 border-blue-200 hover:border-blue-400',
+  },
 ];
 
 export default function ProduccionPage() {

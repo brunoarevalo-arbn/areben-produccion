@@ -322,6 +322,11 @@ model OrdenProduccion {
   fichaCorteCargada       Boolean   @default(false)
   fichaFotoUrl            String?
 
+  cortador                String?
+  costoCorte              Decimal   @default(0)
+  pagoCorteId             String?
+  pagoCorte               PagoCorte? @relation(fields: [pagoCorteId], references: [id])
+
   costoTela               Decimal   @default(0)
   costoInsumosSecundarios Decimal   @default(0)
   costoManoObra           Decimal   @default(0)
@@ -348,6 +353,20 @@ model CortePorTalle {
 
   @@unique([ordenId, talle])
   @@map("cortes_por_talle")
+}
+
+model PagoCorte {
+  id             String            @id @default(cuid())
+  fecha          DateTime          @default(now())
+  beneficiario   String
+  montoTotal     Decimal
+  notas          String?
+  comprobanteUrl String?
+  creadoPor      String
+  createdAt      DateTime          @default(now())
+  ordenes        OrdenProduccion[]
+
+  @@map("pagos_cortes")
 }
 
 model EstadoTransicion {

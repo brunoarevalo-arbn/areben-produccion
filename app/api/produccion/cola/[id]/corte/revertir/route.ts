@@ -60,6 +60,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       data: {
         fichaCorteCargada: false,
         fichaFotoUrl: null,
+        cortador: null,
+        costoCorte: new Prisma.Decimal(0),
         costoTela: new Prisma.Decimal(0),
         costoInsumosSecundarios: new Prisma.Decimal(0),
         costoTotal: new Prisma.Decimal(0),

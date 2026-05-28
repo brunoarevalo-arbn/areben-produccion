@@ -30,6 +30,8 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
   const [consumoRollos, setConsumoRollos] = useState<ConsumoRollo[]>([]);
   const [consumoLotes, setConsumoLotes] = useState<ConsumoLote[]>([]);
   const [talles, setTalles] = useState<Record<string, string>>({});
+  const [cortador, setCortador] = useState('');
+  const [costoCorte, setCostoCorte] = useState('');
   const [notas, setNotas] = useState('');
 
   useEffect(() => {
@@ -84,8 +86,10 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
     return s + kg * c.costoUnitario;
   }, 0);
   const costoInsSec = consumoLotes.reduce((s, c) => s + (parseFloat(c.cantidad) || 0) * c.costoUnitario, 0);
+  const costoCorteNum = parseFloat(costoCorte) || 0;
   const totalUnidades = Object.values(talles).reduce((s, v) => s + (parseInt(v) || 0), 0);
-  const costoUnitario = totalUnidades > 0 ? (costoTela + costoInsSec) / totalUnidades : 0;
+  const costoTotalAcum = costoTela + costoInsSec + costoCorteNum;
+  const costoUnitario = totalUnidades > 0 ? costoTotalAcum / totalUnidades : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,6 +123,8 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
         consumoRollos: consumoRollos.map((c) => ({ rolloId: c.rolloId, metrosUsados: parseFloat(c.metros) })),
         consumoLotes: consumoLotes.length > 0 ? consumoLotes.map((c) => ({ loteId: c.loteId, cantidad: parseFloat(c.cantidad) })) : undefined,
         cortesPorTalle: cortesArr,
+        cortador: cortador.trim() || undefined,
+        costoCorte: costoCorteNum > 0 ? costoCorteNum : undefined,
         notas: notas || undefined,
       }),
     });
@@ -239,6 +245,24 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
         </div>
       </div>
 
+      {/* Cortador + Costo */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <h3 className="text-sm font-bold text-stone-800 mb-1">4. Servicio de corte</h3>
+        <p className="text-xs text-stone-400 mb-4">Quien corto la tela y cuanto se le paga. El estado de pago arranca como PENDIENTE.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cortador</label>
+            <input type="text" value={cortador} onChange={(e) => setCortador(e.target.value)}
+              placeholder="Nombre del cortador" className={inp} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Costo del corte</label>
+            <input type="number" value={costoCorte} onChange={(e) => setCostoCorte(e.target.value)}
+              min="0" step="0.01" placeholder="0" className={inp} />
+          </div>
+        </div>
+      </div>
+
       {/* Notas */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-3">Notas</h3>
@@ -248,9 +272,9 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
 
       {/* Resumen total */}
       <div className="bg-stone-50 rounded-2xl border border-stone-200 p-6">
-        <div className="grid grid-cols-4 gap-4 text-sm">
+        <div className="grid grid-cols-5 gap-4 text-sm">
           <div>
-            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Costo tela</p>
+            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Tela</p>
             <p className="text-stone-800 tabular-nums">${fmt(costoTela)}</p>
           </div>
           <div>
@@ -258,8 +282,12 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
             <p className="text-stone-800 tabular-nums">${fmt(costoInsSec)}</p>
           </div>
           <div>
+            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Corte</p>
+            <p className="text-stone-800 tabular-nums">${fmt(costoCorteNum)}</p>
+          </div>
+          <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Costo total</p>
-            <p className="text-stone-900 font-bold text-lg tabular-nums">${fmt(costoTela + costoInsSec)}</p>
+            <p className="text-stone-900 font-bold text-lg tabular-nums">${fmt(costoTotalAcum)}</p>
           </div>
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Unidades</p>
