@@ -32,6 +32,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
   const [talles, setTalles] = useState<Record<string, string>>({});
   const [cortador, setCortador] = useState('');
   const [costoCorte, setCostoCorte] = useState('');
+  const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>('total');
   const [notas, setNotas] = useState('');
 
   useEffect(() => {
@@ -86,8 +87,9 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
     return s + kg * c.costoUnitario;
   }, 0);
   const costoInsSec = consumoLotes.reduce((s, c) => s + (parseFloat(c.cantidad) || 0) * c.costoUnitario, 0);
-  const costoCorteNum = parseFloat(costoCorte) || 0;
   const totalUnidades = Object.values(talles).reduce((s, v) => s + (parseInt(v) || 0), 0);
+  const costoCorteInput = parseFloat(costoCorte) || 0;
+  const costoCorteNum = modoCosto === 'unidad' ? costoCorteInput * totalUnidades : costoCorteInput;
   const costoTotalAcum = costoTela + costoInsSec + costoCorteNum;
   const costoUnitario = totalUnidades > 0 ? costoTotalAcum / totalUnidades : 0;
 
@@ -249,16 +251,39 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
       <div className="bg-white rounded-2xl border border-stone-200 p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-1">4. Servicio de corte</h3>
         <p className="text-xs text-stone-400 mb-4">Quien corto la tela y cuanto se le paga. El estado de pago arranca como PENDIENTE.</p>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cortador</label>
             <input type="text" value={cortador} onChange={(e) => setCortador(e.target.value)}
               placeholder="Nombre del cortador" className={inp} />
           </div>
           <div>
-            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Costo del corte</label>
+            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Modo de pago</label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setModoCosto('total')}
+                className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-semibold border transition ${modoCosto === 'total' ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600'}`}>
+                Total
+              </button>
+              <button type="button" onClick={() => setModoCosto('unidad')}
+                className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-semibold border transition ${modoCosto === 'unidad' ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600'}`}>
+                Por unidad
+              </button>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">
+              {modoCosto === 'unidad' ? 'Costo por unidad' : 'Costo total del corte'}
+            </label>
             <input type="number" value={costoCorte} onChange={(e) => setCostoCorte(e.target.value)}
               min="0" step="0.01" placeholder="0" className={inp} />
+            {modoCosto === 'unidad' && costoCorteInput > 0 && totalUnidades > 0 && (
+              <p className="text-xs text-stone-500 mt-1">
+                ${fmt(costoCorteInput)}/u × {totalUnidades} = <strong>${fmt(costoCorteNum)}</strong>
+              </p>
+            )}
+            {modoCosto === 'unidad' && costoCorteInput > 0 && totalUnidades === 0 && (
+              <p className="text-xs text-amber-600 mt-1">Cargá los talles para calcular el total</p>
+            )}
           </div>
         </div>
       </div>
