@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { RegistrarCorteForm } from '@/components/produccion/RegistrarCorteForm';
+import { CorteRevertir } from '@/components/produccion/CorteRevertir';
 
 export const dynamic = 'force-dynamic';
 
@@ -43,10 +44,13 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
             </div>
           </div>
         </div>
-        <Link href={`/produccion/${orden.id}`}
-          className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
-          Volver al detalle
-        </Link>
+        <div className="flex gap-3">
+          <CorteRevertir ordenId={orden.id} />
+          <Link href={`/produccion/${orden.id}`}
+            className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+            Volver al detalle
+          </Link>
+        </div>
       </div>
     );
   }
