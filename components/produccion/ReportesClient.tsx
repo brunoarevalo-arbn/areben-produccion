@@ -54,6 +54,21 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
   const [data,    setData]    = useState<ReporteData | null>(null);
   const [loading, setLoading] = useState(false);
   const [editId,  setEditId]  = useState<string | null>(null);
+  const [adding,  setAdding]  = useState(false);
+  const [costureras, setCostureras] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    fetch('/api/usuarios')
+      .then((r) => (r.ok ? r.json() : []))
+      .then((us) => {
+        if (!Array.isArray(us)) return;
+        setCostureras(
+          us.filter((u) => u.rol === 'costurera' && u.activo).map((u) => u.nombre),
+        );
+      })
+      .catch(() => {});
+  }, [isAdmin]);
 
   const cargar = useCallback(async (f: string) => {
     setLoading(true);
@@ -310,8 +325,14 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
 
           {/* Detalle */}
           <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-            <div className="px-5 py-3 border-b border-stone-100">
+            <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Detalle de registros</h2>
+              {isAdmin && !adding && (
+                <button onClick={() => { setEditId(null); setAdding(true); }}
+                  className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-500 hover:border-amber-400 hover:text-amber-700 transition font-semibold">
+                  + Agregar registro
+                </button>
+              )}
             </div>
             <table className="w-full text-sm">
               <thead>
@@ -327,6 +348,14 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                 </tr>
               </thead>
               <tbody>
+                {adding && (
+                  <NewRow
+                    fecha={fecha}
+                    costureras={costureras}
+                    onCancel={() => setAdding(false)}
+                    onSaved={() => { setAdding(false); cargar(fecha); }}
+                  />
+                )}
                 {data.registros.map((r) => (
                   editId === r.id ? (
                     <EditRow key={r.id} registro={r} onCancel={() => setEditId(null)} onSaved={() => { setEditId(null); cargar(fecha); }} />
@@ -480,6 +509,135 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
             <button onClick={guardar} disabled={saving}
               className="text-xs px-3 py-1.5 rounded-lg bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 transition font-semibold">
               {saving ? 'Guardando...' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </td>
+    </tr>
+  );
+}
+
+function NewRow({ fecha, costureras, onCancel, onSaved }: { fecha: string; costureras: string[]; onCancel: () => void; onSaved: () => void }) {
+  const [usuario,    setUsuario]    = useState(costureras[0] ?? '');
+  const [actividad,  setActividad]  = useState(ACTIVIDADES[0]);
+  const [sku,        setSku]        = useState('');
+  const [maquina,    setMaquina]    = useState('');
+  const [horaInicio, setHoraInicio] = useState('');
+  const [horaFin,    setHoraFin]    = useState('');
+  const [cantidad,   setCantidad]   = useState('0');
+  const [defectos,   setDefectos]   = useState('0');
+  const [inconv,      setInconv]      = useState('');
+  const [inconvNotas, setInconvNotas] = useState('');
+  const [saving,     setSaving]     = useState(false);
+  const [error,      setError]      = useState<string | null>(null);
+
+  const guardar = async () => {
+    if (!usuario.trim()) { setError('Elegí una costurera'); return; }
+    if (!horaInicio || !horaFin) { setError('Ingresá hora de inicio y fin'); return; }
+    setSaving(true);
+    setError(null);
+    const body: Record<string, unknown> = {
+      usuario,
+      actividad,
+      fecha,
+      cantidad: parseInt(cantidad) || 0,
+      defectos: parseInt(defectos) || 0,
+      sku:     sku.trim()     ? sku.trim()     : undefined,
+      maquina: maquina.trim() ? maquina.trim() : undefined,
+      horaInicio: horaInicio.length === 5 ? `${horaInicio}:00` : horaInicio,
+      horaFin:    horaFin.length    === 5 ? `${horaFin}:00`    : horaFin,
+      inconveniente:      inconv ? inconv : undefined,
+      inconvenienteNotas: inconv && inconvNotas.trim() ? inconvNotas.trim() : undefined,
+    };
+    try {
+      const r = await fetch('/api/tiempos', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) {
+        const data = await r.json().catch(() => ({}));
+        setError(typeof data.error === 'string' ? data.error : 'Error al guardar');
+        setSaving(false);
+        return;
+      }
+      onSaved();
+    } catch {
+      setError('Error de red');
+      setSaving(false);
+    }
+  };
+
+  const inputCls = 'w-full px-2 py-1.5 border border-stone-200 rounded-lg text-xs focus:outline-none focus:border-amber-400';
+
+  return (
+    <tr className="bg-amber-50/40 border-b border-stone-50">
+      <td colSpan={8} className="px-5 py-3">
+        <div className="space-y-2">
+          <div className="text-xs font-bold uppercase tracking-widest text-stone-500 mb-1">Nuevo registro manual</div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+            <label className="text-xs text-stone-500">
+              Costurera
+              <select value={usuario} onChange={(e) => setUsuario(e.target.value)} className={inputCls + ' mt-0.5'}>
+                {costureras.length === 0 && <option value="">— Sin costureras —</option>}
+                {costureras.map((c) => <option key={c}>{c}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-stone-500">
+              Actividad
+              <select value={actividad} onChange={(e) => setActividad(e.target.value)} className={inputCls + ' mt-0.5'}>
+                {ACTIVIDADES.map((a) => <option key={a}>{a}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-stone-500">
+              Máquina
+              <select value={maquina} onChange={(e) => setMaquina(e.target.value)} className={inputCls + ' mt-0.5'}>
+                <option value="">—</option>
+                {MAQUINAS.map((m) => <option key={m}>{m}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-stone-500">
+              SKU
+              <input type="text" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} className={inputCls + ' mt-0.5'} />
+            </label>
+            <label className="text-xs text-stone-500">
+              Hora inicio
+              <input type="time" step="1" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} className={inputCls + ' mt-0.5'} />
+            </label>
+            <label className="text-xs text-stone-500">
+              Hora fin
+              <input type="time" step="1" value={horaFin} onChange={(e) => setHoraFin(e.target.value)} className={inputCls + ' mt-0.5'} />
+            </label>
+            <label className="text-xs text-stone-500">
+              Cantidad
+              <input type="number" min="0" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className={inputCls + ' mt-0.5'} />
+            </label>
+            <label className="text-xs text-stone-500">
+              Defectos
+              <input type="number" min="0" value={defectos} onChange={(e) => setDefectos(e.target.value)} className={inputCls + ' mt-0.5'} />
+            </label>
+            <label className="text-xs text-stone-500 col-span-2">
+              Inconveniente
+              <select value={inconv} onChange={(e) => setInconv(e.target.value)} className={inputCls + ' mt-0.5'}>
+                <option value="">— Ninguno —</option>
+                {INCONVENIENTES.map((opt) => <option key={opt}>{opt}</option>)}
+              </select>
+            </label>
+            <label className="text-xs text-stone-500 col-span-2">
+              Notas inconveniente
+              <input type="text" value={inconvNotas} onChange={(e) => setInconvNotas(e.target.value)} disabled={!inconv}
+                className={inputCls + ' mt-0.5 disabled:bg-stone-50 disabled:text-stone-400'} />
+            </label>
+          </div>
+          {error && <p className="text-xs text-red-600">{error}</p>}
+          <p className="text-xs text-stone-400 italic">Los minutos se calculan automáticamente desde el horario. Fecha: {fecha}.</p>
+          <div className="flex gap-2 justify-end">
+            <button onClick={onCancel} className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition">
+              Cancelar
+            </button>
+            <button onClick={guardar} disabled={saving}
+              className="text-xs px-3 py-1.5 rounded-lg bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 transition font-semibold">
+              {saving ? 'Guardando...' : 'Agregar'}
             </button>
           </div>
         </div>

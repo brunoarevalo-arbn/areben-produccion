@@ -5,6 +5,11 @@
 
 _Última actualización: 2026-06-10_
 
+> **En esta sesión:** se agregó alta manual de registros de tiempos desde "Reportes diarios"
+> (botón "+ Agregar registro", solo admin). Reutiliza el form de edición + selector de
+> costureras (usuarios con rol `costurera`). El `POST /api/tiempos` ahora deriva `minutosNetos`
+> desde hora inicio/fin si no vienen (no afecta la tablet, que ya envía minutos).
+
 ---
 
 ## 🎯 A dónde se quiere llegar (objetivo actual)
@@ -45,4 +50,8 @@ y llevarlo a producción vía merge a `main`.
 
 ## 📝 Notas / decisiones abiertas
 
-- _(agregar acá dudas o decisiones que queden por resolver)_
+- **Alta manual de tiempos — auth:** el botón es admin-only en la UI, pero el `POST /api/tiempos`
+  sigue siendo abierto (la tablet de costureras postea sin sesión admin). No se agregó enforcement
+  server-side para no romper la tablet. Si en algún momento se quiere blindar, habría que separar
+  el endpoint o agregar un flag/sesión distinta. Hoy no expone nada nuevo (la tablet ya posteaba).
+- _(agregar acá más dudas o decisiones que queden por resolver)_
