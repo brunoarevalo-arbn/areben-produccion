@@ -43,7 +43,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           loteId: mov.loteId,
           ordenId: id,
           cantidad: cantidadInversa,
-          motivo: `Reversion corte OP ${orden.sku}`,
+          motivo: `Reversion corte OP ${orden.sku ?? id}`,
           usuarioId: session.id,
           reversionNota: `Revertido por ${session.nombre}`,
         },
@@ -52,6 +52,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     await tx.cortePorTalle.deleteMany({ where: { ordenId: id } });
 
+    // Revertir la ficha NO cambia el estado del flujo (la ficha está desacoplada).
     await tx.ordenProduccion.update({
       where: { id },
       data: {
@@ -63,17 +64,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         costoTela: new Prisma.Decimal(0),
         costoInsumosSecundarios: new Prisma.Decimal(0),
         costoTotal: new Prisma.Decimal(0),
-        estado: 'PENDIENTE',
-      },
-    });
-
-    await tx.estadoTransicion.create({
-      data: {
-        ordenId: id,
-        estadoAnterior: orden.estado,
-        estadoNuevo: 'PENDIENTE',
-        usuarioId: session.id,
-        notas: 'Corte revertido',
       },
     });
   });

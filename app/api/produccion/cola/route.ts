@@ -39,14 +39,11 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { sku, descripcion, marca, cantidad, notas } = body;
 
-  if (!sku?.trim()) {
-    return NextResponse.json({ error: 'El SKU es obligatorio' }, { status: 400 });
-  }
-
+  // SKU opcional: se puede crear la OP sin SKU y asignarlo al entrar a costura.
   const orden = await prisma.$transaction(async (tx) => {
     const op = await tx.ordenProduccion.create({
       data: {
-        sku:         sku.trim().toUpperCase(),
+        sku:         sku?.trim()?.toUpperCase() || null,
         descripcion: descripcion?.trim() || null,
         marca:       marca?.trim()       || 'Zattia',
         cantidad:    Math.max(1, parseInt(cantidad) || 1),

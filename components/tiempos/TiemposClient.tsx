@@ -8,7 +8,7 @@ import { FormTiempos } from './FormTiempos';
 
 interface OrdenActiva {
   id: string;
-  sku: string;
+  sku: string | null;
   descripcion: string | null;
   marca: string;
   cantidad: number;

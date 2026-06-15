@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
 
   let maxN = 0;
   for (const { sku } of existentes) {
+    if (!sku) continue;
     const tail = sku.slice(prefijo.length);
     const n = parseInt(tail, 10);
     if (!isNaN(n) && n > maxN) maxN = n;

@@ -35,7 +35,7 @@ const ESTADO_LABEL: Record<string, string> = {
   PENDIENTE:             'Pendiente',
   CORTE:                 'Corte',
   COSTURA:               'Costura',
-  TERMINADO_SIN_ESTAMPA: 'Term. sin estampa',
+  TERMINADO_SIN_ESTAMPA: 'Liso terminado',
   ESTAMPA:               'Estampa',
   CONTROL_CALIDAD:       'Control calidad',
   CERRADA:               'Cerrada',
@@ -51,13 +51,14 @@ const ESTADO_COLOR: Record<string, string> = {
   CERRADA:               'bg-stone-100 text-stone-500',
 };
 
+// Flujo de producción: termina en TERMINADO_SIN_ESTAMPA ("liso terminado").
 const ESTADO_SIGUIENTE: Record<string, string[]> = {
-  PENDIENTE:             ['CORTE'],
+  PENDIENTE:             ['CORTE', 'COSTURA'],   // se puede saltar a costura si el corte ya está
   CORTE:                 ['COSTURA'],
   COSTURA:               ['TERMINADO_SIN_ESTAMPA'],
-  TERMINADO_SIN_ESTAMPA: ['ESTAMPA', 'CONTROL_CALIDAD'],
-  ESTAMPA:               ['CONTROL_CALIDAD'],
-  CONTROL_CALIDAD:       ['CERRADA'],
+  TERMINADO_SIN_ESTAMPA: [],
+  ESTAMPA:               [],
+  CONTROL_CALIDAD:       [],
   CERRADA:               [],
 };
 
@@ -101,14 +102,20 @@ export function ColaAdmin() {
   const [cambioId, setCambioId]       = useState<string | null>(null);
   const [cambioNotas, setCambioNotas] = useState('');
 
+  // Mini-modal de SKU (al mandar a costura una OP sin SKU)
+  const [skuModalOrden, setSkuModalOrden] = useState<Orden | null>(null);
+  const [skuPrenda,     setSkuPrenda]     = useState('');
+  const [skuColor,      setSkuColor]      = useState('');
+  const [skuSaving,     setSkuSaving]     = useState(false);
+  const [skuModalError, setSkuModalError] = useState('');
+
   const marcas  = catalogo.filter((c) => c.categoria === 'marca' && c.activo);
   const prendas = catalogo.filter((c) => c.categoria === 'prenda' && c.activo);
   const colores = catalogo.filter((c) => c.categoria === 'color' && c.activo);
 
   useEffect(() => {
-    if (!showForm) return;
     fetch('/api/sku-catalogo').then((r) => r.ok ? r.json() : []).then(setCatalogo).catch(() => {});
-  }, [showForm]);
+  }, []);
 
   useEffect(() => {
     if (!marcaAbrev || !prendaAbrev || !colorAbrev) { setSkuSugerido(null); return; }
@@ -135,15 +142,15 @@ export function ColaAdmin() {
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!skuSugerido) return;
+    // SKU opcional: si elegiste marca+prenda+color se asigna ya; si no, se crea sin SKU
+    // y se genera al mandar a costura.
     const marcaEntry = marcas.find((m) => m.abreviatura === marcaAbrev);
-    if (!marcaEntry) { setError('Marca invalida'); return; }
     setSaving(true);
     setError('');
     const r = await fetch('/api/produccion/cola', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku: skuSugerido, descripcion, marca: marcaEntry.nombre, cantidad, notas }),
+      body: JSON.stringify({ sku: skuSugerido || undefined, descripcion, marca: marcaEntry?.nombre || undefined, cantidad, notas }),
     });
     const data = await r.json();
     if (!r.ok) {
@@ -158,6 +165,13 @@ export function ColaAdmin() {
   };
 
   const cambiarEstado = async (id: string, estado: string) => {
+    const ordenT = ordenes.find((o) => o.id === id);
+    // Para entrar a costura hace falta SKU; si la OP no lo tiene, pedir prenda+color.
+    if (estado === 'COSTURA' && ordenT && !ordenT.sku) {
+      setSkuModalOrden(ordenT);
+      setSkuPrenda(''); setSkuColor(''); setSkuModalError('');
+      return;
+    }
     const esRetroceso = (() => {
       const orden = ordenes.find((o) => o.id === id);
       if (!orden) return false;
@@ -185,8 +199,48 @@ export function ColaAdmin() {
     }
   };
 
-  const eliminar = async (id: string, sku: string) => {
-    if (!confirm(`Eliminar la orden "${sku}"?`)) return;
+  // Genera/asigna el SKU (prenda+color) y avanza a costura, en un solo paso.
+  const asignarSkuYAvanzar = async () => {
+    if (!skuModalOrden || !skuPrenda || !skuColor) return;
+    setSkuSaving(true);
+    setSkuModalError('');
+    const r = await fetch(`/api/produccion/cola/${skuModalOrden.id}/sku`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ prenda: skuPrenda, color: skuColor }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      setSkuModalError(d.error || 'Error al generar el SKU');
+      setSkuSaving(false);
+      return;
+    }
+    const r2 = await fetch(`/api/produccion/cola/${skuModalOrden.id}/estado`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado: 'COSTURA' }),
+    });
+    setSkuSaving(false);
+    if (r2.ok) {
+      setSkuModalOrden(null);
+      setSkuPrenda(''); setSkuColor('');
+      cargar();
+    } else {
+      const d = await r2.json().catch(() => ({}));
+      setSkuModalError(d.error || 'Error al mandar a costura');
+    }
+  };
+
+  // Revierte la ficha actual (devuelve el stock) para poder volver a cargarla.
+  const revertirFicha = async (id: string) => {
+    if (!confirm('Esto revierte la ficha actual y devuelve el stock consumido, para que la vuelvas a cargar. ¿Continuar?')) return;
+    const r = await fetch(`/api/produccion/cola/${id}/corte/revertir`, { method: 'POST' });
+    if (r.ok) cargar();
+    else { const d = await r.json().catch(() => ({})); alert(d.error || 'Error al revertir'); }
+  };
+
+  const eliminar = async (id: string, sku: string | null) => {
+    if (!confirm(`Eliminar la orden "${sku ?? 'sin SKU'}"?`)) return;
     const r = await fetch(`/api/produccion/cola/${id}`, { method: 'DELETE' });
     if (r.ok) setOrdenes((prev) => prev.filter((o) => o.id !== id));
   };
@@ -269,13 +323,15 @@ export function ColaAdmin() {
               <div key={orden.id}
                 className={`px-5 py-4 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 items-center ${i !== 0 ? 'border-t border-stone-100' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
                 <Link href={`/produccion/${orden.id}`}
-                  className="font-mono font-bold text-sm bg-stone-100 px-2 py-1 rounded-lg text-stone-700 hover:text-amber-600 transition">
-                  {orden.sku}
+                  className={`font-mono font-bold text-sm px-2 py-1 rounded-lg transition ${orden.sku ? 'bg-stone-100 text-stone-700 hover:text-amber-600' : 'bg-amber-50 text-amber-600 hover:text-amber-700'}`}>
+                  {orden.sku ?? 'S/SKU'}
                 </Link>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm text-stone-800 font-medium truncate">{orden.descripcion || '--'}</p>
                     <span className="text-xs text-stone-400 shrink-0">{orden.marca}</span>
+                    {!orden.sku && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">SKU pendiente</span>}
+                    {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Ficha pendiente</span>}
                   </div>
                   <p className="text-xs text-stone-400">{fechaCorta(orden.createdAt)} · {orden.creadoPor}</p>
                 </div>
@@ -290,11 +346,17 @@ export function ColaAdmin() {
                   {Number(orden.costoTotal) > 0 ? `$${fmt(orden.costoTotal)}` : '--'}
                 </span>
                 <div className="flex gap-1.5 shrink-0">
-                  {!orden.fichaCorteCargada && orden.estado === 'PENDIENTE' && (
+                  {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
                     <Link href={`/produccion/${orden.id}/corte`}
                       className="text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition">
-                      Corte
+                      Ficha
                     </Link>
+                  )}
+                  {orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
+                    <button onClick={() => revertirFicha(orden.id)} title="Editar ficha (la revierte para recargarla)"
+                      className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-50 transition">
+                      ✎ Ficha
+                    </button>
                   )}
                   {siguientes.length > 0 && (
                     <select
@@ -344,22 +406,22 @@ export function ColaAdmin() {
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Marca *</label>
-                <select value={marcaAbrev} onChange={(e) => setMarcaAbrev(e.target.value)} required className={inputClass}>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Marca</label>
+                <select value={marcaAbrev} onChange={(e) => setMarcaAbrev(e.target.value)} className={inputClass}>
                   <option value="">--</option>
                   {marcas.map((m) => <option key={m.id} value={m.abreviatura}>{m.nombre} ({m.abreviatura})</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Prenda *</label>
-                <select value={prendaAbrev} onChange={(e) => setPrendaAbrev(e.target.value)} required className={inputClass}>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Prenda</label>
+                <select value={prendaAbrev} onChange={(e) => setPrendaAbrev(e.target.value)} className={inputClass}>
                   <option value="">--</option>
                   {prendas.map((p) => <option key={p.id} value={p.abreviatura}>{p.nombre} ({p.abreviatura})</option>)}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Color *</label>
-                <select value={colorAbrev} onChange={(e) => setColorAbrev(e.target.value)} required className={inputClass}>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Color</label>
+                <select value={colorAbrev} onChange={(e) => setColorAbrev(e.target.value)} className={inputClass}>
                   <option value="">--</option>
                   {colores.map((c) => <option key={c.id} value={c.abreviatura}>{c.nombre} ({c.abreviatura})</option>)}
                 </select>
@@ -367,12 +429,12 @@ export function ColaAdmin() {
             </div>
             <div className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 flex items-center justify-between">
               <div>
-                <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">SKU generado</p>
+                <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">SKU (opcional)</p>
                 <p className="font-mono font-bold text-base text-stone-800">
-                  {loadingSku ? '...' : skuSugerido ?? `${marcaAbrev || '???'}-${prendaAbrev || '???'}-${colorAbrev || '???'}-NNN`}
+                  {loadingSku ? '...' : skuSugerido ?? '— se asigna al mandar a costura —'}
                 </p>
               </div>
-              {skuSugerido && <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-1 rounded">proximo libre</span>}
+              {skuSugerido && <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-1 rounded">próximo libre</span>}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
@@ -390,7 +452,7 @@ export function ColaAdmin() {
             </div>
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="submit" disabled={saving || !skuSugerido}
+              <button type="submit" disabled={saving}
                 className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
                 {saving ? 'Agregando...' : 'Agregar a la cola'}
               </button>
@@ -400,6 +462,45 @@ export function ColaAdmin() {
               </button>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* Mini-modal: asignar SKU al mandar a costura */}
+      {skuModalOrden && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={() => setSkuModalOrden(null)}>
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-stone-800 mb-1">Mandar a costura</h3>
+            <p className="text-xs text-stone-500 mb-4">
+              Generá el SKU para <span className="font-semibold">{skuModalOrden.descripcion || skuModalOrden.marca}</span> (marca: {skuModalOrden.marca}).
+            </p>
+            <div className="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Prenda</label>
+                <select value={skuPrenda} onChange={(e) => setSkuPrenda(e.target.value)} className={inputClass}>
+                  <option value="">--</option>
+                  {prendas.map((p) => <option key={p.id} value={p.abreviatura}>{p.nombre} ({p.abreviatura})</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Color</label>
+                <select value={skuColor} onChange={(e) => setSkuColor(e.target.value)} className={inputClass}>
+                  <option value="">--</option>
+                  {colores.map((c) => <option key={c.id} value={c.abreviatura}>{c.nombre} ({c.abreviatura})</option>)}
+                </select>
+              </div>
+            </div>
+            {skuModalError && <p className="text-red-500 text-xs mb-2">{skuModalError}</p>}
+            <div className="flex gap-2">
+              <button onClick={asignarSkuYAvanzar} disabled={skuSaving || !skuPrenda || !skuColor}
+                className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2 rounded-xl text-sm font-semibold transition">
+                {skuSaving ? 'Generando...' : 'Generar SKU y mandar a costura'}
+              </button>
+              <button onClick={() => setSkuModalOrden(null)}
+                className="px-4 py-2 rounded-xl text-sm border border-stone-200 text-stone-600 transition">
+                Cancelar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

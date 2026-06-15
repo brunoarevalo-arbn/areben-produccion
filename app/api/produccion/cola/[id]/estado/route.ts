@@ -23,6 +23,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const { estado: nuevoEstado, notas } = parsed.data;
   const estadoActual = orden.estado;
 
+  // Para entrar a COSTURA hace falta el SKU (se genera auto desde marca+prenda+color).
+  if (nuevoEstado === 'COSTURA' && !orden.sku?.trim()) {
+    return NextResponse.json({ error: 'Asigná el SKU antes de mandar a costura.' }, { status: 400 });
+  }
+
   const permitidos = ESTADO_SIGUIENTE[estadoActual] || [];
   const esRetroceso = !permitidos.includes(nuevoEstado);
 
@@ -51,7 +56,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       where: { id },
       data: {
         estado: nuevoEstado as EstadoOP,
-        terminadoAt: nuevoEstado === 'CERRADA' ? new Date() : null,
+        // Producción termina en TERMINADO_SIN_ESTAMPA (liso terminado).
+        terminadoAt: (nuevoEstado === 'TERMINADO_SIN_ESTAMPA' || nuevoEstado === 'CERRADA') ? new Date() : null,
       },
     }),
     prisma.estadoTransicion.create({

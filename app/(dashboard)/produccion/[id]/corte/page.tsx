@@ -55,16 +55,6 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
     );
   }
 
-  if (orden.estado !== 'PENDIENTE') {
-    return (
-      <div className="p-8 max-w-4xl">
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-700">
-          Solo se puede registrar el corte desde estado PENDIENTE. Estado actual: {orden.estado}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="p-8 max-w-4xl">
       <div className="mb-8">
@@ -74,7 +64,7 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
           {orden.descripcion || orden.marca} · Planificadas: {orden.cantidad} unidades
         </p>
       </div>
-      <RegistrarCorteForm ordenId={orden.id} sku={orden.sku} cantidadPlanificada={orden.cantidad} />
+      <RegistrarCorteForm ordenId={orden.id} sku={orden.sku ?? ''} cantidadPlanificada={orden.cantidad} />
     </div>
   );
 }

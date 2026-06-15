@@ -5,11 +5,13 @@ export const ESTADOS_OP = [
   'ESTAMPA', 'CONTROL_CALIDAD', 'CERRADA',
 ] as const;
 
+// Flujo de PRODUCCIÓN (corte + costura). Termina en TERMINADO_SIN_ESTAMPA ("liso terminado").
+// ESTAMPA / CONTROL_CALIDAD / CERRADA quedan reservados para el módulo de Estampa (Fase 2).
 export const ESTADO_SIGUIENTE: Record<string, string[]> = {
-  PENDIENTE:             ['CORTE'],
+  PENDIENTE:             ['CORTE', 'COSTURA'],     // se puede saltar a costura si el corte ya está listo
   CORTE:                 ['COSTURA', 'PENDIENTE'],
   COSTURA:               ['TERMINADO_SIN_ESTAMPA', 'CORTE'],
-  TERMINADO_SIN_ESTAMPA: ['ESTAMPA', 'CONTROL_CALIDAD', 'COSTURA'],
+  TERMINADO_SIN_ESTAMPA: ['COSTURA'],              // fin de producción (se puede reabrir a costura)
   ESTAMPA:               ['CONTROL_CALIDAD', 'TERMINADO_SIN_ESTAMPA'],
   CONTROL_CALIDAD:       ['CERRADA', 'ESTAMPA'],
   CERRADA:               [],

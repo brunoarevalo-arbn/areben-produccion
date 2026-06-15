@@ -43,12 +43,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const orden = await prisma.ordenProduccion.findUnique({ where: { id } });
   if (!orden) return NextResponse.json({ error: 'OP no encontrada' }, { status: 404 });
 
+  // La ficha es diferida: se puede cargar en cualquier estado del flujo. Para corregirla,
+  // se revierte (endpoint /revertir) y se vuelve a cargar — así se devuelve el stock consumido.
   if (orden.fichaCorteCargada) {
-    return NextResponse.json({ error: 'El corte ya fue registrado' }, { status: 400 });
-  }
-
-  if (orden.estado !== 'PENDIENTE') {
-    return NextResponse.json({ error: 'Solo se puede registrar corte desde estado PENDIENTE' }, { status: 400 });
+    return NextResponse.json({ error: 'La ficha ya fue cargada. Para corregirla, revertí el corte y volvé a cargarla.' }, { status: 400 });
   }
 
   const { consumoRollos, consumoLotes, cortesPorTalle, cortadorId, costoCorte, fichaFotoUrl, notas } = parsed.data;
@@ -145,7 +143,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           rolloId: cr.rolloId,
           ordenId: id,
           cantidad: kgConsumidos.neg(),
-          motivo: `Corte OP ${orden.sku}: ${cr.metrosUsados}m = ${kgConsumidos.toFixed(3)}kg`,
+          motivo: `Corte OP ${orden.sku ?? id}: ${cr.metrosUsados}m = ${kgConsumidos.toFixed(3)}kg`,
           usuarioId: session.id,
         },
       });
@@ -169,7 +167,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           loteId: cl.loteId,
           ordenId: id,
           cantidad: new Prisma.Decimal(cl.cantidad).neg(),
-          motivo: `Corte OP ${orden.sku}`,
+          motivo: `Corte OP ${orden.sku ?? id}`,
           usuarioId: session.id,
         },
       });
@@ -195,22 +193,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       costoInsumosSecundarios: costoInsumosSec,
       costoTotal,
       cantidad: cantidadTotal,
-      estado: 'CORTE',
+      // La ficha ya NO cambia el estado: el avance del flujo se maneja aparte.
     };
 
     if (notas?.trim()) {
       data.notas = (orden.notas ? orden.notas + '\n' : '') + `[Corte] ${notas.trim()}`;
     }
-
-    await tx.estadoTransicion.create({
-      data: {
-        ordenId: id,
-        estadoAnterior: 'PENDIENTE',
-        estadoNuevo: 'CORTE',
-        usuarioId: session.id,
-        notas: `Corte registrado: ${cantidadTotal} unidades (${cortesPorTalle.map((t) => `${t.talle}:${t.cantidad}`).join(', ')})`,
-      },
-    });
 
     return tx.ordenProduccion.update({ where: { id }, data });
   });

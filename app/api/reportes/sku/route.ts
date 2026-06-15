@@ -18,7 +18,7 @@ export async function GET() {
       orderBy: { terminadoAt: 'desc' },
     });
 
-    const skus = [...new Set(ordenes.map((o) => o.sku))];
+    const skus = [...new Set(ordenes.map((o) => o.sku).filter((s): s is string => !!s))];
     const tiempos = await prisma.tiemposProduccion.findMany({
       where: { sku: { in: skus } },
     });
@@ -32,7 +32,7 @@ export async function GET() {
     }
 
     const result = ordenes.map((orden) => {
-      const ts = tiemposBySku.get(orden.sku) ?? [];
+      const ts = (orden.sku ? tiemposBySku.get(orden.sku) : undefined) ?? [];
       const totalMinutos = ts.reduce((s, t) => s + t.minutosNetos, 0);
 
       const porMaquina:   Record<string, Breakdown> = {};

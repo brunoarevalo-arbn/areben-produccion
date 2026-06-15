@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 
 const ESTADO_LABEL: Record<string, string> = {
   PENDIENTE: 'Pendiente', CORTE: 'Corte', COSTURA: 'Costura',
-  TERMINADO_SIN_ESTAMPA: 'Term. sin estampa', ESTAMPA: 'Estampa',
+  TERMINADO_SIN_ESTAMPA: 'Liso terminado', ESTAMPA: 'Estampa',
   CONTROL_CALIDAD: 'Control calidad', CERRADA: 'Cerrada',
 };
 const ESTADO_COLOR: Record<string, string> = {
@@ -51,7 +51,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
       <div className="mb-8">
         <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Produccion</span>
         <div className="flex items-center gap-3 mt-1">
-          <h1 className="text-2xl font-bold text-stone-900 font-mono">{orden.sku}</h1>
+          <h1 className="text-2xl font-bold text-stone-900 font-mono">{orden.sku ?? 'S/SKU'}</h1>
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ESTADO_COLOR[orden.estado] || ''}`}>
             {ESTADO_LABEL[orden.estado]}
           </span>
@@ -100,10 +100,10 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
 
       {/* Acciones */}
       <div className="flex gap-3 mb-6">
-        {!orden.fichaCorteCargada && orden.estado === 'PENDIENTE' && (
+        {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
           <Link href={`/produccion/${orden.id}/corte`}
             className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-            Registrar corte
+            Cargar ficha de corte
           </Link>
         )}
         {orden.fichaCorteCargada && (
