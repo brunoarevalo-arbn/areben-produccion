@@ -9,7 +9,9 @@ export async function GET(req: NextRequest) {
 
     const registros = await prisma.tiemposProduccion.findMany({
       where: { fecha, ...(usuario ? { usuario } : {}) },
-      orderBy: { createdAt: 'asc' },
+      // Orden cronológico por hora de inicio (los que no tienen hora caen al final);
+      // createdAt como desempate. Así un alta manual se ubica según su horario, no al final.
+      orderBy: [{ horaInicio: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
     });
 
     const porCosturera: Record<string, { minutos: number; registros: number; prendas: number }> = {};
