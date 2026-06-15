@@ -7,7 +7,7 @@ interface RolloOpt {
   codigo: string;
   pesoActual: string;
   estado: string;
-  insumo: { nombre: string } | null;
+  insumo: { nombre: string; rinde: string | null } | null;
   color: { nombre: string } | null;
   colorProveedor: string | null;
 }
@@ -17,7 +17,7 @@ interface Muestra {
   cantidad: string;
   motivo: string | null;
   fecha: string;
-  rollo: { codigo: string; colorProveedor: string | null; insumo: { nombre: string } | null; color: { nombre: string } | null } | null;
+  rollo: { codigo: string; colorProveedor: string | null; insumo: { nombre: string; rinde: string | null } | null; color: { nombre: string } | null } | null;
   proyecto: { id: string; nombre: string } | null;
 }
 
@@ -26,6 +26,17 @@ const fmt = (n: string | number) => Number(n).toLocaleString('es-AR', { maximumF
 const colorRollo = (r: { color: { nombre: string } | null; colorProveedor: string | null }) =>
   r.color?.nombre || r.colorProveedor || 'sin color';
 const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' });
+
+// El stock está en kg; con el rinde (m/kg) se muestra en metros.
+const restanteTxt = (r: RolloOpt) => {
+  const rinde = Number(r.insumo?.rinde);
+  return rinde > 0 ? `${fmt(Number(r.pesoActual) * rinde)} m` : `${fmt(r.pesoActual)} kg`;
+};
+const metrosMuestra = (m: Muestra) => {
+  const rinde = Number(m.rollo?.insumo?.rinde);
+  const kg = Math.abs(Number(m.cantidad));
+  return rinde > 0 ? `${fmt(kg * rinde)} m` : `${fmt(kg)} kg`;
+};
 
 export function MuestrasClient() {
   const [rollos, setRollos]       = useState<RolloOpt[]>([]);
@@ -83,7 +94,7 @@ export function MuestrasClient() {
             <option value="">— Elegí un rollo —</option>
             {rollos.map((r) => (
               <option key={r.id} value={r.id}>
-                {r.insumo?.nombre ?? '?'} · {colorRollo(r)} · {r.codigo} (quedan {fmt(r.pesoActual)})
+                {r.insumo?.nombre ?? '?'} · {colorRollo(r)} · {r.codigo} (quedan {restanteTxt(r)})
               </option>
             ))}
           </select>
@@ -91,9 +102,9 @@ export function MuestrasClient() {
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad que se retira</label>
+            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad a retirar <span className="text-stone-400 font-normal">(metros)</span></label>
             <input type="number" value={cantidad} onChange={(e) => setCantidad(e.target.value)} min="0" step="0.01"
-              placeholder={rolloSel ? `máx ${fmt(rolloSel.pesoActual)}` : ''} className={inp} />
+              placeholder={rolloSel ? `en metros — quedan ${restanteTxt(rolloSel)}` : 'en metros'} className={inp} />
           </div>
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Proyecto de diseño <span className="text-stone-400 font-normal">(opcional)</span></label>
@@ -122,7 +133,7 @@ export function MuestrasClient() {
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_1fr_auto_1fr_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Fecha</span>
           <span>Insumo / color</span>
-          <span className="text-right">Cantidad</span>
+          <span className="text-right">Metros</span>
           <span>Proyecto</span>
           <span>Rollo</span>
         </div>
@@ -136,7 +147,7 @@ export function MuestrasClient() {
                 {m.rollo?.insumo?.nombre ?? '—'}
                 {m.rollo && <span className="text-stone-400"> · {colorRollo(m.rollo)}</span>}
               </span>
-              <span className="text-sm tabular-nums text-right text-stone-700">{fmt(Math.abs(Number(m.cantidad)))}</span>
+              <span className="text-sm tabular-nums text-right text-stone-700">{metrosMuestra(m)}</span>
               <span className="text-sm text-stone-600 truncate">{m.proyecto?.nombre ?? <span className="text-stone-300">—</span>}</span>
               <span className="font-mono text-xs text-stone-500">{m.rollo?.codigo ?? '—'}</span>
             </div>

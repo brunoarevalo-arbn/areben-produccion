@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
         select: {
           codigo: true,
           colorProveedor: true,
-          insumo: { select: { nombre: true } },
+          insumo: { select: { nombre: true, rinde: true } },
           color: { select: { nombre: true } },
         },
       },
@@ -45,15 +45,26 @@ export async function POST(req: NextRequest) {
 
   const rollo = await prisma.rollo.findUnique({
     where: { id: rolloId },
-    include: { insumo: { select: { nombre: true } } },
+    include: { insumo: { select: { nombre: true, rinde: true } } },
   });
   if (!rollo) return NextResponse.json({ error: 'Rollo no encontrado' }, { status: 404 });
 
-  const cant = new Prisma.Decimal(cantidad);
+  const rinde = Number(rollo.insumo.rinde);
+  if (!rinde || rinde <= 0) {
+    return NextResponse.json(
+      { error: `El insumo "${rollo.insumo.nombre}" no tiene rinde cargado: no se puede convertir metros a kg` },
+      { status: 400 },
+    );
+  }
+
+  // La cantidad se ingresa en METROS; se convierte a kg con el rinde (metros por kg).
+  const kg = cantidad / rinde;
+  const cant = new Prisma.Decimal(kg);
   const nuevoPeso = rollo.pesoActual.sub(cant);
   if (nuevoPeso.lessThan(0)) {
+    const metrosDisp = Number(rollo.pesoActual) * rinde;
     return NextResponse.json(
-      { error: `No alcanza: el rollo ${rollo.codigo} tiene ${rollo.pesoActual} y querés retirar ${cantidad}` },
+      { error: `No alcanza: el rollo ${rollo.codigo} tiene ~${metrosDisp.toFixed(2)} m y querés retirar ${cantidad} m` },
       { status: 400 },
     );
   }
@@ -69,8 +80,8 @@ export async function POST(req: NextRequest) {
     : nuevoPeso.lt(rollo.pesoInicial) ? 'EN_USO_PARCIAL' as const
     : 'DISPONIBLE' as const;
 
-  const costo = Number(rollo.costoUnitario) * cantidad; // para el Gasto (no se muestra en Muestras)
-  const concepto = `Muestra — ${rollo.insumo.nombre}${descripcion ? ` (${descripcion})` : ''}${proyectoNombre ? ` · ${proyectoNombre}` : ''}`;
+  const costo = Number(rollo.costoUnitario) * kg; // para el Gasto (no se muestra en Muestras)
+  const concepto = `Muestra — ${rollo.insumo.nombre} · ${cantidad} m${descripcion ? ` (${descripcion})` : ''}${proyectoNombre ? ` · ${proyectoNombre}` : ''}`;
 
   const [movimiento] = await prisma.$transaction([
     prisma.movimientoInsumo.create({
