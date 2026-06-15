@@ -24,6 +24,14 @@ export const CambioEstadoSchema = z.object({
   notas:  z.string().optional(),
 });
 
+// Consumo de tela para una muestra (retiro chico de un rollo, opcionalmente ligado a un proyecto).
+export const MuestraSchema = z.object({
+  rolloId:     z.string().min(1, 'Elegí un rollo'),
+  cantidad:    z.number().positive('La cantidad debe ser positiva'),
+  proyectoId:  z.string().optional(),
+  descripcion: z.string().optional(),
+});
+
 // Registrar corte: unifica ficha + consumo de tela + desglose por talle
 const ConsumoLoteSchema = z.object({
   loteId:   z.string().min(1),

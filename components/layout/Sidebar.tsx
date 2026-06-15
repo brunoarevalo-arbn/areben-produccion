@@ -49,6 +49,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     seccion: 'produccion',
     sub: [
       { label: 'Tiempos',         href: '/tiempos' },
+      { label: 'Muestras',        href: '/produccion/muestras' },
       { label: 'Reportes',        href: '/produccion/reportes' },
       { label: 'Pagos de cortes', href: '/produccion/pagos-cortes' },
     ],

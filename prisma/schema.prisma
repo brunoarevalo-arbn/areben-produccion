@@ -132,6 +132,7 @@ model ProyectoDiseno {
   iteraciones     IteracionMuestra[]
   insumos         ProyectoInsumo[]
   skus            SKUProyecto[]
+  movimientos     MovimientoInsumo[]
   createdAt       DateTime           @default(now())
   updatedAt       DateTime           @updatedAt
 
@@ -606,6 +607,7 @@ enum TipoMovimiento {
   AJUSTE
   DESCARTE
   REVERSION
+  MUESTRA
 }
 
 model MovimientoInsumo {
@@ -617,6 +619,8 @@ model MovimientoInsumo {
   lote             Lote?             @relation(fields: [loteId], references: [id])
   ordenId          String?
   orden            OrdenProduccion?  @relation(fields: [ordenId], references: [id])
+  proyectoId       String?
+  proyecto         ProyectoDiseno?   @relation(fields: [proyectoId], references: [id])
   cantidad         Decimal
   motivo           String?
   motivoDescarteId String?
