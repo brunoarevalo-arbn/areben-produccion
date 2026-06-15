@@ -52,6 +52,24 @@ export function ProyectoView({ proyecto, catalogoFases, estadoActual }: Props) {
 
   const refresh = () => router.refresh();
 
+  const [editandoNombre,  setEditandoNombre]  = useState(false);
+  const [nombreEdit,      setNombreEdit]      = useState(proyecto.nombre);
+  const [guardandoNombre, setGuardandoNombre] = useState(false);
+
+  const guardarNombre = async () => {
+    const nombre = nombreEdit.trim();
+    if (!nombre || nombre === proyecto.nombre) { setEditandoNombre(false); return; }
+    setGuardandoNombre(true);
+    await fetch(`/api/proyectos/${proyecto.id}`, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ nombre }),
+    });
+    setGuardandoNombre(false);
+    setEditandoNombre(false);
+    refresh();
+  };
+
   const archivar = async (archivado: boolean) => {
     if (archivado && !confirm('¿Archivar este proyecto?')) return;
     await fetch(`/api/proyectos/${proyecto.id}`, {
@@ -82,10 +100,40 @@ export function ProyectoView({ proyecto, catalogoFases, estadoActual }: Props) {
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <h1 className="text-2xl font-bold text-stone-900 truncate">{proyecto.nombre}</h1>
-            <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${ESTADO_COLOR[estadoActual]}`}>
-              {ESTADO_LABEL[estadoActual]}
-            </span>
+            {editandoNombre ? (
+              <div className="flex items-center gap-2 w-full">
+                <input
+                  autoFocus
+                  value={nombreEdit}
+                  onChange={(e) => setNombreEdit(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter')  guardarNombre();
+                    if (e.key === 'Escape') { setNombreEdit(proyecto.nombre); setEditandoNombre(false); }
+                  }}
+                  className="text-2xl font-bold text-stone-900 border-b-2 border-amber-400 focus:outline-none bg-transparent flex-1 min-w-0"
+                />
+                <button onClick={guardarNombre} disabled={guardandoNombre}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 transition shrink-0">
+                  {guardandoNombre ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button onClick={() => { setNombreEdit(proyecto.nombre); setEditandoNombre(false); }}
+                  className="text-xs px-2 py-1.5 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition shrink-0">
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold text-stone-900 truncate">{proyecto.nombre}</h1>
+                <button onClick={() => { setNombreEdit(proyecto.nombre); setEditandoNombre(true); }}
+                  title="Editar nombre"
+                  className="text-stone-400 hover:text-stone-700 transition shrink-0 text-sm leading-none">
+                  ✎
+                </button>
+                <span className={`text-xs px-2.5 py-1 rounded-full font-semibold border ${ESTADO_COLOR[estadoActual]}`}>
+                  {ESTADO_LABEL[estadoActual]}
+                </span>
+              </>
+            )}
           </div>
           <p className="text-stone-400 text-sm">{proyecto.marca}</p>
         </div>
