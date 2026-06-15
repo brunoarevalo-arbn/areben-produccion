@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
-
-async function requireAdmin(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const session = token ? await verifySession(token) : null;
-  return session?.rol === 'admin' ? session : null;
-}
+import { requirePermiso } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -16,7 +11,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!await requireAdmin(req)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!await requirePermiso(req, 'costos')) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const { nombre, sku, marca, tipoPrenda, proyectoId, notas, datos } = await req.json();
   if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });
   const escandallo = await prisma.escandallo.create({

@@ -1,10 +1,8 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { SESSION_COOKIE, verifySession } from '@/lib/session';
-import { prisma } from '@/lib/prisma';
+import { getPermisos } from '@/lib/auth';
 import { Sidebar } from '@/components/layout/Sidebar';
-
-export const ALL_PERMISOS = ['dashboard', 'diseno', 'insumos', 'produccion', 'gastos', 'costos', 'configuracion'];
 
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
@@ -12,17 +10,8 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const session = token ? await verifySession(token) : null;
   if (!session) redirect('/login');
 
-  let permisos: string[];
-  if (session.rol === 'admin') {
-    permisos = ALL_PERMISOS;
-  } else {
-    const user = await prisma.usuario.findUnique({
-      where: { id: session.id },
-      select: { permisos: true },
-    });
-    const bloqueadas = user?.permisos ?? [];
-    permisos = ALL_PERMISOS.filter((s) => !bloqueadas.includes(s));
-  }
+  // Allowlist de secciones que el usuario tiene otorgadas (admin = todas).
+  const permisos = await getPermisos(session);
 
   return (
     <div className="flex h-screen bg-stone-100 overflow-hidden">

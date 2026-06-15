@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { PERMISOS } from '@/lib/permisos';
 
 interface Usuario {
   id:       string;
@@ -17,15 +18,6 @@ const ROLES = [
   { value: 'costurera',  label: 'Costurera',   color: 'bg-amber-100 text-amber-700' },
   { value: 'diseñadora', label: 'Diseñadora',   color: 'bg-violet-100 text-violet-700' },
   { value: 'admin',      label: 'Administrador', color: 'bg-stone-100 text-stone-700' },
-] as const;
-
-const SECCIONES = [
-  { id: 'dashboard',     label: 'Dashboard' },
-  { id: 'diseno',        label: 'Diseño' },
-  { id: 'produccion',    label: 'Producción' },
-  { id: 'gastos',        label: 'Gastos' },
-  { id: 'costos',        label: 'Costos' },
-  { id: 'configuracion', label: 'Configuración' },
 ] as const;
 
 function rolColor(rol: string) {
@@ -54,27 +46,30 @@ function PermisosToggle({
       <p className="text-xs text-stone-400 italic">Las costureras solo acceden a la pantalla de tiempos.</p>
     );
   }
-  // permisos = denylist: las secciones presentes en el array están BLOQUEADAS
+  // permisos = allowlist: las secciones presentes en el array están OTORGADAS.
   return (
     <div className="space-y-1.5">
-      <p className="text-xs text-stone-400 mb-1">Por defecto tiene acceso a todo. Desactivá lo que no debería ver.</p>
-      {SECCIONES.map(({ id, label }) => {
-        const tieneAcceso = !permisos.includes(id);
+      <p className="text-xs text-stone-400 mb-1">Otorgá las secciones a las que puede acceder.</p>
+      {PERMISOS.map(({ key, label, desc }) => {
+        const tieneAcceso = permisos.includes(key);
         return (
           <button
-            key={id}
+            key={key}
             type="button"
             onClick={() =>
-              onChange(tieneAcceso ? [...permisos, id] : permisos.filter((p) => p !== id))
+              onChange(tieneAcceso ? permisos.filter((p) => p !== key) : [...permisos, key])
             }
-            className={`w-full flex items-center justify-between px-3 py-2 rounded-lg border text-sm transition ${
+            className={`w-full flex items-center justify-between gap-3 px-3 py-2 rounded-lg border text-sm transition text-left ${
               tieneAcceso
                 ? 'bg-violet-50 border-violet-300 text-violet-800'
-                : 'bg-white border-stone-200 text-stone-400 hover:border-stone-300'
+                : 'bg-white border-stone-200 text-stone-500 hover:border-stone-300'
             }`}
           >
-            <span className="font-medium">{label}</span>
-            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-xs ${tieneAcceso ? 'bg-violet-500 border-violet-500 text-white' : 'border-stone-300'}`}>
+            <span className="min-w-0">
+              <span className="font-medium block">{label}</span>
+              <span className="text-xs text-stone-400 font-normal">{desc}</span>
+            </span>
+            <span className={`w-4 h-4 rounded-full border-2 flex items-center justify-center text-xs shrink-0 ${tieneAcceso ? 'bg-violet-500 border-violet-500 text-white' : 'border-stone-300'}`}>
               {tieneAcceso && '✓'}
             </span>
           </button>
@@ -238,8 +233,8 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
                   {!u.activo && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-500 font-semibold">Inactivo</span>
                   )}
-                  {u.rol !== 'admin' && u.rol !== 'costurera' && u.permisos?.length > 0 && (
-                    <span className="text-xs text-stone-400">{u.permisos.length} bloqueada{u.permisos.length !== 1 ? 's' : ''}</span>
+                  {u.rol !== 'admin' && u.rol !== 'costurera' && (
+                    <span className="text-xs text-stone-400">{u.permisos?.length ?? 0} con acceso</span>
                   )}
                 </div>
               </div>
