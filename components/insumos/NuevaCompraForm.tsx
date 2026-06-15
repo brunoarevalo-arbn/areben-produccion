@@ -22,29 +22,41 @@ const inpSm = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outl
 
 let keyCounter = 0;
 
-export function NuevaCompraForm() {
+interface InicialCompra {
+  id: string;
+  proveedorId: string; fecha: string; numeroFactura: string; conIva: boolean;
+  totalBruto: string; costoEnvio: string; formaPago: string; estadoPago: string;
+  montoPagado: string; fechaPago: string; notas: string;
+  lineas: Omit<Linea, 'key'>[];
+}
+
+export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
   const router = useRouter();
+  const editando = !!inicial;
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [insumos, setInsumos]         = useState<InsumoOpt[]>([]);
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState('');
 
   // Cabecera
-  const [proveedorId, setProveedorId]     = useState('');
-  const [fecha, setFecha]                 = useState(new Date().toISOString().slice(0, 10));
-  const [numeroFactura, setNumeroFactura] = useState('');
-  const [conIva, setConIva]               = useState(true);
-  const [totalBruto, setTotalBruto]       = useState('');
-  const [formaPago, setFormaPago]         = useState('');
-  const [estadoPago, setEstadoPago]       = useState('PENDIENTE');
-  const [montoPagado, setMontoPagado]     = useState('');
-  const [fechaPago, setFechaPago]         = useState('');
-  const [notas, setNotas]                 = useState('');
+  const [proveedorId, setProveedorId]     = useState(inicial?.proveedorId ?? '');
+  const [fecha, setFecha]                 = useState(inicial?.fecha ?? new Date().toISOString().slice(0, 10));
+  const [numeroFactura, setNumeroFactura] = useState(inicial?.numeroFactura ?? '');
+  const [conIva, setConIva]               = useState(inicial?.conIva ?? true);
+  const [totalBruto, setTotalBruto]       = useState(inicial?.totalBruto ?? '');
+  const [costoEnvio, setCostoEnvio]       = useState(inicial?.costoEnvio ?? '');
+  const [formaPago, setFormaPago]         = useState(inicial?.formaPago ?? '');
+  const [estadoPago, setEstadoPago]       = useState(inicial?.estadoPago ?? 'PENDIENTE');
+  const [montoPagado, setMontoPagado]     = useState(inicial?.montoPagado ?? '');
+  const [fechaPago, setFechaPago]         = useState(inicial?.fechaPago ?? '');
+  const [notas, setNotas]                 = useState(inicial?.notas ?? '');
 
   // Lineas
-  const [lineas, setLineas] = useState<Linea[]>([
-    { key: ++keyCounter, insumoId: '', colorProveedor: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] },
-  ]);
+  const [lineas, setLineas] = useState<Linea[]>(
+    inicial?.lineas?.length
+      ? inicial.lineas.map((l) => ({ ...l, key: ++keyCounter }))
+      : [{ key: ++keyCounter, insumoId: '', colorProveedor: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] }],
+  );
 
   useEffect(() => {
     Promise.all([
@@ -150,6 +162,7 @@ export function NuevaCompraForm() {
       numeroFactura: numeroFactura || undefined,
       conIva,
       totalBruto: totalBrutoNum,
+      costoEnvio: parseFloat(costoEnvio) || 0,
       formaPago: formaPago || undefined,
       estadoPago,
       montoPagado: parseFloat(montoPagado) || 0,
@@ -167,15 +180,20 @@ export function NuevaCompraForm() {
       })),
     };
 
-    const r = await fetch('/api/compras', {
-      method: 'POST',
+    const r = await fetch(editando ? `/api/compras/${inicial!.id}` : '/api/compras', {
+      method: editando ? 'PUT' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
 
     if (r.ok) {
-      const compra = await r.json();
-      router.push(`/insumos/compras/${compra.id}`);
+      if (editando) {
+        router.push(`/insumos/compras/${inicial!.id}`);
+        router.refresh();
+      } else {
+        const compra = await r.json();
+        router.push(`/insumos/compras/${compra.id}`);
+      }
     } else {
       const d = await r.json();
       setError(d.error || 'Error al guardar');
@@ -210,6 +228,11 @@ export function NuevaCompraForm() {
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Total bruto *</label>
             <input type="number" value={totalBruto} onChange={(e) => setTotalBruto(e.target.value)}
               min="0" step="0.01" required className={inp} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Envío / flete <span className="text-stone-400 font-normal">(opcional)</span></label>
+            <input type="number" value={costoEnvio} onChange={(e) => setCostoEnvio(e.target.value)}
+              min="0" step="0.01" placeholder="0" className={inp} />
           </div>
           <div className="flex items-end gap-3 pb-1">
             <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer">
@@ -365,7 +388,7 @@ export function NuevaCompraForm() {
       <div className="flex gap-3">
         <button type="submit" disabled={saving}
           className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white px-6 py-3 rounded-xl text-sm font-semibold transition">
-          {saving ? 'Guardando...' : 'Registrar compra'}
+          {saving ? 'Guardando...' : editando ? 'Guardar cambios' : 'Registrar compra'}
         </button>
         <button type="button" onClick={() => router.back()}
           className="px-4 py-3 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">

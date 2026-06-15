@@ -130,6 +130,10 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
         )}
         {!compra.revertida && (
           <div className="mt-4 pt-4 border-t border-stone-100 flex gap-2">
+            <Link href={`/insumos/compras/${compra.id}/editar`}
+              className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
+              Editar
+            </Link>
             <button onClick={() => setShowPago(!showPago)}
               className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
               Actualizar pago

@@ -114,6 +114,7 @@ export async function POST(req: NextRequest) {
         conIva:        data.conIva,
         totalBruto,
         totalNeto,
+        costoEnvio:    new Prisma.Decimal(data.costoEnvio || 0),
         formaPago:     data.formaPago || null,
         estadoPago:    data.estadoPago,
         montoPagado:   new Prisma.Decimal(data.montoPagado),
@@ -128,7 +129,11 @@ export async function POST(req: NextRequest) {
 
     for (const linea of data.lineas) {
       const subtotal = new Prisma.Decimal(linea.cantidad * linea.precioUnitario);
-      const costoUnitarioNeto = new Prisma.Decimal(linea.precioUnitario);
+      // Prorrateo del envío por valor de línea → sumado al costo por unidad del rollo/lote.
+      const lineaSub     = linea.cantidad * linea.precioUnitario;
+      const lineaEnvio   = sumaSubtotales > 0 ? (data.costoEnvio || 0) * (lineaSub / sumaSubtotales) : 0;
+      const recargoEnvio = linea.cantidad > 0 ? lineaEnvio / linea.cantidad : 0;
+      const costoUnitarioNeto = new Prisma.Decimal(linea.precioUnitario + recargoEnvio);
 
       await tx.compraLinea.create({
         data: {

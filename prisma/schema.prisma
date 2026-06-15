@@ -483,6 +483,7 @@ model Compra {
   conIva        Boolean    @default(true)
   totalBruto    Decimal
   totalNeto     Decimal
+  costoEnvio    Decimal    @default(0) // flete/envío, prorrateado al costo de los rollos/lotes
   formaPago     String?
   estadoPago    EstadoPago @default(PENDIENTE)
   montoPagado   Decimal    @default(0)
