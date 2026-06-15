@@ -31,18 +31,9 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
   const router  = useRouter();
   const tiempos = useTiempos(usuario.nombre);
 
-  // Detenido con un tramo medido todavía sin guardar.
-  const pendienteDeGuardar = !!tiempos.tareaEnCurso && !tiempos.cronometroActivo;
-
-  // No pisar un registro detenido sin guardar al arrancar uno nuevo.
-  const handleIniciar = () => {
-    if (pendienteDeGuardar) {
-      const ok = window.confirm(
-        'Tenés un registro detenido sin guardar. Si empezás otro, ese tramo se descarta.\n\n¿Querés descartarlo y empezar de nuevo?',
-      );
-      if (!ok) return;
-    }
-    tiempos.iniciarTarea();
+  const handleDescartar = () => {
+    const ok = window.confirm('¿Descartar el registro en curso? Se va a perder el tiempo medido.');
+    if (ok) tiempos.descartar();
   };
 
   const handleLogout = async () => {
@@ -84,10 +75,11 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
         <div className="px-4 pt-4 pb-2 shrink-0">
           <Cronometro
             tiempoDisplay={tiempos.tiempoDisplay}
-            activo={tiempos.cronometroActivo}
-            pendiente={pendienteDeGuardar}
-            onIniciar={handleIniciar}
-            onDetener={tiempos.terminarTarea}
+            estado={tiempos.estado}
+            onIniciar={tiempos.iniciar}
+            onPausar={tiempos.pausar}
+            onReanudar={tiempos.reanudar}
+            onDescartar={handleDescartar}
           />
         </div>
 
@@ -108,9 +100,8 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
           <FormTiempos
             usuario={usuario.nombre}
             ordenesIniciales={ordenesIniciales}
-            tareaEnCurso={tiempos.tareaEnCurso}
-            cronometroActivo={tiempos.cronometroActivo}
-            onDetenerCronometro={tiempos.terminarTarea}
+            estado={tiempos.estado}
+            onObtenerTiempos={tiempos.obtenerTiempos}
             onGuardar={tiempos.guardarRegistro}
             onRefresh={() => router.refresh()}
             loading={tiempos.loading}

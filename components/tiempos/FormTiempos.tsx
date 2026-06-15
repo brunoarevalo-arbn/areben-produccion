@@ -2,14 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { TiemposProduccion } from '@/types/tiempos';
+import type { EstadoCronometro } from '@/lib/hooks/useTiempos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
 
 interface FormTiemposProps {
   usuario: string;
   ordenesIniciales: OrdenActiva[];
-  tareaEnCurso: any | null;
-  cronometroActivo: boolean;
-  onDetenerCronometro: () => { horaInicio: string; horaFin: string; minutosNetos: number } | undefined;
+  estado: EstadoCronometro;
+  onObtenerTiempos: () => { horaInicio: string; horaFin: string; minutosNetos: number } | undefined;
   onGuardar: (tiempo: TiemposProduccion) => Promise<unknown>;
   onRefresh: () => void;
   loading: boolean;
@@ -37,7 +37,7 @@ const ACTIVIDADES: { label: string; icon: string; color: string }[] = [
 const MAQUINAS = ['Recta', 'Collareta', 'Remalladora', 'Cadeneta', 'Cortacollareta'];
 const LIBRE_ID = '__libre__';
 
-export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometroActivo, onDetenerCronometro, onGuardar, onRefresh, loading }: FormTiemposProps) {
+export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempos, onGuardar, onRefresh, loading }: FormTiemposProps) {
   const [actividad,   setActividad]   = useState('');
   const [ordenId,     setOrdenId]     = useState('');
   const [maquina,     setMaquina]     = useState('');
@@ -69,8 +69,8 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometr
   }, [fetchOrdenes]);
 
   const ordenSeleccionada = ordenes.find((o) => o.id === ordenId) ?? null;
-  // Detenido con un tramo medido sin guardar.
-  const pendiente = !!tareaEnCurso && !cronometroActivo;
+  // Hay un cronómetro abierto (corriendo o en pausa) listo para guardarse.
+  const hayTarea = estado !== 'idle';
 
   const finalizarCorte = async () => {
     if (!ordenSeleccionada) return;
@@ -98,22 +98,11 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometr
   };
 
   const handleGuardar = async () => {
-    if (!actividad) return;
+    if (!actividad || estado === 'idle') return;
 
-    let horaInicio: string | undefined;
-    let horaFin: string | undefined;
-    let minutosNetos = 0;
-
-    if (cronometroActivo) {
-      const r = onDetenerCronometro();
-      horaInicio   = r?.horaInicio;
-      horaFin      = r?.horaFin;
-      minutosNetos = r?.minutosNetos ?? 0;
-    } else {
-      horaInicio   = tareaEnCurso?.horaInicio?.toTimeString()?.split(' ')[0];
-      horaFin      = tareaEnCurso?.horaFin?.toTimeString()?.split(' ')[0];
-      minutosNetos = tareaEnCurso?.minutosNetos || 0;
-    }
+    const t = onObtenerTiempos();
+    if (!t) return;
+    const { horaInicio, horaFin, minutosNetos } = t;
 
     const tiempo: TiemposProduccion = {
       usuario,
@@ -357,23 +346,22 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometr
       </div>
 
       <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-1 bg-gradient-to-t from-white via-white to-transparent">
-        {(cronometroActivo || pendiente) && !actividad && (
+        {hayTarea && !actividad && (
           <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
             Elegí una actividad arriba para guardar ↑
           </p>
         )}
+        {!hayTarea && (
+          <p className="text-xs text-stone-400 text-center mb-1.5">
+            Iniciá el cronómetro para registrar un trabajo
+          </p>
+        )}
         <button
           onClick={handleGuardar}
-          disabled={loading || !actividad}
+          disabled={loading || !actividad || !hayTarea}
           className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 disabled:text-stone-400 text-white py-3.5 rounded-xl font-bold text-sm uppercase tracking-widest transition-all active:scale-95"
         >
-          {loading
-            ? 'Guardando...'
-            : cronometroActivo
-              ? '⏹ Detener y guardar'
-              : pendiente
-                ? '✓ Guardar registro'
-                : 'Guardar registro'}
+          {loading ? 'Guardando...' : '✓ Guardar registro'}
         </button>
       </div>
     </div>

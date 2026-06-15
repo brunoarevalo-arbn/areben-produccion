@@ -3,11 +3,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { TiemposProduccion, TareaCurso } from '@/types/tiempos';
+import { TiemposProduccion } from '@/types/tiempos';
 import { crearTiempo, getTiempos } from '@/lib/api/tiempos';
 
 const MAX_AGE_MS = 9 * 60 * 60 * 1000; // 9 horas
 const storageKey = (usuario: string) => `cronometro:${usuario}`;
+
+export type EstadoCronometro = 'idle' | 'corriendo' | 'pausado';
 
 function formatDisplay(ms: number) {
   const total = Math.floor(ms / 1000);
@@ -19,76 +21,77 @@ function formatDisplay(ms: number) {
 
 export function useTiempos(usuario: string) {
   const [registros, setRegistros] = useState<TiemposProduccion[]>([]);
-  const [tareaEnCurso, setTareaEnCurso] = useState<TareaCurso | null>(null);
-  const [cronometroActivo, setCronometroActivo] = useState(false);
+  const [estado, setEstado] = useState<EstadoCronometro>('idle');
   const [tiempoDisplay, setTiempoDisplay] = useState('00:00:00');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const horaInicioRef = useRef<Date | null>(null);
-  const cronometroIntervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const horaInicioRef  = useRef<Date | null>(null); // primer inicio (para horaInicio del registro)
+  const acumuladoMsRef = useRef(0);                 // tiempo activo acumulado (sin contar pausas)
+  const segInicioRef   = useRef<Date | null>(null); // inicio del tramo en curso (null si en pausa)
+  const intervalRef    = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
-  // Cargar datos al iniciar
-  useEffect(() => {
-    if (usuario) {
-      cargarDatos();
+  // Tiempo trabajado total: acumulado + tramo en curso si está corriendo.
+  const totalMs = () =>
+    acumuladoMsRef.current + (segInicioRef.current ? Date.now() - segInicioRef.current.getTime() : 0);
+
+  const persistir = (est: EstadoCronometro) => {
+    if (typeof window === 'undefined' || !usuario) return;
+    if (est === 'idle' || !horaInicioRef.current) {
+      localStorage.removeItem(storageKey(usuario));
+      return;
     }
+    localStorage.setItem(storageKey(usuario), JSON.stringify({
+      horaInicio:  horaInicioRef.current.toISOString(),
+      acumuladoMs: acumuladoMsRef.current,
+      segInicio:   segInicioRef.current ? segInicioRef.current.toISOString() : null,
+      estado:      est,
+    }));
+  };
+
+  // Cargar registros del día
+  useEffect(() => {
+    if (usuario) cargarDatos();
   }, [usuario]);
 
-  // Restaurar cronómetro desde localStorage si quedó pendiente
+  // Restaurar cronómetro pendiente (corriendo o en pausa) tras un refresh
   useEffect(() => {
     if (!usuario || typeof window === 'undefined') return;
-
     const raw = localStorage.getItem(storageKey(usuario));
     if (!raw) return;
-
     try {
-      const { horaInicio, horaFin } = JSON.parse(raw) as { horaInicio: string; horaFin?: string };
-      const inicio = new Date(horaInicio);
-      if (isNaN(inicio.getTime()) || Date.now() - inicio.getTime() > MAX_AGE_MS) {
+      const d = JSON.parse(raw) as {
+        horaInicio: string; acumuladoMs?: number; segInicio?: string | null; estado?: EstadoCronometro;
+      };
+      const inicio = new Date(d.horaInicio);
+      if (isNaN(inicio.getTime()) || Date.now() - inicio.getTime() > MAX_AGE_MS || typeof d.acumuladoMs !== 'number') {
         localStorage.removeItem(storageKey(usuario));
         return;
       }
-
-      horaInicioRef.current = inicio;
-
-      if (horaFin) {
-        // Tarea ya detenida, esperando guardar
-        const fin = new Date(horaFin);
-        const ms = fin.getTime() - inicio.getTime();
-        const display = formatDisplay(ms);
-        setTiempoDisplay(display);
-        setTareaEnCurso({
-          horaInicio: inicio,
-          horaFin: fin,
-          minutosNetos: Math.floor(ms / 60000),
-          tiempoDisplay: display,
-        });
+      horaInicioRef.current  = inicio;
+      acumuladoMsRef.current = d.acumuladoMs;
+      if (d.estado === 'corriendo' && d.segInicio) {
+        segInicioRef.current = new Date(d.segInicio);
+        setEstado('corriendo');
+        setTiempoDisplay(formatDisplay(totalMs()));
       } else {
-        // Cronómetro estaba corriendo
-        setTareaEnCurso({
-          horaInicio: inicio,
-          minutosNetos: 0,
-          tiempoDisplay: formatDisplay(Date.now() - inicio.getTime()),
-        });
-        setCronometroActivo(true);
+        segInicioRef.current = null;
+        setEstado('pausado');
+        setTiempoDisplay(formatDisplay(acumuladoMsRef.current));
       }
     } catch {
       localStorage.removeItem(storageKey(usuario));
     }
   }, [usuario]);
 
-  // Cronómetro
+  // Tick del cronómetro mientras corre
   useEffect(() => {
-    if (!cronometroActivo || !horaInicioRef.current) return;
-
-    cronometroIntervalRef.current = setInterval(() => {
-      if (!horaInicioRef.current) return;
-      setTiempoDisplay(formatDisplay(Date.now() - horaInicioRef.current.getTime()));
+    if (estado !== 'corriendo') return;
+    intervalRef.current = setInterval(() => {
+      setTiempoDisplay(formatDisplay(totalMs()));
     }, 100);
-
-    return () => clearInterval(cronometroIntervalRef.current);
-  }, [cronometroActivo]);
+    return () => clearInterval(intervalRef.current);
+  }, [estado]);
 
   const cargarDatos = async () => {
     try {
@@ -104,48 +107,49 @@ export function useTiempos(usuario: string) {
     }
   };
 
-  const iniciarTarea = () => {
+  const iniciar = () => {
     const ahora = new Date();
-    horaInicioRef.current = ahora;
+    horaInicioRef.current  = ahora;
+    acumuladoMsRef.current = 0;
+    segInicioRef.current   = ahora;
     setTiempoDisplay('00:00:00');
-    setCronometroActivo(true);
-    setTareaEnCurso({
-      horaInicio: ahora,
-      minutosNetos: 0,
-      tiempoDisplay: '00:00:00',
-    });
-    if (typeof window !== 'undefined' && usuario) {
-      localStorage.setItem(storageKey(usuario), JSON.stringify({ horaInicio: ahora.toISOString() }));
-    }
+    setEstado('corriendo');
+    persistir('corriendo');
   };
 
-  const terminarTarea = () => {
-    if (!horaInicioRef.current) return;
+  const pausar = () => {
+    if (estado !== 'corriendo' || !segInicioRef.current) return;
+    acumuladoMsRef.current += Date.now() - segInicioRef.current.getTime();
+    segInicioRef.current = null;
+    setTiempoDisplay(formatDisplay(acumuladoMsRef.current));
+    setEstado('pausado');
+    persistir('pausado');
+  };
 
-    const horaFin = new Date();
-    const minutosNetos = Math.floor(
-      (horaFin.getTime() - horaInicioRef.current.getTime()) / 60000
-    );
+  const reanudar = () => {
+    if (estado !== 'pausado') return;
+    segInicioRef.current = new Date();
+    setEstado('corriendo');
+    persistir('corriendo');
+  };
 
-    setCronometroActivo(false);
-    setTareaEnCurso({
-      horaInicio: horaInicioRef.current,
-      horaFin,
-      minutosNetos,
-      tiempoDisplay,
-    });
+  const descartar = () => {
+    horaInicioRef.current  = null;
+    acumuladoMsRef.current = 0;
+    segInicioRef.current   = null;
+    setTiempoDisplay('00:00:00');
+    setEstado('idle');
+    persistir('idle');
+  };
 
-    if (typeof window !== 'undefined' && usuario) {
-      localStorage.setItem(storageKey(usuario), JSON.stringify({
-        horaInicio: horaInicioRef.current.toISOString(),
-        horaFin: horaFin.toISOString(),
-      }));
-    }
-
+  // Foto de los tiempos para guardar (no resetea; el reset ocurre al guardar OK).
+  const obtenerTiempos = () => {
+    if (!horaInicioRef.current) return undefined;
+    const fin = new Date();
     return {
-      horaInicio: horaInicioRef.current.toTimeString().split(' ')[0],
-      horaFin: horaFin.toTimeString().split(' ')[0],
-      minutosNetos,
+      horaInicio:   horaInicioRef.current.toTimeString().split(' ')[0],
+      horaFin:      fin.toTimeString().split(' ')[0],
+      minutosNetos: Math.floor(totalMs() / 60000),
     };
   };
 
@@ -153,18 +157,14 @@ export function useTiempos(usuario: string) {
     try {
       setLoading(true);
       const resultado = await crearTiempo(tiempo);
+      setRegistros((prev) => [...prev, resultado]);
 
-      const nuevos = [...registros, resultado];
-      setRegistros(nuevos);
-
-      setTareaEnCurso(null);
-      setCronometroActivo(false);
+      horaInicioRef.current  = null;
+      acumuladoMsRef.current = 0;
+      segInicioRef.current   = null;
+      setEstado('idle');
       setTiempoDisplay('00:00:00');
-      horaInicioRef.current = null;
-
-      if (typeof window !== 'undefined' && usuario) {
-        localStorage.removeItem(storageKey(usuario));
-      }
+      persistir('idle');
 
       setError(null);
       return resultado;
@@ -179,13 +179,15 @@ export function useTiempos(usuario: string) {
 
   return {
     registros,
-    tareaEnCurso,
-    cronometroActivo,
+    estado,
     tiempoDisplay,
     loading,
     error,
-    iniciarTarea,
-    terminarTarea,
+    iniciar,
+    pausar,
+    reanudar,
+    descartar,
+    obtenerTiempos,
     guardarRegistro,
     cargarDatos,
   };
