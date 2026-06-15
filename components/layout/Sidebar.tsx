@@ -9,7 +9,7 @@ interface SidebarProps {
   rol:      string;
 }
 
-interface SubItem { label: string; href: string; nuevoHref?: string; }
+interface SubItem { label: string; href: string; nuevoHref?: string; seccion?: string; }
 
 const NAV: { label: string; href: string; icon: string; seccion: string; sub: SubItem[] }[] = [
   {
@@ -76,7 +76,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     icon: '⚙',
     seccion: 'configuracion',
     sub: [
-      { label: 'Usuarios',          href: '/configuracion/usuarios' },
+      { label: 'Usuarios',          href: '/configuracion/usuarios', seccion: 'usuarios' },
       { label: 'Proveedores',       href: '/configuracion/proveedores' },
       { label: 'Insumos',           href: '/configuracion/insumos-catalogo' },
       { label: 'Cortadores',        href: '/configuracion/cortadores' },
@@ -125,7 +125,7 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
 
               {item.sub.length > 0 && active && (
                 <div className="ml-9 mt-0.5 mb-1 space-y-0.5">
-                  {item.sub.map((s) => (
+                  {item.sub.filter((s) => permisos.includes(s.seccion ?? item.seccion)).map((s) => (
                     <div key={s.href} className="flex items-center gap-1">
                       <Link
                         href={s.href}

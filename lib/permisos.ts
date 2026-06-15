@@ -15,7 +15,8 @@ export const PERMISOS = [
   { key: 'produccion',    label: 'Producción',    desc: 'Órdenes, cortes, reportes y pagos de corte' },
   { key: 'gastos',        label: 'Gastos',        desc: 'Gastos del taller' },
   { key: 'costos',        label: 'Costos',        desc: 'Escandallos, costos de costura y productividad' },
-  { key: 'configuracion', label: 'Configuración', desc: 'Usuarios, cortadores, proveedores y catálogos' },
+  { key: 'configuracion', label: 'Configuración', desc: 'Cortadores, proveedores y catálogos' },
+  { key: 'usuarios',      label: 'Usuarios',      desc: 'Gestión de usuarios y permisos' },
 ] as const;
 
 export type PermisoKey = typeof PERMISOS[number]['key'];

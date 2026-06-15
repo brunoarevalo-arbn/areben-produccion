@@ -1,17 +1,11 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
+import { requirePagina } from '@/lib/page-guard';
 import { UsuariosManager } from '@/components/configuracion/UsuariosManager';
 
 export const dynamic = 'force-dynamic';
 
 export default async function UsuariosPage() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE)?.value;
-  const session = token ? await verifySession(token) : null;
-
-  if (!session || session.rol !== 'admin') redirect('/dashboard');
+  const session = await requirePagina('usuarios');
 
   const usuarios = await prisma.usuario.findMany({
     select: { id: true, nombre: true, username: true, rol: true, permisos: true, activo: true, createdAt: true },

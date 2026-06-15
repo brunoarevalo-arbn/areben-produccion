@@ -1,20 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/password';
-import { verifySession, SESSION_COOKIE } from '@/lib/session';
+import { requirePermiso } from '@/lib/auth';
 
 const ROLES_VALIDOS = ['admin', 'costurera', 'diseñadora'];
 
-async function requireAdmin(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  const session = await verifySession(token);
-  if (!session || session.rol !== 'admin') return null;
-  return session;
-}
-
 export async function GET(req: NextRequest) {
-  const session = await requireAdmin(req);
+  const session = await requirePermiso(req, 'usuarios');
   if (!session) {
     const count = await prisma.usuario.count();
     if (count === 0) return NextResponse.json([]);
@@ -32,7 +24,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const count = await prisma.usuario.count();
   if (count > 0) {
-    const session = await requireAdmin(req);
+    const session = await requirePermiso(req, 'usuarios');
     if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   }
 

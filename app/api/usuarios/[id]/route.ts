@@ -1,18 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { hashPassword } from '@/lib/password';
-import { verifySession, SESSION_COOKIE } from '@/lib/session';
-
-async function requireAdmin(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  if (!token) return null;
-  const session = await verifySession(token);
-  if (!session || session.rol !== 'admin') return null;
-  return session;
-}
+import { requirePermiso } from '@/lib/auth';
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await requireAdmin(req);
+  const session = await requirePermiso(req, 'usuarios');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
@@ -37,7 +29,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await requireAdmin(req);
+  const session = await requirePermiso(req, 'usuarios');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
