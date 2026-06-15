@@ -69,6 +69,8 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometr
   }, [fetchOrdenes]);
 
   const ordenSeleccionada = ordenes.find((o) => o.id === ordenId) ?? null;
+  // Detenido con un tramo medido sin guardar.
+  const pendiente = !!tareaEnCurso && !cronometroActivo;
 
   const finalizarCorte = async () => {
     if (!ordenSeleccionada) return;
@@ -354,13 +356,26 @@ export function FormTiempos({ usuario, ordenesIniciales, tareaEnCurso, cronometr
         )}
       </div>
 
-      <button
-        onClick={handleGuardar}
-        disabled={loading || !actividad}
-        className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 disabled:text-stone-400 text-white py-3.5 rounded-xl font-bold text-sm uppercase tracking-widest transition-all active:scale-95"
-      >
-        {loading ? 'Guardando...' : 'Guardar Registro'}
-      </button>
+      <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-1 bg-gradient-to-t from-white via-white to-transparent">
+        {(cronometroActivo || pendiente) && !actividad && (
+          <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
+            Elegí una actividad arriba para guardar ↑
+          </p>
+        )}
+        <button
+          onClick={handleGuardar}
+          disabled={loading || !actividad}
+          className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 disabled:text-stone-400 text-white py-3.5 rounded-xl font-bold text-sm uppercase tracking-widest transition-all active:scale-95"
+        >
+          {loading
+            ? 'Guardando...'
+            : cronometroActivo
+              ? '⏹ Detener y guardar'
+              : pendiente
+                ? '✓ Guardar registro'
+                : 'Guardar registro'}
+        </button>
+      </div>
     </div>
   );
 }

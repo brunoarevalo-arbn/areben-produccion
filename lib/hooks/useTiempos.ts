@@ -107,6 +107,7 @@ export function useTiempos(usuario: string) {
   const iniciarTarea = () => {
     const ahora = new Date();
     horaInicioRef.current = ahora;
+    setTiempoDisplay('00:00:00');
     setCronometroActivo(true);
     setTareaEnCurso({
       horaInicio: ahora,

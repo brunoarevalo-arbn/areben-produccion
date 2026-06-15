@@ -31,6 +31,20 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
   const router  = useRouter();
   const tiempos = useTiempos(usuario.nombre);
 
+  // Detenido con un tramo medido todavía sin guardar.
+  const pendienteDeGuardar = !!tiempos.tareaEnCurso && !tiempos.cronometroActivo;
+
+  // No pisar un registro detenido sin guardar al arrancar uno nuevo.
+  const handleIniciar = () => {
+    if (pendienteDeGuardar) {
+      const ok = window.confirm(
+        'Tenés un registro detenido sin guardar. Si empezás otro, ese tramo se descarta.\n\n¿Querés descartarlo y empezar de nuevo?',
+      );
+      if (!ok) return;
+    }
+    tiempos.iniciarTarea();
+  };
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
@@ -71,7 +85,8 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
           <Cronometro
             tiempoDisplay={tiempos.tiempoDisplay}
             activo={tiempos.cronometroActivo}
-            onIniciar={tiempos.iniciarTarea}
+            pendiente={pendienteDeGuardar}
+            onIniciar={handleIniciar}
             onDetener={tiempos.terminarTarea}
           />
         </div>
