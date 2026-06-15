@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
+import { requirePermiso } from '@/lib/auth';
 
 // Acceso: cualquier no-costurera con acceso a producción (lectura y escritura).
 async function requireProduccionAccess(req: NextRequest) {
@@ -38,8 +39,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireProduccionAccess(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const parsed = CreateSchema.safeParse(await req.json());
   if (!parsed.success) {

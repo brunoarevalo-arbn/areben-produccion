@@ -1,24 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { verifySession, SESSION_COOKIE } from '@/lib/session';
-
-async function requireDisenoAccess(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const session = token ? await verifySession(token) : null;
-  if (!session) return null;
-  if (session.rol === 'admin') return session;
-  if (session.rol === 'costurera') return null;
-  const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-  if (!user?.permisos.includes('diseno')) return session;
-  return null;
-}
+import { requirePermiso } from '@/lib/auth';
 
 const PostSchema = z.object({ faseId: z.string().min(1) });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await requireDisenoAccess(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
   const parsed = PostSchema.safeParse(await req.json());

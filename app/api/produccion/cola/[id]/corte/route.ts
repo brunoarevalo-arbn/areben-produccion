@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { getSession, requirePermiso } from '@/lib/auth';
 import { RegistrarCorteSchema } from '@/lib/validators/produccion';
 import { Prisma } from '@prisma/client';
 
@@ -30,12 +30,8 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 }
 
 export async function POST(req: NextRequest, { params }: Ctx) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
-
-  if (session.rol !== 'admin' && session.rol !== 'diseñadora') {
-    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
-  }
+  const session = await requirePermiso(req, 'produccion');
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json();

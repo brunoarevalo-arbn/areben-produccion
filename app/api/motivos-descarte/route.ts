@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { getSession, requirePermiso } from '@/lib/auth';
 import { MotivoDescarteSchema } from '@/lib/validators/produccion';
 
 export async function GET(req: NextRequest) {
@@ -14,11 +14,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
-  if (session.rol !== 'admin' && session.rol !== 'diseñadora') {
-    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 });
-  }
+  if (!(await requirePermiso(req, 'configuracion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const body = await req.json();
   const parsed = MotivoDescarteSchema.safeParse(body);

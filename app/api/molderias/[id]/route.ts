@@ -1,20 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { verifySession, SESSION_COOKIE } from '@/lib/session';
+import { requirePermiso } from '@/lib/auth';
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  if (!token || !(await verifySession(token))) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
+  if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const { id } = await params;
   await prisma.molderiaCatalogo.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  if (!token || !(await verifySession(token))) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
+  if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const { id } = await params;
   const { nombre } = await req.json();
   if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });

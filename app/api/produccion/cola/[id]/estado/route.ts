@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { requirePermiso } from '@/lib/auth';
 import { CambioEstadoSchema, ESTADO_SIGUIENTE } from '@/lib/validators/produccion';
 import { EstadoOP } from '@prisma/client';
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
-
-  if (session.rol !== 'admin' && session.rol !== 'diseñadora') {
-    return NextResponse.json({ error: 'Sin permiso para cambiar estado' }, { status: 403 });
-  }
+  const session = await requirePermiso(req, 'produccion');
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json();

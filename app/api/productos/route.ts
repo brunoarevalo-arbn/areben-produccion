@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { ProductoSchema } from '@/lib/validators/diseno';
 import { ZodError } from 'zod';
+import { requirePermiso } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
   try {
@@ -28,6 +29,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   try {
     const body      = await req.json();
     const validated = ProductoSchema.parse(body);

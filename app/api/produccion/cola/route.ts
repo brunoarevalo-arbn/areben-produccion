@@ -1,21 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
+import { requirePermiso } from '@/lib/auth';
 
 async function getSession(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   if (!token) return null;
   return verifySession(token);
-}
-
-async function requireProduccionAccess(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session) return null;
-  if (session.rol === 'admin') return session;
-  if (session.rol === 'costurera') return null;
-  const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-  if (!user?.permisos.includes('produccion')) return session;
-  return null;
 }
 
 export async function GET(req: NextRequest) {
@@ -42,10 +33,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireProduccionAccess(req);
-  if (!session) {
-    return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
-  }
+  const session = await requirePermiso(req, 'produccion');
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const body = await req.json();
   const { sku, descripcion, marca, cantidad, notas } = body;

@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { verifySession, SESSION_COOKIE } from '@/lib/session';
-
-async function requireDisenoAccess(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const session = token ? await verifySession(token) : null;
-  if (!session) return null;
-  if (session.rol === 'admin') return session;
-  if (session.rol === 'costurera') return null;
-  const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-  if (!user?.permisos.includes('diseno')) return session;
-  return null;
-}
+import { requirePermiso } from '@/lib/auth';
 
 const PatchSchema = z.object({
   estado:          z.enum(['en_progreso', 'completada']).optional(),
@@ -26,8 +15,7 @@ const PatchSchema = z.object({
 type Ctx = { params: Promise<{ id: string; faseProyectoId: string }> };
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const session = await requireDisenoAccess(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { faseProyectoId } = await params;
   const parsed = PatchSchema.safeParse(await req.json());
@@ -54,8 +42,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const session = await requireDisenoAccess(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const { faseProyectoId } = await params;
   await prisma.faseProyecto.delete({ where: { id: faseProyectoId } });
   return NextResponse.json({ ok: true });

@@ -1,18 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
-import { verifySession, SESSION_COOKIE } from '@/lib/session';
-
-async function requireProduccionAccess(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const session = token ? await verifySession(token) : null;
-  if (!session) return null;
-  if (session.rol === 'admin') return session;
-  if (session.rol === 'costurera') return null;
-  const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-  if (!user?.permisos.includes('produccion')) return session;
-  return null;
-}
+import { requirePermiso } from '@/lib/auth';
 
 const BodySchema = z.object({
   marca:  z.string().min(1),
@@ -23,8 +12,7 @@ const BodySchema = z.object({
 const PAD = 3;
 
 export async function POST(req: NextRequest) {
-  const session = await requireProduccionAccess(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const parsed = BodySchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues }, { status: 400 });

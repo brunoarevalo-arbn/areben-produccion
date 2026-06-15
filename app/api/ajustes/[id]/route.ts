@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requirePermiso } from '@/lib/auth';
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
+  if (!(await requirePermiso(req, 'insumos'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   try {
     const { id }    = await params;
     const { estado } = await req.json();
@@ -30,7 +32,8 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   }
 }
 
-export async function DELETE(_req: NextRequest, { params }: Ctx) {
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  if (!(await requirePermiso(req, 'insumos'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   try {
     const { id } = await params;
     await prisma.ajusteMuestra.delete({ where: { id } });

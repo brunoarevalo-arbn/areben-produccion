@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { MovimientoSchema } from '@/lib/validators/stock';
 import { ZodError } from 'zod';
+import { requirePermiso } from '@/lib/auth';
 
 export async function GET() {
   try {
@@ -17,6 +18,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await requirePermiso(req, 'insumos'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   try {
     const body      = await req.json();
     const validated = MovimientoSchema.parse(body);

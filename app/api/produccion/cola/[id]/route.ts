@@ -1,18 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
-import { verifySession, SESSION_COOKIE } from '@/lib/session';
-
-async function requireProduccionAccess(req: NextRequest) {
-  const token = req.cookies.get(SESSION_COOKIE)?.value;
-  const session = token ? await verifySession(token) : null;
-  if (!session) return null;
-  if (session.rol === 'admin') return session;
-  if (session.rol === 'costurera') return null;
-  const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-  if (!user?.permisos.includes('produccion')) return session;
-  return null;
-}
+import { getSession, requirePermiso } from '@/lib/auth';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -39,8 +27,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 }
 
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const session = await requireProduccionAccess(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'produccion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json();
@@ -71,8 +58,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, { params }: Ctx) {
-  const session = await requireProduccionAccess(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'produccion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
   await prisma.ordenProduccion.delete({ where: { id } });

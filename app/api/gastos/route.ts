@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
+import { requirePermiso } from '@/lib/auth';
 
 async function requireAccess(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -33,7 +34,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireAccess(req);
+  const session = await requirePermiso(req, 'gastos');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const body = await req.json();
