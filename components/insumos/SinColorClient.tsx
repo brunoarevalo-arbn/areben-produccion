@@ -9,6 +9,7 @@ interface Huerfano {
   cantidad: string;
   insumoId: string;
   insumoNombre: string;
+  colorProveedor: string | null;
   coloresDisponibles: { id: string; nombre: string }[];
 }
 
@@ -37,6 +38,7 @@ export function SinColorClient() {
           huerfanos.push({
             id: r.id, tipo: 'rollo', codigo: r.codigo,
             cantidad: r.pesoActual, insumoId: r.insumoId, insumoNombre: ins.nombre,
+            colorProveedor: r.colorProveedor ?? null,
             coloresDisponibles: [],
           });
         }
@@ -48,6 +50,7 @@ export function SinColorClient() {
           huerfanos.push({
             id: l.id, tipo: 'lote', codigo: l.codigo,
             cantidad: l.cantidadActual, insumoId: l.insumoId, insumoNombre: ins.nombre,
+            colorProveedor: l.colorProveedor ?? null,
             coloresDisponibles: [],
           });
         }
@@ -96,23 +99,25 @@ export function SinColorClient() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-          <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_auto_1fr_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
+          <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_auto_1fr_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
             <span>Tipo</span>
             <span>Codigo</span>
             <span>Insumo</span>
             <span className="text-right">Cantidad</span>
-            <span>Color</span>
+            <span>Color prov.</span>
+            <span>Color interno</span>
             <span />
           </div>
           {items.map((item, i) => (
             <div key={item.id}
-              className={`px-5 py-3 grid grid-cols-[auto_auto_1fr_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''}`}>
+              className={`px-5 py-3 grid grid-cols-[auto_auto_1fr_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''}`}>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${item.tipo === 'rollo' ? 'bg-blue-100 text-blue-700' : 'bg-violet-100 text-violet-700'}`}>
                 {item.tipo}
               </span>
               <span className="font-mono font-semibold text-sm text-stone-700">{item.codigo}</span>
               <span className="text-sm text-stone-800">{item.insumoNombre}</span>
               <span className="text-sm tabular-nums text-right text-stone-700">{fmt(item.cantidad)}</span>
+              <span className="text-sm text-stone-600 font-medium">{item.colorProveedor || <span className="text-stone-300">—</span>}</span>
               <select value={selecciones[item.id] || ''}
                 onChange={(e) => setSelecciones((prev) => ({ ...prev, [item.id]: e.target.value }))}
                 className={inp}>

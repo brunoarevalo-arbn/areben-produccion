@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ESTADO_LABEL, ESTADO_COLOR, type EstadoProyecto } from '@/lib/diseno/estado';
@@ -297,6 +297,19 @@ function SeccionInspiracion({ proyecto, onChange }: { proyecto: Proyecto; onChan
   const [molderia,    setMolderia]    = useState(proyecto.molderia ?? '');
   const [tela,        setTela]        = useState(proyecto.tela ?? '');
   const [saving,      setSaving]      = useState(false);
+  // Sugerencias de telas reales (insumos categoría=tela) y molderías del catálogo.
+  const [telaOpts,     setTelaOpts]     = useState<string[]>([]);
+  const [molderiaOpts, setMolderiaOpts] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!editing) return;
+    fetch('/api/insumos').then((r) => r.ok ? r.json() : []).then((ins) =>
+      setTelaOpts((ins as { categoria: string; activo: boolean; nombre: string }[])
+        .filter((i) => i.categoria === 'tela' && i.activo).map((i) => i.nombre)));
+    fetch('/api/molderias').then((r) => r.ok ? r.json() : []).then((ms) =>
+      setMolderiaOpts((ms as { activo: boolean; nombre: string }[])
+        .filter((m) => m.activo).map((m) => m.nombre)));
+  }, [editing]);
 
   const guardar = async () => {
     setSaving(true);
@@ -326,10 +339,12 @@ function SeccionInspiracion({ proyecto, onChange }: { proyecto: Proyecto; onChan
             placeholder="Link de Pinterest, idea base, descripción…" rows={4}
             className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400 resize-none" />
           <div className="grid grid-cols-2 gap-3">
-            <input value={molderia} onChange={(e) => setMolderia(e.target.value)} placeholder="Molderia"
+            <input value={molderia} onChange={(e) => setMolderia(e.target.value)} placeholder="Moldería" list="molderias-list"
               className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
-            <input value={tela} onChange={(e) => setTela(e.target.value)} placeholder="Tela"
+            <input value={tela} onChange={(e) => setTela(e.target.value)} placeholder="Tela" list="telas-list"
               className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+            <datalist id="molderias-list">{molderiaOpts.map((m) => <option key={m} value={m} />)}</datalist>
+            <datalist id="telas-list">{telaOpts.map((t) => <option key={t} value={t} />)}</datalist>
           </div>
           <div className="flex gap-2">
             <button onClick={guardar} disabled={saving}

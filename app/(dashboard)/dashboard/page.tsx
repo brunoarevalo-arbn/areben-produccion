@@ -9,7 +9,6 @@ const ACCESOS = [
   { label: 'Registrar tiempos', href: '/tiempos' },
   { label: 'Reportes',          href: '/produccion/reportes' },
   { label: 'Molderías',         href: '/diseno/molderias' },
-  { label: 'Telas',             href: '/diseno/telas' },
 ];
 
 const MARCAS = ['Zattia', 'Stunned'] as const;

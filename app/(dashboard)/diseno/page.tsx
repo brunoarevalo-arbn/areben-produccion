@@ -43,10 +43,6 @@ export default async function DisenoPage() {
             className="text-xs px-3 py-2 rounded-xl border border-stone-200 text-stone-600 hover:border-stone-400 transition">
             Molderías
           </Link>
-          <Link href="/diseno/telas"
-            className="text-xs px-3 py-2 rounded-xl border border-stone-200 text-stone-600 hover:border-stone-400 transition">
-            Telas
-          </Link>
         </div>
       </div>
 

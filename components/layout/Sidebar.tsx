@@ -27,7 +27,6 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     sub: [
       { label: 'Proyectos', href: '/diseno', nuevoHref: '/diseno/nuevo' },
       { label: 'Molderías', href: '/diseno/molderias' },
-      { label: 'Telas',     href: '/diseno/telas' },
     ],
   },
   {

@@ -4,14 +4,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 
 interface Proveedor { id: string; nombre: string; }
-interface SkuColorOpt { id: string; nombre: string; abreviatura: string; }
 interface InsumoOpt { id: string; nombre: string; categoria: string; tipoTrazabilidad: string; unidadDefault: string; activo: boolean; }
 
 interface RolloLinea { pesoInicial: string; ubicacion: string; }
 interface Linea {
   key: number;
   insumoId: string;
-  colorId: string;
+  colorProveedor: string;
   unidad: string;
   cantidad: string;
   precioUnitario: string;
@@ -27,7 +26,6 @@ export function NuevaCompraForm() {
   const router = useRouter();
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [insumos, setInsumos]         = useState<InsumoOpt[]>([]);
-  const [coloresCatalogo, setColoresCatalogo] = useState<SkuColorOpt[]>([]);
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState('');
 
@@ -45,15 +43,14 @@ export function NuevaCompraForm() {
 
   // Lineas
   const [lineas, setLineas] = useState<Linea[]>([
-    { key: ++keyCounter, insumoId: '', colorId: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] },
+    { key: ++keyCounter, insumoId: '', colorProveedor: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] },
   ]);
 
   useEffect(() => {
     Promise.all([
       fetch('/api/proveedores').then((r) => r.ok ? r.json() : []),
       fetch('/api/insumos').then((r) => r.ok ? r.json() : []),
-      fetch('/api/sku-catalogo?categoria=color').then((r) => r.ok ? r.json() : []),
-    ]).then(([p, i, c]) => { setProveedores(p); setInsumos(i); setColoresCatalogo(c); });
+    ]).then(([p, i]) => { setProveedores(p); setInsumos(i); });
   }, []);
 
   const insumosMap = new Map(insumos.map((i) => [i.id, i]));
@@ -66,7 +63,7 @@ export function NuevaCompraForm() {
         const ins = insumosMap.get(value);
         if (ins) {
           updated.unidad = ins.unidadDefault;
-          updated.colorId = '';
+          updated.colorProveedor = '';
           if (ins.tipoTrazabilidad === 'rollo' && updated.rollos.length === 0) {
             updated.rollos = [{ pesoInicial: '', ubicacion: '' }];
           } else if (ins.tipoTrazabilidad === 'lote') {
@@ -79,7 +76,7 @@ export function NuevaCompraForm() {
   }, [insumosMap]);
 
   const addLinea = () => {
-    setLineas((prev) => [...prev, { key: ++keyCounter, insumoId: '', colorId: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] }]);
+    setLineas((prev) => [...prev, { key: ++keyCounter, insumoId: '', colorProveedor: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] }]);
   };
 
   const removeLinea = (key: number) => {
@@ -158,7 +155,7 @@ export function NuevaCompraForm() {
       notas: notas || undefined,
       lineas: lineas.map((l) => ({
         insumoId: l.insumoId,
-        colorId: l.colorId || undefined,
+        colorProveedor: l.colorProveedor || undefined,
         cantidad: parseFloat(l.cantidad),
         unidad: l.unidad,
         precioUnitario: parseFloat(l.precioUnitario),
@@ -308,16 +305,13 @@ export function NuevaCompraForm() {
                 </button>
               </div>
 
-              {/* Selector de color */}
-              {l.insumoId && coloresCatalogo.length > 0 && (
+              {/* Color del proveedor (nombre comercial). El color interno lo asigna la diseñadora después. */}
+              {l.insumoId && (
                 <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-stone-600">Color:</label>
-                  <select value={l.colorId} onChange={(e) => updateLinea(l.key, 'colorId', e.target.value)} className={inpSm}>
-                    <option value="">-- Color --</option>
-                    {coloresCatalogo.map((c) => (
-                      <option key={c.id} value={c.id}>{c.nombre}</option>
-                    ))}
-                  </select>
+                  <label className="text-xs font-semibold text-stone-600 whitespace-nowrap">Color (proveedor):</label>
+                  <input type="text" value={l.colorProveedor}
+                    onChange={(e) => updateLinea(l.key, 'colorProveedor', e.target.value)}
+                    placeholder="Ej. Lindt — opcional" className={inpSm} />
                 </div>
               )}
 
