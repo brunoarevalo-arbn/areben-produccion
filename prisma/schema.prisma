@@ -284,6 +284,15 @@ model CostoCosturera {
   @@map("costos_costureras")
 }
 
+model ConfigCostos {
+  id               String   @id @default("singleton")
+  margenDesarrollo Float    @default(10)
+  margenFallas     Float    @default(5)
+  updatedAt        DateTime @updatedAt
+
+  @@map("config_costos")
+}
+
 model Escandallo {
   id          String   @id @default(cuid())
   nombre      String

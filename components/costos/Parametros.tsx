@@ -24,6 +24,11 @@ export function Parametros() {
   const [editGastoId, setEditGastoId] = useState<string | null>(null);
   const [editMonto,   setEditMonto]   = useState('');
 
+  const [margenDesarrollo, setMargenDesarrollo] = useState('10');
+  const [margenFallas,     setMargenFallas]     = useState('5');
+  const [savingM,          setSavingM]          = useState(false);
+  const [savedM,           setSavedM]           = useState(false);
+
   const cargar = useCallback(async () => {
     setLoading(true);
     const [rG, rC] = await Promise.all([
@@ -36,6 +41,28 @@ export function Parametros() {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
+
+  useEffect(() => {
+    fetch('/api/costos/config')
+      .then((r) => r.json())
+      .then((c) => {
+        if (c && typeof c.margenDesarrollo === 'number') {
+          setMargenDesarrollo(String(c.margenDesarrollo));
+          setMargenFallas(String(c.margenFallas));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const guardarMargenes = async () => {
+    setSavingM(true);
+    const r = await fetch('/api/costos/config', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ margenDesarrollo: parseFloat(margenDesarrollo) || 0, margenFallas: parseFloat(margenFallas) || 0 }),
+    });
+    setSavingM(false);
+    if (r.ok) { setSavedM(true); setTimeout(() => setSavedM(false), 2000); }
+  };
 
   const agregarGasto = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,6 +135,28 @@ export function Parametros() {
             </div>
           ))}
         </div>
+      </div>
+
+      {/* Márgenes */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+        <h3 className="text-sm font-bold text-stone-800 mb-1">Márgenes</h3>
+        <p className="text-xs text-stone-400 mb-4">Se aplican a todos los escandallos.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-stone-400 mb-1 block">Margen de desarrollo %</label>
+            <input type="number" value={margenDesarrollo} onChange={(e) => setMargenDesarrollo(e.target.value)}
+              placeholder="10" min="0" max="100" step="0.5" className={inputCls} />
+          </div>
+          <div>
+            <label className="text-xs text-stone-400 mb-1 block">Margen de fallas %</label>
+            <input type="number" value={margenFallas} onChange={(e) => setMargenFallas(e.target.value)}
+              placeholder="5" min="0" max="100" step="0.5" className={inputCls} />
+          </div>
+        </div>
+        <button onClick={guardarMargenes} disabled={savingM}
+          className={`mt-4 px-4 py-2 rounded-xl text-sm font-semibold transition ${savedM ? 'bg-emerald-600 text-white' : 'bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50'}`}>
+          {savingM ? 'Guardando...' : savedM ? '✓ Guardado' : 'Guardar márgenes'}
+        </button>
       </div>
 
       {/* Gastos fijos */}

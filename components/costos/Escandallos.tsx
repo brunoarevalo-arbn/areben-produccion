@@ -24,12 +24,22 @@ interface DatosEscandallo {
   medidasPostLavado?: MedidasLavado;
   margenDesarrollo: number;
   margenFallas: number;
+  costoTelaFicha?: number;
 }
 interface Escandallo {
   id: string; nombre: string; sku: string | null; marca: string | null;
   tipoPrenda: string | null; notas: string | null; datos: string | null;
   createdAt: string; updatedAt: string;
 }
+interface ProductoProd {
+  sku: string;
+  marca: string;
+  descripcion: string | null;
+  costoTelaUnit: number | null;
+  tieneFicha: boolean;
+  tieneEscandallo: boolean;
+}
+interface Margenes { margenDesarrollo: number; margenFallas: number; }
 
 const MARCAS = ['Zattia', 'Stunned'];
 const MEDIDAS_LAVADO_EMPTY: MedidasLavado = { largo: 0, ancho: 0, talle: '' };
@@ -47,12 +57,14 @@ function pf(v: string) { return parseFloat(v) || 0; }
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 function deepClone<T>(o: T): T { return JSON.parse(JSON.stringify(o)); }
 
-function calcular(d: DatosEscandallo, costoMinuto: number) {
-  const costoTelas = d.telas.reduce((s, t) => {
-    const pConFlete = t.precioKgNeto * (1 + t.fletePercent / 100);
-    const pMetro = t.rindeMetrosKg > 0 ? pConFlete / t.rindeMetrosKg : 0;
-    return s + pMetro * t.consumoMetros;
-  }, 0);
+function calcular(d: DatosEscandallo, costoMinuto: number, margenes: Margenes) {
+  const costoTelas = d.costoTelaFicha != null
+    ? d.costoTelaFicha
+    : d.telas.reduce((s, t) => {
+        const pConFlete = t.precioKgNeto * (1 + t.fletePercent / 100);
+        const pMetro = t.rindeMetrosKg > 0 ? pConFlete / t.rindeMetrosKg : 0;
+        return s + pMetro * t.consumoMetros;
+      }, 0);
   const costoServicios  = d.costoCorte + d.costoTizada + d.costoLavadero;
   const costoMO         = d.tiempoConfeccion * costoMinuto;
   const costoVarios     = d.varios.reduce((s, v) => s + v.costo, 0);
@@ -61,8 +73,8 @@ function calcular(d: DatosEscandallo, costoMinuto: number) {
     d.avios.bolsaPolipropileno + costoEmbolsado +
     d.avios.extras.reduce((s, e) => s + e.costo, 0);
   const costoBase       = costoTelas + costoServicios + costoMO + costoVarios + costoAvios;
-  const conDesarrollo   = costoBase * (1 + d.margenDesarrollo / 100);
-  const costoTotal      = conDesarrollo * (1 + d.margenFallas / 100);
+  const conDesarrollo   = costoBase * (1 + margenes.margenDesarrollo / 100);
+  const costoTotal      = conDesarrollo * (1 + margenes.margenFallas / 100);
   return { costoTelas, costoServicios, costoMO, costoVarios, costoAvios, costoBase, conDesarrollo, costoTotal };
 }
 
@@ -73,6 +85,9 @@ export function Escandallos() {
   const [showForm, setShowForm] = useState(false);
   const [editId,   setEditId]   = useState<string | null>(null);
   const [costoMinuto, setCostoMinuto] = useState(0);
+  const [margenes, setMargenes] = useState<Margenes>({ margenDesarrollo: 10, margenFallas: 5 });
+  const [productos, setProductos] = useState<ProductoProd[]>([]);
+  const [modoProducido, setModoProducido] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -86,6 +101,16 @@ export function Escandallos() {
       const valorHora     = totalHoras > 0 ? (totalGastos + totalCosturas) / totalHoras : 0;
       setCostoMinuto(valorHora / 60);
     }).catch(() => {});
+
+    fetch('/api/costos/config')
+      .then((r) => r.json())
+      .then((c) => { if (c && typeof c.margenDesarrollo === 'number') setMargenes({ margenDesarrollo: c.margenDesarrollo, margenFallas: c.margenFallas }); })
+      .catch(() => {});
+
+    fetch('/api/costos/productos-producidos')
+      .then((r) => r.json())
+      .then((p) => { if (Array.isArray(p)) setProductos(p); })
+      .catch(() => {});
   }, []);
 
   const [nombre,     setNombre]     = useState('');
@@ -114,6 +139,7 @@ export function Escandallos() {
     setNombre(''); setSku(''); setMarca(''); setTipoPrenda(''); setNotas('');
     setDatos(deepClone(DEFAULT_DATOS)); setEditId(null); setShowForm(false);
     setTiempoProduccion(null); setSinDatosProduccion(false);
+    setModoProducido(false);
   };
 
   const openEdit = (e: Escandallo) => {
@@ -167,12 +193,51 @@ export function Escandallos() {
     setLoadingTiempo(false);
   };
 
-  const calc = calcular(datos, costoMinuto);
+  const seleccionarProducto = async (p: ProductoProd) => {
+    setSku(p.sku);
+    setNombre(p.descripcion || p.sku);
+    setMarca(p.marca);
+    setDatos(prev => ({
+      ...prev,
+      costoTelaFicha: p.costoTelaUnit != null ? p.costoTelaUnit : undefined,
+    }));
+    setTiempoProduccion(null);
+    setSinDatosProduccion(false);
+    setLoadingTiempo(true);
+    try {
+      const r = await fetch(`/api/produccion/tiempo-sku?sku=${encodeURIComponent(p.sku)}`);
+      if (r.ok) {
+        const d = await r.json();
+        if (d.encontrado) {
+          setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
+          setDatos(prev => ({ ...prev, tiempoConfeccion: d.minutosPromedio }));
+        } else {
+          setSinDatosProduccion(true);
+        }
+      }
+    } catch { /* ignore */ }
+    setLoadingTiempo(false);
+  };
+
+  const onSelectProducidoSku = (skuSel: string) => {
+    const p = productos.find(x => x.sku === skuSel);
+    if (p) seleccionarProducto(p);
+  };
+
+  const costearPendiente = (p: ProductoProd) => {
+    setShowForm(true);
+    setModoProducido(true);
+    seleccionarProducto(p);
+  };
+
+  const calc = calcular(datos, costoMinuto, margenes);
 
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim()) return;
     setSaving(true);
+    datos.margenDesarrollo = margenes.margenDesarrollo;
+    datos.margenFallas = margenes.margenFallas;
     const body = { nombre, sku, marca, tipoPrenda, notas, datos };
     const url    = editId ? `/api/costos/escandallos/${editId}` : '/api/costos/escandallos';
     const method = editId ? 'PATCH' : 'POST';
@@ -203,6 +268,27 @@ export function Escandallos() {
       {/* ── Lista ── */}
       {!showForm && (
         <>
+          {/* Pendientes de escandallo */}
+          {productos.filter(p => !p.tieneEscandallo).length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+              <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-4">Pendientes de costear</p>
+              <div className="space-y-2">
+                {productos.filter(p => !p.tieneEscandallo).map(p => (
+                  <div key={p.sku} className="flex items-center gap-3 bg-white rounded-xl border border-amber-100 px-4 py-3">
+                    <div className="flex-1 min-w-0">
+                      <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-600">{p.sku}</span>
+                      {p.descripcion && <span className="text-sm text-stone-600 ml-2">{p.descripcion}</span>}
+                    </div>
+                    <button onClick={() => costearPendiente(p)}
+                      className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">
+                      Costear
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="space-y-3">
             {lista.length === 0 && (
               <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-12 text-center">
@@ -211,7 +297,7 @@ export function Escandallos() {
             )}
             {lista.map(e => {
               let c: ReturnType<typeof calcular> | null = null;
-              try { if (e.datos) c = calcular(JSON.parse(e.datos) as DatosEscandallo, costoMinuto); } catch { /* ignore */ }
+              try { if (e.datos) c = calcular(JSON.parse(e.datos) as DatosEscandallo, costoMinuto, margenes); } catch { /* ignore */ }
               return (
                 <div key={e.id} className="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
                   <div className="flex-1 min-w-0">
@@ -259,6 +345,36 @@ export function Escandallos() {
             <button type="button" onClick={resetForm} className="text-xs text-stone-400 hover:text-stone-700 transition">✕ Cancelar</button>
           </div>
 
+          {/* Selector de producto */}
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 space-y-4">
+            <p className={sec}>¿Qué producto querés costear?</p>
+            <div className="flex gap-2">
+              <button type="button"
+                onClick={() => setModoProducido(true)}
+                className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold border transition ${modoProducido ? 'bg-violet-600 border-violet-600 text-white' : 'border-stone-200 text-stone-600 hover:border-stone-400'}`}>
+                Producto producido
+              </button>
+              <button type="button"
+                onClick={() => { setModoProducido(false); setDatos(prev => ({ ...prev, costoTelaFicha: undefined })); }}
+                className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold border transition ${!modoProducido ? 'bg-violet-600 border-violet-600 text-white' : 'border-stone-200 text-stone-600 hover:border-stone-400'}`}>
+                Nuevo producto
+              </button>
+            </div>
+            {modoProducido && (
+              <div>
+                <label className={lbl}>Elegí un producto ya producido</label>
+                <select value={sku} onChange={e => onSelectProducidoSku(e.target.value)} className={inp}>
+                  <option value="">— Seleccionar producto —</option>
+                  {productos.map(p => (
+                    <option key={p.sku} value={p.sku}>
+                      {p.sku}{p.descripcion ? ` · ${p.descripcion}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+          </div>
+
           {/* Identificación */}
           <div className="bg-white rounded-2xl border border-stone-200 p-5 space-y-4">
             <p className={sec}>Identificación</p>
@@ -294,6 +410,17 @@ export function Escandallos() {
           </div>
 
           {/* Telas */}
+          {datos.costoTelaFicha != null ? (
+          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+            <p className={`${sec} mb-3`}>Telas</p>
+            <div className="rounded-xl bg-violet-50 border border-violet-100 px-4 py-3 flex items-center justify-between">
+              <span className="text-sm text-stone-600">Tela (de la ficha de corte)</span>
+              <span className="text-base font-bold font-mono tabular-nums text-violet-700">
+                {fmt$(datos.costoTelaFicha)} <span className="text-xs font-normal text-stone-400">por prenda</span>
+              </span>
+            </div>
+          </div>
+          ) : (
           <div className="bg-white rounded-2xl border border-stone-200 p-5">
             <div className="flex items-center justify-between mb-4">
               <p className={sec}>Telas</p>
@@ -363,6 +490,7 @@ export function Escandallos() {
               })}
             </div>
           </div>
+          )}
 
           {/* Servicios fijos */}
           <div className="bg-white rounded-2xl border border-stone-200 p-5">
@@ -583,23 +711,6 @@ export function Escandallos() {
             })()}
           </div>
 
-          {/* Márgenes */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-5">
-            <p className={`${sec} mb-3`}>Márgenes de seguridad</p>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={lbl}>Margen de desarrollo %</label>
-                <input type="number" value={datos.margenDesarrollo} onChange={e => updDatos('margenDesarrollo', e.target.value)}
-                  placeholder="10" min="0" max="100" step="0.5" className={inp} />
-              </div>
-              <div>
-                <label className={lbl}>Margen de fallas %</label>
-                <input type="number" value={datos.margenFallas} onChange={e => updDatos('margenFallas', e.target.value)}
-                  placeholder="5" min="0" max="100" step="0.5" className={inp} />
-              </div>
-            </div>
-          </div>
-
           {/* Resumen */}
           <div className="bg-stone-900 rounded-2xl p-5 text-white">
             <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">Resumen de costos</p>
@@ -621,12 +732,12 @@ export function Escandallos() {
                 <span className="tabular-nums">{fmt$(calc.costoBase)}</span>
               </div>
               <div className="flex justify-between text-stone-500 text-xs">
-                <span>+ Margen desarrollo ({datos.margenDesarrollo}%)</span>
-                <span className="tabular-nums">+{fmt$(calc.costoBase * datos.margenDesarrollo / 100)}</span>
+                <span>+ Margen desarrollo ({margenes.margenDesarrollo}%)</span>
+                <span className="tabular-nums">+{fmt$(calc.costoBase * margenes.margenDesarrollo / 100)}</span>
               </div>
               <div className="flex justify-between text-stone-500 text-xs">
-                <span>+ Margen fallas ({datos.margenFallas}%)</span>
-                <span className="tabular-nums">+{fmt$(calc.conDesarrollo * datos.margenFallas / 100)}</span>
+                <span>+ Margen fallas ({margenes.margenFallas}%)</span>
+                <span className="tabular-nums">+{fmt$(calc.conDesarrollo * margenes.margenFallas / 100)}</span>
               </div>
               <div className="flex justify-between border-t border-stone-700 pt-3 mt-1">
                 <span className="text-base font-bold">Costo total unitario</span>
