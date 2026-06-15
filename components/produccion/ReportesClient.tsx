@@ -476,11 +476,11 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
             </label>
             <label className="text-xs text-stone-500">
               Hora inicio
-              <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} className={inputCls + ' mt-0.5'} />
+              <input type="time" value={horaInicio} onChange={(e) => { setHoraInicio(e.target.value); setError(null); }} className={inputCls + ' mt-0.5'} />
             </label>
             <label className="text-xs text-stone-500">
               Hora fin
-              <input type="time" value={horaFin} onChange={(e) => setHoraFin(e.target.value)} className={inputCls + ' mt-0.5'} />
+              <input type="time" value={horaFin} onChange={(e) => { setHoraFin(e.target.value); setError(null); }} className={inputCls + ' mt-0.5'} />
             </label>
             <label className="text-xs text-stone-500">
               Defectos
@@ -602,11 +602,11 @@ function NewRow({ fecha, costureras, onCancel, onSaved }: { fecha: string; costu
             </label>
             <label className="text-xs text-stone-500">
               Hora inicio
-              <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} className={inputCls + ' mt-0.5'} />
+              <input type="time" value={horaInicio} onChange={(e) => { setHoraInicio(e.target.value); setError(null); }} className={inputCls + ' mt-0.5'} />
             </label>
             <label className="text-xs text-stone-500">
               Hora fin
-              <input type="time" value={horaFin} onChange={(e) => setHoraFin(e.target.value)} className={inputCls + ' mt-0.5'} />
+              <input type="time" value={horaFin} onChange={(e) => { setHoraFin(e.target.value); setError(null); }} className={inputCls + ' mt-0.5'} />
             </label>
             <label className="text-xs text-stone-500">
               Cantidad
