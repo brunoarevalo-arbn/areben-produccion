@@ -633,3 +633,37 @@ model MovimientoInsumo {
 
   @@map("movimientos_insumo")
 }
+
+// ─── Stock de productos terminados (lisos / estampados) ────────────────
+// Lo que sale de costura (liso) ingresa acá por SKU + talle. Estampa
+// consumirá lisos y generará estampados (mismo modelo, tipo distinto).
+
+model StockTerminado {
+  id        String   @id @default(cuid())
+  sku       String
+  talle     String
+  tipo      String   @default("liso") // 'liso' | 'estampado'
+  cantidad  Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sku, talle, tipo])
+  @@index([sku])
+  @@map("stock_terminado")
+}
+
+model MovimientoTerminado {
+  id        String   @id @default(cuid())
+  sku       String
+  talle     String
+  tipo      String   @default("liso")
+  cantidad  Int      // + ingreso / - egreso
+  origen    String   // 'produccion' | 'estampa' | 'venta' | 'ajuste'
+  ordenId   String?
+  motivo    String?
+  creadoPor String
+  fecha     DateTime @default(now())
+
+  @@index([sku])
+  @@map("movimientos_terminado")
+}

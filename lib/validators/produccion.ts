@@ -24,6 +24,14 @@ export const CambioEstadoSchema = z.object({
   notas:  z.string().optional(),
 });
 
+// Terminar costura: conteo de lo que salió por talle → ingresa al stock de terminados.
+export const TerminarCosturaSchema = z.object({
+  talles: z.array(z.object({
+    talle:    z.string().min(1),
+    cantidad: z.number().int().nonnegative(),
+  })).min(1, 'Cargá al menos un talle'),
+});
+
 // Consumo de tela para una muestra (retiro chico de un rollo, opcionalmente ligado a un proyecto).
 export const MuestraSchema = z.object({
   rolloId:     z.string().min(1, 'Elegí un rollo'),

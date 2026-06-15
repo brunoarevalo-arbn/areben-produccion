@@ -48,9 +48,10 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     icon: '⏱',
     seccion: 'produccion',
     sub: [
-      { label: 'Tiempos',         href: '/tiempos' },
-      { label: 'Muestras',        href: '/produccion/muestras' },
-      { label: 'Reportes',        href: '/produccion/reportes' },
+      { label: 'Tiempos',          href: '/tiempos' },
+      { label: 'Muestras',         href: '/produccion/muestras' },
+      { label: 'Stock terminado',  href: '/produccion/stock-terminado' },
+      { label: 'Reportes',         href: '/produccion/reportes' },
       { label: 'Pagos de cortes', href: '/produccion/pagos-cortes' },
     ],
   },

@@ -109,6 +109,12 @@ export function ColaAdmin() {
   const [skuSaving,     setSkuSaving]     = useState(false);
   const [skuModalError, setSkuModalError] = useState('');
 
+  // Modal terminar costura (conteo por talle → stock de terminados)
+  const [terminarOrden,  setTerminarOrden]  = useState<Orden | null>(null);
+  const [terminarTalles, setTerminarTalles] = useState<{ talle: string; cantidad: string }[]>([]);
+  const [terminarSaving, setTerminarSaving] = useState(false);
+  const [terminarError,  setTerminarError]  = useState('');
+
   const marcas  = catalogo.filter((c) => c.categoria === 'marca' && c.activo);
   const prendas = catalogo.filter((c) => c.categoria === 'prenda' && c.activo);
   const colores = catalogo.filter((c) => c.categoria === 'color' && c.activo);
@@ -170,6 +176,11 @@ export function ColaAdmin() {
     if (estado === 'COSTURA' && ordenT && !ordenT.sku) {
       setSkuModalOrden(ordenT);
       setSkuPrenda(''); setSkuColor(''); setSkuModalError('');
+      return;
+    }
+    // Terminar costura: pide el conteo por talle (ingresa a stock).
+    if (estado === 'TERMINADO_SIN_ESTAMPA' && ordenT?.estado === 'COSTURA') {
+      abrirTerminar(ordenT);
       return;
     }
     const esRetroceso = (() => {
@@ -237,6 +248,45 @@ export function ColaAdmin() {
     const r = await fetch(`/api/produccion/cola/${id}/corte/revertir`, { method: 'POST' });
     if (r.ok) cargar();
     else { const d = await r.json().catch(() => ({})); alert(d.error || 'Error al revertir'); }
+  };
+
+  // Terminar costura: prellena el conteo por talle desde la ficha (si está), editable.
+  const abrirTerminar = async (orden: Orden) => {
+    setTerminarOrden(orden);
+    setTerminarError('');
+    let talles: { talle: string; cantidad: string }[] = [];
+    const r = await fetch(`/api/produccion/cola/${orden.id}/corte`);
+    if (r.ok) {
+      const data = await r.json();
+      if (Array.isArray(data.cortesPorTalle) && data.cortesPorTalle.length > 0) {
+        talles = data.cortesPorTalle.map((c: { talle: string; cantidad: number }) => ({ talle: c.talle, cantidad: String(c.cantidad) }));
+      }
+    }
+    setTerminarTalles(talles.length > 0 ? talles : [{ talle: '', cantidad: '' }]);
+  };
+
+  const setTalleRow = (i: number, field: 'talle' | 'cantidad', val: string) =>
+    setTerminarTalles((prev) => prev.map((t, idx) => idx === i ? { ...t, [field]: val } : t));
+  const addTalleRow = () => setTerminarTalles((prev) => [...prev, { talle: '', cantidad: '' }]);
+  const rmTalleRow  = (i: number) => setTerminarTalles((prev) => prev.filter((_, idx) => idx !== i));
+  const totalTerminar = terminarTalles.reduce((s, t) => s + (parseInt(t.cantidad) || 0), 0);
+
+  const confirmarTerminar = async () => {
+    if (!terminarOrden) return;
+    const talles = terminarTalles
+      .filter((t) => t.talle.trim() && (parseInt(t.cantidad) || 0) > 0)
+      .map((t) => ({ talle: t.talle.trim().toUpperCase(), cantidad: parseInt(t.cantidad) }));
+    if (talles.length === 0) { setTerminarError('Cargá al menos un talle con cantidad'); return; }
+    setTerminarSaving(true);
+    setTerminarError('');
+    const r = await fetch(`/api/produccion/cola/${terminarOrden.id}/terminar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ talles }),
+    });
+    setTerminarSaving(false);
+    if (r.ok) { setTerminarOrden(null); cargar(); }
+    else { const d = await r.json().catch(() => ({})); setTerminarError(d.error || 'Error al terminar'); }
   };
 
   const eliminar = async (id: string, sku: string | null) => {
@@ -499,6 +549,40 @@ export function ColaAdmin() {
                 className="px-4 py-2 rounded-xl text-sm border border-stone-200 text-stone-600 transition">
                 Cancelar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal terminar costura: conteo por talle → stock de terminados */}
+      {terminarOrden && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={() => setTerminarOrden(null)}>
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-stone-800 mb-1">Terminar costura <span className="font-mono text-stone-500">{terminarOrden.sku}</span></h3>
+            <p className="text-xs text-stone-500 mb-3">¿Cuántas salieron de cada talle? Ingresan al stock de terminados.</p>
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {terminarTalles.map((t, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input value={t.talle} onChange={(e) => setTalleRow(i, 'talle', e.target.value.toUpperCase())} placeholder="Talle"
+                    className="w-24 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
+                  <input type="number" value={t.cantidad} onChange={(e) => setTalleRow(i, 'cantidad', e.target.value)} placeholder="Cant." min="0"
+                    className="flex-1 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
+                  <button type="button" onClick={() => rmTalleRow(i)} className="text-stone-400 hover:text-red-500 px-1 text-lg leading-none">×</button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <button type="button" onClick={addTalleRow} className="text-xs text-stone-500 hover:text-stone-800 transition">+ Agregar talle</button>
+              <span className="text-xs text-stone-500">Total: <strong className="text-stone-800">{totalTerminar}</strong> u</span>
+            </div>
+            {terminarError && <p className="text-red-500 text-xs mt-2">{terminarError}</p>}
+            <div className="flex gap-2 mt-4">
+              <button onClick={confirmarTerminar} disabled={terminarSaving || totalTerminar === 0}
+                className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2 rounded-xl text-sm font-semibold transition">
+                {terminarSaving ? 'Terminando...' : 'Terminar y mandar a stock'}
+              </button>
+              <button onClick={() => setTerminarOrden(null)}
+                className="px-4 py-2 rounded-xl text-sm border border-stone-200 text-stone-600 transition">Cancelar</button>
             </div>
           </div>
         </div>
