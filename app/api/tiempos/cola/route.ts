@@ -6,8 +6,9 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   try {
     const ordenes = await prisma.ordenProduccion.findMany({
-      where: { estado: { notIn: ['CERRADA'] } },
-      orderBy: [{ estado: 'asc' }, { createdAt: 'asc' }],
+      // La tablet de costura solo muestra órdenes en costura.
+      where: { estado: 'COSTURA' },
+      orderBy: [{ createdAt: 'asc' }],
       select: { id: true, sku: true, descripcion: true, marca: true, cantidad: true, estado: true },
     });
     return NextResponse.json(ordenes);

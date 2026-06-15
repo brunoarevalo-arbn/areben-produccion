@@ -72,23 +72,19 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   // Hay un cronómetro abierto (corriendo o en pausa) listo para guardarse.
   const hayTarea = estado !== 'idle';
 
-  const finalizarCorte = async () => {
+  const marcarCosturaTerminada = async () => {
     if (!ordenSeleccionada) return;
     setFinalizando(true);
     setErrorFin(null);
     try {
-      const r = await fetch(`/api/tiempos/cola/${ordenSeleccionada.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ estado: 'terminado' }),
-      });
+      const r = await fetch(`/api/tiempos/cola/${ordenSeleccionada.id}`, { method: 'PATCH' });
       if (r.ok) {
         setOrdenId('');
         setConfirmFin(false);
         await fetchOrdenes();
       } else {
         const data = await r.json().catch(() => ({}));
-        setErrorFin(`Error ${r.status}: ${data.error ?? 'No se pudo finalizar'}`);
+        setErrorFin(`Error ${r.status}: ${data.error ?? 'No se pudo marcar'}`);
       }
     } catch (e) {
       setErrorFin(`Error de red: ${String(e)}`);
@@ -218,19 +214,19 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
             <span className="text-xs text-stone-400 font-medium">Sin orden — trabajo libre</span>
           </button>
 
-          {ordenSeleccionada && (
+          {ordenSeleccionada && ordenSeleccionada.estado === 'COSTURA' && (
             <div className="pt-1">
               {!confirmFin ? (
                 <button
                   onClick={() => setConfirmFin(true)}
-                  className="w-full py-2.5 rounded-xl border-2 border-dashed border-red-200 text-red-500 text-xs font-bold uppercase tracking-wide hover:bg-red-50 transition active:scale-95"
+                  className="w-full py-2.5 rounded-xl border-2 border-dashed border-emerald-300 text-emerald-600 text-xs font-bold uppercase tracking-wide hover:bg-emerald-50 transition active:scale-95"
                 >
-                  Finalizar corte — {ordenSeleccionada.sku}
+                  ✓ Costura terminada — {ordenSeleccionada.sku}
                 </button>
               ) : (
-                <div className="bg-red-50 border-2 border-red-300 rounded-xl p-3 space-y-2">
-                  <p className="text-xs font-bold text-red-700 text-center">
-                    ¿Confirmar que el corte <span className="font-mono">{ordenSeleccionada.sku}</span> está terminado?
+                <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-bold text-emerald-800 text-center">
+                    ¿Confirmar que la costura de <span className="font-mono">{ordenSeleccionada.sku}</span> está terminada?
                   </p>
                   {errorFin && (
                     <p className="text-xs text-red-800 bg-red-100 border border-red-300 rounded-lg px-2 py-1.5 font-mono break-all">
@@ -239,11 +235,11 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                   )}
                   <div className="flex gap-2">
                     <button
-                      onClick={finalizarCorte}
+                      onClick={marcarCosturaTerminada}
                       disabled={finalizando}
-                      className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold transition active:scale-95"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold transition active:scale-95"
                     >
-                      {finalizando ? 'Finalizando...' : 'Sí, finalizar'}
+                      {finalizando ? 'Marcando...' : 'Sí, terminada'}
                     </button>
                     <button
                       onClick={() => { setConfirmFin(false); setErrorFin(null); }}
