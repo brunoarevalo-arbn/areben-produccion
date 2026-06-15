@@ -110,7 +110,9 @@ export function NuevaCompraForm() {
   const sumaSubtotales = lineas.reduce((s, l) => s + subtotalLinea(l), 0);
   const totalBrutoNum = parseFloat(totalBruto) || 0;
   const totalNetoCalc = conIva ? totalBrutoNum / 1.21 : totalBrutoNum;
-  const diferenciaOk = totalBrutoNum === 0 || Math.abs(sumaSubtotales - totalNetoCalc) < 1;
+  // Tolerancia 0,5% (piso $50): el redondeo de compras en USD no debe trabar.
+  const toleranciaDif = Math.max(50, totalNetoCalc * 0.005);
+  const diferenciaOk = totalBrutoNum === 0 || Math.abs(sumaSubtotales - totalNetoCalc) < toleranciaDif;
 
   const sumaRollos = (l: Linea) => l.rollos.reduce((s, r) => s + (parseFloat(r.pesoInicial) || 0), 0);
 

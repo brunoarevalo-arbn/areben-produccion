@@ -36,14 +36,17 @@ export async function POST(req: NextRequest) {
     ? totalBruto.div(new Prisma.Decimal('1.21'))
     : totalBruto;
 
-  // Validar suma de subtotales (precios ya son netos) contra totalNeto
+  // Validar suma de subtotales (precios ya son netos) contra totalNeto.
+  // Tolerancia 0,5% (piso $50): absorbe el redondeo de compras en USD a tipo de cambio,
+  // pero sigue cazando errores reales (ej. una línea olvidada).
   const sumaSubtotales = data.lineas.reduce(
     (sum, l) => sum + l.cantidad * l.precioUnitario,
     0
   );
-  if (Math.abs(sumaSubtotales - Number(totalNeto)) > 0.5) {
+  const tolerancia = Math.max(50, Number(totalNeto) * 0.005);
+  if (Math.abs(sumaSubtotales - Number(totalNeto)) > tolerancia) {
     return NextResponse.json(
-      { error: `La suma de subtotales ($${sumaSubtotales.toFixed(2)}) no coincide con el total neto ($${Number(totalNeto).toFixed(2)})` },
+      { error: `La suma de subtotales ($${sumaSubtotales.toFixed(2)}) difiere demasiado del total neto ($${Number(totalNeto).toFixed(2)})` },
       { status: 400 }
     );
   }
