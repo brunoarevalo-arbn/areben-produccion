@@ -48,7 +48,9 @@ export async function GET() {
         porCosturera[t.usuario] ??= { minutos: 0, registros: 0, prendas: 0 };
         porCosturera[t.usuario].minutos   += t.minutosNetos;
         porCosturera[t.usuario].registros += 1;
-        porCosturera[t.usuario].prendas   += t.cantidad;
+        // "prendas" = la tanda que trabajó, NO la suma de procesos: la misma tanda
+        // de 38 pasa por N procesos y sumar daría 38×N. Tomamos el máximo (la tanda).
+        porCosturera[t.usuario].prendas = Math.max(porCosturera[t.usuario].prendas, t.cantidad);
 
         porActividad[t.actividad] ??= { minutos: 0, registros: 0 };
         porActividad[t.actividad].minutos   += t.minutosNetos;
