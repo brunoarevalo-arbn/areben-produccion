@@ -269,53 +269,56 @@ export function NuevaCompraForm() {
           const esRollo = ins?.tipoTrazabilidad === 'rollo';
           return (
             <div key={l.key} className="border border-stone-100 rounded-xl p-4 space-y-3">
-              <div className="grid grid-cols-[1fr_80px_100px_100px_100px_auto] gap-2 items-end">
-                <div>
+              {/* Insumo en su propia fila ancha + quitar */}
+              <div className="flex items-end gap-2">
+                <div className="flex-1 min-w-0">
                   <label className="text-xs font-semibold text-stone-600 mb-1 block">Insumo</label>
-                  <select value={l.insumoId} onChange={(e) => updateLinea(l.key, 'insumoId', e.target.value)} className={inpSm}>
-                    <option value="">--</option>
+                  <select value={l.insumoId} onChange={(e) => updateLinea(l.key, 'insumoId', e.target.value)} className={`${inpSm} w-full`}>
+                    <option value="">— Elegí un insumo —</option>
                     {insumos.filter((i) => i.activo).map((i) => (
                       <option key={i.id} value={i.id}>{i.nombre} ({i.categoria})</option>
                     ))}
                   </select>
                 </div>
-                <div>
+                <button type="button" onClick={() => removeLinea(l.key)} title="Quitar línea"
+                  className="shrink-0 w-9 h-9 flex items-center justify-center rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 text-lg leading-none transition">
+                  ×
+                </button>
+              </div>
+
+              {/* Unidad / cantidad / precio / color + subtotal */}
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="w-24">
                   <label className="text-xs font-semibold text-stone-600 mb-1 block">Unidad</label>
-                  <select value={l.unidad} onChange={(e) => updateLinea(l.key, 'unidad', e.target.value)} className={inpSm}>
+                  <select value={l.unidad} onChange={(e) => updateLinea(l.key, 'unidad', e.target.value)} className={`${inpSm} w-full`}>
                     <option value="kg">kg</option>
                     <option value="metro">metro</option>
                     <option value="unidad">unidad</option>
                   </select>
                 </div>
-                <div>
+                <div className="w-28">
                   <label className="text-xs font-semibold text-stone-600 mb-1 block">Cantidad</label>
                   <input type="number" value={l.cantidad} onChange={(e) => updateLinea(l.key, 'cantidad', e.target.value)}
-                    min="0" step="0.01" className={inpSm} />
+                    min="0" step="0.01" className={`${inpSm} w-full`} />
                 </div>
-                <div>
+                <div className="w-32">
                   <label className="text-xs font-semibold text-stone-600 mb-1 block">Precio sin IVA</label>
                   <input type="number" value={l.precioUnitario} onChange={(e) => updateLinea(l.key, 'precioUnitario', e.target.value)}
-                    min="0" step="0.01" className={inpSm} />
+                    min="0" step="0.01" className={`${inpSm} w-full`} />
                 </div>
-                <div className="text-right">
+                {l.insumoId && (
+                  <div className="w-44">
+                    <label className="text-xs font-semibold text-stone-600 mb-1 block">Color (proveedor)</label>
+                    <input type="text" value={l.colorProveedor}
+                      onChange={(e) => updateLinea(l.key, 'colorProveedor', e.target.value)}
+                      placeholder="Ej. Lindt — opcional" className={`${inpSm} w-full`} />
+                  </div>
+                )}
+                <div className="ml-auto text-right">
                   <p className="text-xs text-stone-400 mb-1">Subtotal</p>
-                  <p className="text-sm font-bold text-stone-800 tabular-nums">${fmt(subtotalLinea(l))}</p>
+                  <p className="text-base font-bold text-stone-800 tabular-nums whitespace-nowrap">${fmt(subtotalLinea(l))}</p>
                 </div>
-                <button type="button" onClick={() => removeLinea(l.key)}
-                  className="text-red-400 hover:text-red-600 text-lg leading-none pb-1 px-1">
-                  x
-                </button>
               </div>
-
-              {/* Color del proveedor (nombre comercial). El color interno lo asigna la diseñadora después. */}
-              {l.insumoId && (
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-semibold text-stone-600 whitespace-nowrap">Color (proveedor):</label>
-                  <input type="text" value={l.colorProveedor}
-                    onChange={(e) => updateLinea(l.key, 'colorProveedor', e.target.value)}
-                    placeholder="Ej. Lindt — opcional" className={inpSm} />
-                </div>
-              )}
 
               {/* Sub-tabla de rollos */}
               {esRollo && l.insumoId && (
