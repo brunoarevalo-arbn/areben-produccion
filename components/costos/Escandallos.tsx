@@ -38,6 +38,7 @@ interface ProductoProd {
   costoTelaUnit: number | null;
   tieneFicha: boolean;
   tieneEscandallo: boolean;
+  descartado: boolean;
 }
 interface Margenes { margenDesarrollo: number; margenFallas: number; }
 
@@ -88,6 +89,8 @@ export function Escandallos() {
   const [margenes, setMargenes] = useState<Margenes>({ margenDesarrollo: 10, margenFallas: 5 });
   const [productos, setProductos] = useState<ProductoProd[]>([]);
   const [modoProducido, setModoProducido] = useState(false);
+  const [subTab, setSubTab] = useState<'pendientes' | 'listos'>('pendientes');
+  const [verDescartados, setVerDescartados] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -230,6 +233,24 @@ export function Escandallos() {
     seleccionarProducto(p);
   };
 
+  const descartarSku = async (skuDesc: string) => {
+    setProductos(prev => prev.map(p => p.sku === skuDesc ? { ...p, descartado: true } : p));
+    try {
+      await fetch('/api/costos/productos-producidos/descartar', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: skuDesc }),
+      });
+    } catch { setProductos(prev => prev.map(p => p.sku === skuDesc ? { ...p, descartado: false } : p)); }
+  };
+
+  const recuperarSku = async (skuRec: string) => {
+    setProductos(prev => prev.map(p => p.sku === skuRec ? { ...p, descartado: false } : p));
+    try {
+      await fetch('/api/costos/productos-producidos/descartar', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sku: skuRec }),
+      });
+    } catch { setProductos(prev => prev.map(p => p.sku === skuRec ? { ...p, descartado: true } : p)); }
+  };
+
   const calc = calcular(datos, costoMinuto, margenes);
 
   const guardar = async (e: React.FormEvent) => {
@@ -266,76 +287,135 @@ export function Escandallos() {
     <div className="space-y-5 max-w-4xl">
 
       {/* ── Lista ── */}
-      {!showForm && (
-        <>
-          {/* Pendientes de escandallo */}
-          {productos.filter(p => !p.tieneEscandallo).length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
-              <p className="text-xs font-bold uppercase tracking-widest text-amber-600 mb-4">Pendientes de costear</p>
-              <div className="space-y-2">
-                {productos.filter(p => !p.tieneEscandallo).map(p => (
-                  <div key={p.sku} className="flex items-center gap-3 bg-white rounded-xl border border-amber-100 px-4 py-3">
+      {!showForm && (() => {
+        const pendientes  = productos.filter(p => !p.tieneEscandallo && !p.descartado);
+        const descartados = productos.filter(p => !p.tieneEscandallo && p.descartado);
+        const pill = (active: boolean) =>
+          `px-4 py-2 text-sm font-semibold rounded-xl transition ${
+            active ? 'bg-stone-900 text-white' : 'bg-stone-100 text-stone-500 hover:text-stone-800'}`;
+        const count = (n: number, active: boolean) =>
+          n > 0 ? <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${active ? 'bg-white/20' : 'bg-stone-200 text-stone-600'}`}>{n}</span> : null;
+
+        return (
+          <>
+            {/* Sub-tabs */}
+            <div className="flex gap-2">
+              <button onClick={() => setSubTab('pendientes')} className={pill(subTab === 'pendientes')}>
+                Pendientes de costear{count(pendientes.length, subTab === 'pendientes')}
+              </button>
+              <button onClick={() => setSubTab('listos')} className={pill(subTab === 'listos')}>
+                Costos listos{count(lista.length, subTab === 'listos')}
+              </button>
+            </div>
+
+            {/* Pendientes */}
+            {subTab === 'pendientes' && (
+              <div className="space-y-3">
+                {pendientes.length === 0 && (
+                  <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-12 text-center">
+                    <p className="text-stone-400 text-sm">No hay SKU producidos pendientes de costear.</p>
+                  </div>
+                )}
+                {pendientes.map(p => (
+                  <div key={p.sku} className="flex items-center gap-3 bg-white rounded-2xl border border-amber-200 px-4 py-3">
                     <div className="flex-1 min-w-0">
                       <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-600">{p.sku}</span>
+                      {p.marca && <span className="text-xs text-stone-400 ml-2">{p.marca}</span>}
                       {p.descripcion && <span className="text-sm text-stone-600 ml-2">{p.descripcion}</span>}
                     </div>
                     <button onClick={() => costearPendiente(p)}
                       className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">
                       Costear
                     </button>
+                    <button onClick={() => descartarSku(p.sku)}
+                      className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition">
+                      No costear
+                    </button>
                   </div>
                 ))}
-              </div>
-            </div>
-          )}
 
-          <div className="space-y-3">
-            {lista.length === 0 && (
-              <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-12 text-center">
-                <p className="text-stone-400 text-sm">No hay escandallos creados todavía.</p>
-              </div>
-            )}
-            {lista.map(e => {
-              let c: ReturnType<typeof calcular> | null = null;
-              try { if (e.datos) c = calcular(JSON.parse(e.datos) as DatosEscandallo, costoMinuto, margenes); } catch { /* ignore */ }
-              return (
-                <div key={e.id} className="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <p className="font-bold text-stone-900">{e.nombre}</p>
-                      {e.sku        && <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-600">{e.sku}</span>}
-                      {e.marca      && <span className="text-xs text-stone-400">{e.marca}</span>}
-                      {e.tipoPrenda && <span className="text-xs text-stone-400 italic">{e.tipoPrenda}</span>}
-                    </div>
-                    {c && (
-                      <p className="text-xs text-stone-400 mt-1">
-                        Costo unitario: <span className="font-semibold text-stone-700">{fmt$(c.costoTotal)}</span>
-                        {costoMinuto === 0 && <span className="text-amber-500 ml-2">(sin valor hora cargado)</span>}
-                      </p>
+                {/* Descartados */}
+                {descartados.length > 0 && (
+                  <div className="pt-2">
+                    <button onClick={() => setVerDescartados(v => !v)}
+                      className="text-xs font-semibold text-stone-400 hover:text-stone-600 transition">
+                      {verDescartados ? '▾' : '▸'} Descartados ({descartados.length})
+                    </button>
+                    {verDescartados && (
+                      <div className="space-y-2 mt-3">
+                        {descartados.map(p => (
+                          <div key={p.sku} className="flex items-center gap-3 bg-stone-50 rounded-xl border border-stone-200 px-4 py-2.5">
+                            <div className="flex-1 min-w-0">
+                              <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-500">{p.sku}</span>
+                              {p.marca && <span className="text-xs text-stone-400 ml-2">{p.marca}</span>}
+                              {p.descripcion && <span className="text-sm text-stone-500 ml-2">{p.descripcion}</span>}
+                            </div>
+                            <button onClick={() => recuperarSku(p.sku)}
+                              className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+                              Recuperar
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     )}
                   </div>
-                  <div className="flex gap-2 shrink-0">
-                    <button onClick={() => router.push(`/costos/escandallos/${e.id}`)}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-50 transition">
-                      Ver PDF
-                    </button>
-                    <button onClick={() => openEdit(e)}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
-                      Editar
-                    </button>
-                    <button onClick={() => eliminar(e.id, e.nombre)}
-                      className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>
-                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Costos listos */}
+            {subTab === 'listos' && (
+              <>
+                <div className="space-y-3">
+                  {lista.length === 0 && (
+                    <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-12 text-center">
+                      <p className="text-stone-400 text-sm">No hay escandallos creados todavía.</p>
+                    </div>
+                  )}
+                  {lista.map(e => {
+                    let c: ReturnType<typeof calcular> | null = null;
+                    try { if (e.datos) c = calcular(JSON.parse(e.datos) as DatosEscandallo, costoMinuto, margenes); } catch { /* ignore */ }
+                    return (
+                      <div key={e.id} className="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <p className="font-bold text-stone-900">{e.nombre}</p>
+                            {e.sku        && <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-600">{e.sku}</span>}
+                            {e.marca      && <span className="text-xs text-stone-400">{e.marca}</span>}
+                            {e.tipoPrenda && <span className="text-xs text-stone-400 italic">{e.tipoPrenda}</span>}
+                          </div>
+                          {c && (
+                            <p className="text-xs text-stone-400 mt-1">
+                              Costo unitario: <span className="font-semibold text-stone-700">{fmt$(c.costoTotal)}</span>
+                              {costoMinuto === 0 && <span className="text-amber-500 ml-2">(sin valor hora cargado)</span>}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button onClick={() => router.push(`/costos/escandallos/${e.id}`)}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-50 transition">
+                            Ver PDF
+                          </button>
+                          <button onClick={() => openEdit(e)}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+                            Editar
+                          </button>
+                          <button onClick={() => eliminar(e.id, e.nombre)}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              );
-            })}
-          </div>
-          <button onClick={() => setShowForm(true)}
-            className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-            + Nuevo escandallo
-          </button>
-        </>
-      )}
+                <button onClick={() => setShowForm(true)}
+                  className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+                  + Nuevo escandallo
+                </button>
+              </>
+            )}
+          </>
+        );
+      })()}
 
       {/* ── Formulario ── */}
       {showForm && (

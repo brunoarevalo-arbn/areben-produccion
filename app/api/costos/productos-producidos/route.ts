@@ -19,6 +19,9 @@ export async function GET(req: NextRequest) {
   const escandallos = await prisma.escandallo.findMany({ where: { sku: { not: null } }, select: { sku: true } });
   const conEscandallo = new Set(escandallos.map((e) => e.sku));
 
+  const descartados = await prisma.costoSkuDescartado.findMany({ select: { sku: true } });
+  const descartadoSet = new Set(descartados.map((d) => d.sku));
+
   const telaUnit = (op: { fichaCorteCargada: boolean; costoTela: unknown; costoInsumosSecundarios: unknown; cantidad: number }) =>
     op.fichaCorteCargada && op.cantidad > 0
       ? (Number(op.costoTela) + Number(op.costoInsumosSecundarios)) / op.cantidad
@@ -27,6 +30,7 @@ export async function GET(req: NextRequest) {
   const bySku = new Map<string, {
     sku: string; marca: string; descripcion: string | null;
     costoTelaUnit: number | null; tieneFicha: boolean; tieneEscandallo: boolean;
+    descartado: boolean;
   }>();
 
   for (const op of ops) {
@@ -36,6 +40,7 @@ export async function GET(req: NextRequest) {
         sku, marca: op.marca, descripcion: op.descripcion,
         costoTelaUnit: telaUnit(op), tieneFicha: op.fichaCorteCargada,
         tieneEscandallo: conEscandallo.has(sku),
+        descartado: descartadoSet.has(sku),
       });
     } else {
       const e = bySku.get(sku)!;
