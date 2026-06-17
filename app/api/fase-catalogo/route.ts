@@ -12,8 +12,7 @@ async function requireDisenoAccess(req: NextRequest) {
   if (session.rol === 'admin') return session;
   if (session.rol === 'costurera') return null;
   const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-  if (!user?.permisos.includes('diseno')) return session;
-  return null;
+  return user?.permisos.includes('diseno') ? session : null;
 }
 
 const CreateSchema = z.object({

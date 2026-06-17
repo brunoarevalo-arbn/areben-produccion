@@ -4,16 +4,18 @@ import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { requirePermiso } from '@/lib/auth';
 
-// Acceso: cualquier no-costurera con acceso a producción (lectura y escritura).
-async function requireProduccionAccess(req: NextRequest) {
+// Lectura del catálogo (marcas, colores, prendas): cualquier usuario con acceso a
+// alguna sección que lo consuma. Es data de referencia compartida.
+const SECCIONES_CATALOGO = ['produccion', 'diseno', 'insumos', 'costos'];
+async function requireCatalogoRead(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySession(token) : null;
   if (!session) return null;
   if (session.rol === 'admin') return session;
   if (session.rol === 'costurera') return null;
   const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-  if (!user?.permisos.includes('produccion')) return session;
-  return null;
+  const tieneAcceso = SECCIONES_CATALOGO.some((p) => user?.permisos.includes(p));
+  return tieneAcceso ? session : null;
 }
 
 const CreateSchema = z.object({
@@ -24,7 +26,7 @@ const CreateSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const session = await requireProduccionAccess(req);
+  const session = await requireCatalogoRead(req);
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const url = new URL(req.url);
