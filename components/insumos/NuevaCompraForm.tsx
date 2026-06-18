@@ -26,7 +26,8 @@ let keyCounter = 0;
 interface InicialCompra {
   id: string;
   proveedorId: string; fecha: string; numeroFactura: string; conIva: boolean;
-  totalBruto: string; costoEnvio: string; formaPago: string; estadoPago: string;
+  totalBruto: string; costoEnvio: string; fleteModo?: string; fletePorcentaje?: string;
+  formaPago: string; estadoPago: string;
   montoPagado: string; fechaPago: string; notas: string;
   lineas: Omit<Linea, 'key'>[];
 }
@@ -45,7 +46,10 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
   const [numeroFactura, setNumeroFactura] = useState(inicial?.numeroFactura ?? '');
   const [conIva, setConIva]               = useState(inicial?.conIva ?? true);
   const [totalBruto, setTotalBruto]       = useState(inicial?.totalBruto ?? '');
-  const [costoEnvio, setCostoEnvio]       = useState(inicial?.costoEnvio ?? '');
+  const [fleteModo, setFleteModo]         = useState<'monto' | 'porcentaje'>(inicial?.fleteModo === 'porcentaje' ? 'porcentaje' : 'monto');
+  // Guarda el número crudo del flete (pesos si modo monto, % si modo porcentaje).
+  const [costoEnvio, setCostoEnvio]       = useState(
+    inicial?.fleteModo === 'porcentaje' ? (inicial?.fletePorcentaje ?? '') : (inicial?.costoEnvio ?? ''));
   const [formaPago, setFormaPago]         = useState(inicial?.formaPago ?? '');
   const [estadoPago, setEstadoPago]       = useState(inicial?.estadoPago ?? 'PENDIENTE');
   const [montoPagado, setMontoPagado]     = useState(inicial?.montoPagado ?? '');
@@ -163,7 +167,9 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
       numeroFactura: numeroFactura || undefined,
       conIva,
       totalBruto: totalBrutoNum,
-      costoEnvio: parseFloat(costoEnvio) || 0,
+      costoEnvio: fleteModo === 'monto' ? (parseFloat(costoEnvio) || 0) : 0,
+      fleteModo,
+      fletePorcentaje: fleteModo === 'porcentaje' ? (parseFloat(costoEnvio) || 0) : undefined,
       formaPago: formaPago || undefined,
       estadoPago,
       montoPagado: parseFloat(montoPagado) || 0,
@@ -232,8 +238,18 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
           </div>
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Envío / flete <span className="text-stone-400 font-normal">(opcional)</span></label>
-            <NumInput value={parseFloat(costoEnvio) || 0} onChange={(n) => setCostoEnvio(n ? String(n) : '')}
-              min="0" step="0.01" placeholder="0" className={inp} />
+            <div className="flex gap-2">
+              <select value={fleteModo} onChange={(e) => setFleteModo(e.target.value as 'monto' | 'porcentaje')}
+                className="w-28 px-2 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400">
+                <option value="monto">$ pesos</option>
+                <option value="porcentaje">%</option>
+              </select>
+              <NumInput value={parseFloat(costoEnvio) || 0} onChange={(n) => setCostoEnvio(n ? String(n) : '')}
+                min="0" step="0.01" placeholder={fleteModo === 'porcentaje' ? '% sobre la compra' : '0'} className={inp} />
+            </div>
+            {fleteModo === 'porcentaje' && (parseFloat(costoEnvio) || 0) > 0 && sumaSubtotales > 0 && (
+              <p className="text-xs text-stone-400 mt-1">≈ ${fmt(sumaSubtotales * (parseFloat(costoEnvio) || 0) / 100)} sobre ${fmt(sumaSubtotales)} neto</p>
+            )}
           </div>
           <div className="flex items-end gap-3 pb-1">
             <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer">

@@ -48,6 +48,8 @@ export default async function EditarCompraPage({ params }: { params: Promise<{ i
     conIva:        compra.conIva,
     totalBruto:    String(Number(compra.totalBruto)),
     costoEnvio:    dec(compra.costoEnvio),
+    fleteModo:     compra.fleteModo,
+    fletePorcentaje: dec(compra.fletePorcentaje),
     formaPago:     compra.formaPago ?? '',
     estadoPago:    compra.estadoPago,
     montoPagado:   dec(compra.montoPagado),

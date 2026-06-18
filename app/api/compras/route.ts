@@ -51,6 +51,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Flete: en pesos (monto) o como % sobre el valor neto de la compra.
+  const costoEnvioPesos = data.fleteModo === 'porcentaje'
+    ? sumaSubtotales * (data.fletePorcentaje || 0) / 100
+    : (data.costoEnvio || 0);
+
   // Precargar insumos para validar trazabilidad y rollos
   const insumoIds = data.lineas.map((l) => l.insumoId);
   const insumos = await prisma.insumo.findMany({ where: { id: { in: insumoIds } } });
@@ -114,7 +119,9 @@ export async function POST(req: NextRequest) {
         conIva:        data.conIva,
         totalBruto,
         totalNeto,
-        costoEnvio:    new Prisma.Decimal(data.costoEnvio || 0),
+        costoEnvio:    new Prisma.Decimal(costoEnvioPesos),
+        fleteModo:     data.fleteModo,
+        fletePorcentaje: data.fleteModo === 'porcentaje' ? new Prisma.Decimal(data.fletePorcentaje || 0) : null,
         formaPago:     data.formaPago || null,
         estadoPago:    data.estadoPago,
         montoPagado:   new Prisma.Decimal(data.montoPagado),
@@ -131,7 +138,7 @@ export async function POST(req: NextRequest) {
       const subtotal = new Prisma.Decimal(linea.cantidad * linea.precioUnitario);
       // Prorrateo del envío por valor de línea → sumado al costo por unidad del rollo/lote.
       const lineaSub     = linea.cantidad * linea.precioUnitario;
-      const lineaEnvio   = sumaSubtotales > 0 ? (data.costoEnvio || 0) * (lineaSub / sumaSubtotales) : 0;
+      const lineaEnvio   = sumaSubtotales > 0 ? costoEnvioPesos * (lineaSub / sumaSubtotales) : 0;
       const recargoEnvio = linea.cantidad > 0 ? lineaEnvio / linea.cantidad : 0;
       const costoUnitarioNeto = new Prisma.Decimal(linea.precioUnitario + recargoEnvio);
 

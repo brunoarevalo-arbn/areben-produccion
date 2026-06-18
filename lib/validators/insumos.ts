@@ -49,6 +49,8 @@ export const CompraSchema = z.object({
   conIva:        z.boolean().default(true),
   totalBruto:    z.number().positive('Total debe ser positivo'),
   costoEnvio:    z.number().min(0).default(0),
+  fleteModo:     z.enum(['monto', 'porcentaje']).default('monto'),
+  fletePorcentaje: z.number().min(0).optional(),
   formaPago:     z.string().optional(),
   estadoPago:    z.enum(['PENDIENTE', 'PARCIAL', 'PAGADA']).default('PENDIENTE'),
   montoPagado:   z.number().min(0).default(0),
