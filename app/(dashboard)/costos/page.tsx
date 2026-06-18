@@ -3,12 +3,14 @@
 import { useState } from 'react';
 import { Parametros }  from '@/components/costos/Parametros';
 import { Escandallos } from '@/components/costos/Escandallos';
+import { CatalogosCosto } from '@/components/costos/CatalogosCosto';
 
-type Tab = 'parametros' | 'escandallos';
+type Tab = 'parametros' | 'escandallos' | 'catalogos';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'parametros',  label: 'Parámetros de costo' },
   { id: 'escandallos', label: 'Escandallos' },
+  { id: 'catalogos',   label: 'Catálogos' },
 ];
 
 export default function CostosPage() {
@@ -41,6 +43,7 @@ export default function CostosPage() {
 
       {tab === 'parametros'  && <Parametros />}
       {tab === 'escandallos' && <Escandallos />}
+      {tab === 'catalogos'   && <CatalogosCosto />}
     </div>
   );
 }

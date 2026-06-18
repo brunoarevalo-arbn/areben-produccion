@@ -2,35 +2,9 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { PrintButton } from '@/components/costos/PrintButton';
+import { parseDatos, telaCosto, itemCosto } from '@/lib/costos/escandallo';
 
 export const dynamic = 'force-dynamic';
-
-interface Tela { nombre: string; precioKgNeto: number; fletePercent: number; rindeMetrosKg: number; consumoMetros: number; }
-interface ItemExtra { nombre: string; costo: number; }
-interface DatosEscandallo {
-  telas: Tela[];
-  costoCorte: number;
-  costoTizada: number;
-  costoLavadero: number;
-  tiempoConfeccion: number;
-  varios: ItemExtra[];
-  avios: {
-    etiquetaPrincipal: number;
-    etiquetaComposicion: number;
-    bolsaPolipropileno: number;
-    tiempoEmbolsado: number;
-    extras: ItemExtra[];
-  };
-  margenDesarrollo: number;
-  margenFallas: number;
-}
-
-const EMPTY_DATOS: DatosEscandallo = {
-  telas: [], costoCorte: 0, costoTizada: 0, costoLavadero: 0, tiempoConfeccion: 0,
-  varios: [],
-  avios: { etiquetaPrincipal: 0, etiquetaComposicion: 0, bolsaPolipropileno: 0, tiempoEmbolsado: 0, extras: [] },
-  margenDesarrollo: 10, margenFallas: 5,
-};
 
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
@@ -51,23 +25,21 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
   const valorHora     = totalHoras > 0 ? (totalGastos + totalCosturas) / totalHoras : 0;
   const costoMinuto   = valorHora / 60;
 
-  let datos: DatosEscandallo = EMPTY_DATOS;
-  try { if (escandallo.datos) datos = JSON.parse(escandallo.datos) as DatosEscandallo; } catch { /* use defaults */ }
+  const datos = parseDatos(escandallo.datos);
 
   const telasCosts = datos.telas.map(t => {
-    const pConFlete = t.precioKgNeto * (1 + t.fletePercent / 100);
-    const pMetro    = t.rindeMetrosKg > 0 ? pConFlete / t.rindeMetrosKg : 0;
-    return { ...t, pConFlete, pMetro, costo: pMetro * t.consumoMetros };
+    const { pMetro, costo } = telaCosto(t);
+    return { ...t, pMetro, costo };
   });
 
   const costoTelas     = telasCosts.reduce((s, t) => s + t.costo, 0);
   const costoServicios = datos.costoCorte + datos.costoTizada + datos.costoLavadero;
   const costoMO        = datos.tiempoConfeccion * costoMinuto;
-  const costoVarios    = datos.varios.reduce((s, v) => s + v.costo, 0);
+  const costoVarios    = datos.varios.reduce((s, v) => s + itemCosto(v), 0);
   const costoEmbolsado = datos.avios.tiempoEmbolsado * costoMinuto;
   const costoAvios     = datos.avios.etiquetaPrincipal + datos.avios.etiquetaComposicion +
     datos.avios.bolsaPolipropileno + costoEmbolsado +
-    datos.avios.extras.reduce((s, e) => s + e.costo, 0);
+    datos.avios.extras.reduce((s, e) => s + itemCosto(e), 0);
   const costoBase      = costoTelas + costoServicios + costoMO + costoVarios + costoAvios;
   const conDesarrollo  = costoBase * (1 + datos.margenDesarrollo / 100);
   const costoTotal     = conDesarrollo * (1 + datos.margenFallas / 100);
@@ -180,8 +152,8 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
             <div className="space-y-1.5 text-sm">
               {datos.varios.map((v, i) => (
                 <div key={i} className="flex justify-between">
-                  <span className="text-stone-600">{v.nombre}</span>
-                  <span className="tabular-nums font-semibold">{fmt$(v.costo)}</span>
+                  <span className="text-stone-600">{v.nombre}{v.cantidad > 1 ? ` (${v.cantidad} × ${fmt$(v.costoUnitario)})` : ''}</span>
+                  <span className="tabular-nums font-semibold">{fmt$(itemCosto(v))}</span>
                 </div>
               ))}
               <div className="flex justify-between border-t border-stone-200 pt-1.5 font-bold">
@@ -222,8 +194,8 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
             )}
             {datos.avios.extras.map((e, i) => (
               <div key={i} className="flex justify-between">
-                <span className="text-stone-600">{e.nombre}</span>
-                <span className="tabular-nums font-semibold">{fmt$(e.costo)}</span>
+                <span className="text-stone-600">{e.nombre}{e.cantidad > 1 ? ` (${e.cantidad} × ${fmt$(e.costoUnitario)})` : ''}</span>
+                <span className="tabular-nums font-semibold">{fmt$(itemCosto(e))}</span>
               </div>
             ))}
             <div className="flex justify-between border-t border-stone-200 pt-1.5 font-bold">

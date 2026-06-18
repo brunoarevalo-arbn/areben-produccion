@@ -3,30 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
+import {
+  type DatosEscandallo, type Margenes, type Tela, type ItemExtra, type MedidasLavado,
+  DEFAULT_DATOS, MEDIDAS_LAVADO_EMPTY, TELA_EMPTY,
+  deepClone, parseDatos, calcular, itemCosto,
+} from '@/lib/costos/escandallo';
 
-interface Tela { nombre: string; precioKgNeto: number; fletePercent: number; rindeMetrosKg: number; consumoMetros: number; }
-interface ItemExtra { nombre: string; costo: number; }
-interface MedidasLavado { largo: number; ancho: number; talle: string; }
-interface DatosEscandallo {
-  telas: Tela[];
-  costoCorte: number;
-  costoTizada: number;
-  costoLavadero: number;
-  tiempoConfeccion: number;
-  varios: ItemExtra[];
-  avios: {
-    etiquetaPrincipal: number;
-    etiquetaComposicion: number;
-    bolsaPolipropileno: number;
-    tiempoEmbolsado: number;
-    extras: ItemExtra[];
-  };
-  medidasPreLavado?: MedidasLavado;
-  medidasPostLavado?: MedidasLavado;
-  margenDesarrollo: number;
-  margenFallas: number;
-  costoTelaFicha?: number;
-}
 interface Escandallo {
   id: string; nombre: string; sku: string | null; marca: string | null;
   tipoPrenda: string | null; notas: string | null; datos: string | null;
@@ -41,44 +23,13 @@ interface ProductoProd {
   tieneEscandallo: boolean;
   descartado: boolean;
 }
-interface Margenes { margenDesarrollo: number; margenFallas: number; }
+interface EtiquetaOpt { id: string; nombre: string; tipo: string | null; precio: number; }
+interface CostoCorteOpt { id: string; tipoPrenda: string; costo: number; }
 
 const MARCAS = ['Zattia', 'Stunned'];
-const MEDIDAS_LAVADO_EMPTY: MedidasLavado = { largo: 0, ancho: 0, talle: '' };
-const DEFAULT_DATOS: DatosEscandallo = {
-  telas: [{ nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0 }],
-  costoCorte: 0, costoTizada: 0, costoLavadero: 0, tiempoConfeccion: 0,
-  varios: [],
-  avios: { etiquetaPrincipal: 0, etiquetaComposicion: 0, bolsaPolipropileno: 0, tiempoEmbolsado: 0, extras: [] },
-  medidasPreLavado:  { ...MEDIDAS_LAVADO_EMPTY },
-  medidasPostLavado: { ...MEDIDAS_LAVADO_EMPTY },
-  margenDesarrollo: 10, margenFallas: 5,
-};
 
 function pf(v: string) { return parseFloat(v) || 0; }
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
-function deepClone<T>(o: T): T { return JSON.parse(JSON.stringify(o)); }
-
-function calcular(d: DatosEscandallo, costoMinuto: number, margenes: Margenes) {
-  const costoTelas = d.costoTelaFicha != null
-    ? d.costoTelaFicha
-    : d.telas.reduce((s, t) => {
-        const pConFlete = t.precioKgNeto * (1 + t.fletePercent / 100);
-        const pMetro = t.rindeMetrosKg > 0 ? pConFlete / t.rindeMetrosKg : 0;
-        return s + pMetro * t.consumoMetros;
-      }, 0);
-  const costoServicios  = d.costoCorte + d.costoTizada + d.costoLavadero;
-  const costoMO         = d.tiempoConfeccion * costoMinuto;
-  const costoVarios     = d.varios.reduce((s, v) => s + v.costo, 0);
-  const costoEmbolsado  = d.avios.tiempoEmbolsado * costoMinuto;
-  const costoAvios      = d.avios.etiquetaPrincipal + d.avios.etiquetaComposicion +
-    d.avios.bolsaPolipropileno + costoEmbolsado +
-    d.avios.extras.reduce((s, e) => s + e.costo, 0);
-  const costoBase       = costoTelas + costoServicios + costoMO + costoVarios + costoAvios;
-  const conDesarrollo   = costoBase * (1 + margenes.margenDesarrollo / 100);
-  const costoTotal      = conDesarrollo * (1 + margenes.margenFallas / 100);
-  return { costoTelas, costoServicios, costoMO, costoVarios, costoAvios, costoBase, conDesarrollo, costoTotal };
-}
 
 export function Escandallos() {
   const router = useRouter();
@@ -89,6 +40,8 @@ export function Escandallos() {
   const [costoMinuto, setCostoMinuto] = useState(0);
   const [margenes, setMargenes] = useState<Margenes>({ margenDesarrollo: 10, margenFallas: 5 });
   const [productos, setProductos] = useState<ProductoProd[]>([]);
+  const [etiquetas, setEtiquetas] = useState<EtiquetaOpt[]>([]);
+  const [costosCorte, setCostosCorte] = useState<CostoCorteOpt[]>([]);
   const [modoProducido, setModoProducido] = useState(false);
   const [subTab, setSubTab] = useState<'pendientes' | 'listos'>('pendientes');
   const [verDescartados, setVerDescartados] = useState(false);
@@ -114,6 +67,16 @@ export function Escandallos() {
     fetch('/api/costos/productos-producidos')
       .then((r) => r.json())
       .then((p) => { if (Array.isArray(p)) setProductos(p); })
+      .catch(() => {});
+
+    fetch('/api/costos/etiquetas')
+      .then((r) => r.ok ? r.json() : [])
+      .then((e) => { if (Array.isArray(e)) setEtiquetas(e.map((x) => ({ ...x, precio: Number(x.precio) }))); })
+      .catch(() => {});
+
+    fetch('/api/costos/costos-corte')
+      .then((r) => r.ok ? r.json() : [])
+      .then((c) => { if (Array.isArray(c)) setCostosCorte(c.map((x) => ({ ...x, costo: Number(x.costo) }))); })
       .catch(() => {});
   }, []);
 
@@ -150,31 +113,46 @@ export function Escandallos() {
     setEditId(e.id);
     setNombre(e.nombre); setSku(e.sku ?? ''); setMarca(e.marca ?? '');
     setTipoPrenda(e.tipoPrenda ?? ''); setNotas(e.notas ?? '');
-    try { setDatos(e.datos ? (JSON.parse(e.datos) as DatosEscandallo) : deepClone(DEFAULT_DATOS)); }
-    catch { setDatos(deepClone(DEFAULT_DATOS)); }
+    setDatos(parseDatos(e.datos));
     setShowForm(true);
   };
 
   // Telas
-  const addTela = () => setDatos(prev => ({ ...prev, telas: [...prev.telas, { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0 }] }));
+  const addTela = () => setDatos(prev => ({ ...prev, telas: [...prev.telas, { ...TELA_EMPTY }] }));
   const updTela = (i: number, field: string, val: string) =>
     setDatos(prev => ({ ...prev, telas: prev.telas.map((t, idx) => idx !== i ? t : ({ ...t, [field]: field === 'nombre' ? val : pf(val) } as Tela)) }));
   const delTela = (i: number) => setDatos(prev => ({ ...prev, telas: prev.telas.filter((_, idx) => idx !== i) }));
 
   // Varios
-  const addVario = () => setDatos(prev => ({ ...prev, varios: [...prev.varios, { nombre: '', costo: 0 }] }));
+  const addVario = () => setDatos(prev => ({ ...prev, varios: [...prev.varios, { nombre: '', cantidad: 1, costoUnitario: 0 }] }));
   const updVario = (i: number, field: string, val: string) =>
     setDatos(prev => ({ ...prev, varios: prev.varios.map((v, idx) => idx !== i ? v : ({ ...v, [field]: field === 'nombre' ? val : pf(val) } as ItemExtra)) }));
   const delVario = (i: number) => setDatos(prev => ({ ...prev, varios: prev.varios.filter((_, idx) => idx !== i) }));
 
   // Avíos extras
-  const addAvioExtra = () => setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: [...prev.avios.extras, { nombre: '', costo: 0 }] } }));
+  const addAvioExtra = () => setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: [...prev.avios.extras, { nombre: '', cantidad: 1, costoUnitario: 0 }] } }));
   const updAvioExtra = (i: number, field: string, val: string) =>
     setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: prev.avios.extras.map((e, idx) => idx !== i ? e : ({ ...e, [field]: field === 'nombre' ? val : pf(val) } as ItemExtra)) } }));
   const delAvioExtra = (i: number) => setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: prev.avios.extras.filter((_, idx) => idx !== i) } }));
 
   const updDatos = (field: string, val: string) => setDatos(prev => ({ ...prev, [field]: pf(val) }));
   const updAvios = (field: string, val: string) => setDatos(prev => ({ ...prev, avios: { ...prev.avios, [field]: pf(val) } }));
+
+  // Elegir una etiqueta del catálogo: trae su precio (snapshot) y guarda la
+  // referencia. Vaciar la selección deja el precio editable a mano.
+  const elegirEtiqueta = (campo: 'etiquetaPrincipal' | 'etiquetaComposicion', etiquetaId: string) => {
+    const et = etiquetas.find(e => e.id === etiquetaId) || null;
+    const idKey = campo === 'etiquetaPrincipal' ? 'etiquetaPrincipalId' : 'etiquetaComposicionId';
+    setDatos(prev => ({
+      ...prev,
+      avios: { ...prev.avios, ...(et ? { [campo]: et.precio } : {}), [idKey]: et ? et.id : null },
+    }));
+  };
+
+  // Costo de corte de referencia para el tipo de prenda cargado (match flexible).
+  const costoCorteSugerido = tipoPrenda.trim()
+    ? costosCorte.find(c => c.tipoPrenda.trim().toLowerCase() === tipoPrenda.trim().toLowerCase()) ?? null
+    : null;
   const updMedidas = (cual: 'medidasPreLavado' | 'medidasPostLavado', field: keyof MedidasLavado, val: string) =>
     setDatos(prev => ({
       ...prev,
@@ -388,8 +366,7 @@ export function Escandallos() {
                     </div>
                   )}
                   {lista.map(e => {
-                    let c: ReturnType<typeof calcular> | null = null;
-                    try { if (e.datos) c = calcular(JSON.parse(e.datos) as DatosEscandallo, costoMinuto, margenes); } catch { /* ignore */ }
+                    const c = calcular(parseDatos(e.datos), costoMinuto, margenes);
                     return (
                       <div key={e.id} className="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
                         <div className="flex-1 min-w-0">
@@ -593,6 +570,18 @@ export function Escandallos() {
           {/* Servicios fijos */}
           <div className="bg-white rounded-2xl border border-stone-200 p-5">
             <p className={`${sec} mb-3`}>Servicios fijos</p>
+            {costoCorteSugerido && costoCorteSugerido.costo !== datos.costoCorte && (
+              <div className="flex items-center justify-between gap-3 bg-violet-50 border border-violet-100 rounded-xl px-4 py-2.5 mb-3">
+                <p className="text-xs text-stone-600">
+                  Costo de corte para <span className="font-semibold">{costoCorteSugerido.tipoPrenda}</span>:{' '}
+                  <span className="font-bold text-violet-700">{fmt$(costoCorteSugerido.costo)}</span>
+                </p>
+                <button type="button" onClick={() => updDatos('costoCorte', String(costoCorteSugerido.costo))}
+                  className="shrink-0 text-xs px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold transition">
+                  Usar este costo
+                </button>
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-4">
               {([
                 { label: 'Corte $',    field: 'costoCorte',    val: datos.costoCorte },
@@ -685,11 +674,14 @@ export function Escandallos() {
             {datos.varios.length === 0 && <p className="text-xs text-stone-400 italic">Sin ítems varios</p>}
             <div className="space-y-2">
               {datos.varios.map((v, i) => (
-                <div key={i} className="grid grid-cols-[1fr_120px_auto] gap-2 items-center">
+                <div key={i} className="grid grid-cols-[1fr_64px_110px_90px_auto] gap-2 items-center">
                   <input type="text" value={v.nombre} onChange={e => updVario(i, 'nombre', e.target.value)}
                     placeholder="Descripción" className={inp} />
-                  <NumInput value={v.costo} onChange={n => updVario(i, 'costo', String(n))}
-                    placeholder="$" min="0" step="0.01" className={inp} />
+                  <NumInput value={v.cantidad} onChange={n => updVario(i, 'cantidad', String(n))}
+                    placeholder="Cant." min="0" step="1" className={`${inp} text-center`} />
+                  <NumInput value={v.costoUnitario} onChange={n => updVario(i, 'costoUnitario', String(n))}
+                    placeholder="$ c/u" min="0" step="0.01" className={inp} />
+                  <span className="text-xs font-semibold text-stone-600 tabular-nums text-right">{fmt$(itemCosto(v))}</span>
                   <button type="button" onClick={() => delVario(i)}
                     className="text-stone-300 hover:text-red-400 transition text-xl leading-none">×</button>
                 </div>
@@ -702,14 +694,28 @@ export function Escandallos() {
             <p className={`${sec} mb-4`}>Terminación y Avíos</p>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label className={lbl}>Etiqueta principal $</label>
+                <label className={lbl}>Etiqueta principal</label>
+                {etiquetas.length > 0 && (
+                  <select value={datos.avios.etiquetaPrincipalId ?? ''} onChange={e => elegirEtiqueta('etiquetaPrincipal', e.target.value)}
+                    className={`${inp} mb-1.5`}>
+                    <option value="">— Precio manual —</option>
+                    {etiquetas.map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
+                  </select>
+                )}
                 <NumInput value={datos.avios.etiquetaPrincipal} onChange={n => updAvios('etiquetaPrincipal', String(n))}
-                  placeholder="0" min="0" step="0.01" className={inp} />
+                  placeholder="$ 0" min="0" step="0.01" className={inp} />
               </div>
               <div>
-                <label className={lbl}>Etiqueta composición $</label>
+                <label className={lbl}>Etiqueta composición</label>
+                {etiquetas.length > 0 && (
+                  <select value={datos.avios.etiquetaComposicionId ?? ''} onChange={e => elegirEtiqueta('etiquetaComposicion', e.target.value)}
+                    className={`${inp} mb-1.5`}>
+                    <option value="">— Precio manual —</option>
+                    {etiquetas.map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
+                  </select>
+                )}
                 <NumInput value={datos.avios.etiquetaComposicion} onChange={n => updAvios('etiquetaComposicion', String(n))}
-                  placeholder="0" min="0" step="0.01" className={inp} />
+                  placeholder="$ 0" min="0" step="0.01" className={inp} />
               </div>
               <div>
                 <label className={lbl}>Bolsa polipropileno $</label>
@@ -736,11 +742,14 @@ export function Escandallos() {
               {datos.avios.extras.length === 0 && <p className="text-xs text-stone-400 italic">Sin extras</p>}
               <div className="space-y-2">
                 {datos.avios.extras.map((ex, i) => (
-                  <div key={i} className="grid grid-cols-[1fr_120px_auto] gap-2 items-center">
+                  <div key={i} className="grid grid-cols-[1fr_64px_110px_90px_auto] gap-2 items-center">
                     <input type="text" value={ex.nombre} onChange={e => updAvioExtra(i, 'nombre', e.target.value)}
                       placeholder="Descripción" className={inp} />
-                    <NumInput value={ex.costo} onChange={n => updAvioExtra(i, 'costo', String(n))}
-                      placeholder="$" min="0" step="0.01" className={inp} />
+                    <NumInput value={ex.cantidad} onChange={n => updAvioExtra(i, 'cantidad', String(n))}
+                      placeholder="Cant." min="0" step="1" className={`${inp} text-center`} />
+                    <NumInput value={ex.costoUnitario} onChange={n => updAvioExtra(i, 'costoUnitario', String(n))}
+                      placeholder="$ c/u" min="0" step="0.01" className={inp} />
+                    <span className="text-xs font-semibold text-stone-600 tabular-nums text-right">{fmt$(itemCosto(ex))}</span>
                     <button type="button" onClick={() => delAvioExtra(i)}
                       className="text-stone-300 hover:text-red-400 transition text-xl leading-none">×</button>
                   </div>

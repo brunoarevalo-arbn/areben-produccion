@@ -315,6 +315,33 @@ model Escandallo {
   @@map("escandallos")
 }
 
+// Catálogo de etiquetas con su precio. El escandallo elige la etiqueta y se
+// autocompleta el precio (snapshot) en vez de tipearlo a mano cada vez.
+model EtiquetaCatalogo {
+  id        String   @id @default(cuid())
+  nombre    String
+  tipo      String?  // 'principal' | 'composicion' | 'otro'
+  precio    Decimal  @default(0)
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("etiqueta_catalogo")
+}
+
+// Costo de corte de referencia por tipo de prenda. Da independencia al cargar
+// el costo de corte: se elige el tipo de prenda y trae el costo configurado.
+model CostoCortePrenda {
+  id         String   @id @default(cuid())
+  tipoPrenda String   @unique
+  costo      Decimal  @default(0)
+  activo     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("costo_corte_prenda")
+}
+
 enum EstadoOP {
   PENDIENTE
   CORTE
