@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { requirePermiso } from '@/lib/auth';
+import { aplicarDescuentoAviosDesdeEscandallo } from '@/lib/costos/aviosStock';
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -25,5 +26,7 @@ export async function POST(req: NextRequest) {
       datos:      datos ? JSON.stringify(datos) : null,
     },
   });
+  // Si hay órdenes terminadas de este SKU sin avíos descontados, descuenta ahora.
+  try { await aplicarDescuentoAviosDesdeEscandallo(escandallo.sku, datos); } catch { /* no romper el guardado */ }
   return NextResponse.json(escandallo, { status: 201 });
 }

@@ -16,6 +16,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (body.tipo   !== undefined) data.tipo   = body.tipo?.trim() || null;
   if (body.precio !== undefined) data.precio = parseFloat(body.precio) || 0;
   if (body.activo !== undefined) data.activo = !!body.activo;
+  // stock: null = sin seguimiento / ilimitado; número = empieza a trackear
+  if (body.stock  !== undefined) data.stock  = body.stock === null ? null : Math.max(0, Math.trunc(Number(body.stock) || 0));
   const item = await prisma.etiquetaCatalogo.update({ where: { id }, data });
   return NextResponse.json(item);
 }

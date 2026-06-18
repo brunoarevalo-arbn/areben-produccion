@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'La ficha ya fue cargada. Para corregirla, revertí el corte y volvé a cargarla.' }, { status: 400 });
   }
 
-  const { consumoRollos, consumoLotes, cortesPorTalle, cortadorId, costoCorte, fichaFotoUrl, notas } = parsed.data;
+  const { consumoRollos, consumoLotes, cortesPorTalle, avios, cortadorId, costoCorte, fichaFotoUrl, notas } = parsed.data;
 
   // Buscar cortador para guardar denormalizado
   let cortadorNombre: string | null = null;
@@ -178,6 +178,17 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       await tx.cortePorTalle.create({
         data: { ordenId: id, talle: t.talle, cantidad: t.cantidad },
       });
+    }
+
+    // Avíos que lleva la prenda (del catálogo). No se descuenta acá: se anota
+    // qué lleva y el stock se mueve al terminar producción.
+    await tx.ordenAvio.deleteMany({ where: { ordenId: id } });
+    if (avios && avios.length > 0) {
+      for (const a of avios) {
+        await tx.ordenAvio.create({
+          data: { ordenId: id, etiquetaId: a.etiquetaId, cantidad: a.cantidad, origen: 'corte' },
+        });
+      }
     }
 
     // Actualizar OP

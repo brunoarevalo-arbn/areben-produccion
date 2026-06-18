@@ -56,10 +56,17 @@ const TalleSchema = z.object({
   cantidad: z.number().int().positive(),
 });
 
+// Avíos del catálogo que lleva la prenda (cantidad POR PRENDA). Se descuentan al terminar.
+const AvioCorteSchema = z.object({
+  etiquetaId: z.string().min(1),
+  cantidad:   z.number().int().positive(),
+});
+
 export const RegistrarCorteSchema = z.object({
   consumoRollos:  z.array(ConsumoRolloSchema).min(1, 'Debe asignar al menos un rollo'),
   consumoLotes:   z.array(ConsumoLoteSchema).optional(),
   cortesPorTalle: z.array(TalleSchema).min(1, 'Debe cargar al menos un talle'),
+  avios:          z.array(AvioCorteSchema).optional(),
   cortadorId:     z.string().optional(),
   costoCorte:     z.number().min(0).optional(),
   fichaFotoUrl:   z.string().optional(),

@@ -51,6 +51,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     }
 
     await tx.cortePorTalle.deleteMany({ where: { ordenId: id } });
+    // Limpiar los avíos cargados en el corte (se vuelven a elegir al recargar la ficha).
+    await tx.ordenAvio.deleteMany({ where: { ordenId: id } });
 
     // Revertir la ficha NO cambia el estado del flujo (la ficha está desacoplada).
     await tx.ordenProduccion.update({

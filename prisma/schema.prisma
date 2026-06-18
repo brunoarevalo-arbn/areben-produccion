@@ -322,11 +322,30 @@ model EtiquetaCatalogo {
   nombre    String
   tipo      String?  // 'principal' | 'composicion' | 'otro'
   precio    Decimal  @default(0)
+  stock     Int?     // null = sin seguimiento / ilimitado. Se descuenta al terminar producción.
   activo    Boolean  @default(true)
+  ordenAvios OrdenAvio[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("etiqueta_catalogo")
+}
+
+// Qué avíos (del catálogo) lleva una orden. Se cargan al registrar el corte
+// (ideal) o desde el escandallo (fallback). El stock se descuenta una sola vez
+// al terminar producción (guard OrdenProduccion.aviosDescontados).
+model OrdenAvio {
+  id         String           @id @default(cuid())
+  ordenId    String
+  orden      OrdenProduccion  @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  etiquetaId String
+  etiqueta   EtiquetaCatalogo @relation(fields: [etiquetaId], references: [id])
+  cantidad   Int              @default(1) // cantidad por prenda
+  origen     String           @default("corte") // 'corte' | 'escandallo'
+  createdAt  DateTime         @default(now())
+
+  @@unique([ordenId, etiquetaId])
+  @@map("orden_avios")
 }
 
 // Costo de corte de referencia por tipo de prenda. Da independencia al cargar
@@ -365,6 +384,9 @@ model OrdenProduccion {
 
   fichaCorteCargada       Boolean   @default(false)
   fichaFotoUrl            String?
+
+  avios                   OrdenAvio[]
+  aviosDescontados        Boolean   @default(false) // guard: el stock de avíos se descuenta una sola vez
 
   cortador                String?
   cortadorId              String?

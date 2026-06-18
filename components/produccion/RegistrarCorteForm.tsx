@@ -19,6 +19,8 @@ interface CortadorOpt {
 
 interface ConsumoRollo { rolloId: string; metros: string; codigo: string; pesoActual: number; costoUnitario: number; rinde: number; nombre: string; }
 interface ConsumoLote { loteId: string; cantidad: string; codigo: string; cantActual: number; costoUnitario: number; nombre: string; }
+interface AvioOpt { id: string; nombre: string; tipo: string | null; precio: number; stock: number | null; }
+interface AvioSel { etiquetaId: string; cantidad: string; }
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 const inpSm = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
@@ -34,6 +36,8 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
 
   const [consumoRollos, setConsumoRollos] = useState<ConsumoRollo[]>([]);
   const [consumoLotes, setConsumoLotes] = useState<ConsumoLote[]>([]);
+  const [aviosCatalogo, setAviosCatalogo] = useState<AvioOpt[]>([]);
+  const [aviosSel, setAviosSel] = useState<AvioSel[]>([]);
   const [talles, setTalles] = useState<Record<string, string>>({});
   const [cortadorId, setCortadorId] = useState('');
   const [costoCorte, setCostoCorte] = useState('');
@@ -69,7 +73,20 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
       setLotesDisp([...l1, ...l2]);
       setCortadores((ct as CortadorOpt[]).filter((c) => c.activo));
     });
+
+    fetch('/api/costos/etiquetas')
+      .then((r) => r.ok ? r.json() : [])
+      .then((a) => { if (Array.isArray(a)) setAviosCatalogo(a.map((x) => ({ ...x, precio: Number(x.precio) }))); })
+      .catch(() => {});
   }, []);
+
+  // Avíos
+  const toggleAvio = (etiquetaId: string) =>
+    setAviosSel((prev) => prev.find((a) => a.etiquetaId === etiquetaId)
+      ? prev.filter((a) => a.etiquetaId !== etiquetaId)
+      : [...prev, { etiquetaId, cantidad: '1' }]);
+  const updateAvioCant = (etiquetaId: string, val: string) =>
+    setAviosSel((prev) => prev.map((a) => a.etiquetaId === etiquetaId ? { ...a, cantidad: val } : a));
 
   // Rollos
   const toggleRollo = (r: RolloDisp) => {
@@ -174,6 +191,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
       body: JSON.stringify({
         consumoRollos: rollosFinal.map((c) => ({ rolloId: c.rolloId, metrosUsados: c.metrosEf })),
         consumoLotes: consumoLotes.length > 0 ? consumoLotes.map((c) => ({ loteId: c.loteId, cantidad: parseFloat(c.cantidad) })) : undefined,
+        avios: aviosSel.length > 0 ? aviosSel.map((a) => ({ etiquetaId: a.etiquetaId, cantidad: parseInt(a.cantidad) || 1 })) : undefined,
         cortesPorTalle: cortesArr,
         cortadorId: cortadorId || undefined,
         costoCorte: costoCorteNum > 0 ? costoCorteNum : undefined,
@@ -314,6 +332,43 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
         {consumoLotes.length > 0 && (
           <div className="mt-3 pt-3 border-t border-stone-100 text-sm text-right">
             <span className="text-stone-500">Costo insumos sec.: </span><strong>${fmt(costoInsSec)}</strong>
+          </div>
+        )}
+      </div>
+
+      {/* Avíos de la prenda (catálogo) */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <h3 className="text-sm font-bold text-stone-800 mb-1">Avíos de la prenda</h3>
+        <p className="text-xs text-stone-400 mb-4">
+          Qué etiquetas/avíos del catálogo lleva cada prenda. El stock se descuenta solo al terminar la producción.
+        </p>
+        {aviosCatalogo.length === 0 ? (
+          <p className="text-sm text-stone-400 py-2">No hay avíos en el catálogo. Cargalos en Costos → Catálogos.</p>
+        ) : (
+          <div className="space-y-2">
+            {aviosCatalogo.map((a) => {
+              const sel = aviosSel.find((x) => x.etiquetaId === a.id);
+              const cantNum = sel ? (parseInt(sel.cantidad) || 0) : 0;
+              return (
+                <div key={a.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${sel ? 'border-blue-300 bg-blue-50' : 'border-stone-100'}`}>
+                  <input type="checkbox" checked={!!sel} onChange={() => toggleAvio(a.id)} className="rounded border-stone-300" />
+                  <span className="text-xs text-stone-700 flex-1 truncate">{a.nombre}{a.tipo ? ` · ${a.tipo}` : ''}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full tabular-nums ${a.stock == null ? 'text-stone-400' : a.stock > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {a.stock == null ? '∞' : `${a.stock} en stock`}
+                  </span>
+                  {sel && (
+                    <div className="flex items-center gap-1">
+                      <NumInput value={parseFloat(sel.cantidad) || 0} onChange={(n) => updateAvioCant(a.id, n ? String(n) : '')}
+                        min="1" step="1" placeholder="x prenda" className={`w-20 ${inpSm}`} />
+                      <span className="text-xs text-stone-400">/u</span>
+                      {totalUnidades > 0 && cantNum > 0 && (
+                        <span className="text-xs text-stone-400 ml-1 tabular-nums">= {cantNum * totalUnidades}</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

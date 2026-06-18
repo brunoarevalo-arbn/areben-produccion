@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { TerminarCosturaSchema } from '@/lib/validators/produccion';
+import { parseDatos } from '@/lib/costos/escandallo';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -50,9 +51,38 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       });
     }
 
+    // Descontar avíos del stock — una sola vez por orden (guard aviosDescontados).
+    // Receta: lo cargado en el corte; si está vacío, fallback al escandallo del SKU.
+    let descontado = false;
+    if (!orden.aviosDescontados) {
+      let receta: { etiquetaId: string; cantidad: number }[] =
+        (await tx.ordenAvio.findMany({ where: { ordenId: id } }))
+          .map((a) => ({ etiquetaId: a.etiquetaId, cantidad: a.cantidad }));
+
+      if (receta.length === 0) {
+        const escandallo = await tx.escandallo.findFirst({ where: { sku } });
+        if (escandallo) {
+          const datos = parseDatos(escandallo.datos);
+          if (datos.avios.etiquetaPrincipalId)   receta.push({ etiquetaId: datos.avios.etiquetaPrincipalId,   cantidad: 1 });
+          if (datos.avios.etiquetaComposicionId) receta.push({ etiquetaId: datos.avios.etiquetaComposicionId, cantidad: 1 });
+        }
+      }
+
+      for (const a of receta) {
+        const et = await tx.etiquetaCatalogo.findUnique({ where: { id: a.etiquetaId } });
+        if (!et || et.stock == null) continue; // sin seguimiento / ilimitado
+        const nuevo = Math.max(0, et.stock - a.cantidad * totalProducido);
+        await tx.etiquetaCatalogo.update({ where: { id: a.etiquetaId }, data: { stock: nuevo } });
+      }
+      descontado = receta.length > 0;
+    }
+
     await tx.ordenProduccion.update({
       where: { id },
-      data: { estado: 'TERMINADO_SIN_ESTAMPA', terminadoAt: new Date(), cantidad: totalProducido },
+      data: {
+        estado: 'TERMINADO_SIN_ESTAMPA', terminadoAt: new Date(), cantidad: totalProducido,
+        ...(descontado ? { aviosDescontados: true } : {}),
+      },
     });
     await tx.estadoTransicion.create({
       data: {

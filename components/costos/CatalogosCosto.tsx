@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 
-interface Etiqueta { id: string; nombre: string; tipo: string | null; precio: number; }
+interface Etiqueta { id: string; nombre: string; tipo: string | null; precio: number; stock: number | null; }
 interface CostoCorte { id: string; tipoPrenda: string; costo: number; }
 
 const TIPOS_ETIQUETA = ['principal', 'composicion', 'otro'];
@@ -29,6 +29,8 @@ function EtiquetasManager() {
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [editPrecio, setEditPrecio] = useState(0);
+  const [editSeguir, setEditSeguir] = useState(false);
+  const [editStock, setEditStock] = useState(0);
 
   const cargar = useCallback(async () => {
     const r = await fetch('/api/costos/etiquetas');
@@ -47,9 +49,15 @@ function EtiquetasManager() {
     setSaving(false);
   };
 
-  const guardarPrecio = async (id: string) => {
+  const startEdit = (it: Etiqueta) => {
+    setEditId(it.id); setEditPrecio(it.precio);
+    setEditSeguir(it.stock != null); setEditStock(it.stock ?? 0);
+  };
+
+  const guardar = async (id: string) => {
     const r = await fetch(`/api/costos/etiquetas/${id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ precio: editPrecio }),
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ precio: editPrecio, stock: editSeguir ? editStock : null }),
     });
     if (r.ok) { const it = await r.json(); setItems(prev => prev.map(x => x.id === id ? { ...it, precio: Number(it.precio) } : x)); setEditId(null); }
   };
@@ -62,8 +70,8 @@ function EtiquetasManager() {
 
   return (
     <div>
-      <h3 className="text-sm font-bold text-stone-800 mb-1">Catálogo de etiquetas</h3>
-      <p className="text-xs text-stone-400 mb-4">Etiquetas con su precio. En el escandallo las elegís y trae el precio automáticamente.</p>
+      <h3 className="text-sm font-bold text-stone-800 mb-1">Catálogo de etiquetas y avíos</h3>
+      <p className="text-xs text-stone-400 mb-4">Cada avío con su precio y stock. Vacío = sin seguimiento (ilimitado). El stock se descuenta al terminar producción.</p>
 
       <div className={`${card} divide-y divide-stone-100 mb-3`}>
         {items.length === 0 && <p className="text-sm text-stone-400 text-center py-8 italic">Sin etiquetas todavía</p>}
@@ -74,15 +82,26 @@ function EtiquetasManager() {
               {it.tipo && <p className="text-xs text-stone-400 capitalize">{it.tipo}</p>}
             </div>
             {editId === it.id ? (
-              <div className="flex items-center gap-2">
-                <NumInput value={editPrecio} onChange={setEditPrecio} min="0" step="0.01" className={`w-28 ${inp}`} autoFocus />
-                <button onClick={() => guardarPrecio(it.id)} className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg font-semibold">OK</button>
+              <div className="flex items-center gap-2 flex-wrap justify-end">
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-stone-400">$</span>
+                  <NumInput value={editPrecio} onChange={setEditPrecio} min="0" step="0.01" className={`w-24 ${inp}`} autoFocus />
+                </div>
+                <label className="flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer">
+                  <input type="checkbox" checked={editSeguir} onChange={e => setEditSeguir(e.target.checked)} className="rounded border-stone-300" />
+                  Stock
+                </label>
+                {editSeguir && <NumInput value={editStock} onChange={setEditStock} min="0" step="1" placeholder="cant." className={`w-20 ${inp}`} />}
+                <button onClick={() => guardar(it.id)} className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg font-semibold">OK</button>
                 <button onClick={() => setEditId(null)} className="text-xs text-stone-400 hover:text-stone-600">✕</button>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-stone-900 tabular-nums">{fmt$(it.precio)}</span>
-                <button onClick={() => { setEditId(it.id); setEditPrecio(it.precio); }}
+                <span className={`text-xs px-2 py-0.5 rounded-full tabular-nums ${it.stock == null ? 'bg-stone-100 text-stone-400' : it.stock > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
+                  {it.stock == null ? '∞ sin seguimiento' : `${it.stock} en stock`}
+                </span>
+                <button onClick={() => startEdit(it)}
                   className="text-xs px-2 py-1 border border-stone-200 rounded-lg text-stone-500 hover:border-stone-400 transition">Editar</button>
                 <button onClick={() => eliminar(it.id, it.nombre)}
                   className="text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">×</button>

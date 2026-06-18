@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { requirePermiso } from '@/lib/auth';
+import { aplicarDescuentoAviosDesdeEscandallo } from '@/lib/costos/aviosStock';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -29,6 +30,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (body.datos      !== undefined) data.datos      = body.datos ? JSON.stringify(body.datos) : null;
 
   const escandallo = await prisma.escandallo.update({ where: { id }, data });
+  // Si hay órdenes terminadas de este SKU sin avíos descontados, descuenta ahora.
+  if (body.datos !== undefined) {
+    try { await aplicarDescuentoAviosDesdeEscandallo(escandallo.sku, body.datos); } catch { /* no romper el guardado */ }
+  }
   return NextResponse.json(escandallo);
 }
 
