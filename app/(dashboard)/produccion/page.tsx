@@ -5,6 +5,13 @@ export const dynamic = 'force-dynamic';
 
 const ACCESOS = [
   {
+    label: 'Fichas de corte',
+    desc: 'Fichas pendientes de cargar y todos los SKU en producción.',
+    href: '/produccion/fichas',
+    icon: '📋',
+    color: 'bg-amber-50 border-amber-300 hover:border-amber-400',
+  },
+  {
     label: 'Registrar Tiempos',
     desc: 'Cronómetro y formulario para costureras en el taller.',
     href: '/tiempos',

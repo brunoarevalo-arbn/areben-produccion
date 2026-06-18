@@ -560,7 +560,8 @@ model CompraLinea {
 
 model Insumo {
   id               String        @id @default(cuid())
-  nombre           String
+  nombre           String                       // nombre del artículo (suele ser el del proveedor)
+  nombreInterno    String?                      // nombre interno opcional (ref al catálogo de telas)
   categoria        String
   tipoTrazabilidad String
   unidadDefault    String

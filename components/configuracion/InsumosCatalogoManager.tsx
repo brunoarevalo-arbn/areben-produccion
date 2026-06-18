@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 interface InsumoItem {
   id: string;
   nombre: string;
+  nombreInterno: string | null;
   categoria: string;
   tipoTrazabilidad: string;
   unidadDefault: string;
@@ -29,6 +30,8 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
   const [filtroCategoria, setFiltroCategoria] = useState('');
 
   const [nombre, setNombre]                   = useState('');
+  const [nombreInterno, setNombreInterno]     = useState('');
+  const [telasCatalogo, setTelasCatalogo]     = useState<string[]>([]);
   const [categoria, setCategoria]             = useState('tela');
   const [tipoTrazabilidad, setTipoTrazabilidad] = useState('rollo');
   const [unidadDefault, setUnidadDefault]     = useState('kg');
@@ -36,8 +39,16 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
   const [manejaColor, setManejaColor]         = useState(false);
   const [rinde, setRinde]                     = useState('');
 
+  // Catálogo de telas internas para sugerir nombres internos
+  useEffect(() => {
+    fetch('/api/telas-catalogo')
+      .then((r) => r.ok ? r.json() : [])
+      .then((t) => { if (Array.isArray(t)) setTelasCatalogo(t.map((x: { nombre: string }) => x.nombre)); })
+      .catch(() => {});
+  }, []);
+
   const resetForm = () => {
-    setNombre(''); setCategoria('tela'); setTipoTrazabilidad('rollo');
+    setNombre(''); setNombreInterno(''); setCategoria('tela'); setTipoTrazabilidad('rollo');
     setUnidadDefault('kg'); setStockMinimo(''); setManejaColor(false); setRinde(''); setError('');
   };
 
@@ -45,6 +56,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
 
   const abrirEdicion = (ins: InsumoItem) => {
     setNombre(ins.nombre);
+    setNombreInterno(ins.nombreInterno ?? '');
     setCategoria(ins.categoria);
     setTipoTrazabilidad(ins.tipoTrazabilidad);
     setUnidadDefault(ins.unidadDefault);
@@ -64,6 +76,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
 
     const payload = {
       nombre: nombre.trim(),
+      nombreInterno: nombreInterno.trim() || null,
       categoria,
       tipoTrazabilidad,
       unidadDefault,
@@ -132,8 +145,18 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
           <form onSubmit={guardar} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nombre *</label>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nombre del artículo *</label>
                 <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={inp} />
+                <p className="text-xs text-stone-400 mt-1">Como lo nombra el proveedor / factura.</p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nombre interno</label>
+                <input type="text" value={nombreInterno} onChange={(e) => setNombreInterno(e.target.value)}
+                  list="telas-catalogo-list" placeholder="Opcional" className={inp} />
+                <datalist id="telas-catalogo-list">
+                  {telasCatalogo.map((t) => <option key={t} value={t} />)}
+                </datalist>
+                <p className="text-xs text-stone-400 mt-1">Cómo lo llamás internamente (sugerencias del catálogo de telas).</p>
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Categoria *</label>
@@ -204,7 +227,10 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
           filtrados.map((ins, i) => (
             <div key={ins.id}
               className={`px-5 py-3.5 grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!ins.activo ? 'opacity-50' : ''}`}>
-              <p className="text-sm font-medium text-stone-800">{ins.nombre}</p>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-stone-800 truncate">{ins.nombre}</p>
+                {ins.nombreInterno && <p className="text-xs text-stone-400 truncate">interno: {ins.nombreInterno}</p>}
+              </div>
               <span className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full">{ins.categoria}</span>
               <span className="text-xs text-stone-500">{ins.tipoTrazabilidad}</span>
               <span className="text-xs text-stone-500">{ins.unidadDefault}</span>

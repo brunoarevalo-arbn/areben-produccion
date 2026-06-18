@@ -15,6 +15,7 @@ export const ProveedorSchema = z.object({
 
 export const InsumoCatalogoSchema = z.object({
   nombre:           z.string().min(1, 'Nombre obligatorio'),
+  nombreInterno:    z.preprocess((v) => (typeof v === 'string' && v.trim() === '' ? null : v), z.string().nullable().optional()),
   categoria:        z.enum(['tela', 'vinilo', 'etiqueta', 'badana', 'hilo', 'aviso', 'packaging', 'otro']),
   tipoTrazabilidad: z.enum(['rollo', 'lote']),
   unidadDefault:    z.enum(['kg', 'metro', 'unidad']),
