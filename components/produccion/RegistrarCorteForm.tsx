@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { TALLES_DEFAULT } from '@/lib/validators/produccion';
 import { NumInput } from '@/components/ui/NumInput';
@@ -22,9 +22,42 @@ interface ConsumoLote { loteId: string; cantidad: string; codigo: string; cantAc
 interface AvioOpt { id: string; nombre: string; tipo: string | null; precio: number; stock: number | null; }
 interface AvioSel { etiquetaId: string; cantidad: string; }
 
+// Una ficha puede tener varias tizadas (cuerpo, puño, manga, complementos...).
+// Cada tizada tiene su propia tela/rollos y su propio rinde. Las unidades cortadas
+// son las mismas para todas (se cargan una vez en los talles).
+interface Tizada {
+  id: string;
+  nombre: string;
+  modo: 'tizada' | 'manual';
+  metros: string;
+  unidades: string;
+  rollos: ConsumoRollo[];
+}
+
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 const inpSm = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
+
+// Reparto de metros de una tizada entre sus rollos. Manual: lo cargado. Tizada:
+// llena rollo por rollo (hasta agotar cada uno) hasta cubrir lo necesario.
+function calcTizada(t: Tizada, totalUnidades: number) {
+  const metrosNum   = parseFloat(t.metros) || 0;
+  const unidadesNum = parseInt(t.unidades) || 0;
+  const metrosPorUnidad  = unidadesNum > 0 ? metrosNum / unidadesNum : 0;
+  const metrosNecesarios = metrosPorUnidad * totalUnidades;
+  const rollosCalc = t.rollos.map((c, i) => {
+    if (t.modo === 'manual') return { ...c, metrosEf: parseFloat(c.metros) || 0 };
+    const dispAntes = t.rollos.slice(0, i).reduce((s, x) => s + x.pesoActual * x.rinde, 0);
+    const disp = c.pesoActual * c.rinde;
+    return { ...c, metrosEf: Math.max(0, Math.min(metrosNecesarios - dispAntes, disp)) };
+  });
+  const totalDisp = t.rollos.reduce((s, x) => s + x.pesoActual * x.rinde, 0);
+  const faltante  = t.modo === 'tizada' ? Math.max(0, metrosNecesarios - totalDisp) : 0;
+  const metros = rollosCalc.reduce((s, c) => s + c.metrosEf, 0);
+  const kg     = rollosCalc.reduce((s, c) => s + c.metrosEf / c.rinde, 0);
+  const costo  = rollosCalc.reduce((s, c) => s + (c.metrosEf / c.rinde) * c.costoUnitario, 0);
+  return { metrosPorUnidad, metrosNecesarios, rollosCalc, faltante, metros, kg, costo };
+}
 
 export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { ordenId: string; sku: string; cantidadPlanificada: number }) {
   const router = useRouter();
@@ -34,7 +67,8 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const [consumoRollos, setConsumoRollos] = useState<ConsumoRollo[]>([]);
+  const tizadaSeq = useRef(2);
+  const [tizadas, setTizadas] = useState<Tizada[]>([{ id: 't1', nombre: '', modo: 'tizada', metros: '', unidades: '1', rollos: [] }]);
   const [consumoLotes, setConsumoLotes] = useState<ConsumoLote[]>([]);
   const [aviosCatalogo, setAviosCatalogo] = useState<AvioOpt[]>([]);
   const [aviosSel, setAviosSel] = useState<AvioSel[]>([]);
@@ -42,12 +76,6 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
   const [cortadorId, setCortadorId] = useState('');
   const [costoCorte, setCostoCorte] = useState('');
   const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>('total');
-
-  // Modo de carga de tela: 'tizada' calcula los metros desde el rinde de la tizada,
-  // 'manual' usa los metros cargados rollo por rollo.
-  const [modoTela, setModoTela] = useState<'tizada' | 'manual'>('tizada');
-  const [metrosTizada, setMetrosTizada] = useState('');
-  const [unidadesTizada, setUnidadesTizada] = useState('1');
 
   // Autocompletar tarifa al elegir cortador
   const onCortadorChange = (id: string) => {
@@ -88,20 +116,27 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
   const updateAvioCant = (etiquetaId: string, val: string) =>
     setAviosSel((prev) => prev.map((a) => a.etiquetaId === etiquetaId ? { ...a, cantidad: val } : a));
 
-  // Rollos
-  const toggleRollo = (r: RolloDisp) => {
-    setConsumoRollos((prev) => {
-      const exists = prev.find((c) => c.rolloId === r.id);
-      if (exists) return prev.filter((c) => c.rolloId !== r.id);
-      return [...prev, {
+  // Tizadas
+  const addTizada = () =>
+    setTizadas((prev) => [...prev, { id: `t${tizadaSeq.current++}`, nombre: '', modo: 'tizada', metros: '', unidades: '1', rollos: [] }]);
+  const removeTizada = (id: string) =>
+    setTizadas((prev) => prev.length > 1 ? prev.filter((t) => t.id !== id) : prev);
+  const updTizada = (id: string, field: 'nombre' | 'modo' | 'metros' | 'unidades', val: string) =>
+    setTizadas((prev) => prev.map((t) => t.id === id ? { ...t, [field]: val } : t));
+  const toggleRolloTizada = (tizadaId: string, r: RolloDisp) =>
+    setTizadas((prev) => prev.map((t) => {
+      if (t.id !== tizadaId) return t;
+      const exists = t.rollos.find((c) => c.rolloId === r.id);
+      if (exists) return { ...t, rollos: t.rollos.filter((c) => c.rolloId !== r.id) };
+      return { ...t, rollos: [...t.rollos, {
         rolloId: r.id, metros: '', codigo: r.codigo,
         pesoActual: Number(r.pesoActual), costoUnitario: Number(r.costoUnitario),
         rinde: Number(r.insumo.rinde), nombre: `${r.insumo.nombre}${r.color ? ` · ${r.color.nombre}` : ''}`,
-      }];
-    });
-  };
-  const updateRolloMetros = (rolloId: string, val: string) =>
-    setConsumoRollos((prev) => prev.map((c) => c.rolloId === rolloId ? { ...c, metros: val } : c));
+      }] };
+    }));
+  const updRolloMetrosTizada = (tizadaId: string, rolloId: string, val: string) =>
+    setTizadas((prev) => prev.map((t) => t.id === tizadaId
+      ? { ...t, rollos: t.rollos.map((c) => c.rolloId === rolloId ? { ...c, metros: val } : c) } : t));
 
   // Lotes
   const addLote = (l: LoteDisp) => {
@@ -122,28 +157,23 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
   // Calculos
   const totalUnidades = Object.values(talles).reduce((s, v) => s + (parseInt(v) || 0), 0);
 
-  // Tizada -> metros por unidad -> metros totales necesarios
-  const metrosTizadaNum   = parseFloat(metrosTizada) || 0;
-  const unidadesTizadaNum = parseInt(unidadesTizada) || 0;
-  const metrosPorUnidad   = unidadesTizadaNum > 0 ? metrosTizadaNum / unidadesTizadaNum : 0;
-  const metrosNecesarios  = metrosPorUnidad * totalUnidades;
+  const tizadasCalc = tizadas.map((t) => ({ t, ...calcTizada(t, totalUnidades) }));
+  const totalRollosSel = tizadas.reduce((s, t) => s + t.rollos.length, 0);
 
-  // Metros efectivos por rollo. Manual: lo cargado. Tizada: reparto automatico
-  // llenando rollo por rollo (hasta agotar cada uno) en el orden seleccionado.
-  const consumoCalc = consumoRollos.map((c, i) => {
-    if (modoTela === 'manual') return { ...c, metrosEf: parseFloat(c.metros) || 0 };
-    const dispAntes = consumoRollos.slice(0, i).reduce((s, x) => s + x.pesoActual * x.rinde, 0);
-    const disp = c.pesoActual * c.rinde;
-    const metrosEf = Math.max(0, Math.min(metrosNecesarios - dispAntes, disp));
-    return { ...c, metrosEf };
-  });
-  const metrosEfMap = new Map(consumoCalc.map((c) => [c.rolloId, c.metrosEf]));
-  const totalDisp = consumoRollos.reduce((s, x) => s + x.pesoActual * x.rinde, 0);
-  const faltanteTizada = modoTela === 'tizada' ? Math.max(0, metrosNecesarios - totalDisp) : 0;
+  // Consumo agregado por rollo (un mismo rollo puede usarse en más de una tizada)
+  const rolloAgg = new Map<string, { rolloId: string; metrosEf: number; codigo: string; rinde: number; pesoActual: number }>();
+  for (const tc of tizadasCalc) {
+    for (const c of tc.rollosCalc) {
+      const cur = rolloAgg.get(c.rolloId);
+      if (cur) cur.metrosEf += c.metrosEf;
+      else rolloAgg.set(c.rolloId, { rolloId: c.rolloId, metrosEf: c.metrosEf, codigo: c.codigo, rinde: c.rinde, pesoActual: c.pesoActual });
+    }
+  }
+  const rollosAgg = [...rolloAgg.values()];
 
-  const totalMetros = consumoCalc.reduce((s, c) => s + c.metrosEf, 0);
-  const totalKg = consumoCalc.reduce((s, c) => s + c.metrosEf / c.rinde, 0);
-  const costoTela = consumoCalc.reduce((s, c) => s + (c.metrosEf / c.rinde) * c.costoUnitario, 0);
+  const totalMetros = tizadasCalc.reduce((s, x) => s + x.metros, 0);
+  const totalKg     = tizadasCalc.reduce((s, x) => s + x.kg, 0);
+  const costoTela   = tizadasCalc.reduce((s, x) => s + x.costo, 0);
   const costoInsSec = consumoLotes.reduce((s, c) => s + (parseFloat(c.cantidad) || 0) * c.costoUnitario, 0);
   const costoCorteInput = parseFloat(costoCorte) || 0;
   const costoCorteNum = modoCosto === 'unidad' ? costoCorteInput * totalUnidades : costoCorteInput;
@@ -154,21 +184,22 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
     e.preventDefault();
     setError('');
 
-    if (consumoRollos.length === 0) { setError('Selecciona al menos un rollo'); return; }
+    if (totalRollosSel === 0) { setError('Selecciona al menos un rollo en alguna tizada'); return; }
+    if (totalUnidades === 0) { setError('Cargá los talles para calcular el consumo'); return; }
 
-    if (modoTela === 'tizada') {
-      if (metrosPorUnidad <= 0) { setError('Cargá los metros y unidades de la tizada'); return; }
-      if (totalUnidades === 0) { setError('Cargá los talles para calcular el consumo'); return; }
-      if (faltanteTizada > 0.001) { setError(`Los rollos seleccionados no alcanzan: faltan ${fmt(faltanteTizada)} m`); return; }
+    for (const tc of tizadasCalc) {
+      if (tc.t.rollos.length === 0) continue;
+      const etq = tc.t.nombre.trim() || 'sin nombre';
+      if (tc.t.modo === 'tizada') {
+        if (tc.metrosPorUnidad <= 0) { setError(`Tizada "${etq}": cargá los metros y unidades`); return; }
+        if (tc.faltante > 0.001) { setError(`Tizada "${etq}": los rollos no alcanzan, faltan ${fmt(tc.faltante)} m`); return; }
+      }
     }
 
-    // En tizada, los rollos sobrantes (consumo 0) no se consumen: se descartan del
-    // payload en vez de bloquear el registro. En manual, un rollo sin metros es error.
-    const rollosFinal = modoTela === 'tizada' ? consumoCalc.filter((c) => c.metrosEf > 0.001) : consumoCalc;
-    if (rollosFinal.length === 0) { setError('Ningun rollo aporta metros al corte'); return; }
-
+    // Rollos que realmente aportan metros (descarta seleccionados con consumo 0)
+    const rollosFinal = rollosAgg.filter((c) => c.metrosEf > 0.001);
+    if (rollosFinal.length === 0) { setError('Ningún rollo aporta metros al corte'); return; }
     for (const cr of rollosFinal) {
-      if (!cr.metrosEf || cr.metrosEf <= 0) { setError(`Metros invalidos para rollo ${cr.codigo}`); return; }
       if (cr.metrosEf / cr.rinde > cr.pesoActual + 0.001) { setError(`Rollo ${cr.codigo}: excede stock`); return; }
     }
 
@@ -210,94 +241,126 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Consumo de tela */}
+      {/* Consumo de tela — una o más tizadas */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-1">1. Consumo de tela</h3>
         <p className="text-xs text-stone-400 mb-4">
-          {modoTela === 'tizada'
-            ? 'Cargá el rinde de la tizada y el sistema calcula los metros totales según las unidades cortadas.'
-            : 'Cargá los metros usados rollo por rollo. Se convierte a kg con el rinde del insumo.'}
+          Una ficha puede tener varias tizadas (cuerpo, puño, manga, complementos). Cada una con su tela y su rinde.
+          Las unidades cortadas se cargan una sola vez en los talles (sección 3).
         </p>
 
-        {/* Modo de carga */}
-        <div className="flex gap-2 mb-4">
-          <button type="button" onClick={() => setModoTela('tizada')}
-            className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-semibold border transition ${modoTela === 'tizada' ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600'}`}>
-            Por tizada
-          </button>
-          <button type="button" onClick={() => setModoTela('manual')}
-            className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-semibold border transition ${modoTela === 'manual' ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600'}`}>
-            Metros por rollo
-          </button>
-        </div>
-
-        {/* Inputs de tizada */}
-        {modoTela === 'tizada' && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Metros de la tizada</label>
-                <NumInput value={parseFloat(metrosTizada) || 0} onChange={(n) => setMetrosTizada(n ? String(n) : '')}
-                  min="0" step="0.01" placeholder="Ej: 24.5" className={inpSm + ' w-full'} />
+        {tizadas.map((t, ti) => {
+          const tc = tizadasCalc[ti];
+          const efMap = new Map(tc.rollosCalc.map((c) => [c.rolloId, c.metrosEf]));
+          return (
+            <div key={t.id} className="border border-stone-200 rounded-xl p-4 mb-3">
+              {/* Nombre + quitar */}
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-bold text-stone-400 shrink-0">Tizada {ti + 1}</span>
+                <input type="text" value={t.nombre} onChange={(e) => updTizada(t.id, 'nombre', e.target.value)}
+                  placeholder="Nombre (ej: Cuerpo, Puño, Manga...)"
+                  className="flex-1 text-sm font-semibold bg-transparent border-0 border-b border-stone-200 focus:outline-none focus:border-amber-400 pb-0.5 text-stone-800" />
+                {tizadas.length > 1 && (
+                  <button type="button" onClick={() => removeTizada(t.id)}
+                    className="text-stone-300 hover:text-red-400 transition text-xl shrink-0 leading-none">×</button>
+                )}
               </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Unidades que rinde</label>
-                <NumInput value={parseFloat(unidadesTizada) || 0} onChange={(n) => setUnidadesTizada(n ? String(n) : '')}
-                  min="1" step="1" placeholder="Ej: 12" className={inpSm + ' w-full'} />
-              </div>
-            </div>
-            <div className="mt-3 pt-3 border-t border-amber-200 text-xs text-stone-600 flex flex-wrap gap-x-4 gap-y-1">
-              {metrosPorUnidad > 0 && <span>Rinde: <strong>{fmt(metrosPorUnidad)} m/u</strong></span>}
-              {totalUnidades === 0
-                ? <span className="text-amber-600">Cargá los talles (sección 3) para calcular los metros</span>
-                : metrosPorUnidad > 0 && <span>Necesario: <strong>{fmt(metrosPorUnidad)} m/u × {totalUnidades} u = {fmt(metrosNecesarios)} m</strong></span>}
-            </div>
-            {faltanteTizada > 0.001 && (
-              <p className="text-xs text-red-600 mt-2">Los rollos seleccionados no alcanzan: faltan {fmt(faltanteTizada)} m. Seleccioná otro rollo.</p>
-            )}
-          </div>
-        )}
 
-        <div className="space-y-2 max-h-72 overflow-y-auto">
-          {rollosDisp.length === 0 ? (
-            <p className="text-sm text-stone-400 py-4">No hay rollos con rinde disponibles. Carga el rinde en configuracion.</p>
-          ) : (
-            rollosDisp.map((r) => {
-              const selected = consumoRollos.find((c) => c.rolloId === r.id);
-              const rinde = Number(r.insumo.rinde);
-              const metrosDisp = Number(r.pesoActual) * rinde;
-              return (
-                <div key={r.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${selected ? 'border-blue-300 bg-blue-50' : 'border-stone-100'}`}>
-                  <input type="checkbox" checked={!!selected} onChange={() => toggleRollo(r)} className="rounded border-stone-300" />
-                  <span className="font-mono text-xs text-stone-700 w-16">{r.codigo}</span>
-                  <span className="text-xs text-stone-600 flex-1 truncate">{r.insumo.nombre}{r.color ? ` · ${r.color.nombre}` : ''}</span>
-                  <span className="text-xs text-stone-400 tabular-nums">{Number(r.pesoActual).toFixed(1)}kg · ~{metrosDisp.toFixed(0)}m</span>
-                  {selected && (
-                    modoTela === 'manual' ? (
-                      <div className="flex items-center gap-1">
-                        <NumInput value={parseFloat(selected.metros) || 0} onChange={(n) => updateRolloMetros(r.id, n ? String(n) : '')}
-                          min="0.01" step="0.01" placeholder="Metros" className={`w-24 ${inpSm}`} />
-                        <span className="text-xs text-stone-400">m</span>
-                      </div>
-                    ) : (
-                      (metrosEfMap.get(r.id) ?? 0) > 0.001 ? (
-                        <span className="text-xs font-semibold text-blue-700 tabular-nums w-24 text-right">
-                          {fmt(metrosEfMap.get(r.id) ?? 0)} m
-                        </span>
-                      ) : (
-                        <span className="text-xs text-stone-400 italic w-24 text-right">no usado</span>
-                      )
-                    )
+              {/* Modo */}
+              <div className="flex gap-2 mb-3">
+                <button type="button" onClick={() => updTizada(t.id, 'modo', 'tizada')}
+                  className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold border transition ${t.modo === 'tizada' ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600'}`}>
+                  Por tizada
+                </button>
+                <button type="button" onClick={() => updTizada(t.id, 'modo', 'manual')}
+                  className={`flex-1 px-3 py-2 rounded-lg text-xs font-semibold border transition ${t.modo === 'manual' ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600'}`}>
+                  Metros por rollo
+                </button>
+              </div>
+
+              {/* Inputs de tizada */}
+              {t.modo === 'tizada' && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-stone-600 mb-1 block">Metros de la tizada</label>
+                      <NumInput value={parseFloat(t.metros) || 0} onChange={(n) => updTizada(t.id, 'metros', n ? String(n) : '')}
+                        min="0" step="0.01" placeholder="Ej: 24.5" className={inpSm + ' w-full'} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-semibold text-stone-600 mb-1 block">Unidades que rinde</label>
+                      <NumInput value={parseFloat(t.unidades) || 0} onChange={(n) => updTizada(t.id, 'unidades', n ? String(n) : '')}
+                        min="1" step="1" placeholder="Ej: 12" className={inpSm + ' w-full'} />
+                    </div>
+                  </div>
+                  <div className="mt-2 pt-2 border-t border-amber-200 text-xs text-stone-600 flex flex-wrap gap-x-4 gap-y-1">
+                    {tc.metrosPorUnidad > 0 && <span>Rinde: <strong>{fmt(tc.metrosPorUnidad)} m/u</strong></span>}
+                    {totalUnidades === 0
+                      ? <span className="text-amber-600">Cargá los talles (sección 3) para calcular los metros</span>
+                      : tc.metrosPorUnidad > 0 && <span>Necesario: <strong>{fmt(tc.metrosPorUnidad)} m/u × {totalUnidades} u = {fmt(tc.metrosNecesarios)} m</strong></span>}
+                  </div>
+                  {tc.faltante > 0.001 && (
+                    <p className="text-xs text-red-600 mt-2">Los rollos no alcanzan: faltan {fmt(tc.faltante)} m. Sumá otro rollo a esta tizada.</p>
                   )}
                 </div>
-              );
-            })
-          )}
-        </div>
+              )}
 
-        {consumoRollos.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-stone-100 grid grid-cols-3 gap-3 text-sm">
-            <div><span className="text-stone-500">Total: </span><strong>{fmt(totalMetros)} m</strong></div>
+              {/* Rollos de esta tizada */}
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {rollosDisp.length === 0 ? (
+                  <p className="text-sm text-stone-400 py-2">No hay rollos con rinde disponibles. Cargá el rinde en configuración.</p>
+                ) : (
+                  rollosDisp.map((r) => {
+                    const selected = t.rollos.find((c) => c.rolloId === r.id);
+                    const metrosDisp = Number(r.pesoActual) * Number(r.insumo.rinde);
+                    const ef = efMap.get(r.id) ?? 0;
+                    return (
+                      <div key={r.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${selected ? 'border-blue-300 bg-blue-50' : 'border-stone-100'}`}>
+                        <input type="checkbox" checked={!!selected} onChange={() => toggleRolloTizada(t.id, r)} className="rounded border-stone-300" />
+                        <span className="font-mono text-xs text-stone-700 w-16">{r.codigo}</span>
+                        <span className="text-xs text-stone-600 flex-1 truncate">{r.insumo.nombre}{r.color ? ` · ${r.color.nombre}` : ''}</span>
+                        <span className="text-xs text-stone-400 tabular-nums">{Number(r.pesoActual).toFixed(1)}kg · ~{metrosDisp.toFixed(0)}m</span>
+                        {selected && (
+                          t.modo === 'manual' ? (
+                            <div className="flex items-center gap-1">
+                              <NumInput value={parseFloat(selected.metros) || 0} onChange={(n) => updRolloMetrosTizada(t.id, r.id, n ? String(n) : '')}
+                                min="0.01" step="0.01" placeholder="Metros" className={`w-24 ${inpSm}`} />
+                              <span className="text-xs text-stone-400">m</span>
+                            </div>
+                          ) : (
+                            ef > 0.001 ? (
+                              <span className="text-xs font-semibold text-blue-700 tabular-nums w-24 text-right">{fmt(ef)} m</span>
+                            ) : (
+                              <span className="text-xs text-stone-400 italic w-24 text-right">no usado</span>
+                            )
+                          )
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              {/* Subtotal de la tizada */}
+              {t.rollos.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-stone-100 grid grid-cols-3 gap-3 text-xs">
+                  <div><span className="text-stone-500">Metros: </span><strong>{fmt(tc.metros)} m</strong></div>
+                  <div><span className="text-stone-500">Equiv: </span><strong>{fmt(tc.kg)} kg</strong></div>
+                  <div className="text-right"><span className="text-stone-500">Costo: </span><strong>${fmt(tc.costo)}</strong></div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        <button type="button" onClick={addTizada}
+          className="text-xs px-3 py-1.5 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition">
+          + Agregar tizada
+        </button>
+
+        {totalRollosSel > 0 && (
+          <div className="mt-4 pt-3 border-t border-stone-200 grid grid-cols-3 gap-3 text-sm">
+            <div><span className="text-stone-500">Total tela: </span><strong>{fmt(totalMetros)} m</strong></div>
             <div><span className="text-stone-500">Equiv: </span><strong>{fmt(totalKg)} kg</strong></div>
             <div className="text-right"><span className="text-stone-500">Costo tela: </span><strong>${fmt(costoTela)}</strong></div>
           </div>
@@ -486,7 +549,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
       )}
 
       <div className="flex gap-3">
-        <button type="submit" disabled={saving || consumoRollos.length === 0 || totalUnidades === 0}
+        <button type="submit" disabled={saving || totalRollosSel === 0 || totalUnidades === 0}
           className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white px-6 py-3 rounded-xl text-sm font-semibold transition">
           {saving ? 'Registrando...' : 'Registrar corte'}
         </button>
