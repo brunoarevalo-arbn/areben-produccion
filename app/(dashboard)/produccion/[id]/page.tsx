@@ -100,10 +100,10 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
 
       {/* Acciones */}
       <div className="flex gap-3 mb-6">
-        {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
+        {!orden.fichaCorteCargada && (
           <Link href={`/produccion/${orden.id}/corte`}
             className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-            Cargar ficha de corte
+            Cargar ficha de corte{orden.estado === 'CERRADA' ? ' (orden cerrada)' : ''}
           </Link>
         )}
         {orden.fichaCorteCargada && (

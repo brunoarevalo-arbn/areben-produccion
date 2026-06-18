@@ -39,7 +39,9 @@ export default async function FichasPage() {
     },
   });
 
-  const pendientes = ordenes.filter((o) => !o.fichaCorteCargada && o.estado !== 'CERRADA');
+  // Pendientes = sin ficha cargada. Incluye órdenes cerradas (se puede backfillear
+  // la ficha aunque la orden ya esté cerrada); el badge de estado las distingue.
+  const pendientes = ordenes.filter((o) => !o.fichaCorteCargada);
   const conSku = ordenes.filter((o) => o.sku);
 
   return (

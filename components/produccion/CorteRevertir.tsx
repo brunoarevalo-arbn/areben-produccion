@@ -8,7 +8,7 @@ export function CorteRevertir({ ordenId }: { ordenId: string }) {
   const [revertiendo, setRevertiendo] = useState(false);
 
   const revertir = async () => {
-    if (!confirm('Esto revierte el corte: devuelve los rollos y lotes al stock, borra el desglose por talle y vuelve la OP a PENDIENTE. Despues vas a poder cargar el corte de nuevo. Continuar?')) return;
+    if (!confirm('Esto revierte el corte: devuelve los rollos y lotes al stock, borra el desglose por talle y los avíos cargados. El estado de la orden no cambia. Después vas a poder cargar el corte de nuevo. Continuar?')) return;
     setRevertiendo(true);
     const r = await fetch(`/api/produccion/cola/${ordenId}/corte/revertir`, { method: 'POST' });
     if (r.ok) {
