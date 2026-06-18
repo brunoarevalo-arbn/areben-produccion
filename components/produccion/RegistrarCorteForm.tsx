@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { TALLES_DEFAULT } from '@/lib/validators/produccion';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface RolloDisp {
   id: string; codigo: string; pesoActual: string; costoUnitario: string;
@@ -218,12 +219,12 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Metros de la tizada</label>
-                <input type="number" value={metrosTizada} onChange={(e) => setMetrosTizada(e.target.value)}
+                <NumInput value={parseFloat(metrosTizada) || 0} onChange={(n) => setMetrosTizada(n ? String(n) : '')}
                   min="0" step="0.01" placeholder="Ej: 24.5" className={inpSm + ' w-full'} />
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Unidades que rinde</label>
-                <input type="number" value={unidadesTizada} onChange={(e) => setUnidadesTizada(e.target.value)}
+                <NumInput value={parseFloat(unidadesTizada) || 0} onChange={(n) => setUnidadesTizada(n ? String(n) : '')}
                   min="1" step="1" placeholder="Ej: 12" className={inpSm + ' w-full'} />
               </div>
             </div>
@@ -256,7 +257,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
                   {selected && (
                     modoTela === 'manual' ? (
                       <div className="flex items-center gap-1">
-                        <input type="number" value={selected.metros} onChange={(e) => updateRolloMetros(r.id, e.target.value)}
+                        <NumInput value={parseFloat(selected.metros) || 0} onChange={(n) => updateRolloMetros(r.id, n ? String(n) : '')}
                           min="0.01" step="0.01" placeholder="Metros" className={`w-24 ${inpSm}`} />
                         <span className="text-xs text-stone-400">m</span>
                       </div>
@@ -295,7 +296,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
             <span className="font-mono text-xs text-stone-700 w-16">{cl.codigo}</span>
             <span className="text-xs text-stone-600 flex-1 truncate">{cl.nombre}</span>
             <span className="text-xs text-stone-400 tabular-nums">{cl.cantActual} disp.</span>
-            <input type="number" value={cl.cantidad} onChange={(e) => updateLoteCant(cl.loteId, e.target.value)}
+            <NumInput value={parseFloat(cl.cantidad) || 0} onChange={(n) => updateLoteCant(cl.loteId, n ? String(n) : '')}
               min="1" max={cl.cantActual} placeholder="Cant." className={`w-20 ${inpSm}`} />
             <button type="button" onClick={() => removeLote(cl.loteId)} className="text-red-400 hover:text-red-600 text-sm px-1">x</button>
           </div>
@@ -328,7 +329,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
           {TALLES_DEFAULT.map((t) => (
             <div key={t}>
               <label className="text-xs font-semibold text-stone-600 mb-1 block text-center">{t}</label>
-              <input type="number" value={talles[t] || ''} onChange={(e) => updateTalle(t, e.target.value)}
+              <NumInput value={parseFloat(talles[t]) || 0} onChange={(n) => updateTalle(t, n ? String(n) : '')}
                 min="0" placeholder="0" className={`w-full text-center ${inpSm}`} />
             </div>
           ))}
@@ -378,7 +379,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">
               {modoCosto === 'unidad' ? 'Costo por unidad' : 'Costo total del corte'}
             </label>
-            <input type="number" value={costoCorte} onChange={(e) => setCostoCorte(e.target.value)}
+            <NumInput value={parseFloat(costoCorte) || 0} onChange={(n) => setCostoCorte(n ? String(n) : '')}
               min="0" step="0.01" placeholder="0" className={inp} />
             {modoCosto === 'unidad' && costoCorteInput > 0 && totalUnidades > 0 && (
               <p className="text-xs text-stone-500 mt-1">

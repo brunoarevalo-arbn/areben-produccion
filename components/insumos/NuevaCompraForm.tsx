@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface Proveedor { id: string; nombre: string; }
 interface InsumoOpt { id: string; nombre: string; categoria: string; tipoTrazabilidad: string; unidadDefault: string; activo: boolean; }
@@ -226,12 +227,12 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
           </div>
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Total bruto *</label>
-            <input type="number" value={totalBruto} onChange={(e) => setTotalBruto(e.target.value)}
+            <NumInput value={parseFloat(totalBruto) || 0} onChange={(n) => setTotalBruto(n ? String(n) : '')}
               min="0" step="0.01" required className={inp} />
           </div>
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Envío / flete <span className="text-stone-400 font-normal">(opcional)</span></label>
-            <input type="number" value={costoEnvio} onChange={(e) => setCostoEnvio(e.target.value)}
+            <NumInput value={parseFloat(costoEnvio) || 0} onChange={(n) => setCostoEnvio(n ? String(n) : '')}
               min="0" step="0.01" placeholder="0" className={inp} />
           </div>
           <div className="flex items-end gap-3 pb-1">
@@ -257,7 +258,7 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
             <>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Monto pagado</label>
-                <input type="number" value={montoPagado} onChange={(e) => setMontoPagado(e.target.value)} min="0" step="0.01" className={inp} />
+                <NumInput value={parseFloat(montoPagado) || 0} onChange={(n) => setMontoPagado(n ? String(n) : '')} min="0" step="0.01" className={inp} />
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Fecha de pago</label>
@@ -321,12 +322,12 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
                 </div>
                 <div className="w-28">
                   <label className="text-xs font-semibold text-stone-600 mb-1 block">Cantidad</label>
-                  <input type="number" value={l.cantidad} onChange={(e) => updateLinea(l.key, 'cantidad', e.target.value)}
+                  <NumInput value={parseFloat(l.cantidad) || 0} onChange={(n) => updateLinea(l.key, 'cantidad', n ? String(n) : '')}
                     min="0" step="0.01" className={`${inpSm} w-full`} />
                 </div>
                 <div className="w-32">
                   <label className="text-xs font-semibold text-stone-600 mb-1 block">Precio sin IVA</label>
-                  <input type="number" value={l.precioUnitario} onChange={(e) => updateLinea(l.key, 'precioUnitario', e.target.value)}
+                  <NumInput value={parseFloat(l.precioUnitario) || 0} onChange={(n) => updateLinea(l.key, 'precioUnitario', n ? String(n) : '')}
                     min="0" step="0.01" className={`${inpSm} w-full`} />
                 </div>
                 {l.insumoId && (
@@ -355,7 +356,7 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
                   {l.rollos.map((r, ri) => (
                     <div key={ri} className="flex items-center gap-2">
                       <span className="text-xs text-stone-400 w-8">#{ri + 1}</span>
-                      <input type="number" value={r.pesoInicial} onChange={(e) => updateRollo(l.key, ri, 'pesoInicial', e.target.value)}
+                      <NumInput value={parseFloat(r.pesoInicial) || 0} onChange={(n) => updateRollo(l.key, ri, 'pesoInicial', n ? String(n) : '')}
                         placeholder="Peso" step="0.01" min="0" className={`w-28 ${inpSm}`} />
                       <input type="text" value={r.ubicacion} onChange={(e) => updateRollo(l.key, ri, 'ubicacion', e.target.value)}
                         placeholder="Ubicacion" className={`w-32 ${inpSm}`} />

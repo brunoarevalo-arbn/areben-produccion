@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface GastoFijo { id: string; nombre: string; monto: number; categoria: string; activo: boolean; }
 interface CostoCosturera { id: string; usuarioId: string; sueldoBruto: number; cargasSociales: number; horasMes: number; }
@@ -144,12 +145,12 @@ export function Parametros() {
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="text-xs text-stone-400 mb-1 block">Margen de desarrollo %</label>
-            <input type="number" value={margenDesarrollo} onChange={(e) => setMargenDesarrollo(e.target.value)}
+            <NumInput value={parseFloat(margenDesarrollo) || 0} onChange={(n) => setMargenDesarrollo(n ? String(n) : '')}
               placeholder="10" min="0" max="100" step="0.5" className={inputCls} />
           </div>
           <div>
             <label className="text-xs text-stone-400 mb-1 block">Margen de fallas %</label>
-            <input type="number" value={margenFallas} onChange={(e) => setMargenFallas(e.target.value)}
+            <NumInput value={parseFloat(margenFallas) || 0} onChange={(n) => setMargenFallas(n ? String(n) : '')}
               placeholder="5" min="0" max="100" step="0.5" className={inputCls} />
           </div>
         </div>
@@ -172,7 +173,7 @@ export function Parametros() {
               </div>
               {editGastoId === g.id ? (
                 <div className="flex items-center gap-2">
-                  <input type="number" value={editMonto} onChange={(e) => setEditMonto(e.target.value)}
+                  <NumInput value={parseFloat(editMonto) || 0} onChange={(n) => setEditMonto(n ? String(n) : '')}
                     className="w-32 px-2 py-1 border border-violet-300 rounded-lg text-sm focus:outline-none" autoFocus />
                   <button onClick={() => guardarMonto(g.id)} className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg font-semibold">OK</button>
                   <button onClick={() => setEditGastoId(null)} className="text-xs text-stone-400 hover:text-stone-600">✕</button>
@@ -199,7 +200,7 @@ export function Parametros() {
         <form onSubmit={agregarGasto} className="flex gap-2">
           <input type="text" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)}
             placeholder="Nombre del gasto" className="flex-1 px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400" />
-          <input type="number" value={nuevoMonto} onChange={(e) => setNuevoMonto(e.target.value)}
+          <NumInput value={parseFloat(nuevoMonto) || 0} onChange={(n) => setNuevoMonto(n ? String(n) : '')}
             placeholder="Monto $" className="w-28 px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400" />
           <select value={nuevaCat} onChange={(e) => setNuevaCat(e.target.value)}
             className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400 capitalize">
@@ -271,17 +272,17 @@ function CostoCosturеraRow({ nombre, usuarioId, inicial, onGuardar }: {
       <div className="grid grid-cols-3 gap-3">
         <div>
           <label className="text-xs text-stone-400 mb-1 block">Sueldo bruto $</label>
-          <input type="number" value={sueldo} onChange={(e) => setSueldo(e.target.value)}
+          <NumInput value={parseFloat(sueldo) || 0} onChange={(n) => setSueldo(n ? String(n) : '')}
             placeholder="0" className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
         </div>
         <div>
           <label className="text-xs text-stone-400 mb-1 block">Cargas sociales $</label>
-          <input type="number" value={cargas} onChange={(e) => setCargas(e.target.value)}
+          <NumInput value={parseFloat(cargas) || 0} onChange={(n) => setCargas(n ? String(n) : '')}
             placeholder="0" className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
         </div>
         <div>
           <label className="text-xs text-stone-400 mb-1 block">Horas/mes</label>
-          <input type="number" value={horas} onChange={(e) => setHoras(e.target.value)}
+          <NumInput value={parseFloat(horas) || 0} onChange={(n) => setHoras(n ? String(n) : '')}
             placeholder="160" className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
         </div>
       </div>

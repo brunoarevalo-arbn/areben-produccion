@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface RolloOpt { id: string; codigo: string; pesoActual: string; insumo: { nombre: string } }
 interface LoteOpt  { id: string; codigo: string; cantidadActual: string; insumo: { nombre: string } }
@@ -104,7 +105,7 @@ export function AjusteForm() {
 
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad (negativo para descarte) *</label>
-          <input type="number" value={cantidad} onChange={(e) => setCantidad(e.target.value)}
+          <NumInput value={parseFloat(cantidad) || 0} onChange={(n) => setCantidad(n ? String(n) : '')}
             step="0.01" required className={inp} />
           <p className="text-xs text-stone-400 mt-1">Positivo suma stock, negativo descuenta</p>
         </div>

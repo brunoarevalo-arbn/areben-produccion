@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface Transicion { fecha: string; estadoNuevo: string; }
 
@@ -489,7 +490,7 @@ export function ColaAdmin() {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad</label>
-                <input type="number" value={cantidad} onChange={(e) => setCantidad(e.target.value)} min="1" className={inputClass} />
+                <NumInput value={parseFloat(cantidad) || 0} onChange={(n) => setCantidad(n ? String(n) : '')} min="1" className={inputClass} />
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Descripcion</label>
@@ -565,7 +566,7 @@ export function ColaAdmin() {
                 <div key={i} className="flex items-center gap-2">
                   <input value={t.talle} onChange={(e) => setTalleRow(i, 'talle', e.target.value.toUpperCase())} placeholder="Talle"
                     className="w-24 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
-                  <input type="number" value={t.cantidad} onChange={(e) => setTalleRow(i, 'cantidad', e.target.value)} placeholder="Cant." min="0"
+                  <NumInput value={parseFloat(t.cantidad) || 0} onChange={(n) => setTalleRow(i, 'cantidad', n ? String(n) : '')} placeholder="Cant." min="0"
                     className="flex-1 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
                   <button type="button" onClick={() => rmTalleRow(i)} className="text-stone-400 hover:text-red-500 px-1 text-lg leading-none">×</button>
                 </div>
@@ -626,7 +627,7 @@ export function ColaAdmin() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad</label>
-                  <input type="number" value={editCantidad} onChange={(e) => setEditCantidad(e.target.value)} min="1" className={inputClass} />
+                  <NumInput value={parseFloat(editCantidad) || 0} onChange={(n) => setEditCantidad(n ? String(n) : '')} min="1" className={inputClass} />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Descripcion</label>

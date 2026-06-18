@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { TiemposProduccion } from '@/types/tiempos';
 import type { EstadoCronometro } from '@/lib/hooks/useTiempos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface FormTiemposProps {
   usuario: string;
@@ -270,20 +271,18 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
         </div>
         <div>
           <label className="block text-xs font-bold text-stone-500 mb-1 uppercase tracking-wide">Cantidad</label>
-          <input
-            type="number"
-            value={cantidad}
-            onChange={(e) => setCantidad(e.target.value)}
+          <NumInput
+            value={parseFloat(cantidad) || 0}
+            onChange={(n) => setCantidad(n ? String(n) : '')}
             min="0"
             className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white text-stone-800 focus:outline-none focus:border-amber-400"
           />
         </div>
         <div className="col-span-2">
           <label className="block text-xs font-bold text-stone-500 mb-1 uppercase tracking-wide">Defectos</label>
-          <input
-            type="number"
-            value={defectos}
-            onChange={(e) => setDefectos(e.target.value)}
+          <NumInput
+            value={parseFloat(defectos) || 0}
+            onChange={(n) => setDefectos(n ? String(n) : '')}
             min="0"
             className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white text-stone-800 focus:outline-none focus:border-amber-400"
           />

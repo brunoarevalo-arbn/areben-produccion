@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface CompraFull {
   id: string;
@@ -157,7 +158,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1 block">Monto pagado</label>
-                <input type="number" value={montoPagado} onChange={(e) => setMontoPagado(e.target.value)} min="0" step="0.01" className={inp} />
+                <NumInput value={parseFloat(montoPagado) || 0} onChange={(n) => setMontoPagado(n ? String(n) : '')} min="0" step="0.01" className={inp} />
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1 block">Fecha</label>

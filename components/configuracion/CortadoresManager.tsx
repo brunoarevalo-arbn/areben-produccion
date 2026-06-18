@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface Cortador {
   id: string;
@@ -105,7 +106,7 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Tarifa default</label>
-                <input type="number" value={tarifaDefault} onChange={(e) => setTarifaDefault(e.target.value)}
+                <NumInput value={parseFloat(tarifaDefault) || 0} onChange={(n) => setTarifaDefault(n ? String(n) : '')}
                   min="0" step="0.01" placeholder="Opcional" className={inp} />
               </div>
               <div>

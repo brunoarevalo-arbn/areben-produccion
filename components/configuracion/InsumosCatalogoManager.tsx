@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface InsumoItem {
   id: string;
@@ -179,12 +180,12 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Stock minimo</label>
-                <input type="number" value={stockMinimo} onChange={(e) => setStockMinimo(e.target.value)}
+                <NumInput value={parseFloat(stockMinimo) || 0} onChange={(n) => setStockMinimo(n ? String(n) : '')}
                   min="0" step="0.01" placeholder="Opcional" className={inp} />
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Rinde (m/kg)</label>
-                <input type="number" value={rinde} onChange={(e) => setRinde(e.target.value)}
+                <NumInput value={parseFloat(rinde) || 0} onChange={(n) => setRinde(n ? String(n) : '')}
                   min="0" step="0.01" placeholder="Ej: 3.2" className={inp} />
                 <p className="text-xs text-stone-400 mt-1">Metros por kg. Solo para telas.</p>
               </div>

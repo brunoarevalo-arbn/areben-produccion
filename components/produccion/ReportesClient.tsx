@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { minutosAHorasMin } from '@/lib/utils/calculos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface Registro {
   id: string;
@@ -472,7 +473,7 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
             </label>
             <label className="text-xs text-stone-500">
               Cantidad
-              <input type="number" min="0" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className={inputCls + ' mt-0.5'} />
+              <NumInput min="0" value={parseFloat(cantidad) || 0} onChange={(n) => setCantidad(n ? String(n) : '')} className={inputCls + ' mt-0.5'} />
             </label>
             <label className="text-xs text-stone-500">
               Hora inicio
@@ -484,7 +485,7 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
             </label>
             <label className="text-xs text-stone-500">
               Defectos
-              <input type="number" min="0" value={defectos} onChange={(e) => setDefectos(e.target.value)} className={inputCls + ' mt-0.5'} />
+              <NumInput min="0" value={parseFloat(defectos) || 0} onChange={(n) => setDefectos(n ? String(n) : '')} className={inputCls + ' mt-0.5'} />
             </label>
             <label className="text-xs text-stone-500 col-span-2 md:col-span-2">
               Inconveniente
@@ -610,11 +611,11 @@ function NewRow({ fecha, costureras, onCancel, onSaved }: { fecha: string; costu
             </label>
             <label className="text-xs text-stone-500">
               Cantidad
-              <input type="number" min="0" value={cantidad} onChange={(e) => setCantidad(e.target.value)} className={inputCls + ' mt-0.5'} />
+              <NumInput min="0" value={parseFloat(cantidad) || 0} onChange={(n) => setCantidad(n ? String(n) : '')} className={inputCls + ' mt-0.5'} />
             </label>
             <label className="text-xs text-stone-500">
               Defectos
-              <input type="number" min="0" value={defectos} onChange={(e) => setDefectos(e.target.value)} className={inputCls + ' mt-0.5'} />
+              <NumInput min="0" value={parseFloat(defectos) || 0} onChange={(n) => setDefectos(n ? String(n) : '')} className={inputCls + ' mt-0.5'} />
             </label>
             <label className="text-xs text-stone-500 col-span-2">
               Inconveniente

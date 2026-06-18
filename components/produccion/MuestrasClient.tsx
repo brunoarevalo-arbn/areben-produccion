@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface RolloOpt {
   id: string;
@@ -103,7 +104,7 @@ export function MuestrasClient() {
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad a retirar <span className="text-stone-400 font-normal">(metros)</span></label>
-            <input type="number" value={cantidad} onChange={(e) => setCantidad(e.target.value)} min="0" step="0.01"
+            <NumInput value={parseFloat(cantidad) || 0} onChange={(n) => setCantidad(n ? String(n) : '')} min="0" step="0.01"
               placeholder={rolloSel ? `en metros — quedan ${restanteTxt(rolloSel)}` : 'en metros'} className={inp} />
           </div>
           <div>

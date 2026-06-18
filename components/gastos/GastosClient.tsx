@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface Gasto {
   id:        string;
@@ -180,7 +181,7 @@ function FormDesarrollo({ onCreado }: { onCreado: (g: Gasto) => void }) {
       <div className="grid grid-cols-2 gap-2">
         <input type="text" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())}
           placeholder="SKU (opcional)" className={inputCls} />
-        <input type="number" value={monto} onChange={(e) => setMonto(e.target.value)}
+        <NumInput value={parseFloat(monto) || 0} onChange={(n) => setMonto(n ? String(n) : '')}
           placeholder="Monto $" required className={inputCls} />
       </div>
       <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)}
@@ -254,7 +255,7 @@ function FormProduccion({ ordenes, onCreado }: { ordenes: OrdenActiva[]; onCread
       </select>
 
       <div className="grid grid-cols-2 gap-2">
-        <input type="number" value={monto} onChange={(e) => setMonto(e.target.value)}
+        <NumInput value={parseFloat(monto) || 0} onChange={(n) => setMonto(n ? String(n) : '')}
           placeholder="Monto $" required className={inputCls} />
         <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)}
           placeholder="Concepto" className={inputCls} />
