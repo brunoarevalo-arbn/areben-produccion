@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface Tela { nombre: string; precioKgNeto: number; fletePercent: number; rindeMetrosKg: number; consumoMetros: number; }
 interface ItemExtra { nombre: string; costo: number; }
@@ -271,6 +272,20 @@ export function Escandallos() {
     setSaving(false);
   };
 
+  const duplicar = async (e: Escandallo) => {
+    let datosObj: unknown = null;
+    try { datosObj = e.datos ? JSON.parse(e.datos) : null; } catch { datosObj = null; }
+    // El SKU identifica un producto puntual: no se copia para no duplicarlo.
+    const body = {
+      nombre: `${e.nombre} (copia)`, sku: '', marca: e.marca ?? '',
+      tipoPrenda: e.tipoPrenda ?? '', notas: e.notas ?? '', datos: datosObj,
+    };
+    const r = await fetch('/api/costos/escandallos', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (r.ok) { const data = await r.json(); setLista(prev => [data, ...prev]); }
+  };
+
   const eliminar = async (id: string, nom: string) => {
     if (!confirm(`¿Eliminar el escandallo "${nom}"?`)) return;
     const r = await fetch(`/api/costos/escandallos/${id}`, { method: 'DELETE' });
@@ -400,6 +415,10 @@ export function Escandallos() {
                             className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
                             Editar
                           </button>
+                          <button onClick={() => duplicar(e)}
+                            className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+                            Duplicar
+                          </button>
                           <button onClick={() => eliminar(e.id, e.nombre)}
                             className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>
                         </div>
@@ -516,42 +535,41 @@ export function Escandallos() {
                 const costoTela = pMetro * t.consumoMetros;
                 return (
                   <div key={i} className={`rounded-xl border p-4 ${i === 0 ? 'bg-violet-50 border-violet-100' : 'bg-stone-50 border-stone-100'}`}>
-                    <div className="flex items-center gap-3 mb-3">
-                      <input type="text" value={t.nombre} onChange={e => updTela(i, 'nombre', e.target.value)}
-                        placeholder={`Nombre tela ${i + 1}`}
-                        className="flex-1 text-sm font-semibold bg-transparent border-0 border-b border-stone-200 focus:outline-none focus:border-violet-400 pb-0.5 text-stone-800" />
+                    <div className="flex items-end gap-3 mb-3">
+                      <div className="flex-1">
+                        <label className={lbl}>Nombre de la tela</label>
+                        <input type="text" value={t.nombre} onChange={e => updTela(i, 'nombre', e.target.value)}
+                          placeholder="Ej: Jersey de algodón, Morley, French terry"
+                          className={inp} />
+                      </div>
                       {datos.telas.length > 1 && (
                         <button type="button" onClick={() => delTela(i)}
-                          className="text-stone-300 hover:text-red-400 transition text-xl shrink-0 leading-none">×</button>
+                          className="text-stone-300 hover:text-red-400 transition text-xl shrink-0 leading-none mb-2">×</button>
                       )}
                     </div>
                     <div className="grid grid-cols-4 gap-3">
                       <div>
                         <label className={lbl}>Precio por kg $</label>
                         <p className="text-xs text-stone-300 -mt-0.5 mb-1">precio de lista sin flete</p>
-                        <input type="number" value={t.precioKgNeto} onChange={e => updTela(i, 'precioKgNeto', e.target.value)}
-                          onFocus={e => e.currentTarget.select()}
+                        <NumInput value={t.precioKgNeto} onChange={n => updTela(i, 'precioKgNeto', String(n))}
                           min="0" step="any" className={inp} />
                       </div>
                       <div>
                         <label className={lbl}>Flete %</label>
                         <p className="text-xs text-stone-300 -mt-0.5 mb-1">% adicional sobre kg</p>
-                        <input type="number" value={t.fletePercent} onChange={e => updTela(i, 'fletePercent', e.target.value)}
-                          onFocus={e => e.currentTarget.select()}
+                        <NumInput value={t.fletePercent} onChange={n => updTela(i, 'fletePercent', String(n))}
                           min="0" step="any" className={inp} />
                       </div>
                       <div>
                         <label className={lbl}>Metros por kg</label>
                         <p className="text-xs text-stone-300 -mt-0.5 mb-1">rendimiento de la tela</p>
-                        <input type="number" value={t.rindeMetrosKg} onChange={e => updTela(i, 'rindeMetrosKg', e.target.value)}
-                          onFocus={e => e.currentTarget.select()}
+                        <NumInput value={t.rindeMetrosKg} onChange={n => updTela(i, 'rindeMetrosKg', String(n))}
                           min="0" step="any" className={inp} />
                       </div>
                       <div>
                         <label className={lbl}>Metros por prenda</label>
                         <p className="text-xs text-stone-300 -mt-0.5 mb-1">consumo de esta tela</p>
-                        <input type="number" value={t.consumoMetros} onChange={e => updTela(i, 'consumoMetros', e.target.value)}
-                          onFocus={e => e.currentTarget.select()}
+                        <NumInput value={t.consumoMetros} onChange={n => updTela(i, 'consumoMetros', String(n))}
                           min="0" step="any" className={inp} />
                       </div>
                     </div>
@@ -583,7 +601,7 @@ export function Escandallos() {
               ] as const).map(r => (
                 <div key={r.field}>
                   <label className={lbl}>{r.label}</label>
-                  <input type="number" value={r.val || ''} onChange={e => updDatos(r.field, e.target.value)}
+                  <NumInput value={r.val} onChange={n => updDatos(r.field, String(n))}
                     placeholder="0" min="0" step="0.01" className={inp} />
                 </div>
               ))}
@@ -596,7 +614,7 @@ export function Escandallos() {
             <div className="flex items-end gap-4">
               <div className="flex-1">
                 <label className={lbl}>Tiempo de confección (minutos)</label>
-                <input type="number" value={datos.tiempoConfeccion || ''} onChange={e => updDatos('tiempoConfeccion', e.target.value)}
+                <NumInput value={datos.tiempoConfeccion} onChange={n => updDatos('tiempoConfeccion', String(n))}
                   placeholder="Ej: 45" min="0" step="0.5" className={inp} />
               </div>
               <div className="text-right pb-1">
@@ -670,7 +688,7 @@ export function Escandallos() {
                 <div key={i} className="grid grid-cols-[1fr_120px_auto] gap-2 items-center">
                   <input type="text" value={v.nombre} onChange={e => updVario(i, 'nombre', e.target.value)}
                     placeholder="Descripción" className={inp} />
-                  <input type="number" value={v.costo || ''} onChange={e => updVario(i, 'costo', e.target.value)}
+                  <NumInput value={v.costo} onChange={n => updVario(i, 'costo', String(n))}
                     placeholder="$" min="0" step="0.01" className={inp} />
                   <button type="button" onClick={() => delVario(i)}
                     className="text-stone-300 hover:text-red-400 transition text-xl leading-none">×</button>
@@ -685,23 +703,23 @@ export function Escandallos() {
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label className={lbl}>Etiqueta principal $</label>
-                <input type="number" value={datos.avios.etiquetaPrincipal || ''} onChange={e => updAvios('etiquetaPrincipal', e.target.value)}
+                <NumInput value={datos.avios.etiquetaPrincipal} onChange={n => updAvios('etiquetaPrincipal', String(n))}
                   placeholder="0" min="0" step="0.01" className={inp} />
               </div>
               <div>
                 <label className={lbl}>Etiqueta composición $</label>
-                <input type="number" value={datos.avios.etiquetaComposicion || ''} onChange={e => updAvios('etiquetaComposicion', e.target.value)}
+                <NumInput value={datos.avios.etiquetaComposicion} onChange={n => updAvios('etiquetaComposicion', String(n))}
                   placeholder="0" min="0" step="0.01" className={inp} />
               </div>
               <div>
                 <label className={lbl}>Bolsa polipropileno $</label>
-                <input type="number" value={datos.avios.bolsaPolipropileno || ''} onChange={e => updAvios('bolsaPolipropileno', e.target.value)}
+                <NumInput value={datos.avios.bolsaPolipropileno} onChange={n => updAvios('bolsaPolipropileno', String(n))}
                   placeholder="0" min="0" step="0.01" className={inp} />
               </div>
               <div>
                 <label className={lbl}>Tiempo embolsado (min)</label>
                 <div className="flex items-center gap-2">
-                  <input type="number" value={datos.avios.tiempoEmbolsado || ''} onChange={e => updAvios('tiempoEmbolsado', e.target.value)}
+                  <NumInput value={datos.avios.tiempoEmbolsado} onChange={n => updAvios('tiempoEmbolsado', String(n))}
                     placeholder="0" min="0" step="0.5" className={inp} />
                   <span className="text-xs text-stone-400 shrink-0 tabular-nums">= {fmt$(datos.avios.tiempoEmbolsado * costoMinuto)}</span>
                 </div>
@@ -721,7 +739,7 @@ export function Escandallos() {
                   <div key={i} className="grid grid-cols-[1fr_120px_auto] gap-2 items-center">
                     <input type="text" value={ex.nombre} onChange={e => updAvioExtra(i, 'nombre', e.target.value)}
                       placeholder="Descripción" className={inp} />
-                    <input type="number" value={ex.costo || ''} onChange={e => updAvioExtra(i, 'costo', e.target.value)}
+                    <NumInput value={ex.costo} onChange={n => updAvioExtra(i, 'costo', String(n))}
                       placeholder="$" min="0" step="0.01" className={inp} />
                     <button type="button" onClick={() => delAvioExtra(i)}
                       className="text-stone-300 hover:text-red-400 transition text-xl leading-none">×</button>
@@ -748,13 +766,13 @@ export function Escandallos() {
                     </div>
                     <div>
                       <label className={lbl}>Largo (cm)</label>
-                      <input type="number" value={m.largo || ''} onChange={e => updMedidas(cual, 'largo', e.target.value)}
-                        onFocus={e => e.currentTarget.select()} placeholder="0" min="0" step="0.1" className={inp} />
+                      <NumInput value={m.largo} onChange={n => updMedidas(cual, 'largo', String(n))}
+                        placeholder="0" min="0" step="0.1" className={inp} />
                     </div>
                     <div>
                       <label className={lbl}>Ancho (cm)</label>
-                      <input type="number" value={m.ancho || ''} onChange={e => updMedidas(cual, 'ancho', e.target.value)}
-                        onFocus={e => e.currentTarget.select()} placeholder="0" min="0" step="0.1" className={inp} />
+                      <NumInput value={m.ancho} onChange={n => updMedidas(cual, 'ancho', String(n))}
+                        placeholder="0" min="0" step="0.1" className={inp} />
                     </div>
                   </div>
                 );
