@@ -101,7 +101,7 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
   };
 
   return (
-    <aside className="w-56 bg-stone-900 flex flex-col h-full shrink-0">
+    <aside className="w-56 bg-stone-900 flex flex-col h-full shrink-0 print:hidden">
       <div className="px-5 py-4 border-b border-stone-800">
         <p className="text-amber-400 text-xs font-bold uppercase tracking-widest">Areben</p>
         <p className="text-stone-300 text-xs mt-0.5 truncate">{nombre}</p>

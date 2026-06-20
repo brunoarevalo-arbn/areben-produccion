@@ -284,6 +284,10 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
 
       <style>{`
         @media print {
+          @page { margin: 1.5cm; }
+          html, body { background: #fff !important; }
+          /* Respetar colores (caja de costo, totales) al imprimir */
+          * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           .print\\:hidden { display: none !important; }
         }
       `}</style>
