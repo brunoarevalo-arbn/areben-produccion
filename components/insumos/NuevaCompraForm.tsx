@@ -195,11 +195,11 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
 
     if (r.ok) {
       if (editando) {
-        router.push(`/insumos/compras/${inicial!.id}`);
+        router.push(`/inventario/compras/${inicial!.id}`);
         router.refresh();
       } else {
         const compra = await r.json();
-        router.push(`/insumos/compras/${compra.id}`);
+        router.push(`/inventario/compras/${compra.id}`);
       }
     } else {
       const d = await r.json();

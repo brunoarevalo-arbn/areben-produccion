@@ -35,7 +35,7 @@ export default async function EditarCompraPage({ params }: { params: Promise<{ i
     return (
       <div className="p-8 max-w-2xl">
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800 mb-4">{bloqueo}</div>
-        <Link href={`/insumos/compras/${id}`} className="text-sm text-stone-500 hover:text-stone-800">← Volver al detalle</Link>
+        <Link href={`/inventario/compras/${id}`} className="text-sm text-stone-500 hover:text-stone-800">← Volver al detalle</Link>
       </div>
     );
   }
@@ -72,7 +72,7 @@ export default async function EditarCompraPage({ params }: { params: Promise<{ i
   return (
     <div className="p-8 max-w-4xl">
       <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Insumos / Compras</span>
+        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Inventario / Compras</span>
         <h1 className="text-2xl font-bold text-stone-900 mt-1">Editar compra</h1>
         <p className="text-stone-500 text-sm mt-1">Se rehace la compra con los datos corregidos (los rollos se recrean).</p>
       </div>

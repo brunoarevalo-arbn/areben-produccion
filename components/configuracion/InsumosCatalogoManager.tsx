@@ -241,7 +241,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
               </span>
               <div className="flex gap-1.5">
                 {ins.manejaColor && (
-                  <Link href={`/configuracion/insumos-catalogo/${ins.id}/colores`}
+                  <Link href={`/inventario/catalogo/${ins.id}/colores`}
                     className="text-xs px-2.5 py-1 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 transition">
                     Colores
                   </Link>

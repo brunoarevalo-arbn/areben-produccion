@@ -131,7 +131,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
         )}
         {!compra.revertida && (
           <div className="mt-4 pt-4 border-t border-stone-100 flex gap-2">
-            <Link href={`/insumos/compras/${compra.id}/editar`}
+            <Link href={`/inventario/compras/${compra.id}/editar`}
               className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
               Editar
             </Link>
@@ -221,7 +221,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
               {compra.rollos.map((r) => (
                 <tr key={r.id} className="border-b border-stone-50">
                   <td className="py-2">
-                    <Link href={`/insumos/rollos/${r.id}`} className="font-mono text-stone-700 hover:text-amber-600 transition">
+                    <Link href={`/inventario/rollos/${r.id}`} className="font-mono text-stone-700 hover:text-amber-600 transition">
                       {r.codigo}
                     </Link>
                   </td>

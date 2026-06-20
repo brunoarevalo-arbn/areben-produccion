@@ -11,7 +11,7 @@
 export const PERMISOS = [
   { key: 'dashboard',     label: 'Dashboard',     desc: 'Panel general e indicadores' },
   { key: 'diseno',        label: 'Diseño',        desc: 'Proyectos de diseño, molderías y telas' },
-  { key: 'insumos',       label: 'Insumos',       desc: 'Stock, compras, rollos, lotes y movimientos' },
+  { key: 'insumos',       label: 'Inventario',    desc: 'Telas, avíos, compras, rollos, lotes, movimientos y producto terminado' },
   { key: 'produccion',    label: 'Producción',    desc: 'Órdenes, cortes, reportes y pagos de corte' },
   { key: 'gastos',        label: 'Gastos',        desc: 'Gastos del taller' },
   { key: 'costos',        label: 'Costos',        desc: 'Escandallos, costos de costura y productividad' },

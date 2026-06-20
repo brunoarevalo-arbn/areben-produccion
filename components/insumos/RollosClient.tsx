@@ -84,7 +84,7 @@ export function RollosClient() {
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ESTADO_COLOR[r.estado] || ''}`}>
                 {r.estado.replace(/_/g, ' ')}
               </span>
-              <Link href={`/insumos/rollos/${r.id}`}
+              <Link href={`/inventario/rollos/${r.id}`}
                 className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
                 Ver
               </Link>

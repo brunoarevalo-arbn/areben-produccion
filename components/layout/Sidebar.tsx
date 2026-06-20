@@ -30,16 +30,19 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     ],
   },
   {
-    label: 'Insumos',
-    href: '/insumos',
+    label: 'Inventario',
+    href: '/inventario',
     icon: '📦',
     seccion: 'insumos',
     sub: [
-      { label: 'Stock',       href: '/insumos' },
-      { label: 'Compras',     href: '/insumos/compras', nuevoHref: '/insumos/compras/nueva' },
-      { label: 'Rollos',      href: '/insumos/rollos' },
-      { label: 'Lotes',       href: '/insumos/lotes' },
-      { label: 'Movimientos', href: '/insumos/movimientos' },
+      { label: 'Telas',              href: '/inventario?cat=tela' },
+      { label: 'Avíos',              href: '/inventario?cat=aviso' },
+      { label: 'Catálogo (alta)',    href: '/inventario/catalogo', nuevoHref: '/inventario/catalogo/avios' },
+      { label: 'Compras',            href: '/inventario/compras', nuevoHref: '/inventario/compras/nueva' },
+      { label: 'Rollos',             href: '/inventario/rollos' },
+      { label: 'Lotes',              href: '/inventario/lotes' },
+      { label: 'Movimientos',        href: '/inventario/movimientos' },
+      { label: 'Producto terminado', href: '/inventario/terminado', seccion: 'produccion' },
     ],
   },
   {
@@ -50,7 +53,6 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     sub: [
       { label: 'Tiempos',          href: '/tiempos' },
       { label: 'Muestras',         href: '/produccion/muestras' },
-      { label: 'Stock terminado',  href: '/produccion/stock-terminado' },
       { label: 'Reportes',         href: '/produccion/reportes' },
       { label: 'Pagos de cortes', href: '/produccion/pagos-cortes' },
     ],
@@ -79,7 +81,6 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
     sub: [
       { label: 'Usuarios',          href: '/configuracion/usuarios', seccion: 'usuarios' },
       { label: 'Proveedores',       href: '/configuracion/proveedores' },
-      { label: 'Insumos',           href: '/configuracion/insumos-catalogo' },
       { label: 'Cortadores',        href: '/configuracion/cortadores' },
       { label: 'Motivos descarte',  href: '/configuracion/motivos-descarte' },
     ],

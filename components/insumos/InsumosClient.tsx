@@ -25,12 +25,12 @@ const ESTADO_COLOR: Record<string, string> = {
   DESCARTADO:      'bg-red-100 text-red-600',
 };
 
-export function InsumosClient() {
+export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: string } = {}) {
   const [insumos, setInsumos]   = useState<InsumoConStock[]>([]);
   const [coloresMap, setColoresMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading]   = useState(true);
   const [expandido, setExpandido] = useState<string | null>(null);
-  const [filtroCategoria, setFiltroCategoria] = useState('');
+  const [filtroCategoria, setFiltroCategoria] = useState(categoriaInicial);
 
   useEffect(() => {
     Promise.all([
@@ -58,7 +58,7 @@ export function InsumosClient() {
           {categorias.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <div className="ml-auto flex gap-2">
-          <Link href="/insumos/compras/nueva"
+          <Link href="/inventario/compras/nueva"
             className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
             + Nueva compra
           </Link>
@@ -151,7 +151,7 @@ export function InsumosClient() {
                             {ins.rollos.map((r) => (
                               <tr key={r.id} className="border-t border-stone-50">
                                 <td className="py-1.5">
-                                  <Link href={`/insumos/rollos/${r.id}`} className="font-mono text-stone-700 hover:text-amber-600 transition">
+                                  <Link href={`/inventario/rollos/${r.id}`} className="font-mono text-stone-700 hover:text-amber-600 transition">
                                     {r.codigo}
                                   </Link>
                                 </td>

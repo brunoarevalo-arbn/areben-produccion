@@ -42,7 +42,7 @@ export function ComprasClient() {
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3">
-        <Link href="/insumos/compras/nueva"
+        <Link href="/inventario/compras/nueva"
           className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
           + Nueva compra
         </Link>
@@ -76,7 +76,7 @@ export function ComprasClient() {
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ESTADO_PAGO_COLOR[c.estadoPago] || 'bg-stone-100'}`}>
                 {c.estadoPago}
               </span>
-              <Link href={`/insumos/compras/${c.id}`}
+              <Link href={`/inventario/compras/${c.id}`}
                 className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
                 Ver
               </Link>
