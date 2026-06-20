@@ -32,6 +32,15 @@ export const TerminarCosturaSchema = z.object({
   })).min(1, 'Cargá al menos un talle'),
 });
 
+// Ajuste manual de stock de producto terminado (carga inicial, merma, corrección).
+export const AjusteTerminadoSchema = z.object({
+  sku:      z.string().min(1, 'SKU requerido').transform((s) => s.trim().toUpperCase()),
+  talle:    z.string().min(1, 'Talle requerido'),
+  tipo:     z.enum(['liso', 'estampado']).default('liso'),
+  cantidad: z.number().int().refine((n) => n !== 0, 'La cantidad no puede ser 0'),
+  motivo:   z.string().optional(),
+});
+
 // Consumo de tela para una muestra (retiro chico de un rollo, opcionalmente ligado a un proyecto).
 export const MuestraSchema = z.object({
   rolloId:     z.string().min(1, 'Elegí un rollo'),

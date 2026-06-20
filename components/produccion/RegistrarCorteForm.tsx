@@ -406,7 +406,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
           Qué etiquetas/avíos del catálogo lleva cada prenda. El stock se descuenta solo al terminar la producción.
         </p>
         {aviosCatalogo.length === 0 ? (
-          <p className="text-sm text-stone-400 py-2">No hay avíos en el catálogo. Cargalos en Costos → Catálogos.</p>
+          <p className="text-sm text-stone-400 py-2">No hay avíos en el catálogo. Cargalos en Inventario → Catálogo → Avíos.</p>
         ) : (
           <div className="space-y-2">
             {aviosCatalogo.map((a) => {
