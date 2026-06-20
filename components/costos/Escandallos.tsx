@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
 import {
-  type DatosEscandallo, type Margenes, type Tela, type ItemExtra, type MedidasLavado,
-  DEFAULT_DATOS, MEDIDAS_LAVADO_EMPTY, TELA_EMPTY,
+  type DatosEscandallo, type Margenes, type Tela, type ItemExtra,
+  DEFAULT_DATOS, TELA_EMPTY,
   deepClone, parseDatos, calcular, itemCosto,
 } from '@/lib/costos/escandallo';
 
@@ -154,11 +154,6 @@ export function Escandallos() {
   const costoCorteSugerido = tipoPrenda.trim()
     ? costosCorte.find(c => c.tipoPrenda.trim().toLowerCase() === tipoPrenda.trim().toLowerCase()) ?? null
     : null;
-  const updMedidas = (cual: 'medidasPreLavado' | 'medidasPostLavado', field: keyof MedidasLavado, val: string) =>
-    setDatos(prev => ({
-      ...prev,
-      [cual]: { ...(prev[cual] ?? MEDIDAS_LAVADO_EMPTY), [field]: field === 'talle' ? val : pf(val) },
-    }));
 
   const fetchTiempoSku = async () => {
     if (!sku.trim()) return;
@@ -772,66 +767,6 @@ export function Escandallos() {
                 ))}
               </div>
             </div>
-          </div>
-
-          {/* Medidas pre/post lavado + encogimiento */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-5">
-            <p className={`${sec} mb-4`}>Medidas pre/post lavado</p>
-            <div className="grid grid-cols-2 gap-6">
-              {(['medidasPreLavado', 'medidasPostLavado'] as const).map((cual) => {
-                const m = datos[cual] ?? MEDIDAS_LAVADO_EMPTY;
-                const titulo = cual === 'medidasPreLavado' ? 'Pre lavado' : 'Post lavado';
-                return (
-                  <div key={cual} className="space-y-2">
-                    <p className="text-xs font-semibold text-stone-500">{titulo}</p>
-                    <div>
-                      <label className={lbl}>Talle</label>
-                      <input type="text" value={m.talle} onChange={e => updMedidas(cual, 'talle', e.target.value)}
-                        placeholder="Ej: M" className={inp} />
-                    </div>
-                    <div>
-                      <label className={lbl}>Largo (cm)</label>
-                      <NumInput value={m.largo} onChange={n => updMedidas(cual, 'largo', String(n))}
-                        placeholder="0" min="0" step="0.1" className={inp} />
-                    </div>
-                    <div>
-                      <label className={lbl}>Ancho (cm)</label>
-                      <NumInput value={m.ancho} onChange={n => updMedidas(cual, 'ancho', String(n))}
-                        placeholder="0" min="0" step="0.1" className={inp} />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            {/* Análisis encogimiento automático */}
-            {(() => {
-              const pre  = datos.medidasPreLavado;
-              const post = datos.medidasPostLavado;
-              const encLargo = pre && post && pre.largo > 0 ? ((Math.abs(post.largo - pre.largo) / pre.largo) * 100) : null;
-              const encAncho = pre && post && pre.ancho > 0 ? ((Math.abs(post.ancho - pre.ancho) / pre.ancho) * 100) : null;
-              if (!encLargo && !encAncho) return null;
-              return (
-                <div className="mt-4 border-t border-stone-100 pt-4">
-                  <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Análisis de encogimiento</p>
-                  <div className="grid grid-cols-2 gap-4">
-                    {encLargo !== null && (
-                      <div className="bg-amber-50 rounded-xl px-4 py-3 text-center">
-                        <p className="text-xs text-stone-400 mb-0.5">Encogimiento largo</p>
-                        <p className={`text-xl font-bold ${encLargo > 3 ? 'text-red-600' : 'text-amber-600'}`}>{encLargo.toFixed(1)}%</p>
-                        <p className="text-xs text-stone-400 mt-0.5">{pre?.largo} → {post?.largo} cm</p>
-                      </div>
-                    )}
-                    {encAncho !== null && (
-                      <div className="bg-amber-50 rounded-xl px-4 py-3 text-center">
-                        <p className="text-xs text-stone-400 mb-0.5">Encogimiento ancho</p>
-                        <p className={`text-xl font-bold ${encAncho > 3 ? 'text-red-600' : 'text-amber-600'}`}>{encAncho.toFixed(1)}%</p>
-                        <p className="text-xs text-stone-400 mt-0.5">{pre?.ancho} → {post?.ancho} cm</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
           </div>
 
           {/* Resumen */}
