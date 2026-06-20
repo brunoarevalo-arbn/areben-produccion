@@ -13,8 +13,12 @@ type NumInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onCh
  * - selecciona todo el contenido al enfocar, así escribís encima directo
  * Mantiene un buffer de texto interno para poder tipear "0.5", "0.", etc. sin
  * que el número parseado pelee con lo que estás escribiendo.
+ *
+ * Fuerza step="any": son campos de decimales libres. Con un step fijo (ej. 0.5)
+ * un valor que no caiga justo en el paso (ej. 11.8 traído de producción) dispara
+ * la validación nativa de HTML y bloquea el submit del formulario.
  */
-export function NumInput({ value, onChange, onFocus, ...rest }: NumInputProps) {
+export function NumInput({ value, onChange, onFocus, step: _step, ...rest }: NumInputProps) {
   const [buf, setBuf] = useState(value ? String(value) : '');
 
   // Sincroniza si el valor externo cambia por fuera de lo que se está tipeando
@@ -29,6 +33,7 @@ export function NumInput({ value, onChange, onFocus, ...rest }: NumInputProps) {
       {...rest}
       type="number"
       inputMode="decimal"
+      step="any"
       value={buf}
       onChange={(e) => { setBuf(e.target.value); onChange(parseFloat(e.target.value) || 0); }}
       onFocus={(e) => { e.currentTarget.select(); onFocus?.(e); }}
