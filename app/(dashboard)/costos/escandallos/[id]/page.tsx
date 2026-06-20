@@ -32,7 +32,8 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
     return { ...t, pMetro, costo };
   });
 
-  const costoTelas     = telasCosts.reduce((s, t) => s + t.costo, 0);
+  // Si el escandallo viene de una ficha de corte, el costo de tela es el de la ficha.
+  const costoTelas     = datos.costoTelaFicha != null ? datos.costoTelaFicha : telasCosts.reduce((s, t) => s + t.costo, 0);
   const costoServicios = datos.costoCorte + datos.costoTizada + datos.costoLavadero;
   const costoMO        = datos.tiempoConfeccion * costoMinuto;
   const costoVarios    = datos.varios.reduce((s, v) => s + itemCosto(v), 0);
@@ -76,6 +77,15 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
         </div>
 
         {/* Telas */}
+        {datos.costoTelaFicha != null ? (
+        <div className="mb-8">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Telas</h2>
+          <div className="flex justify-between text-sm border-b border-stone-100 py-2.5">
+            <span className="text-stone-600">Tela (de la ficha de corte, incluye insumos del corte)</span>
+            <span className="font-bold tabular-nums text-stone-900">{fmt$(costoTelas)}</span>
+          </div>
+        </div>
+        ) : (
         <div className="mb-8">
           <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Telas</h2>
           <table className="w-full text-sm">
@@ -114,6 +124,7 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
             </tfoot>
           </table>
         </div>
+        )}
 
         {/* Servicios fijos */}
         <div className="mb-8">

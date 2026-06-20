@@ -19,6 +19,7 @@ interface ProductoProd {
   marca: string;
   descripcion: string | null;
   costoTelaUnit: number | null;
+  costoCorteUnit: number | null;
   tieneFicha: boolean;
   tieneEscandallo: boolean;
   descartado: boolean;
@@ -182,6 +183,9 @@ export function Escandallos() {
     setDatos(prev => ({
       ...prev,
       costoTelaFicha: p.costoTelaUnit != null ? p.costoTelaUnit : undefined,
+      // Un solo corte por SKU: si la ficha tiene costo de corte, se trae y se bloquea.
+      costoCorteFicha: p.costoCorteUnit != null ? p.costoCorteUnit : undefined,
+      costoCorte: p.costoCorteUnit != null ? p.costoCorteUnit : prev.costoCorte,
     }));
     setTiempoProduccion(null);
     setSinDatosProduccion(false);
@@ -431,7 +435,7 @@ export function Escandallos() {
                 Producto producido
               </button>
               <button type="button"
-                onClick={() => { setModoProducido(false); setDatos(prev => ({ ...prev, costoTelaFicha: undefined })); }}
+                onClick={() => { setModoProducido(false); setDatos(prev => ({ ...prev, costoTelaFicha: undefined, costoCorteFicha: undefined })); }}
                 className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold border transition ${!modoProducido ? 'bg-violet-600 border-violet-600 text-white' : 'border-stone-200 text-stone-600 hover:border-stone-400'}`}>
                 Nuevo producto
               </button>
@@ -488,12 +492,17 @@ export function Escandallos() {
           {/* Telas */}
           {datos.costoTelaFicha != null ? (
           <div className="bg-white rounded-2xl border border-stone-200 p-5">
-            <p className={`${sec} mb-3`}>Telas</p>
-            <div className="rounded-xl bg-violet-50 border border-violet-100 px-4 py-3 flex items-center justify-between">
-              <span className="text-sm text-stone-600">Tela (de la ficha de corte)</span>
-              <span className="text-base font-bold font-mono tabular-nums text-violet-700">
-                {fmt$(datos.costoTelaFicha)} <span className="text-xs font-normal text-stone-400">por prenda</span>
-              </span>
+            <p className={`${sec} mb-3`}>Telas — resumen de la ficha de corte</p>
+            <div className="rounded-xl bg-violet-50 border border-violet-100 p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-stone-600">Costo de tela (incluye insumos del corte)</span>
+                <span className="text-base font-bold font-mono tabular-nums text-violet-700">
+                  {fmt$(datos.costoTelaFicha)} <span className="text-xs font-normal text-stone-400">/ prenda</span>
+                </span>
+              </div>
+              <p className="text-xs text-stone-400 pt-2 border-t border-violet-100">
+                Sale de la ficha de corte del SKU {sku ? <span className="font-mono">{sku}</span> : 'producido'}. No se edita acá: para cambiarlo, corregí la ficha en producción.
+              </p>
             </div>
           </div>
           ) : (
@@ -570,7 +579,7 @@ export function Escandallos() {
           {/* Servicios fijos */}
           <div className="bg-white rounded-2xl border border-stone-200 p-5">
             <p className={`${sec} mb-3`}>Servicios fijos</p>
-            {costoCorteSugerido && costoCorteSugerido.costo !== datos.costoCorte && (
+            {!datos.costoCorteFicha && costoCorteSugerido && costoCorteSugerido.costo !== datos.costoCorte && (
               <div className="flex items-center justify-between gap-3 bg-violet-50 border border-violet-100 rounded-xl px-4 py-2.5 mb-3">
                 <p className="text-xs text-stone-600">
                   Costo de corte para <span className="font-semibold">{costoCorteSugerido.tipoPrenda}</span>:{' '}
@@ -590,8 +599,15 @@ export function Escandallos() {
               ] as const).map(r => (
                 <div key={r.field}>
                   <label className={lbl}>{r.label}</label>
-                  <NumInput value={r.val} onChange={n => updDatos(r.field, String(n))}
-                    placeholder="0" min="0" step="0.01" className={inp} />
+                  {r.field === 'costoCorte' && datos.costoCorteFicha != null ? (
+                    <div className="rounded-lg bg-violet-50 border border-violet-100 px-3 py-2">
+                      <span className="text-sm font-bold font-mono tabular-nums text-violet-700">{fmt$(datos.costoCorteFicha)}</span>
+                      <p className="text-xs text-stone-400 mt-0.5">de la ficha de corte</p>
+                    </div>
+                  ) : (
+                    <NumInput value={r.val} onChange={n => updDatos(r.field, String(n))}
+                      placeholder="0" min="0" step="0.01" className={inp} />
+                  )}
                 </div>
               ))}
             </div>

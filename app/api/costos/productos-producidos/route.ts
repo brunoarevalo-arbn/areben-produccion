@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     where:  { sku: { not: null } },
     select: {
       sku: true, marca: true, descripcion: true, fichaCorteCargada: true,
-      costoTela: true, costoInsumosSecundarios: true, cantidad: true,
+      costoTela: true, costoInsumosSecundarios: true, costoCorte: true, cantidad: true,
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -22,15 +22,17 @@ export async function GET(req: NextRequest) {
   const descartados = await prisma.costoSkuDescartado.findMany({ select: { sku: true } });
   const descartadoSet = new Set(descartados.map((d) => d.sku));
 
-  const telaUnit = (op: { fichaCorteCargada: boolean; costoTela: unknown; costoInsumosSecundarios: unknown; cantidad: number }) =>
-    op.fichaCorteCargada && op.cantidad > 0
-      ? (Number(op.costoTela) + Number(op.costoInsumosSecundarios)) / op.cantidad
-      : null;
+  type OpRow = { fichaCorteCargada: boolean; costoTela: unknown; costoInsumosSecundarios: unknown; costoCorte: unknown; cantidad: number };
+  // Costos por unidad sacados de la ficha de corte (cuando está cargada).
+  // Tela incluye los insumos secundarios del corte (badanas, hilos), como antes.
+  const telaUnit  = (op: OpRow) => op.fichaCorteCargada && op.cantidad > 0
+    ? (Number(op.costoTela) + Number(op.costoInsumosSecundarios)) / op.cantidad : null;
+  const corteUnit = (op: OpRow) => op.fichaCorteCargada && op.cantidad > 0 ? Number(op.costoCorte) / op.cantidad : null;
 
   const bySku = new Map<string, {
     sku: string; marca: string; descripcion: string | null;
-    costoTelaUnit: number | null; tieneFicha: boolean; tieneEscandallo: boolean;
-    descartado: boolean;
+    costoTelaUnit: number | null; costoCorteUnit: number | null;
+    tieneFicha: boolean; tieneEscandallo: boolean; descartado: boolean;
   }>();
 
   for (const op of ops) {
@@ -38,15 +40,16 @@ export async function GET(req: NextRequest) {
     if (!bySku.has(sku)) {
       bySku.set(sku, {
         sku, marca: op.marca, descripcion: op.descripcion,
-        costoTelaUnit: telaUnit(op), tieneFicha: op.fichaCorteCargada,
+        costoTelaUnit: telaUnit(op), costoCorteUnit: corteUnit(op),
+        tieneFicha: op.fichaCorteCargada,
         tieneEscandallo: conEscandallo.has(sku),
         descartado: descartadoSet.has(sku),
       });
     } else {
       const e = bySku.get(sku)!;
-      if (e.costoTelaUnit == null) {
-        const t = telaUnit(op);
-        if (t != null) { e.costoTelaUnit = t; e.tieneFicha = true; }
+      if (!e.tieneFicha && op.fichaCorteCargada) {
+        e.costoTelaUnit = telaUnit(op); e.costoCorteUnit = corteUnit(op);
+        e.tieneFicha = true;
       }
     }
   }

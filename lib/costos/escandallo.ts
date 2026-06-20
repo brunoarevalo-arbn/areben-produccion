@@ -45,6 +45,7 @@ export interface DatosEscandallo {
   margenDesarrollo: number;
   margenFallas: number;
   costoTelaFicha?: number;
+  costoCorteFicha?: number; // costo de corte por prenda traído de la ficha (un solo corte por SKU)
 }
 
 export interface Margenes { margenDesarrollo: number; margenFallas: number; }
@@ -135,6 +136,7 @@ export function parseDatos(raw: string | null | undefined): DatosEscandallo {
     margenDesarrollo: num(p.margenDesarrollo, 10),
     margenFallas: num(p.margenFallas, 5),
     costoTelaFicha: typeof p.costoTelaFicha === 'number' ? p.costoTelaFicha : undefined,
+    costoCorteFicha: typeof p.costoCorteFicha === 'number' ? p.costoCorteFicha : undefined,
   };
 }
 
