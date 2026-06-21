@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
-import { requirePermiso } from '@/lib/auth';
+import { requireAlguno } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,13 +13,16 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await requirePermiso(req, 'costos'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
-  const { nombre, tipo, precio, stock } = await req.json();
+  if (!(await requireAlguno(req, ['costos', 'insumos']))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  const { nombre, tipo, categoria, unidad, marca, precio, stock, proveedorId } = await req.json();
   if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });
   const item = await prisma.etiquetaCatalogo.create({
     data: {
-      nombre: nombre.trim(), tipo: tipo?.trim() || null, precio: parseFloat(precio) || 0,
+      nombre: nombre.trim(), tipo: tipo?.trim() || null,
+      categoria: categoria?.trim() || null, unidad: unidad?.trim() || null, marca: marca?.trim() || null,
+      precio: parseFloat(precio) || 0,
       stock: typeof stock === 'number' ? Math.max(0, Math.trunc(stock)) : null,
+      proveedorId: proveedorId || null,
     },
   });
   return NextResponse.json(item, { status: 201 });

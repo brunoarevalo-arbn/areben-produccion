@@ -321,9 +321,14 @@ model EtiquetaCatalogo {
   id        String   @id @default(cuid())
   nombre    String
   tipo      String?  // 'principal' | 'composicion' | 'otro'
+  categoria String?  // 'etiqueta' | 'badana' | 'boton' | 'hilo' | 'otro'
+  unidad    String?  // 'etiqueta' | 'unidad'
+  marca     String?  // 'Zattia' | 'Stunned' | null
   precio    Decimal  @default(0)
   stock     Int?     // null = sin seguimiento / ilimitado. Se descuenta al terminar producción.
   activo    Boolean  @default(true)
+  proveedorId String?
+  proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
   ordenAvios OrdenAvio[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -539,6 +544,7 @@ model Proveedor {
   activo       Boolean  @default(true)
   compras      Compra[]
   gastos       Gasto[]
+  etiquetas    EtiquetaCatalogo[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

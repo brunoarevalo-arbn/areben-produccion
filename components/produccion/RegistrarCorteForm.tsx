@@ -9,16 +9,11 @@ interface RolloDisp {
   id: string; codigo: string; pesoActual: string; costoUnitario: string;
   insumo: { nombre: string; rinde: string | null }; color: { nombre: string } | null;
 }
-interface LoteDisp {
-  id: string; codigo: string; cantidadActual: string; costoUnitario: string;
-  insumo: { nombre: string }; color: { nombre: string } | null;
-}
 interface CortadorOpt {
   id: string; nombre: string; tarifaDefault: string | null; tarifaModo: string | null; activo: boolean;
 }
 
 interface ConsumoRollo { rolloId: string; metros: string; codigo: string; pesoActual: number; costoUnitario: number; rinde: number; nombre: string; }
-interface ConsumoLote { loteId: string; cantidad: string; codigo: string; cantActual: number; costoUnitario: number; nombre: string; }
 interface AvioOpt { id: string; nombre: string; tipo: string | null; precio: number; stock: number | null; }
 interface AvioSel { etiquetaId: string; cantidad: string; }
 
@@ -62,14 +57,12 @@ function calcTizada(t: Tizada, totalUnidades: number) {
 export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { ordenId: string; sku: string; cantidadPlanificada: number }) {
   const router = useRouter();
   const [rollosDisp, setRollosDisp] = useState<RolloDisp[]>([]);
-  const [lotesDisp, setLotesDisp] = useState<LoteDisp[]>([]);
   const [cortadores, setCortadores] = useState<CortadorOpt[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const tizadaSeq = useRef(2);
   const [tizadas, setTizadas] = useState<Tizada[]>([{ id: 't1', nombre: '', modo: 'tizada', metros: '', unidades: '1', rollos: [] }]);
-  const [consumoLotes, setConsumoLotes] = useState<ConsumoLote[]>([]);
   const [aviosCatalogo, setAviosCatalogo] = useState<AvioOpt[]>([]);
   const [aviosSel, setAviosSel] = useState<AvioSel[]>([]);
   const [talles, setTalles] = useState<Record<string, string>>({});
@@ -92,13 +85,10 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
     Promise.all([
       fetch('/api/insumos/rollos?estado=DISPONIBLE').then((r) => r.ok ? r.json() : []),
       fetch('/api/insumos/rollos?estado=EN_USO_PARCIAL').then((r) => r.ok ? r.json() : []),
-      fetch('/api/insumos/lotes?estado=DISPONIBLE').then((r) => r.ok ? r.json() : []),
-      fetch('/api/insumos/lotes?estado=EN_USO_PARCIAL').then((r) => r.ok ? r.json() : []),
       fetch('/api/cortadores').then((r) => r.ok ? r.json() : []),
-    ]).then(([r1, r2, l1, l2, ct]) => {
+    ]).then(([r1, r2, ct]) => {
       const allRollos = [...r1, ...r2] as RolloDisp[];
       setRollosDisp(allRollos.filter((r) => r.insumo.rinde && Number(r.insumo.rinde) > 0).sort((a, b) => a.codigo.localeCompare(b.codigo)));
-      setLotesDisp([...l1, ...l2]);
       setCortadores((ct as CortadorOpt[]).filter((c) => c.activo));
     });
 
@@ -138,19 +128,6 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
     setTizadas((prev) => prev.map((t) => t.id === tizadaId
       ? { ...t, rollos: t.rollos.map((c) => c.rolloId === rolloId ? { ...c, metros: val } : c) } : t));
 
-  // Lotes
-  const addLote = (l: LoteDisp) => {
-    if (consumoLotes.find((c) => c.loteId === l.id)) return;
-    setConsumoLotes((prev) => [...prev, {
-      loteId: l.id, cantidad: '', codigo: l.codigo,
-      cantActual: Number(l.cantidadActual), costoUnitario: Number(l.costoUnitario),
-      nombre: `${l.insumo.nombre}${l.color ? ` · ${l.color.nombre}` : ''}`,
-    }]);
-  };
-  const removeLote = (loteId: string) => setConsumoLotes((prev) => prev.filter((c) => c.loteId !== loteId));
-  const updateLoteCant = (loteId: string, val: string) =>
-    setConsumoLotes((prev) => prev.map((c) => c.loteId === loteId ? { ...c, cantidad: val } : c));
-
   // Talles
   const updateTalle = (talle: string, val: string) => setTalles((prev) => ({ ...prev, [talle]: val }));
 
@@ -174,10 +151,9 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
   const totalMetros = tizadasCalc.reduce((s, x) => s + x.metros, 0);
   const totalKg     = tizadasCalc.reduce((s, x) => s + x.kg, 0);
   const costoTela   = tizadasCalc.reduce((s, x) => s + x.costo, 0);
-  const costoInsSec = consumoLotes.reduce((s, c) => s + (parseFloat(c.cantidad) || 0) * c.costoUnitario, 0);
   const costoCorteInput = parseFloat(costoCorte) || 0;
   const costoCorteNum = modoCosto === 'unidad' ? costoCorteInput * totalUnidades : costoCorteInput;
-  const costoTotalAcum = costoTela + costoInsSec + costoCorteNum;
+  const costoTotalAcum = costoTela + costoCorteNum;
   const costoUnitario = totalUnidades > 0 ? costoTotalAcum / totalUnidades : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -203,12 +179,6 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
       if (cr.metrosEf / cr.rinde > cr.pesoActual + 0.001) { setError(`Rollo ${cr.codigo}: excede stock`); return; }
     }
 
-    for (const cl of consumoLotes) {
-      const c = parseFloat(cl.cantidad);
-      if (!c || c <= 0) { setError(`Cantidad invalida en lote ${cl.codigo}`); return; }
-      if (c > cl.cantActual) { setError(`Lote ${cl.codigo}: excede stock`); return; }
-    }
-
     const cortesArr = Object.entries(talles)
       .map(([talle, val]) => ({ talle, cantidad: parseInt(val) || 0 }))
       .filter((t) => t.cantidad > 0);
@@ -221,7 +191,6 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         consumoRollos: rollosFinal.map((c) => ({ rolloId: c.rolloId, metrosUsados: c.metrosEf })),
-        consumoLotes: consumoLotes.length > 0 ? consumoLotes.map((c) => ({ loteId: c.loteId, cantidad: parseFloat(c.cantidad) })) : undefined,
         avios: aviosSel.length > 0 ? aviosSel.map((a) => ({ etiquetaId: a.etiquetaId, cantidad: parseInt(a.cantidad) || 1 })) : undefined,
         cortesPorTalle: cortesArr,
         cortadorId: cortadorId || undefined,
@@ -367,41 +336,9 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
         )}
       </div>
 
-      {/* Insumos secundarios */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
-        <h3 className="text-sm font-bold text-stone-800 mb-1">2. Insumos secundarios</h3>
-        <p className="text-xs text-stone-400 mb-4">Etiquetas, badanas, hilos. Cantidades estimadas para el corte.</p>
-
-        {consumoLotes.map((cl) => (
-          <div key={cl.loteId} className="flex items-center gap-3 mb-2 px-3 py-2 rounded-lg border border-stone-100">
-            <span className="font-mono text-xs text-stone-700 w-16">{cl.codigo}</span>
-            <span className="text-xs text-stone-600 flex-1 truncate">{cl.nombre}</span>
-            <span className="text-xs text-stone-400 tabular-nums">{cl.cantActual} disp.</span>
-            <NumInput value={parseFloat(cl.cantidad) || 0} onChange={(n) => updateLoteCant(cl.loteId, n ? String(n) : '')}
-              min="1" max={cl.cantActual} placeholder="Cant." className={`w-20 ${inpSm}`} />
-            <button type="button" onClick={() => removeLote(cl.loteId)} className="text-red-400 hover:text-red-600 text-sm px-1">x</button>
-          </div>
-        ))}
-
-        <select value="" onChange={(e) => { const l = lotesDisp.find((l) => l.id === e.target.value); if (l) addLote(l); }} className={inpSm}>
-          <option value="">+ Agregar lote...</option>
-          {lotesDisp.filter((l) => !consumoLotes.find((c) => c.loteId === l.id)).map((l) => (
-            <option key={l.id} value={l.id}>
-              {l.codigo} · {l.insumo.nombre}{l.color ? ` · ${l.color.nombre}` : ''} ({Number(l.cantidadActual)} disp.)
-            </option>
-          ))}
-        </select>
-
-        {consumoLotes.length > 0 && (
-          <div className="mt-3 pt-3 border-t border-stone-100 text-sm text-right">
-            <span className="text-stone-500">Costo insumos sec.: </span><strong>${fmt(costoInsSec)}</strong>
-          </div>
-        )}
-      </div>
-
       {/* Avíos de la prenda (catálogo) */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6">
-        <h3 className="text-sm font-bold text-stone-800 mb-1">Avíos de la prenda</h3>
+        <h3 className="text-sm font-bold text-stone-800 mb-1">2. Avíos de la prenda</h3>
         <p className="text-xs text-stone-400 mb-4">
           Qué etiquetas/avíos del catálogo lleva cada prenda. El stock se descuenta solo al terminar la producción.
         </p>
@@ -520,14 +457,10 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
 
       {/* Resumen total */}
       <div className="bg-stone-50 rounded-2xl border border-stone-200 p-6">
-        <div className="grid grid-cols-5 gap-4 text-sm">
+        <div className="grid grid-cols-4 gap-4 text-sm">
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Tela</p>
             <p className="text-stone-800 tabular-nums">${fmt(costoTela)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Insumos sec.</p>
-            <p className="text-stone-800 tabular-nums">${fmt(costoInsSec)}</p>
           </div>
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Corte</p>

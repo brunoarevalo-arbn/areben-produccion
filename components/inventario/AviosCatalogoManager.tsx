@@ -3,9 +3,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 
-interface Etiqueta { id: string; nombre: string; tipo: string | null; precio: number; stock: number | null; }
+interface Etiqueta {
+  id: string; nombre: string; tipo: string | null; precio: number; stock: number | null;
+  categoria: string | null; unidad: string | null; marca: string | null; proveedorId: string | null;
+}
+interface ProveedorOpt { id: string; nombre: string; activo: boolean; }
 
 const TIPOS_ETIQUETA = ['principal', 'composicion', 'otro'];
+const CATEGORIAS = ['etiqueta', 'badana', 'boton', 'hilo', 'otro'];
+const UNIDADES = ['etiqueta', 'unidad'];
+const MARCAS = ['Zattia', 'Stunned'];
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
 const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400';
@@ -16,8 +23,13 @@ const card = 'bg-white rounded-2xl border border-stone-200';
 // en Costos → Catálogos.
 export function AviosCatalogoManager() {
   const [items, setItems] = useState<Etiqueta[]>([]);
+  const [proveedores, setProveedores] = useState<ProveedorOpt[]>([]);
   const [nombre, setNombre] = useState('');
   const [tipo, setTipo] = useState('principal');
+  const [categoria, setCategoria] = useState('etiqueta');
+  const [unidad, setUnidad] = useState('etiqueta');
+  const [marca, setMarca] = useState('');
+  const [proveedorId, setProveedorId] = useState('');
   const [precio, setPrecio] = useState(0);
   const [saving, setSaving] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
@@ -29,16 +41,19 @@ export function AviosCatalogoManager() {
     const r = await fetch('/api/costos/etiquetas');
     if (r.ok) setItems((await r.json()).map((x: Etiqueta) => ({ ...x, precio: Number(x.precio) })));
   }, []);
-  useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => {
+    cargar();
+    fetch('/api/proveedores').then(r => r.ok ? r.json() : []).then(setProveedores).catch(() => {});
+  }, [cargar]);
 
   const agregar = async () => {
     if (!nombre.trim()) return;
     setSaving(true);
     const r = await fetch('/api/costos/etiquetas', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, tipo, precio }),
+      body: JSON.stringify({ nombre, tipo, categoria, unidad, marca: marca || null, proveedorId: proveedorId || null, precio }),
     });
-    if (r.ok) { const it = await r.json(); setItems(prev => [...prev, { ...it, precio: Number(it.precio) }].sort((a, b) => a.nombre.localeCompare(b.nombre))); setNombre(''); setPrecio(0); }
+    if (r.ok) { const it = await r.json(); setItems(prev => [...prev, { ...it, precio: Number(it.precio) }].sort((a, b) => a.nombre.localeCompare(b.nombre))); setNombre(''); setPrecio(0); setMarca(''); }
     setSaving(false);
   };
 
@@ -63,16 +78,18 @@ export function AviosCatalogoManager() {
 
   return (
     <div className="max-w-2xl">
-      <h3 className="text-sm font-bold text-stone-800 mb-1">Catálogo de etiquetas y avíos</h3>
-      <p className="text-xs text-stone-400 mb-4">Cada avío con su precio y stock. Vacío = sin seguimiento (ilimitado). El stock se descuenta al terminar producción.</p>
+      <h3 className="text-sm font-bold text-stone-800 mb-1">Catálogo de avíos</h3>
+      <p className="text-xs text-stone-400 mb-4">Etiquetas, badanas, botones, hilos. Una fila por variante (color). El talle va en el nombre. Stock vacío = sin seguimiento; se descuenta al terminar producción.</p>
 
       <div className={`${card} divide-y divide-stone-100 mb-3`}>
-        {items.length === 0 && <p className="text-sm text-stone-400 text-center py-8 italic">Sin etiquetas todavía</p>}
+        {items.length === 0 && <p className="text-sm text-stone-400 text-center py-8 italic">Sin avíos todavía</p>}
         {items.map(it => (
           <div key={it.id} className="flex items-center gap-3 px-5 py-3">
             <div className="flex-1 min-w-0">
               <p className="text-sm text-stone-800">{it.nombre}</p>
-              {it.tipo && <p className="text-xs text-stone-400 capitalize">{it.tipo}</p>}
+              <p className="text-xs text-stone-400 capitalize">
+                {[it.categoria, it.marca, it.unidad ? `por ${it.unidad}` : null, it.tipo].filter(Boolean).join(' · ')}
+              </p>
             </div>
             {editId === it.id ? (
               <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -104,14 +121,33 @@ export function AviosCatalogoManager() {
         ))}
       </div>
 
-      <div className="flex gap-2">
-        <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre de la etiqueta" className={`flex-1 ${inp}`} />
-        <select value={tipo} onChange={e => setTipo(e.target.value)} className={`${inp} capitalize`}>
-          {TIPOS_ETIQUETA.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
-        </select>
-        <NumInput value={precio} onChange={setPrecio} placeholder="$ precio" min="0" step="0.01" className={`w-28 ${inp}`} />
+      <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3 space-y-2">
+        <input type="text" value={nombre} onChange={e => setNombre(e.target.value)}
+          placeholder="Nombre del avío (ej: Badana PU Zattia Negro)" className={`w-full ${inp}`} />
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <select value={categoria} onChange={e => setCategoria(e.target.value)} className={`${inp} capitalize`}>
+            {CATEGORIAS.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
+          </select>
+          <select value={unidad} onChange={e => setUnidad(e.target.value)} className={`${inp} capitalize`}>
+            {UNIDADES.map(u => <option key={u} value={u} className="capitalize">por {u}</option>)}
+          </select>
+          <select value={marca} onChange={e => setMarca(e.target.value)} className={inp}>
+            <option value="">— Marca —</option>
+            {MARCAS.map(m => <option key={m} value={m}>{m}</option>)}
+          </select>
+          <select value={tipo} onChange={e => setTipo(e.target.value)} className={`${inp} capitalize`}>
+            {TIPOS_ETIQUETA.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+          </select>
+          <select value={proveedorId} onChange={e => setProveedorId(e.target.value)} className={`${inp} col-span-2`}>
+            <option value="">— Proveedor (opcional) —</option>
+            {proveedores.filter(p => p.activo).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+          </select>
+          <NumInput value={precio} onChange={setPrecio} placeholder="$ precio ref." min="0" step="0.01" className={`${inp} col-span-2`} />
+        </div>
         <button onClick={agregar} disabled={saving || !nombre.trim()}
-          className="px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition">+ Agregar</button>
+          className="w-full px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition">
+          + Agregar avío
+        </button>
       </div>
     </div>
   );

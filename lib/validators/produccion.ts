@@ -50,11 +50,6 @@ export const MuestraSchema = z.object({
 });
 
 // Registrar corte: unifica ficha + consumo de tela + desglose por talle
-const ConsumoLoteSchema = z.object({
-  loteId:   z.string().min(1),
-  cantidad: z.number().positive(),
-});
-
 const ConsumoRolloSchema = z.object({
   rolloId:      z.string().min(1),
   metrosUsados: z.number().positive(),
@@ -73,7 +68,6 @@ const AvioCorteSchema = z.object({
 
 export const RegistrarCorteSchema = z.object({
   consumoRollos:  z.array(ConsumoRolloSchema).min(1, 'Debe asignar al menos un rollo'),
-  consumoLotes:   z.array(ConsumoLoteSchema).optional(),
   cortesPorTalle: z.array(TalleSchema).min(1, 'Debe cargar al menos un talle'),
   avios:          z.array(AvioCorteSchema).optional(),
   cortadorId:     z.string().optional(),

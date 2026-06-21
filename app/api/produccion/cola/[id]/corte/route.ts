@@ -49,7 +49,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: 'La ficha ya fue cargada. Para corregirla, revertí el corte y volvé a cargarla.' }, { status: 400 });
   }
 
-  const { consumoRollos, consumoLotes, cortesPorTalle, avios, cortadorId, costoCorte, fichaFotoUrl, notas } = parsed.data;
+  const { consumoRollos, cortesPorTalle, avios, cortadorId, costoCorte, fichaFotoUrl, notas } = parsed.data;
 
   // Buscar cortador para guardar denormalizado
   let cortadorNombre: string | null = null;
@@ -81,20 +81,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     }
   }
 
-  // Validar lotes
-  const loteConsumos = consumoLotes || [];
-  const loteIds = loteConsumos.map((c) => c.loteId);
-  const lotes = loteIds.length > 0 ? await prisma.lote.findMany({ where: { id: { in: loteIds } } }) : [];
-  const lotesMap = new Map(lotes.map((l) => [l.id, l]));
-
-  for (const cl of loteConsumos) {
-    const lote = lotesMap.get(cl.loteId);
-    if (!lote) return NextResponse.json({ error: `Lote ${cl.loteId} no encontrado` }, { status: 400 });
-    if (Number(lote.cantidadActual) < cl.cantidad) {
-      return NextResponse.json({ error: `Lote ${lote.codigo}: stock insuficiente` }, { status: 400 });
-    }
-  }
-
   // Validar talles unicos
   const tallesSet = new Set<string>();
   for (const t of cortesPorTalle) {
@@ -111,12 +97,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const rinde = Number(rollo.insumo.rinde);
     const kgConsumidos = new Prisma.Decimal(cr.metrosUsados).div(new Prisma.Decimal(rinde));
     costoTela = costoTela.add(kgConsumidos.mul(rollo.costoUnitario));
-  }
-
-  let costoInsumosSec = new Prisma.Decimal(0);
-  for (const cl of loteConsumos) {
-    const lote = lotesMap.get(cl.loteId)!;
-    costoInsumosSec = costoInsumosSec.add(lote.costoUnitario.mul(new Prisma.Decimal(cl.cantidad)));
   }
 
   // Cantidad total cortada = suma de talles → reemplaza la cantidad planificada
@@ -149,30 +129,6 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       });
     }
 
-    // Descontar lotes secundarios
-    for (const cl of loteConsumos) {
-      const lote = lotesMap.get(cl.loteId)!;
-      const nuevaCant = lote.cantidadActual.sub(new Prisma.Decimal(cl.cantidad));
-      const nuevoEstado = nuevaCant.lte(0) ? 'AGOTADO' as const
-        : nuevaCant.lt(lote.cantidadInicial) ? 'EN_USO_PARCIAL' as const
-        : 'DISPONIBLE' as const;
-
-      await tx.lote.update({
-        where: { id: cl.loteId },
-        data: { cantidadActual: nuevaCant.lt(0) ? new Prisma.Decimal(0) : nuevaCant, estado: nuevoEstado },
-      });
-      await tx.movimientoInsumo.create({
-        data: {
-          tipo: 'CONSUMO',
-          loteId: cl.loteId,
-          ordenId: id,
-          cantidad: new Prisma.Decimal(cl.cantidad).neg(),
-          motivo: `Corte OP ${orden.sku ?? id}`,
-          usuarioId: session.id,
-        },
-      });
-    }
-
     // Crear cortes por talle
     for (const t of cortesPorTalle) {
       await tx.cortePorTalle.create({
@@ -193,7 +149,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
     // Actualizar OP
     const costoCorteDec = new Prisma.Decimal(costoCorte || 0);
-    const costoTotal = costoTela.add(costoInsumosSec).add(costoCorteDec);
+    const costoTotal = costoTela.add(costoCorteDec);
     const data: Record<string, unknown> = {
       fichaCorteCargada: true,
       fichaFotoUrl: fichaFotoUrl || null,
@@ -201,7 +157,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       cortadorId: cortadorId || null,
       costoCorte: costoCorteDec,
       costoTela,
-      costoInsumosSecundarios: costoInsumosSec,
+      costoInsumosSecundarios: new Prisma.Decimal(0),
       costoTotal,
       cantidad: cantidadTotal,
       // La ficha ya NO cambia el estado: el avance del flujo se maneja aparte.
