@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { InsumoColoresManager } from '@/components/insumos/InsumoColoresManager';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,15 +17,15 @@ export default async function InsumoColoresPage({ params }: { params: Promise<{ 
 
   return (
     <div className="p-8 max-w-lg">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Inventario / Catálogo</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Colores de {insumo.nombre}</h1>
-        <p className="text-stone-500 text-sm mt-1">
-          {insumo.manejaColor
+      <PageHeader
+        eyebrow="Inventario / Catálogo"
+        title={`Colores de ${insumo.nombre}`}
+        subtitle={
+          insumo.manejaColor
             ? 'Asocia colores del catalogo SKU a este insumo.'
-            : 'Este insumo no tiene "Maneja color" activado. Activa la opcion desde el catalogo de insumos.'}
-        </p>
-      </div>
+            : 'Este insumo no tiene "Maneja color" activado. Activa la opcion desde el catalogo de insumos.'
+        }
+      />
       {insumo.manejaColor && (
         <InsumoColoresManager insumoId={insumo.id} insumoNombre={insumo.nombre} />
       )}

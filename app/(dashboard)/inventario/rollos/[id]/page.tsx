@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { RolloDetalle } from '@/components/insumos/RolloDetalle';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,10 +23,7 @@ export default async function RolloDetallePage({ params }: { params: Promise<{ i
 
   return (
     <div className="p-8 max-w-4xl">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Inventario / Rollos</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Rollo {rollo.codigo}</h1>
-      </div>
+      <PageHeader eyebrow="Inventario / Rollos" title={`Rollo ${rollo.codigo}`} />
       <RolloDetalle rollo={serialized} />
     </div>
   );

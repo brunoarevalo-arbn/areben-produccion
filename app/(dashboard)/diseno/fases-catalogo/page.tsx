@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { FaseCatalogoManager } from '@/components/diseno/FaseCatalogoManager';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,13 +23,7 @@ export default async function FasesCatalogoPage() {
 
   return (
     <div className="p-8 max-w-3xl">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-violet-500">Diseño</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Catálogo de fases</h1>
-        <p className="text-stone-500 text-sm mt-1">
-          Etapas que pueden registrarse para cada proyecto al pasar a producción.
-        </p>
-      </div>
+      <PageHeader eyebrow="Diseño" title="Catálogo de fases" subtitle="Etapas que pueden registrarse para cada proyecto al pasar a producción." />
       <FaseCatalogoManager inicial={fases.map((f) => ({ ...f, createdAt: f.createdAt.toISOString(), updatedAt: f.updatedAt.toISOString() }))} />
     </div>
   );

@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui/PageHeader';
+import { Badge } from '@/components/ui/Badge';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,11 +11,9 @@ const ESTADO_LABEL: Record<string, string> = {
   TERMINADO_SIN_ESTAMPA: 'Liso terminado', ESTAMPA: 'Estampa',
   CONTROL_CALIDAD: 'Control calidad', CERRADA: 'Cerrada',
 };
-const ESTADO_COLOR: Record<string, string> = {
-  PENDIENTE: 'bg-amber-100 text-amber-700', CORTE: 'bg-blue-100 text-blue-700',
-  COSTURA: 'bg-emerald-100 text-emerald-700', TERMINADO_SIN_ESTAMPA: 'bg-violet-100 text-violet-700',
-  ESTAMPA: 'bg-pink-100 text-pink-700', CONTROL_CALIDAD: 'bg-orange-100 text-orange-700',
-  CERRADA: 'bg-stone-100 text-stone-500',
+const ESTADO_BADGE: Record<string, 'success' | 'warning' | 'default' | 'amber' | 'blue' | 'violet' | 'pink'> = {
+  PENDIENTE: 'amber', CORTE: 'blue', COSTURA: 'success',
+  TERMINADO_SIN_ESTAMPA: 'violet', ESTAMPA: 'pink', CONTROL_CALIDAD: 'warning', CERRADA: 'default',
 };
 
 const fmt = (n: unknown) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
@@ -48,16 +48,12 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
 
   return (
     <div className="p-8 max-w-4xl">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Produccion</span>
-        <div className="flex items-center gap-3 mt-1">
-          <h1 className="text-2xl font-bold text-stone-900 font-mono">{orden.sku ?? 'S/SKU'}</h1>
-          <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ESTADO_COLOR[orden.estado] || ''}`}>
-            {ESTADO_LABEL[orden.estado]}
-          </span>
-        </div>
-        <p className="text-stone-500 text-sm mt-1">{orden.descripcion || orden.marca} · {orden.cantidad} unidades</p>
-      </div>
+      <PageHeader
+        eyebrow="Producción / Orden"
+        title={orden.sku ?? 'S/SKU'}
+        subtitle={`${orden.descripcion || orden.marca} · ${orden.cantidad} unidades`}
+        actions={<Badge variant={ESTADO_BADGE[orden.estado] ?? 'default'} size="md">{ESTADO_LABEL[orden.estado]}</Badge>}
+      />
 
       {/* Costos */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
@@ -149,9 +145,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
                   <span className="text-xs text-stone-500">{ESTADO_LABEL[t.estadoAnterior]}</span>
                 )}
                 <span className="text-stone-400">→</span>
-                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ESTADO_COLOR[t.estadoNuevo] || ''}`}>
-                  {ESTADO_LABEL[t.estadoNuevo]}
-                </span>
+                <Badge variant={ESTADO_BADGE[t.estadoNuevo] ?? 'default'} size="sm">{ESTADO_LABEL[t.estadoNuevo]}</Badge>
                 {t.notas && <span className="text-xs text-stone-500 truncate">{t.notas}</span>}
               </div>
             ))}

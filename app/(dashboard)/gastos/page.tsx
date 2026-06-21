@@ -4,6 +4,7 @@ import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { calcularCostoMinuto } from '@/lib/costoMinuto';
 import { GastosClient } from '@/components/gastos/GastosClient';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -31,11 +32,7 @@ export default async function GastosPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Gastos</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Gastos del taller</h1>
-        <p className="text-stone-500 text-sm mt-1">Desarrollo y producción.</p>
-      </div>
+      <PageHeader eyebrow="Gastos" title="Gastos del taller" subtitle="Desarrollo y producción." />
 
       <GastosClient
         gastosDesarrollo={gastosDesarrollo.map((g) => ({ ...g, createdAt: g.createdAt.toISOString() }))}

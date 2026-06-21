@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { requirePagina } from '@/lib/page-guard';
 import { UsuariosManager } from '@/components/configuracion/UsuariosManager';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,11 +15,7 @@ export default async function UsuariosPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Configuración</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Gestión de usuarios</h1>
-        <p className="text-stone-500 text-sm mt-1">{usuarios.length} usuario{usuarios.length !== 1 ? 's' : ''} registrado{usuarios.length !== 1 ? 's' : ''}</p>
-      </div>
+      <PageHeader eyebrow="Configuración" title="Gestión de usuarios" subtitle={`${usuarios.length} usuario${usuarios.length !== 1 ? 's' : ''} registrado${usuarios.length !== 1 ? 's' : ''}`} />
 
       <UsuariosManager usuarios={usuarios} sesionId={session.id} />
     </div>

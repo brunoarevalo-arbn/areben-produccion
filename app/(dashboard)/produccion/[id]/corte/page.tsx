@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { RegistrarCorteForm } from '@/components/produccion/RegistrarCorteForm';
 import { CorteRevertir } from '@/components/produccion/CorteRevertir';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,10 +22,7 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
   if (orden.fichaCorteCargada) {
     return (
       <div className="p-8 max-w-4xl">
-        <div className="mb-8">
-          <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Produccion / Corte</span>
-          <h1 className="text-2xl font-bold text-stone-900 mt-1 font-mono">{orden.sku}</h1>
-        </div>
+        <PageHeader eyebrow="Produccion / Corte" title={orden.sku ?? ''} />
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-6">
           <h3 className="text-sm font-bold text-emerald-800 mb-3">Corte ya registrado</h3>
           <div className="space-y-2 text-sm">
@@ -57,13 +55,11 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
 
   return (
     <div className="p-8 max-w-4xl">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Produccion / Registrar corte</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1 font-mono">{orden.sku}</h1>
-        <p className="text-stone-500 text-sm mt-1">
-          {orden.descripcion || orden.marca} · Planificadas: {orden.cantidad} unidades
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Produccion / Registrar corte"
+        title={orden.sku ?? ''}
+        subtitle={`${orden.descripcion || orden.marca} · Planificadas: ${orden.cantidad} unidades`}
+      />
       <RegistrarCorteForm ordenId={orden.id} sku={orden.sku ?? ''} cantidadPlanificada={orden.cantidad} />
     </div>
   );

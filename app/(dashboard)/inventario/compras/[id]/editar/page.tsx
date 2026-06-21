@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { NuevaCompraForm } from '@/components/insumos/NuevaCompraForm';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -71,11 +72,11 @@ export default async function EditarCompraPage({ params }: { params: Promise<{ i
 
   return (
     <div className="p-8 max-w-4xl">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Inventario / Compras</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Editar compra</h1>
-        <p className="text-stone-500 text-sm mt-1">Se rehace la compra con los datos corregidos (los rollos se recrean).</p>
-      </div>
+      <PageHeader
+        eyebrow="Inventario / Compras"
+        title="Editar compra"
+        subtitle="Se rehace la compra con los datos corregidos (los rollos se recrean)."
+      />
       <NuevaCompraForm inicial={inicial} />
     </div>
   );

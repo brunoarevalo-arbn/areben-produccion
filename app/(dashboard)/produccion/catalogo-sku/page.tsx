@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { CatalogoSkuManager } from '@/components/produccion/CatalogoSkuManager';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,13 +25,11 @@ export default async function CatalogoSkuPage() {
 
   return (
     <div className="p-8 max-w-3xl">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Producción</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Catálogo de SKUs</h1>
-        <p className="text-stone-500 text-sm mt-1">
-          Opciones disponibles para armar el SKU al cargar una orden de producción.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Producción"
+        title="Catálogo de SKUs"
+        subtitle="Opciones disponibles para armar el SKU al cargar una orden de producción."
+      />
       <CatalogoSkuManager inicial={entries.map((e) => ({ ...e, createdAt: e.createdAt.toISOString() }))} />
     </div>
   );

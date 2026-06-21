@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,13 +47,11 @@ export default async function FichasPage() {
 
   return (
     <div className="p-8 max-w-4xl">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Producción</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Fichas de corte</h1>
-        <p className="text-stone-500 text-sm mt-1">
-          Fichas pendientes de cargar y todos los SKU en producción, en un solo lugar.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Producción"
+        title="Fichas de corte"
+        subtitle="Fichas pendientes de cargar y todos los SKU en producción, en un solo lugar."
+      />
 
       {/* Fichas pendientes */}
       <section className="mb-10">

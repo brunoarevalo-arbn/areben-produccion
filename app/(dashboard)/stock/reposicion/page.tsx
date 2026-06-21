@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { necesitaReposicion } from '@/lib/utils/calculos';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,13 +14,11 @@ export default async function ReposicionPage() {
 
   return (
     <div className="p-8 max-w-3xl">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-emerald-600">Stock</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Reposición</h1>
-        <p className="text-stone-500 text-sm mt-1">
-          Productos cuyo stock en local está por debajo del mínimo.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Stock"
+        title="Reposición"
+        subtitle="Productos cuyo stock en local está por debajo del mínimo."
+      />
 
       {necesitan.length === 0 ? (
         <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-8 text-center">

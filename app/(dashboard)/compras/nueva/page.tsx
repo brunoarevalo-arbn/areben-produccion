@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { NuevaCompraForm } from '@/components/insumos/NuevaCompraForm';
 import { GastoCompraForm } from '@/components/compras/GastoCompraForm';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export default function NuevaCompraPage() {
   const router = useRouter();
@@ -11,11 +12,7 @@ export default function NuevaCompraPage() {
 
   return (
     <div className="p-8 max-w-5xl">
-      <div className="mb-6">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Compras</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Nueva compra</h1>
-        <p className="text-stone-500 text-sm mt-1">Elegí qué tipo de compra estás registrando.</p>
-      </div>
+      <PageHeader eyebrow="Compras" title="Nueva compra" subtitle="Elegí qué tipo de compra estás registrando." />
 
       <div className="flex gap-2 mb-6 max-w-lg">
         <button type="button" onClick={() => setTipo('insumos')}

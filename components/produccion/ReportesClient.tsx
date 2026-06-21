@@ -6,6 +6,7 @@ import { minutosAHorasMin } from '@/lib/utils/calculos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 interface Registro {
   id: string;
@@ -88,22 +89,22 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
   return (
     <div className="p-8 max-w-4xl">
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Producción</span>
-          <h1 className="text-2xl font-bold text-stone-900 mt-1">Reportes diarios</h1>
-        </div>
-        <div className="flex gap-2">
-          <Link href="/produccion/reportes/sku"
-            className="border border-stone-200 hover:border-stone-400 text-stone-600 text-sm font-semibold px-4 py-2.5 rounded-xl transition">
-            Costos por SKU →
-          </Link>
-          <Link href="/tiempos"
-            className="bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">
-            + Registrar tiempos
-          </Link>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Producción"
+        title="Reportes diarios"
+        actions={
+          <>
+            <Link href="/produccion/reportes/sku"
+              className="border border-stone-200 hover:border-stone-400 text-stone-600 text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+              Costos por SKU →
+            </Link>
+            <Link href="/tiempos"
+              className="bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+              + Registrar tiempos
+            </Link>
+          </>
+        }
+      />
 
       {/* Selector de fecha */}
       <div className="flex items-center gap-3 mb-6">
