@@ -138,7 +138,7 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
                       ins.rollos.length === 0 ? (
                         <p className="text-xs text-stone-400 py-2">Sin rollos activos</p>
                       ) : (
-                        <table className="w-full text-xs">
+                        <div className="overflow-x-auto"><table className="w-full text-xs">
                           <thead>
                             <tr className="text-stone-400 uppercase tracking-widest">
                               <th className="text-left py-1.5 font-bold">Codigo</th>
@@ -165,13 +165,13 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
                               </tr>
                             ))}
                           </tbody>
-                        </table>
+                        </table></div>
                       )
                     ) : (
                       ins.lotes.length === 0 ? (
                         <p className="text-xs text-stone-400 py-2">Sin lotes activos</p>
                       ) : (
-                        <table className="w-full text-xs">
+                        <div className="overflow-x-auto"><table className="w-full text-xs">
                           <thead>
                             <tr className="text-stone-400 uppercase tracking-widest">
                               <th className="text-left py-1.5 font-bold">Codigo</th>
@@ -194,7 +194,7 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
                               </tr>
                             ))}
                           </tbody>
-                        </table>
+                        </table></div>
                       )
                     )}
                   </div>

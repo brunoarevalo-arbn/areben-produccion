@@ -176,7 +176,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
             <div className="px-5 py-3 border-b border-stone-100">
               <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Por costurera</h2>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-stone-50 text-xs text-stone-400">
                   <th className="px-5 py-2 text-left font-semibold">Costurera</th>
@@ -197,7 +197,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                     </tr>
                   ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
 
           {/* Por actividad */}
@@ -205,7 +205,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
             <div className="px-5 py-3 border-b border-stone-100">
               <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Por actividad</h2>
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-stone-50 text-xs text-stone-400">
                   <th className="px-5 py-2 text-left font-semibold">Actividad</th>
@@ -224,7 +224,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                     </tr>
                   ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
 
           {/* Por máquina */}
@@ -233,7 +233,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
               <div className="px-5 py-3 border-b border-stone-100">
                 <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Por máquina</h2>
               </div>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-stone-50 text-xs text-stone-400">
                     <th className="px-5 py-2 text-left font-semibold">Máquina</th>
@@ -252,7 +252,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                       </tr>
                     ))}
                 </tbody>
-              </table>
+              </table></div>
             </div>
           )}
 
@@ -267,7 +267,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
               </div>
 
               {/* Por categoría */}
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-amber-100 text-xs text-amber-700">
                     <th className="px-5 py-2 text-left font-semibold">Categoría</th>
@@ -286,7 +286,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                       </tr>
                     ))}
                 </tbody>
-              </table>
+              </table></div>
 
               {/* Por SKU */}
               {Object.keys(data.inconvenientesPorSku).length > 0 && (
@@ -294,7 +294,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                   <div className="px-5 py-2 bg-amber-50/60">
                     <p className="text-xs font-bold uppercase tracking-widest text-amber-700">Por SKU</p>
                   </div>
-                  <table className="w-full text-sm">
+                  <div className="overflow-x-auto"><table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-amber-100 text-xs text-amber-700">
                         <th className="px-5 py-2 text-left font-semibold">SKU</th>
@@ -320,7 +320,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                           </tr>
                         ))}
                     </tbody>
-                  </table>
+                  </table></div>
                 </div>
               )}
             </div>
@@ -336,7 +336,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                 </Button>
               )}
             </div>
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto"><table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-stone-50 text-xs text-stone-400">
                   <th className="px-5 py-2 text-left font-semibold">Costurera</th>
@@ -392,7 +392,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                   )
                 ))}
               </tbody>
-            </table>
+            </table></div>
           </div>
         </div>
       )}

@@ -45,7 +45,7 @@ export default async function StockPage() {
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-100 text-left">
                 <th className="px-5 py-3 text-xs font-bold uppercase tracking-wide text-stone-400">Producto</th>
@@ -90,7 +90,7 @@ export default async function StockPage() {
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
     </div>

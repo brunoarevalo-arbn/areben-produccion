@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 interface SidebarProps {
   permisos: string[];
@@ -104,6 +105,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
 export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
   const pathname = usePathname();
   const router   = useRouter();
+  const [open, setOpen] = useState(false);
 
   const visible = NAV.filter((item) => tienePermiso(permisos, item.seccion));
 
@@ -115,8 +117,11 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
     router.push('/login');
   };
 
-  return (
-    <aside className="w-56 bg-stone-900 flex flex-col h-full shrink-0 print:hidden">
+  const close = () => setOpen(false);
+
+  // Contenido compartido por el sidebar fijo (desktop) y el drawer (mobile).
+  const content = (
+    <>
       <div className="px-6 py-5 border-b border-stone-800">
         <p className="text-amber-400 text-xs font-bold uppercase tracking-widest">Areben</p>
         <p className="text-stone-400 text-xs mt-2 truncate">{nombre}</p>
@@ -129,6 +134,8 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
             <div key={item.href}>
               <Link
                 href={item.href}
+                onClick={close}
+                aria-current={active ? 'page' : undefined}
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
                   active
                     ? 'bg-amber-400/10 text-amber-400 border-amber-400/30'
@@ -145,6 +152,8 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
                     <div key={s.href} className="flex items-center gap-2 group">
                       <Link
                         href={s.href}
+                        onClick={close}
+                        aria-current={pathname === s.href ? 'page' : undefined}
                         className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                           pathname === s.href
                             ? 'text-amber-400 bg-stone-800/60'
@@ -156,6 +165,7 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
                       {s.nuevoHref && (
                         <Link
                           href={s.nuevoHref}
+                          onClick={close}
                           title="Nuevo ítem"
                           className="px-2 py-1 rounded-md text-stone-600 hover:text-amber-400 hover:bg-stone-800 transition text-xs font-bold"
                         >
@@ -180,6 +190,46 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
           Cerrar sesión
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Topbar mobile (solo < md) */}
+      <header className="md:hidden fixed top-0 inset-x-0 z-40 h-14 bg-stone-900 flex items-center gap-3 px-4 print:hidden">
+        <button
+          onClick={() => setOpen(true)}
+          aria-label="Abrir menú"
+          aria-expanded={open}
+          className="text-stone-300 hover:text-white text-2xl leading-none p-1 -ml-1"
+        >
+          ☰
+        </button>
+        <p className="text-amber-400 text-sm font-bold uppercase tracking-widest">Areben</p>
+      </header>
+
+      {/* Overlay del drawer */}
+      {open && (
+        <div
+          onClick={close}
+          aria-hidden
+          className="md:hidden fixed inset-0 z-40 bg-black/50 print:hidden"
+        />
+      )}
+
+      {/* Drawer mobile */}
+      <aside
+        className={`md:hidden fixed inset-y-0 left-0 z-50 w-64 bg-stone-900 flex flex-col transition-transform duration-200 print:hidden ${
+          open ? 'translate-x-0' : '-translate-x-full'
+        }`}
+      >
+        {content}
+      </aside>
+
+      {/* Sidebar fijo (md+) */}
+      <aside className="hidden md:flex w-56 bg-stone-900 flex-col h-full shrink-0 print:hidden">
+        {content}
+      </aside>
+    </>
   );
 }

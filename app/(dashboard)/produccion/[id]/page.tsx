@@ -157,7 +157,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
       {orden.movimientosInsumo.length > 0 && (
         <div className="bg-white rounded-2xl border border-stone-200 p-6">
           <h3 className="text-sm font-bold text-stone-800 mb-3">Consumos de insumo</h3>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
                 <th className="text-left py-2 font-bold">Tipo</th>
@@ -185,7 +185,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
     </div>

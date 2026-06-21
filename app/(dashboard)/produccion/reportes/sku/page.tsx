@@ -162,7 +162,7 @@ function BreakdownTable({
       {filas.length === 0 ? (
         <p className="text-xs text-stone-400 italic">Sin datos</p>
       ) : (
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full text-sm">
           <tbody>
             {filas.map(([nombre, stats]) => (
               <tr key={nombre} className="border-b border-stone-200/60 last:border-b-0">
@@ -178,7 +178,7 @@ function BreakdownTable({
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
     </div>
   );

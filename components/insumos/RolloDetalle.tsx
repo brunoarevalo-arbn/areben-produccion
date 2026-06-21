@@ -93,7 +93,7 @@ export function RolloDetalle({ rollo }: { rollo: RolloFull }) {
         {rollo.movimientos.length === 0 ? (
           <p className="text-sm text-stone-400">Sin movimientos</p>
         ) : (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
                 <th className="text-left py-2 font-bold">Fecha</th>
@@ -118,7 +118,7 @@ export function RolloDetalle({ rollo }: { rollo: RolloFull }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         )}
       </div>
     </div>

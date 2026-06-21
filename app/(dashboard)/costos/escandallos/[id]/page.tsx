@@ -88,7 +88,7 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
         ) : (
         <div className="mb-8">
           <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Telas</h2>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="border-b border-stone-200">
                 <th className="text-left py-2 font-semibold text-stone-600 pr-4">Tela</th>
@@ -122,7 +122,7 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
                 <td className="pt-3 text-right font-bold tabular-nums text-stone-900">{fmt$(costoTelas)}</td>
               </tr>
             </tfoot>
-          </table>
+          </table></div>
         </div>
         )}
 

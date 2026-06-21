@@ -177,7 +177,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
       {/* Lineas */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-3">Lineas</h3>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead>
             <tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
               <th className="text-left py-2 font-bold">Insumo</th>
@@ -199,14 +199,14 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
 
       {/* Rollos */}
       {compra.rollos.length > 0 && (
         <div className="bg-white rounded-2xl border border-stone-200 p-6">
           <h3 className="text-sm font-bold text-stone-800 mb-3">Rollos creados</h3>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
                 <th className="text-left py-2 font-bold">Codigo</th>
@@ -233,7 +233,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
 
@@ -241,7 +241,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
       {compra.lotes.length > 0 && (
         <div className="bg-white rounded-2xl border border-stone-200 p-6">
           <h3 className="text-sm font-bold text-stone-800 mb-3">Lotes creados</h3>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
               <tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
                 <th className="text-left py-2 font-bold">Codigo</th>
@@ -262,7 +262,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </div>
       )}
     </div>
