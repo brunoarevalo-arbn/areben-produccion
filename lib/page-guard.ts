@@ -18,3 +18,17 @@ export async function requirePagina(seccion: PermisoKey) {
 
   return session;
 }
+
+// Igual que requirePagina pero pasa si tiene AL MENOS UNA de las secciones.
+// Para módulos de unión (ej. Compras = insumos OR gastos).
+export async function requirePaginaAlguno(secciones: PermisoKey[]) {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE)?.value;
+  const session = token ? await verifySession(token) : null;
+  if (!session) redirect('/login');
+
+  const permisos = await getPermisos(session);
+  if (!secciones.some((s) => permisos.includes(s))) redirect('/sin-acceso');
+
+  return session;
+}

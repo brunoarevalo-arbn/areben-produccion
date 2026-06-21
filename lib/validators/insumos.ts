@@ -67,6 +67,29 @@ export const PagoSchema = z.object({
   fechaPago:   z.string().optional(),
 });
 
+// ─── Gasto (registro contable / compra sin stock) ───────────────────
+// Si trae proveedorId es una "compra a proveedor" (aparece en el módulo Compras).
+// Sin proveedorId es un gasto interno/automático (solo en el reporte de Gastos).
+export const GastoSchema = z.object({
+  categoria:     z.enum(['desarrollo', 'produccion']),
+  tipo:          z.enum(['tela', 'insumos', 'periodo']),
+  marca:         z.string().nullish(),
+  sku:           z.string().nullish(),
+  ordenId:       z.string().nullish(),
+  minutos:       z.number().int().nullish(),
+  monto:         z.number().min(0),
+  concepto:      z.string().nullish(),
+  fecha:         z.string().min(1, 'Fecha obligatoria'),
+  tiempoId:      z.string().nullish(),
+  // Compra a proveedor (opcionales)
+  proveedorId:   z.string().nullish(),
+  numeroFactura: z.string().nullish(),
+  formaPago:     z.string().nullish(),
+  estadoPago:    z.enum(['PENDIENTE', 'PARCIAL', 'PAGADA']).nullish(),
+  montoPagado:   z.number().min(0).nullish(),
+  fechaPago:     z.string().nullish(),
+});
+
 // ─── Ajuste físico ──────────────────────────────────────────────────
 
 export const AjusteSchema = z.object({

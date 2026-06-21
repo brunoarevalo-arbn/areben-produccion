@@ -9,9 +9,13 @@ interface SidebarProps {
   rol:      string;
 }
 
-interface SubItem { label: string; href: string; nuevoHref?: string; seccion?: string; }
+interface SubItem { label: string; href: string; nuevoHref?: string; seccion?: string | string[]; }
 
-const NAV: { label: string; href: string; icon: string; seccion: string; sub: SubItem[] }[] = [
+// seccion puede ser una key o varias (OR) para módulos de unión (ej. Compras).
+const tienePermiso = (permisos: string[], seccion?: string | string[]) =>
+  seccion == null ? true : Array.isArray(seccion) ? seccion.some((s) => permisos.includes(s)) : permisos.includes(seccion);
+
+const NAV: { label: string; href: string; icon: string; seccion: string | string[]; sub: SubItem[] }[] = [
   {
     label: 'Dashboard',
     href: '/dashboard',
@@ -38,11 +42,20 @@ const NAV: { label: string; href: string; icon: string; seccion: string; sub: Su
       { label: 'Telas',              href: '/inventario?cat=tela' },
       { label: 'Avíos',              href: '/inventario?cat=aviso' },
       { label: 'Catálogo (alta)',    href: '/inventario/catalogo', nuevoHref: '/inventario/catalogo/avios' },
-      { label: 'Compras',            href: '/inventario/compras', nuevoHref: '/inventario/compras/nueva' },
       { label: 'Rollos',             href: '/inventario/rollos' },
       { label: 'Lotes',              href: '/inventario/lotes' },
       { label: 'Movimientos',        href: '/inventario/movimientos' },
       { label: 'Producto terminado', href: '/inventario/terminado', seccion: 'produccion' },
+    ],
+  },
+  {
+    label: 'Compras',
+    href: '/compras',
+    icon: '🛒',
+    seccion: ['insumos', 'gastos'],
+    sub: [
+      { label: 'Todas',        href: '/compras', nuevoHref: '/compras/nueva' },
+      { label: 'Proveedores',  href: '/configuracion/proveedores' },
     ],
   },
   {
@@ -91,7 +104,7 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
   const pathname = usePathname();
   const router   = useRouter();
 
-  const visible = NAV.filter((item) => permisos.includes(item.seccion));
+  const visible = NAV.filter((item) => tienePermiso(permisos, item.seccion));
 
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
@@ -127,7 +140,7 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
 
               {item.sub.length > 0 && active && (
                 <div className="ml-9 mt-0.5 mb-1 space-y-0.5">
-                  {item.sub.filter((s) => permisos.includes(s.seccion ?? item.seccion)).map((s) => (
+                  {item.sub.filter((s) => tienePermiso(permisos, s.seccion ?? item.seccion)).map((s) => (
                     <div key={s.href} className="flex items-center gap-1">
                       <Link
                         href={s.href}

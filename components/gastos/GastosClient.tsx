@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { NumInput } from '@/components/ui/NumInput';
+import { GastoCompraForm } from '@/components/compras/GastoCompraForm';
 
 interface Gasto {
   id:        string;
@@ -119,161 +119,17 @@ function GastoRow({ gasto, costoMinuto, onDelete }: { gasto: Gasto; costoMinuto:
   );
 }
 
-function FormDesarrollo({ onCreado }: { onCreado: (g: Gasto) => void }) {
-  const [tipo,     setTipo]     = useState<Tipo>('tela');
-  const [marca,    setMarca]    = useState<'Zattia' | 'Stunned'>('Zattia');
-  const [sku,      setSku]      = useState('');
-  const [monto,    setMonto]    = useState('');
-  const [concepto, setConcepto] = useState('');
-  const [saving,   setSaving]   = useState(false);
-
-  const guardar = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!monto) return;
-    setSaving(true);
-    const res = await fetch('/api/gastos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        categoria: 'desarrollo',
-        tipo, marca, sku: sku.trim() || null,
-        monto: parseFloat(monto),
-        concepto: concepto.trim() || null,
-        fecha: new Date().toISOString().split('T')[0],
-      }),
-    });
-    if (res.ok) {
-      const g = await res.json();
-      onCreado(g);
-      setMonto(''); setSku(''); setConcepto('');
-    }
-    setSaving(false);
-  };
-
-  const inputCls = 'w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
-
-  return (
-    <form onSubmit={guardar} className="bg-stone-50 rounded-2xl border border-stone-200 p-4 space-y-3">
-      <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Agregar gasto de desarrollo</p>
-
-      <div className="flex gap-2">
-        {TIPOS.map((t) => (
-          <button key={t} type="button" onClick={() => setTipo(t)}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition capitalize ${tipo === t ? 'bg-stone-900 border-stone-900 text-white' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'}`}>
-            {t}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex gap-2">
-        {MARCAS.map((m) => (
-          <button key={m} type="button" onClick={() => setMarca(m)}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition ${
-              marca === m
-                ? m === 'Zattia' ? 'bg-violet-600 border-violet-600 text-white' : 'bg-pink-600 border-pink-600 text-white'
-                : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'
-            }`}>
-            {m}
-          </button>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2">
-        <input type="text" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())}
-          placeholder="SKU (opcional)" className={inputCls} />
-        <NumInput value={parseFloat(monto) || 0} onChange={(n) => setMonto(n ? String(n) : '')}
-          placeholder="Monto $" required className={inputCls} />
-      </div>
-      <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)}
-        placeholder="Concepto (opcional)" className={inputCls} />
-
-      <button type="submit" disabled={saving || !monto}
-        className="w-full bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
-        {saving ? 'Guardando...' : 'Agregar gasto'}
-      </button>
-    </form>
-  );
-}
-
-function FormProduccion({ ordenes, onCreado }: { ordenes: OrdenActiva[]; onCreado: (g: Gasto) => void }) {
-  const [tipo,     setTipo]     = useState<Tipo>('tela');
-  const [ordenId,  setOrdenId]  = useState('');
-  const [monto,    setMonto]    = useState('');
-  const [concepto, setConcepto] = useState('');
-  const [saving,   setSaving]   = useState(false);
-
-  const ordenSel = ordenes.find((o) => o.id === ordenId);
-
-  const guardar = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!monto) return;
-    setSaving(true);
-    const res = await fetch('/api/gastos', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        categoria: 'produccion',
-        tipo,
-        ordenId:  ordenId  || null,
-        sku:      ordenSel?.sku || null,
-        marca:    ordenSel?.marca || null,
-        monto:    parseFloat(monto),
-        concepto: concepto.trim() || null,
-        fecha:    new Date().toISOString().split('T')[0],
-      }),
-    });
-    if (res.ok) {
-      const g = await res.json();
-      onCreado(g);
-      setMonto(''); setConcepto(''); setOrdenId('');
-    }
-    setSaving(false);
-  };
-
-  const inputCls = 'w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
-
-  return (
-    <form onSubmit={guardar} className="bg-stone-50 rounded-2xl border border-stone-200 p-4 space-y-3">
-      <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Agregar gasto de producción</p>
-
-      <div className="flex gap-2">
-        {TIPOS.map((t) => (
-          <button key={t} type="button" onClick={() => setTipo(t)}
-            className={`flex-1 py-2 rounded-lg text-xs font-semibold border transition capitalize ${tipo === t ? 'bg-stone-900 border-stone-900 text-white' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'}`}>
-            {t}
-          </button>
-        ))}
-      </div>
-
-      <select value={ordenId} onChange={(e) => setOrdenId(e.target.value)} className={inputCls}>
-        <option value="">— Sin orden específica —</option>
-        {ordenes.map((o) => (
-          <option key={o.id} value={o.id}>
-            {o.sku} · {o.marca}{o.descripcion ? ` — ${o.descripcion}` : ''}
-          </option>
-        ))}
-      </select>
-
-      <div className="grid grid-cols-2 gap-2">
-        <NumInput value={parseFloat(monto) || 0} onChange={(n) => setMonto(n ? String(n) : '')}
-          placeholder="Monto $" required className={inputCls} />
-        <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)}
-          placeholder="Concepto" className={inputCls} />
-      </div>
-
-      <button type="submit" disabled={saving || !monto}
-        className="w-full bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
-        {saving ? 'Guardando...' : 'Agregar gasto'}
-      </button>
-    </form>
-  );
-}
-
-export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, ordenes, costoMinuto }: Props) {
+export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, costoMinuto }: Props) {
   const [tab,              setTab]              = useState<Tab>('desarrollo');
   const [gastosDesarrollo, setGastosDesarrollo] = useState<Gasto[]>(gd0);
   const [gastosProduccion, setGastosProduccion] = useState<Gasto[]>(gp0);
   const [filtroMarca,      setFiltroMarca]      = useState<string>('todas');
+
+  const onCreado = (raw: unknown) => {
+    const g = raw as Gasto;
+    if (g.categoria === 'desarrollo') setGastosDesarrollo((prev) => [g, ...prev]);
+    else setGastosProduccion((prev) => [g, ...prev]);
+  };
 
   const gastosD = filtroMarca === 'todas'
     ? gastosDesarrollo
@@ -319,7 +175,7 @@ export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, ord
             ))}
           </div>
 
-          <FormDesarrollo onCreado={(g) => setGastosDesarrollo((prev) => [g, ...prev])} />
+          <GastoCompraForm defaultCategoria="desarrollo" onCreado={onCreado} />
         </div>
       )}
 
@@ -337,8 +193,7 @@ export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, ord
             ))}
           </div>
 
-          <FormProduccion ordenes={ordenes}
-            onCreado={(g) => setGastosProduccion((prev) => [g, ...prev])} />
+          <GastoCompraForm defaultCategoria="produccion" onCreado={onCreado} />
         </div>
       )}
     </div>

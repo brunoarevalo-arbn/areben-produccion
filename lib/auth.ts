@@ -44,3 +44,15 @@ export async function requirePermiso(req: NextRequest, permiso: PermisoKey): Pro
 export async function requireInsumos(req: NextRequest): Promise<SessionPayload | null> {
   return requirePermiso(req, 'insumos');
 }
+
+// Guard de API que pasa si la sesión tiene AL MENOS UNO de los permisos.
+// Para vistas de unión (ej. Compras = insumos OR gastos).
+export async function requireAlguno(req: NextRequest, permisos: PermisoKey[]): Promise<SessionPayload | null> {
+  const session = await getSession(req);
+  if (!session) return null;
+  if (session.rol === 'admin') return session;
+  if (session.rol === 'costurera') return null;
+  const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
+  const has = user?.permisos ?? [];
+  return permisos.some((p) => has.includes(p)) ? session : null;
+}

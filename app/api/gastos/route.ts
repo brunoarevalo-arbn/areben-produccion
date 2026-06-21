@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { requirePermiso } from '@/lib/auth';
+import { GastoSchema } from '@/lib/validators/insumos';
+import { Prisma } from '@prisma/client';
 
 async function requireAccess(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -36,26 +38,30 @@ export async function POST(req: NextRequest) {
   const session = await requirePermiso(req, 'gastos');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
-  const body = await req.json();
-  const { categoria, tipo, marca, sku, ordenId, minutos, monto, concepto, fecha, tiempoId } = body;
-
-  if (!categoria || !tipo || !fecha) {
-    return NextResponse.json({ error: 'Faltan campos obligatorios' }, { status: 400 });
-  }
+  const parsed = GastoSchema.safeParse(await req.json());
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
+  const d = parsed.data;
 
   const gasto = await prisma.gasto.create({
     data: {
-      categoria,
-      tipo,
-      marca:    marca    || null,
-      sku:      sku      || null,
-      ordenId:  ordenId  || null,
-      minutos:  minutos  ? parseInt(minutos) : null,
-      monto:    parseFloat(monto) || 0,
-      concepto: concepto || null,
-      fecha,
+      categoria: d.categoria,
+      tipo:      d.tipo,
+      marca:     d.marca    || null,
+      sku:       d.sku      || null,
+      ordenId:   d.ordenId  || null,
+      minutos:   d.minutos  ?? null,
+      monto:     d.monto    || 0,
+      concepto:  d.concepto || null,
+      fecha:     d.fecha,
       creadoPor: session.nombre,
-      tiempoId: tiempoId || null,
+      tiempoId:  d.tiempoId || null,
+      // Compra a proveedor (opcionales)
+      proveedorId:   d.proveedorId   || null,
+      numeroFactura: d.numeroFactura || null,
+      formaPago:     d.formaPago     || null,
+      estadoPago:    d.estadoPago    ?? null,
+      montoPagado:   d.montoPagado != null ? new Prisma.Decimal(d.montoPagado) : null,
+      fechaPago:     d.fechaPago     || null,
     },
   });
 

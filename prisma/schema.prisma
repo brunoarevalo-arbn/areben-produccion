@@ -510,6 +510,17 @@ model Gasto {
   fecha     String
   creadoPor String
   tiempoId  String?
+
+  // Compra a proveedor (cuando proveedorId != null, el gasto es una "compra" y
+  // aparece en el módulo Compras). Los gastos automáticos van sin proveedor.
+  proveedorId   String?
+  proveedor     Proveedor?  @relation(fields: [proveedorId], references: [id])
+  numeroFactura String?
+  formaPago     String?
+  estadoPago    EstadoPago? // null = sin seguimiento de pago (registro simple)
+  montoPagado   Decimal?
+  fechaPago     String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -527,6 +538,7 @@ model Proveedor {
   notas        String?
   activo       Boolean  @default(true)
   compras      Compra[]
+  gastos       Gasto[]
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
