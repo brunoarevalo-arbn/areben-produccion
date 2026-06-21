@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface Fase {
   id: string;
@@ -55,34 +57,25 @@ function NuevaFase({ onCreated, ordenSugerido }: { onCreated: () => void; ordenS
 
   if (!open) {
     return (
-      <button onClick={() => { setOpen(true); setError(null); setOrden(String(ordenSugerido)); }}
-        className="bg-stone-900 hover:bg-stone-800 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+      <Button onClick={() => { setOpen(true); setError(null); setOrden(String(ordenSugerido)); }}>
         + Agregar fase
-      </button>
+      </Button>
     );
   }
 
   return (
     <form onSubmit={crear} className="bg-white rounded-2xl border border-stone-200 p-4 flex flex-wrap items-end gap-3">
       <div className="flex-1 min-w-[200px]">
-        <label className="text-xs font-semibold text-stone-600 mb-1 block">Nombre</label>
-        <input value={nombre} onChange={(e) => setNombre(e.target.value)} required autoFocus
-          placeholder="Ej: Pulido"
-          className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+        <Input label="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} required autoFocus
+          placeholder="Ej: Pulido" fullWidth />
       </div>
       <div className="w-24">
-        <label className="text-xs font-semibold text-stone-600 mb-1 block">Orden</label>
-        <input value={orden} onChange={(e) => setOrden(e.target.value.replace(/\D/g, ''))} required
-          className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+        <Input label="Orden" value={orden} onChange={(e) => setOrden(e.target.value.replace(/\D/g, ''))} required fullWidth />
       </div>
-      <button type="submit" disabled={saving || !nombre.trim()}
-        className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg transition">
-        {saving ? '...' : 'Crear'}
-      </button>
-      <button type="button" onClick={() => { setOpen(false); setNombre(''); setError(null); }}
-        className="text-sm px-3 py-2 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition">
+      <Button type="submit" isLoading={saving} disabled={saving || !nombre.trim()}>Crear</Button>
+      <Button type="button" variant="secondary" onClick={() => { setOpen(false); setNombre(''); setError(null); }}>
         Cancelar
-      </button>
+      </Button>
       {error && <p className="basis-full text-xs text-red-600">{error}</p>}
     </form>
   );
@@ -142,14 +135,9 @@ function FaseRow({ fase, onChange }: { fase: Fase; onChange: () => void }) {
           <input value={orden} onChange={(e) => setOrden(e.target.value.replace(/\D/g, ''))}
             className="w-full px-2 py-1.5 border border-stone-200 rounded-lg text-sm" />
         </div>
-        <button onClick={guardar} disabled={saving}
-          className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition">
-          {saving ? '...' : 'Guardar'}
-        </button>
-        <button onClick={() => { setEditing(false); setNombre(fase.nombre); setOrden(String(fase.orden)); setError(null); }}
-          className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition">
-          Cancelar
-        </button>
+        <Button onClick={guardar} isLoading={saving} disabled={saving} size="sm">Guardar</Button>
+        <Button onClick={() => { setEditing(false); setNombre(fase.nombre); setOrden(String(fase.orden)); setError(null); }}
+          variant="secondary" size="sm">Cancelar</Button>
         {error && <p className="basis-full text-xs text-red-600">{error}</p>}
       </div>
     );

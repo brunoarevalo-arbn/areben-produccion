@@ -3,6 +3,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { KANBAN_COLUMNAS, ESTADO_LABEL, type EstadoProyecto } from '@/lib/diseno/estado';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Textarea } from '@/components/ui/Textarea';
 
 interface ProyectoItem {
   id:          string;
@@ -35,10 +38,7 @@ export function KanbanDiseno({ proyectos }: { proyectos: ProyectoItem[] }) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
-        <button onClick={() => setShowNuevo(true)}
-          className="bg-stone-900 hover:bg-stone-800 text-white px-4 py-2 rounded-xl text-sm font-semibold transition">
-          + Nuevo proyecto
-        </button>
+        <Button onClick={() => setShowNuevo(true)}>+ Nuevo proyecto</Button>
         <button onClick={() => setMostrarArchivados((v) => !v)}
           className="text-xs text-stone-500 hover:text-stone-800 transition">
           {mostrarArchivados ? 'Ocultar archivados' : `Mostrar archivados (${archivados.length})`}
@@ -123,10 +123,12 @@ function NuevoProyectoModal({ onClose }: { onClose: () => void }) {
   const [inspiracion, setInspiracion] = useState('');
   const [saving,      setSaving]      = useState(false);
   const [error,       setError]       = useState<string | null>(null);
+  const [nombreError, setNombreError] = useState<string | null>(null);
 
   const crear = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSaving(true); setError(null);
+    if (!nombre.trim()) { setNombreError('El nombre es obligatorio'); return; }
+    setSaving(true); setError(null); setNombreError(null);
     const r = await fetch('/api/proyectos', {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -147,12 +149,15 @@ function NuevoProyectoModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold text-stone-900 mb-4">Nuevo proyecto</h2>
         <form onSubmit={crear} className="space-y-4">
-          <div>
-            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nombre <span className="text-red-400">*</span></label>
-            <input value={nombre} onChange={(e) => setNombre(e.target.value)} required autoFocus
-              placeholder="Ej: Remera oversize verano 26"
-              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
-          </div>
+          <Input
+            label="Nombre *"
+            value={nombre}
+            onChange={(e) => { setNombre(e.target.value); if (nombreError) setNombreError(null); }}
+            error={nombreError ?? undefined}
+            autoFocus
+            placeholder="Ej: Remera oversize verano 26"
+            fullWidth
+          />
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Marca</label>
             <div className="flex gap-2">
@@ -168,22 +173,21 @@ function NuevoProyectoModal({ onClose }: { onClose: () => void }) {
               ))}
             </div>
           </div>
-          <div>
-            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Inspiración / nota inicial</label>
-            <textarea value={inspiracion} onChange={(e) => setInspiracion(e.target.value)}
-              placeholder="Link de Pinterest, idea base, referencias…" rows={3}
-              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400 resize-none" />
-          </div>
+          <Textarea
+            label="Inspiración / nota inicial"
+            value={inspiracion}
+            onChange={(e) => setInspiracion(e.target.value)}
+            placeholder="Link de Pinterest, idea base, referencias…"
+            rows={3}
+            className="resize-none"
+            fullWidth
+          />
           {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex gap-2 pt-1">
-            <button type="submit" disabled={saving || !nombre.trim()}
-              className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
+            <Button type="submit" isLoading={saving} disabled={saving} className="flex-1">
               {saving ? 'Creando...' : 'Crear proyecto'}
-            </button>
-            <button type="button" onClick={onClose}
-              className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
-              Cancelar
-            </button>
+            </Button>
+            <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           </div>
         </form>
       </div>

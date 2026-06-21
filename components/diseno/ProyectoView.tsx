@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ESTADO_LABEL, ESTADO_COLOR, type EstadoProyecto } from '@/lib/diseno/estado';
+import { Button } from '@/components/ui/Button';
+import { Textarea } from '@/components/ui/Textarea';
 
 interface Iteracion {
   id:              string;
@@ -112,14 +114,12 @@ export function ProyectoView({ proyecto, catalogoFases, estadoActual }: Props) {
                   }}
                   className="text-2xl font-bold text-stone-900 border-b-2 border-amber-400 focus:outline-none bg-transparent flex-1 min-w-0"
                 />
-                <button onClick={guardarNombre} disabled={guardandoNombre}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 transition shrink-0">
-                  {guardandoNombre ? 'Guardando...' : 'Guardar'}
-                </button>
-                <button onClick={() => { setNombreEdit(proyecto.nombre); setEditandoNombre(false); }}
-                  className="text-xs px-2 py-1.5 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition shrink-0">
+                <Button onClick={guardarNombre} disabled={guardandoNombre} isLoading={guardandoNombre} size="sm" className="shrink-0">
+                  Guardar
+                </Button>
+                <Button onClick={() => { setNombreEdit(proyecto.nombre); setEditandoNombre(false); }} variant="secondary" size="sm" className="shrink-0">
                   Cancelar
-                </button>
+                </Button>
               </div>
             ) : (
               <>
@@ -139,15 +139,13 @@ export function ProyectoView({ proyecto, catalogoFases, estadoActual }: Props) {
         </div>
         <div className="flex gap-2 shrink-0">
           {!proyecto.archivado ? (
-            <button onClick={() => archivar(true)}
-              className="text-xs px-3 py-2 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+            <Button onClick={() => archivar(true)} variant="secondary" size="sm">
               Archivar
-            </button>
+            </Button>
           ) : (
-            <button onClick={() => archivar(false)}
-              className="text-xs px-3 py-2 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+            <Button onClick={() => archivar(false)} variant="secondary" size="sm">
               Desarchivar
-            </button>
+            </Button>
           )}
           <button onClick={eliminar}
             className="text-xs px-3 py-2 rounded-lg border border-red-200 text-red-600 hover:border-red-400 transition">
@@ -337,28 +335,27 @@ function SeccionInspiracion({ proyecto, onChange }: { proyecto: Proyecto; onChan
         <div className="space-y-3">
           <textarea value={inspiracion} onChange={(e) => setInspiracion(e.target.value)}
             placeholder="Link de Pinterest, idea base, descripción…" rows={4}
-            className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400 resize-none" />
+            className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400 resize-none" />
           <div className="grid grid-cols-2 gap-3">
             <input value={molderia} onChange={(e) => setMolderia(e.target.value)} placeholder="Moldería" list="molderias-list"
-              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
             <input value={tela} onChange={(e) => setTela(e.target.value)} placeholder="Tela" list="telas-list"
-              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
             <datalist id="molderias-list">{molderiaOpts.map((m) => <option key={m} value={m} />)}</datalist>
             <datalist id="telas-list">{telaOpts.map((t) => <option key={t} value={t} />)}</datalist>
           </div>
           <div className="flex gap-2">
-            <button onClick={guardar} disabled={saving}
-              className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white text-xs px-3 py-2 rounded-lg font-semibold transition">
-              {saving ? '...' : 'Guardar'}
-            </button>
-            <button onClick={() => {
+            <Button onClick={guardar} disabled={saving} isLoading={saving} size="sm">
+              Guardar
+            </Button>
+            <Button onClick={() => {
               setEditing(false);
               setInspiracion(proyecto.inspiracion ?? '');
               setMolderia(proyecto.molderia ?? '');
               setTela(proyecto.tela ?? '');
-            }} className="text-xs px-3 py-2 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition">
+            }} variant="secondary" size="sm">
               Cancelar
-            </button>
+            </Button>
           </div>
         </div>
       ) : (
@@ -399,10 +396,9 @@ function SeccionMuestras({
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Muestras</p>
         {iteraciones.length > 0 && (
-          <button onClick={crearNueva} disabled={creando}
-            className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
-            {creando ? '...' : `+ Nueva versión (v${iteraciones.length + 1})`}
-          </button>
+          <Button onClick={crearNueva} disabled={creando} isLoading={creando} variant="secondary" size="sm">
+            {`+ Nueva versión (v${iteraciones.length + 1})`}
+          </Button>
         )}
       </div>
       {iteraciones.length === 0 ? (
@@ -496,30 +492,24 @@ function MuestraRow({
       {expanded && (
         <div className="p-4 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-stone-500 mb-1 block">Qué falló de la muestra</label>
-              <textarea value={notas} onChange={(e) => setNotas(e.target.value)}
-                placeholder="Largo corto, hilo equivocado, falta etiqueta…"
-                rows={4}
-                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400 resize-none" />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-stone-500 mb-1 block">Ajustes a la molderia</label>
-              <textarea value={ajustesMolderia} onChange={(e) => setAjustesMolderia(e.target.value)}
-                placeholder={iteracion.version === 1
-                  ? 'Molderia base por crear, o usar existente "Top básico mod 12"…'
-                  : 'Subí 2 cm el largo, ajusté la espalda, etc.'}
-                rows={4}
-                className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400 resize-none" />
-            </div>
+            <Textarea label="Qué falló de la muestra" value={notas} onChange={(e) => setNotas(e.target.value)}
+              placeholder="Largo corto, hilo equivocado, falta etiqueta…"
+              rows={4}
+              fullWidth
+              className="resize-none" />
+            <Textarea label="Ajustes a la molderia" value={ajustesMolderia} onChange={(e) => setAjustesMolderia(e.target.value)}
+              placeholder={iteracion.version === 1
+                ? 'Molderia base por crear, o usar existente "Top básico mod 12"…'
+                : 'Subí 2 cm el largo, ajusté la espalda, etc.'}
+              rows={4}
+              fullWidth
+              className="resize-none" />
           </div>
-          <div>
-            <label className="text-xs font-semibold text-stone-500 mb-1 block">Fotos (un link por línea)</label>
-            <textarea value={fotos} onChange={(e) => setFotos(e.target.value)}
-              placeholder="https://…"
-              rows={2}
-              className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400 resize-none font-mono text-xs" />
-          </div>
+          <Textarea label="Fotos (un link por línea)" value={fotos} onChange={(e) => setFotos(e.target.value)}
+            placeholder="https://…"
+            rows={2}
+            fullWidth
+            className="resize-none font-mono text-xs" />
           {iteracion.fotos.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {iteracion.fotos.map((url, i) => (
@@ -529,10 +519,9 @@ function MuestraRow({
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2 pt-1">
-            <button onClick={() => guardar()} disabled={saving}
-              className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition">
-              {saving ? '...' : 'Guardar'}
-            </button>
+            <Button onClick={() => guardar()} disabled={saving} isLoading={saving} size="sm">
+              Guardar
+            </Button>
             {iteracion.estado !== 'aprobada' && (
               <>
                 <button onClick={() => setEstado('aprobada')} disabled={saving}
@@ -546,10 +535,9 @@ function MuestraRow({
               </>
             )}
             {iteracion.estado === 'aprobada' && (
-              <button onClick={() => setEstado('lista')} disabled={saving}
-                className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition">
+              <Button onClick={() => setEstado('lista')} disabled={saving} variant="secondary" size="sm">
                 Des-aprobar
-              </button>
+              </Button>
             )}
             <button onClick={eliminar}
               className="ml-auto text-xs text-red-500 hover:text-red-700 transition">
@@ -593,10 +581,9 @@ function SeccionFases({
                 <span className="text-xs font-bold bg-stone-100 text-stone-500 rounded px-2 py-0.5">{c.orden}</span>
                 <span className="text-sm text-stone-600">{c.nombre}</span>
               </div>
-              <button onClick={() => iniciar(c.id)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-semibold transition">
+              <Button onClick={() => iniciar(c.id)} size="sm">
                 Iniciar
-              </button>
+              </Button>
             </div>
           );
         })}
@@ -677,7 +664,7 @@ function FaseIniciada({
               Responsable
               <input value={responsable} onChange={(e) => setResponsable(e.target.value)}
                 placeholder="Nombre o taller"
-                className="mt-1 w-full px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+                className="mt-1 w-full px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
             </label>
             <label className="text-xs text-stone-500 flex flex-col">
               <span>Tipo</span>
@@ -697,7 +684,7 @@ function FaseIniciada({
                 Seguidor interno
                 <input value={seguidorInterno} onChange={(e) => setSeguidorInterno(e.target.value)}
                   placeholder="Quién hace seguimiento del externo"
-                  className="mt-1 w-full px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+                  className="mt-1 w-full px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
               </label>
             )}
           </div>
@@ -705,27 +692,25 @@ function FaseIniciada({
             Notas
             <textarea value={notas} onChange={(e) => setNotas(e.target.value)}
               rows={2}
-              className="mt-1 w-full px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400 resize-none" />
+              className="mt-1 w-full px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400 resize-none" />
           </label>
           <div className="text-xs text-stone-400 flex flex-wrap gap-3">
             {fase.fechaInicio && <span>Inicio: {new Date(fase.fechaInicio).toLocaleDateString('es-AR')}</span>}
             {fase.fechaFin    && <span>Fin: {new Date(fase.fechaFin).toLocaleDateString('es-AR')}</span>}
           </div>
           <div className="flex flex-wrap gap-2 pt-1">
-            <button onClick={() => guardar()} disabled={saving}
-              className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition">
-              {saving ? '...' : 'Guardar'}
-            </button>
+            <Button onClick={() => guardar()} disabled={saving} isLoading={saving} size="sm">
+              Guardar
+            </Button>
             {fase.estado === 'en_progreso' ? (
               <button onClick={completar} disabled={saving}
                 className="bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white text-xs px-3 py-1.5 rounded-lg font-semibold transition">
                 Marcar completada
               </button>
             ) : (
-              <button onClick={reabrir} disabled={saving}
-                className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition">
+              <Button onClick={reabrir} disabled={saving} variant="secondary" size="sm">
                 Reabrir
-              </button>
+              </Button>
             )}
             <button onClick={desinciar}
               className="ml-auto text-xs text-red-500 hover:text-red-700 transition">
