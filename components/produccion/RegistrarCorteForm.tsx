@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { TALLES_DEFAULT } from '@/lib/validators/produccion';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
 
 interface RolloDisp {
   id: string; codigo: string; pesoActual: string; costoUnitario: string;
@@ -482,14 +483,12 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
       )}
 
       <div className="flex gap-3">
-        <button type="submit" disabled={saving || totalRollosSel === 0 || totalUnidades === 0}
-          className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white px-6 py-3 rounded-xl text-sm font-semibold transition">
+        <Button type="submit" variant="primary" size="lg" isLoading={saving} disabled={totalRollosSel === 0 || totalUnidades === 0}>
           {saving ? 'Registrando...' : 'Registrar corte'}
-        </button>
-        <button type="button" onClick={() => router.back()}
-          className="px-4 py-3 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+        </Button>
+        <Button type="button" variant="secondary" size="lg" onClick={() => router.back()}>
           Cancelar
-        </button>
+        </Button>
       </div>
     </form>
   );

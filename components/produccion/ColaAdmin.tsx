@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
 interface Transicion { fecha: string; estadoNuevo: string; }
 
@@ -42,14 +44,16 @@ const ESTADO_LABEL: Record<string, string> = {
   CERRADA:               'Cerrada',
 };
 
-const ESTADO_COLOR: Record<string, string> = {
-  PENDIENTE:             'bg-amber-100 text-amber-700',
-  CORTE:                 'bg-blue-100 text-blue-700',
-  COSTURA:               'bg-emerald-100 text-emerald-700',
-  TERMINADO_SIN_ESTAMPA: 'bg-violet-100 text-violet-700',
-  ESTAMPA:               'bg-pink-100 text-pink-700',
-  CONTROL_CALIDAD:       'bg-orange-100 text-orange-700',
-  CERRADA:               'bg-stone-100 text-stone-500',
+// Mapeo semántico a las variantes del Badge: naranja = acción necesaria,
+// azul = en proceso, verde = completado/cerrado.
+const ESTADO_BADGE: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
+  PENDIENTE:             'warning',
+  CORTE:                 'info',
+  COSTURA:               'info',
+  TERMINADO_SIN_ESTAMPA: 'success',
+  ESTAMPA:               'warning',
+  CONTROL_CALIDAD:       'warning',
+  CERRADA:               'default',
 };
 
 // Flujo de producción: termina en TERMINADO_SIN_ESTAMPA ("liso terminado").
@@ -340,19 +344,16 @@ export function ColaAdmin() {
       {/* Filtros */}
       <div className="flex flex-wrap gap-2">
         {[['activos', 'Activos', counts.activos] as const, ...ESTADOS.map((e) => [e, ESTADO_LABEL[e], counts[e]] as const)].map(([k, label, n]) => (
-          <button key={k} onClick={() => setFiltro(k)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${filtro === k ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'}`}>
-            {label} <span className={`ml-1 ${filtro === k ? 'opacity-70' : 'text-stone-400'}`}>{n}</span>
-          </button>
+          <Button key={k} variant={filtro === k ? 'primary' : 'secondary'} size="sm" onClick={() => setFiltro(k)}>
+            {label} <span className="ml-1 opacity-70">{n}</span>
+          </Button>
         ))}
-        <button onClick={cargar} className="ml-auto px-3 py-2 text-xs border border-stone-200 rounded-xl text-stone-500 hover:border-stone-400 transition">
-          Actualizar
-        </button>
+        <Button variant="ghost" size="sm" onClick={cargar} className="ml-auto">🔄 Actualizar</Button>
       </div>
 
       {/* Tabla */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-        <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
+        <div className="px-6 py-4 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-500">
           <span>SKU</span>
           <span>Descripcion</span>
           <span className="text-center">Cant.</span>
@@ -372,7 +373,7 @@ export function ColaAdmin() {
             const siguientes = ESTADO_SIGUIENTE[orden.estado] || [];
             return (
               <div key={orden.id}
-                className={`px-5 py-4 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 items-center ${i !== 0 ? 'border-t border-stone-100' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
+                className={`px-6 py-4 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 items-center hover:bg-stone-50 transition ${i !== 0 ? 'border-t border-stone-100' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
                 <Link href={`/produccion/${orden.id}`}
                   className={`font-mono font-bold text-sm px-2 py-1 rounded-lg transition ${orden.sku ? 'bg-stone-100 text-stone-700 hover:text-amber-600' : 'bg-amber-50 text-amber-600 hover:text-amber-700'}`}>
                   {orden.sku ?? 'S/SKU'}
@@ -381,15 +382,15 @@ export function ColaAdmin() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="text-sm text-stone-800 font-medium truncate">{orden.descripcion || '--'}</p>
                     <span className="text-xs text-stone-400 shrink-0">{orden.marca}</span>
-                    {!orden.sku && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">SKU pendiente</span>}
-                    {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-blue-100 text-blue-700">Ficha pendiente</span>}
+                    {!orden.sku && <Badge variant="warning" size="sm">SKU pendiente</Badge>}
+                    {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && <Badge variant="info" size="sm">Ficha pendiente</Badge>}
                   </div>
                   <p className="text-xs text-stone-400">{fechaCorta(orden.createdAt)} · {orden.creadoPor}</p>
                 </div>
                 <span className="text-sm font-bold text-stone-700 text-center tabular-nums">{orden.cantidad}</span>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${ESTADO_COLOR[orden.estado] ?? 'bg-stone-100'}`}>
+                <Badge variant={ESTADO_BADGE[orden.estado] ?? 'default'} size="sm" className="whitespace-nowrap justify-self-start">
                   {ESTADO_LABEL[orden.estado] ?? orden.estado}
-                </span>
+                </Badge>
                 <span className={`text-xs tabular-nums text-right ${dias > 3 ? 'text-red-500 font-semibold' : 'text-stone-400'}`}>
                   {dias}d
                 </span>
@@ -439,10 +440,9 @@ export function ColaAdmin() {
 
       {/* Boton agregar */}
       {!showForm && (
-        <button onClick={() => setShowForm(true)}
-          className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+        <Button variant="primary" size="lg" onClick={() => setShowForm(true)}>
           + Agregar a la cola
-        </button>
+        </Button>
       )}
 
       {/* Form crear */}
@@ -503,14 +503,12 @@ export function ColaAdmin() {
             </div>
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="submit" disabled={saving}
-                className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
+              <Button type="submit" variant="primary" size="lg" isLoading={saving} className="flex-1">
                 {saving ? 'Agregando...' : 'Agregar a la cola'}
-              </button>
-              <button type="button" onClick={() => { setShowForm(false); setError(''); }}
-                className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+              </Button>
+              <Button type="button" variant="secondary" size="lg" onClick={() => { setShowForm(false); setError(''); }}>
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -542,14 +540,10 @@ export function ColaAdmin() {
             </div>
             {skuModalError && <p className="text-red-500 text-xs mb-2">{skuModalError}</p>}
             <div className="flex gap-2">
-              <button onClick={asignarSkuYAvanzar} disabled={skuSaving || !skuPrenda || !skuColor}
-                className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2 rounded-xl text-sm font-semibold transition">
+              <Button variant="primary" isLoading={skuSaving} disabled={!skuPrenda || !skuColor} onClick={asignarSkuYAvanzar} className="flex-1">
                 {skuSaving ? 'Generando...' : 'Generar SKU y mandar a costura'}
-              </button>
-              <button onClick={() => setSkuModalOrden(null)}
-                className="px-4 py-2 rounded-xl text-sm border border-stone-200 text-stone-600 transition">
-                Cancelar
-              </button>
+              </Button>
+              <Button variant="secondary" onClick={() => setSkuModalOrden(null)}>Cancelar</Button>
             </div>
           </div>
         </div>
@@ -578,12 +572,10 @@ export function ColaAdmin() {
             </div>
             {terminarError && <p className="text-red-500 text-xs mt-2">{terminarError}</p>}
             <div className="flex gap-2 mt-4">
-              <button onClick={confirmarTerminar} disabled={terminarSaving || totalTerminar === 0}
-                className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2 rounded-xl text-sm font-semibold transition">
+              <Button variant="primary" isLoading={terminarSaving} disabled={totalTerminar === 0} onClick={confirmarTerminar} className="flex-1">
                 {terminarSaving ? 'Terminando...' : 'Terminar y mandar a stock'}
-              </button>
-              <button onClick={() => setTerminarOrden(null)}
-                className="px-4 py-2 rounded-xl text-sm border border-stone-200 text-stone-600 transition">Cancelar</button>
+              </Button>
+              <Button variant="secondary" onClick={() => setTerminarOrden(null)}>Cancelar</Button>
             </div>
           </div>
         </div>
@@ -598,15 +590,11 @@ export function ColaAdmin() {
               placeholder="Motivo obligatorio para retroceder..." rows={3}
               className={`${inputClass} resize-none mb-3`} />
             <div className="flex gap-2">
-              <button onClick={() => { const orden = ordenes.find((o) => o.id === cambioId); if (orden) cambiarEstado(cambioId, orden.estado); }}
-                disabled={!cambioNotas.trim()}
-                className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2 rounded-xl text-sm font-semibold transition">
+              <Button variant="primary" disabled={!cambioNotas.trim()} className="flex-1"
+                onClick={() => { const orden = ordenes.find((o) => o.id === cambioId); if (orden) cambiarEstado(cambioId, orden.estado); }}>
                 Confirmar
-              </button>
-              <button onClick={() => { setCambioId(null); setCambioNotas(''); }}
-                className="px-4 py-2 rounded-xl text-sm border border-stone-200 text-stone-600 transition">
-                Cancelar
-              </button>
+              </Button>
+              <Button variant="secondary" onClick={() => { setCambioId(null); setCambioNotas(''); }}>Cancelar</Button>
             </div>
           </div>
         </div>
@@ -640,14 +628,10 @@ export function ColaAdmin() {
               </div>
               {editError && <p className="text-red-500 text-xs">{editError}</p>}
               <div className="flex gap-2 pt-1">
-                <button type="submit" disabled={editSaving}
-                  className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
+                <Button type="submit" variant="primary" size="lg" isLoading={editSaving} className="flex-1">
                   {editSaving ? 'Guardando...' : 'Guardar cambios'}
-                </button>
-                <button type="button" onClick={cerrarEdicion}
-                  className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
-                  Cancelar
-                </button>
+                </Button>
+                <Button type="button" variant="secondary" size="lg" onClick={cerrarEdicion}>Cancelar</Button>
               </div>
             </form>
           </div>
