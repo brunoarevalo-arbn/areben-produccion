@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { minutosAHorasMin } from '@/lib/utils/calculos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
 
 interface Registro {
   id: string;
@@ -329,10 +330,9 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
             <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Detalle de registros</h2>
               {isAdmin && !adding && (
-                <button onClick={() => { setEditId(null); setAdding(true); }}
-                  className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-500 hover:border-amber-400 hover:text-amber-700 transition font-semibold">
+                <Button variant="secondary" size="sm" onClick={() => { setEditId(null); setAdding(true); }}>
                   + Agregar registro
-                </button>
+                </Button>
               )}
             </div>
             <table className="w-full text-sm">
@@ -504,13 +504,10 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
           {error && <p className="text-xs text-red-600">{error}</p>}
           <p className="text-xs text-stone-400 italic">Si cambiás las horas, los minutos se recalculan automáticamente.</p>
           <div className="flex gap-2 justify-end">
-            <button onClick={onCancel} className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition">
-              Cancelar
-            </button>
-            <button onClick={guardar} disabled={saving}
-              className="text-xs px-3 py-1.5 rounded-lg bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 transition font-semibold">
+            <Button variant="secondary" size="sm" onClick={onCancel}>Cancelar</Button>
+            <Button variant="primary" size="sm" isLoading={saving} onClick={guardar}>
               {saving ? 'Guardando...' : 'Guardar'}
-            </button>
+            </Button>
           </div>
         </div>
       </td>
@@ -633,13 +630,10 @@ function NewRow({ fecha, costureras, onCancel, onSaved }: { fecha: string; costu
           {error && <p className="text-xs text-red-600">{error}</p>}
           <p className="text-xs text-stone-400 italic">Los minutos se calculan automáticamente desde el horario. Fecha: {fecha}.</p>
           <div className="flex gap-2 justify-end">
-            <button onClick={onCancel} className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition">
-              Cancelar
-            </button>
-            <button onClick={guardar} disabled={saving}
-              className="text-xs px-3 py-1.5 rounded-lg bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 transition font-semibold">
+            <Button variant="secondary" size="sm" onClick={onCancel}>Cancelar</Button>
+            <Button variant="primary" size="sm" isLoading={saving} onClick={guardar}>
               {saving ? 'Guardando...' : 'Agregar'}
-            </button>
+            </Button>
           </div>
         </div>
       </td>

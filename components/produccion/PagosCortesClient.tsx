@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
 interface OrdenCorte {
   id: string;
@@ -145,10 +147,10 @@ export function PagosCortesClient() {
       {/* Filtros */}
       <div className="flex items-center gap-3 flex-wrap">
         {(['pendiente', 'pagado', 'todos'] as const).map((f) => (
-          <button key={f} onClick={() => { setFiltro(f); setSeleccion(new Set()); }}
-            className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${filtro === f ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'}`}>
+          <Button key={f} variant={filtro === f ? 'primary' : 'secondary'} size="md"
+            onClick={() => { setFiltro(f); setSeleccion(new Set()); }}>
             {f.charAt(0).toUpperCase() + f.slice(1)}
-          </button>
+          </Button>
         ))}
         <select value={filtroCortador} onChange={(e) => setFiltroCortador(e.target.value)}
           className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400">
@@ -161,10 +163,7 @@ export function PagosCortesClient() {
             <span className="text-sm text-stone-600">
               {seleccion.size} seleccionadas · <strong>${fmt(totalSeleccionado)}</strong>
             </span>
-            <button onClick={abrirPago}
-              className="bg-stone-900 hover:bg-stone-800 text-white px-4 py-2 rounded-xl text-sm font-semibold transition">
-              Registrar pago
-            </button>
+            <Button variant="primary" size="md" onClick={abrirPago}>Registrar pago</Button>
           </div>
         )}
       </div>
@@ -209,11 +208,9 @@ export function PagosCortesClient() {
                 <span className="text-stone-700 truncate">{o.cortador || '--'}</span>
                 <span className="text-xs">
                   {pagado ? (
-                    <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">
-                      Pagado {o.pagoCorte && fechaCorta(o.pagoCorte.fecha)}
-                    </span>
+                    <Badge variant="success" size="sm">Pagado {o.pagoCorte && fechaCorta(o.pagoCorte.fecha)}</Badge>
                   ) : (
-                    <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">Pendiente</span>
+                    <Badge variant="warning" size="sm">Pendiente</Badge>
                   )}
                 </span>
                 <span className="text-stone-600 tabular-nums text-right">{o.cantidad}</span>
@@ -253,14 +250,10 @@ export function PagosCortesClient() {
               </div>
               {error && <p className="text-red-500 text-xs">{error}</p>}
               <div className="flex gap-2 pt-1">
-                <button type="submit" disabled={saving}
-                  className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
+                <Button type="submit" variant="primary" size="lg" isLoading={saving} className="flex-1">
                   {saving ? 'Registrando...' : `Registrar pago de $${fmt(totalSeleccionado)}`}
-                </button>
-                <button type="button" onClick={() => setShowForm(false)}
-                  className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
-                  Cancelar
-                </button>
+                </Button>
+                <Button type="button" variant="secondary" size="lg" onClick={() => setShowForm(false)}>Cancelar</Button>
               </div>
             </form>
           </div>

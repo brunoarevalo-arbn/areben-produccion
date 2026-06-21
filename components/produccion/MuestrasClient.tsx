@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
 
 interface RolloOpt {
   id: string;
@@ -123,10 +124,9 @@ export function MuestrasClient() {
         </div>
 
         {error && <p className="text-red-500 text-xs">{error}</p>}
-        <button type="submit" disabled={saving || !rolloId || !cantidad}
-          className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+        <Button type="submit" variant="primary" size="lg" isLoading={saving} disabled={!rolloId || !cantidad}>
           {saving ? 'Registrando...' : 'Registrar muestra'}
-        </button>
+        </Button>
       </form>
 
       {/* Lista (sin costo) */}
