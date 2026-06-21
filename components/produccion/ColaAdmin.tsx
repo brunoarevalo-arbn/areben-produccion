@@ -44,14 +44,13 @@ const ESTADO_LABEL: Record<string, string> = {
   CERRADA:               'Cerrada',
 };
 
-// Mapeo semántico a las variantes del Badge: naranja = acción necesaria,
-// azul = en proceso, verde = completado/cerrado.
-const ESTADO_BADGE: Record<string, 'success' | 'warning' | 'danger' | 'info' | 'default'> = {
-  PENDIENTE:             'warning',
-  CORTE:                 'info',
-  COSTURA:               'info',
-  TERMINADO_SIN_ESTAMPA: 'success',
-  ESTAMPA:               'warning',
+// Cada estado mantiene su color propio (no se colapsan), para distinguirlos de un vistazo.
+const ESTADO_BADGE: Record<string, 'success' | 'warning' | 'default' | 'amber' | 'blue' | 'violet' | 'pink'> = {
+  PENDIENTE:             'amber',
+  CORTE:                 'blue',
+  COSTURA:               'success',
+  TERMINADO_SIN_ESTAMPA: 'violet',
+  ESTAMPA:               'pink',
   CONTROL_CALIDAD:       'warning',
   CERRADA:               'default',
 };

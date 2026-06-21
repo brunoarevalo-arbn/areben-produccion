@@ -37,7 +37,13 @@ export function Button({
       disabled={disabled || isLoading}
       {...props}
     >
-      {isLoading ? '...' : children}
+      {isLoading && (
+        <span
+          aria-hidden
+          className="mr-2 inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"
+        />
+      )}
+      {children}
     </button>
   );
 }
