@@ -117,38 +117,38 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
 
   return (
     <aside className="w-56 bg-stone-900 flex flex-col h-full shrink-0 print:hidden">
-      <div className="px-5 py-4 border-b border-stone-800">
+      <div className="px-6 py-5 border-b border-stone-800">
         <p className="text-amber-400 text-xs font-bold uppercase tracking-widest">Areben</p>
-        <p className="text-stone-300 text-xs mt-0.5 truncate">{nombre}</p>
+        <p className="text-stone-400 text-xs mt-2 truncate">{nombre}</p>
       </div>
 
-      <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
+      <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
         {visible.map((item) => {
           const active = isActive(item.href);
           return (
             <div key={item.href}>
               <Link
                 href={item.href}
-                className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
                   active
-                    ? 'bg-stone-800 text-amber-400'
-                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/50'
+                    ? 'bg-amber-400/10 text-amber-400 border-amber-400/30'
+                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60 border-transparent'
                 }`}
               >
-                <span className="text-base w-5 text-center">{item.icon}</span>
-                {item.label}
+                <span className="text-lg w-5 text-center flex-shrink-0">{item.icon}</span>
+                <span className="flex-1">{item.label}</span>
               </Link>
 
               {item.sub.length > 0 && active && (
-                <div className="ml-9 mt-0.5 mb-1 space-y-0.5">
+                <div className="ml-4 mt-2 mb-2 pl-4 border-l border-stone-700 space-y-1">
                   {item.sub.filter((s) => tienePermiso(permisos, s.seccion ?? item.seccion)).map((s) => (
-                    <div key={s.href} className="flex items-center gap-1">
+                    <div key={s.href} className="flex items-center gap-2 group">
                       <Link
                         href={s.href}
-                        className={`flex-1 px-3 py-1.5 rounded-lg text-xs transition-colors ${
+                        className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
                           pathname === s.href
-                            ? 'text-amber-400 font-semibold'
-                            : 'text-stone-500 hover:text-stone-300'
+                            ? 'text-amber-400 bg-stone-800/60'
+                            : 'text-stone-500 group-hover:text-stone-300'
                         }`}
                       >
                         {s.label}
@@ -156,8 +156,8 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
                       {s.nuevoHref && (
                         <Link
                           href={s.nuevoHref}
-                          title="Nuevo"
-                          className="px-1.5 py-1 rounded-md text-stone-600 hover:text-stone-300 hover:bg-stone-800 transition text-sm leading-none"
+                          title="Nuevo ítem"
+                          className="px-2 py-1 rounded-md text-stone-600 hover:text-amber-400 hover:bg-stone-800 transition text-xs font-bold"
                         >
                           +
                         </Link>
@@ -171,11 +171,11 @@ export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
         })}
       </nav>
 
-      <div className="px-5 py-3 border-t border-stone-800 space-y-1">
-        <p className="text-stone-600 text-xs truncate capitalize">{rol}</p>
+      <div className="px-6 py-4 border-t border-stone-800 space-y-3">
+        <p className="text-stone-500 text-xs font-semibold uppercase tracking-wide">{rol}</p>
         <button
           onClick={handleLogout}
-          className="text-stone-600 hover:text-stone-400 text-xs transition w-full text-left"
+          className="w-full px-3 py-2 rounded-lg text-xs font-medium text-stone-400 hover:text-stone-200 hover:bg-stone-800/60 transition text-left"
         >
           Cerrar sesión
         </button>

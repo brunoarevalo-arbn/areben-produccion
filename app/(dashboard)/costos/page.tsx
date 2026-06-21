@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Parametros }  from '@/components/costos/Parametros';
 import { Escandallos } from '@/components/costos/Escandallos';
 import { CatalogosCosto } from '@/components/costos/CatalogosCosto';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 type Tab = 'parametros' | 'escandallos' | 'catalogos';
 
@@ -18,11 +19,7 @@ export default function CostosPage() {
 
   return (
     <div className="p-8">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-emerald-600">Módulo 3</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Costos de Producción</h1>
-        <p className="text-stone-500 text-sm mt-1">Parámetros y escandallos del taller.</p>
-      </div>
+      <PageHeader eyebrow="Módulo 3" title="Costos de Producción" subtitle="Parámetros y escandallos del taller." />
 
       {/* Tabs */}
       <div className="flex gap-2 mb-7 border-b border-stone-200 pb-0">

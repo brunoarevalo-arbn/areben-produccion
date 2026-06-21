@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,10 +36,7 @@ export default async function DashboardPage() {
   return (
     <div className="p-8 max-w-4xl space-y-8">
 
-      <div>
-        <p className="text-stone-400 text-sm capitalize">{hoy}</p>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Dashboard</h1>
-      </div>
+      <PageHeader title="Dashboard" subtitle={hoy.charAt(0).toUpperCase() + hoy.slice(1)} />
 
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Accesos rápidos</p>

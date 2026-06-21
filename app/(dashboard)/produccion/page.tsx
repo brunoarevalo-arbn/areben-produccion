@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { ColaAdmin } from '@/components/produccion/ColaAdmin';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,11 +52,7 @@ const ACCESOS = [
 export default function ProduccionPage() {
   return (
     <div className="p-8 max-w-4xl">
-      <div className="mb-8">
-        <span className="text-xs font-bold uppercase tracking-widest text-amber-500">Módulo 2</span>
-        <h1 className="text-2xl font-bold text-stone-900 mt-1">Control de Producción</h1>
-        <p className="text-stone-500 text-sm mt-1">Cola de trabajo, tiempos y reportes del taller.</p>
-      </div>
+      <PageHeader eyebrow="Módulo 2" title="Control de Producción" subtitle="Cola de trabajo, tiempos y reportes del taller." />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
         {ACCESOS.map((a) => (

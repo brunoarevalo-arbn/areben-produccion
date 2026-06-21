@@ -14,7 +14,7 @@ export default async function MainLayout({ children }: { children: React.ReactNo
   const permisos = await getPermisos(session);
 
   return (
-    <div className="flex h-screen bg-stone-100 overflow-hidden print:block print:h-auto print:overflow-visible print:bg-white">
+    <div className="flex h-screen bg-stone-50 overflow-hidden print:block print:h-auto print:overflow-visible print:bg-white">
       <Sidebar permisos={permisos} nombre={session.nombre} rol={session.rol} />
       <main className="flex-1 overflow-y-auto print:overflow-visible">
         {children}
