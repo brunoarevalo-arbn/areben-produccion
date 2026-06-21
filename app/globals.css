@@ -25,9 +25,21 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* BASE STYLES */
 @layer base {
   input, textarea, select {
     color: #1c1917;
+  }
+
+  /* Tipografía base */
+  h1 { @apply text-2xl font-bold leading-tight tracking-tight; }
+  h2 { @apply text-xl font-bold leading-snug; }
+  h3 { @apply text-lg font-semibold; }
+  p  { @apply text-base leading-relaxed; }
+
+  /* Links */
+  a {
+    @apply text-amber-600 hover:text-amber-700 transition-colors;
   }
 }
 
