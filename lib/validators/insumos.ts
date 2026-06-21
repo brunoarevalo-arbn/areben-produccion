@@ -90,6 +90,22 @@ export const GastoSchema = z.object({
   fechaPago:     z.string().nullish(),
 });
 
+// ─── Ingreso/compra de avíos ────────────────────────────────────────
+// Suma stock a un avío del catálogo. Si trae proveedorId, además crea un
+// Gasto-compra (aparece en Compras + cuentas por pagar).
+export const AvioIngresoSchema = z.object({
+  cantidad:        z.number().int().positive('La cantidad debe ser positiva'),
+  costoUnitario:   z.number().min(0).nullish(),
+  actualizarPrecio: z.boolean().nullish(),
+  proveedorId:     z.string().nullish(),
+  numeroFactura:   z.string().nullish(),
+  estadoPago:      z.enum(['PENDIENTE', 'PARCIAL', 'PAGADA']).nullish(),
+  montoPagado:     z.number().min(0).nullish(),
+  fechaPago:       z.string().nullish(),
+  formaPago:       z.string().nullish(),
+  motivo:          z.string().nullish(),
+});
+
 // ─── Ajuste físico ──────────────────────────────────────────────────
 
 export const AjusteSchema = z.object({

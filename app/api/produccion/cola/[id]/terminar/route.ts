@@ -71,8 +71,15 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       for (const a of receta) {
         const et = await tx.etiquetaCatalogo.findUnique({ where: { id: a.etiquetaId } });
         if (!et || et.stock == null) continue; // sin seguimiento / ilimitado
-        const nuevo = Math.max(0, et.stock - a.cantidad * totalProducido);
+        const consumido = a.cantidad * totalProducido;
+        const nuevo = Math.max(0, et.stock - consumido);
         await tx.etiquetaCatalogo.update({ where: { id: a.etiquetaId }, data: { stock: nuevo } });
+        await tx.avioMovimiento.create({
+          data: {
+            etiquetaId: a.etiquetaId, tipo: 'EGRESO', cantidad: -consumido, ordenId: id,
+            motivo: `Consumo producción${sku ? ` ${sku}` : ''}`, creadoPor: session.nombre,
+          },
+        });
       }
       descontado = receta.length > 0;
     }

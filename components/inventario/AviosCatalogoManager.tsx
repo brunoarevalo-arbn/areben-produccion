@@ -37,6 +37,42 @@ export function AviosCatalogoManager() {
   const [editSeguir, setEditSeguir] = useState(false);
   const [editStock, setEditStock] = useState(0);
 
+  // Ingreso/compra de stock
+  const [ingId, setIngId] = useState<string | null>(null);
+  const [ingCant, setIngCant] = useState(0);
+  const [ingCosto, setIngCosto] = useState(0);
+  const [ingActualizar, setIngActualizar] = useState(false);
+  const [ingProv, setIngProv] = useState('');
+  const [ingFactura, setIngFactura] = useState('');
+  const [ingSeguirPago, setIngSeguirPago] = useState(false);
+  const [ingEstado, setIngEstado] = useState<'PENDIENTE' | 'PARCIAL' | 'PAGADA'>('PENDIENTE');
+  const [ingPagado, setIngPagado] = useState(0);
+  const [ingSaving, setIngSaving] = useState(false);
+
+  const startIngreso = (it: Etiqueta) => {
+    setIngId(it.id); setIngCant(0); setIngCosto(it.precio); setIngActualizar(false);
+    setIngProv(it.proveedorId ?? ''); setIngFactura(''); setIngSeguirPago(false); setIngEstado('PENDIENTE'); setIngPagado(0);
+  };
+
+  const guardarIngreso = async (id: string) => {
+    if (!ingCant || ingCant <= 0) return;
+    setIngSaving(true);
+    const body = {
+      cantidad: ingCant, costoUnitario: ingCosto || 0, actualizarPrecio: ingActualizar,
+      proveedorId: ingProv || null, numeroFactura: ingFactura.trim() || null,
+      ...(ingProv && ingSeguirPago ? { estadoPago: ingEstado, montoPagado: ingPagado } : {}),
+    };
+    const r = await fetch(`/api/costos/etiquetas/${id}/ingreso`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      setItems(prev => prev.map(x => x.id === id ? { ...x, stock: d.stock, ...(ingActualizar ? { precio: ingCosto } : {}) } : x));
+      setIngId(null);
+    }
+    setIngSaving(false);
+  };
+
   const cargar = useCallback(async () => {
     const r = await fetch('/api/costos/etiquetas');
     if (r.ok) setItems((await r.json()).map((x: Etiqueta) => ({ ...x, precio: Number(x.precio) })));
@@ -84,7 +120,8 @@ export function AviosCatalogoManager() {
       <div className={`${card} divide-y divide-stone-100 mb-3`}>
         {items.length === 0 && <p className="text-sm text-stone-400 text-center py-8 italic">Sin avíos todavía</p>}
         {items.map(it => (
-          <div key={it.id} className="flex items-center gap-3 px-5 py-3">
+          <div key={it.id} className="px-5 py-3">
+            <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-sm text-stone-800">{it.nombre}</p>
               <p className="text-xs text-stone-400 capitalize">
@@ -111,10 +148,68 @@ export function AviosCatalogoManager() {
                 <span className={`text-xs px-2 py-0.5 rounded-full tabular-nums ${it.stock == null ? 'bg-stone-100 text-stone-400' : it.stock > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
                   {it.stock == null ? '∞ sin seguimiento' : `${it.stock} en stock`}
                 </span>
+                <button onClick={() => startIngreso(it)}
+                  className="text-xs px-2 py-1 border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50 transition">+ Ingresar</button>
                 <button onClick={() => startEdit(it)}
                   className="text-xs px-2 py-1 border border-stone-200 rounded-lg text-stone-500 hover:border-stone-400 transition">Editar</button>
                 <button onClick={() => eliminar(it.id, it.nombre)}
                   className="text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">×</button>
+              </div>
+            )}
+            </div>
+
+            {ingId === it.id && (
+              <div className="mt-3 bg-stone-50 border border-stone-200 rounded-xl p-3 space-y-2">
+                <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Ingresar stock</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-stone-500 mb-1 block">Cantidad</label>
+                    <NumInput value={ingCant} onChange={setIngCant} min="1" step="1" placeholder="cant." className={`w-full ${inp}`} />
+                  </div>
+                  <div>
+                    <label className="text-xs text-stone-500 mb-1 block">Costo unitario $</label>
+                    <NumInput value={ingCosto} onChange={setIngCosto} min="0" step="0.01" className={`w-full ${inp}`} />
+                  </div>
+                </div>
+                <label className="flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer">
+                  <input type="checkbox" checked={ingActualizar} onChange={e => setIngActualizar(e.target.checked)} className="rounded border-stone-300" />
+                  Actualizar el precio de referencia con este costo
+                </label>
+
+                <div className="border-t border-stone-200 pt-2 space-y-2">
+                  <select value={ingProv} onChange={e => setIngProv(e.target.value)} className={`w-full ${inp}`}>
+                    <option value="">— Sin proveedor (ingreso interno) —</option>
+                    {proveedores.filter(p => p.activo).map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
+                  </select>
+                  {ingProv && (
+                    <>
+                      <input type="text" value={ingFactura} onChange={e => setIngFactura(e.target.value)} placeholder="N° factura (opcional)" className={`w-full ${inp}`} />
+                      <label className="flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer">
+                        <input type="checkbox" checked={ingSeguirPago} onChange={e => setIngSeguirPago(e.target.checked)} className="rounded border-stone-300" />
+                        Seguir el pago (aparece en cuentas por pagar)
+                      </label>
+                      {ingSeguirPago && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <select value={ingEstado} onChange={e => setIngEstado(e.target.value as typeof ingEstado)} className={`w-full ${inp}`}>
+                            {['PENDIENTE', 'PARCIAL', 'PAGADA'].map(s => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                          <NumInput value={ingPagado} onChange={setIngPagado} min="0" step="0.01" placeholder="Pagado $" className={`w-full ${inp}`} />
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 justify-between">
+                  <span className="text-xs text-stone-500">Total: <strong>{fmt$((ingCant || 0) * (ingCosto || 0))}</strong></span>
+                  <div className="flex gap-2">
+                    <button onClick={() => guardarIngreso(it.id)} disabled={ingSaving || !ingCant}
+                      className="text-xs bg-stone-900 text-white px-3 py-1.5 rounded-lg font-semibold disabled:opacity-50">
+                      {ingSaving ? '...' : ingProv ? 'Registrar compra' : 'Ingresar'}
+                    </button>
+                    <button onClick={() => setIngId(null)} className="text-xs text-stone-400 hover:text-stone-600 px-2">Cancelar</button>
+                  </div>
+                </div>
               </div>
             )}
           </div>

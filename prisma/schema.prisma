@@ -330,10 +330,32 @@ model EtiquetaCatalogo {
   proveedorId String?
   proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
   ordenAvios OrdenAvio[]
+  movimientos AvioMovimiento[]
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@map("etiqueta_catalogo")
+}
+
+// Movimientos de stock de un avío (ingreso por compra, egreso al terminar
+// producción, ajuste manual). gastoId enlaza al Gasto-compra cuando el ingreso
+// vino de una compra a proveedor (aparece en el módulo Compras).
+model AvioMovimiento {
+  id            String           @id @default(cuid())
+  etiquetaId    String
+  etiqueta      EtiquetaCatalogo @relation(fields: [etiquetaId], references: [id], onDelete: Cascade)
+  tipo          String           // 'INGRESO' | 'EGRESO' | 'AJUSTE'
+  cantidad      Int              // + ingreso / - egreso
+  costoUnitario Decimal?
+  gastoId       String?
+  proveedorId   String?
+  ordenId       String?          // para egresos al terminar producción
+  motivo        String?
+  creadoPor     String
+  fecha         DateTime         @default(now())
+
+  @@index([etiquetaId])
+  @@map("avio_movimientos")
 }
 
 // Qué avíos (del catálogo) lleva una orden. Se cargan al registrar el corte
