@@ -54,8 +54,9 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     icon: '🛒',
     seccion: ['insumos', 'gastos'],
     sub: [
-      { label: 'Todas',        href: '/compras', nuevoHref: '/compras/nueva' },
-      { label: 'Proveedores',  href: '/configuracion/proveedores' },
+      { label: 'Todas',            href: '/compras', nuevoHref: '/compras/nueva' },
+      { label: 'Cuentas por pagar', href: '/compras/cuentas-por-pagar' },
+      { label: 'Proveedores',      href: '/configuracion/proveedores' },
     ],
   },
   {
