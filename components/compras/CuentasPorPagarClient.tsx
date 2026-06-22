@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
+import { fmtMoney } from '@/lib/format';
 
 interface Row {
   origen: 'compra' | 'gasto';
@@ -14,8 +16,7 @@ interface Row {
 }
 interface Grupo { proveedorId: string; proveedorNombre: string; rows: Row[]; totalPendiente: number; }
 
-const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
-const inp = 'px-2.5 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
+const inp ='px-2.5 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 
 export function CuentasPorPagarClient() {
   const [grupos, setGrupos] = useState<Grupo[]>([]);
@@ -51,7 +52,7 @@ export function CuentasPorPagarClient() {
     });
     if (r.ok) {
       setPagoId(null);
-      setOkMsg(`Pago de ${fmt$(pagado)} registrado (${estado.toLowerCase()})`);
+      setOkMsg(`Pago de ${fmtMoney(pagado)} registrado (${estado.toLowerCase()})`);
       await cargar();
     } else {
       const d = await r.json().catch(() => ({}));
@@ -75,7 +76,7 @@ export function CuentasPorPagarClient() {
     <div className="space-y-5">
       <div className="bg-stone-900 rounded-2xl p-5 flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Total a pagar</span>
-        <span className="text-2xl font-bold text-amber-400 tabular-nums">{fmt$(totalGlobal)}</span>
+        <span className="text-2xl font-bold text-amber-400 tabular-nums">{fmtMoney(totalGlobal)}</span>
       </div>
 
       {okMsg && (
@@ -88,7 +89,7 @@ export function CuentasPorPagarClient() {
         <div key={g.proveedorId} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
           <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between">
             <span className="font-bold text-stone-800">{g.proveedorNombre}</span>
-            <span className="text-sm text-stone-500">Pendiente: <strong className="text-stone-900">{fmt$(g.totalPendiente)}</strong></span>
+            <span className="text-sm text-stone-500">Pendiente: <strong className="text-stone-900">{fmtMoney(g.totalPendiente)}</strong></span>
           </div>
           {g.rows.map((row) => {
             const key = `${row.origen}-${row.id}`;
@@ -98,16 +99,14 @@ export function CuentasPorPagarClient() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <Link href={row.href} className="text-sm text-stone-700 hover:text-stone-900 truncate">{row.concepto}</Link>
-                      <span className={`text-xs px-1.5 py-0.5 rounded-full ${row.estadoPago === 'PARCIAL' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                        {row.estadoPago.toLowerCase()}
-                      </span>
+                      <EstadoPagoBadge estado={row.estadoPago} />
                       <Badge variant="default">{row.origen === 'compra' ? 'insumos' : 'gasto'}</Badge>
                     </div>
                     <p className="text-xs text-stone-400 mt-0.5">
-                      {row.fecha} · total {fmt$(row.monto)}{row.montoPagado > 0 ? ` · pagado ${fmt$(row.montoPagado)}` : ''}
+                      {row.fecha} · total {fmtMoney(row.monto)}{row.montoPagado > 0 ? ` · pagado ${fmtMoney(row.montoPagado)}` : ''}
                     </p>
                   </div>
-                  <span className="font-bold text-stone-900 tabular-nums shrink-0">{fmt$(row.pendiente)}</span>
+                  <span className="font-bold text-stone-900 tabular-nums shrink-0">{fmtMoney(row.pendiente)}</span>
                   {pagoId !== key && (
                     <button onClick={() => startPago(row)}
                       className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold transition">

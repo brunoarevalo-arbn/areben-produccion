@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
+import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
 
 interface Fila {
   origen: 'compra' | 'gasto';
@@ -17,11 +18,6 @@ interface Fila {
   href: string;
 }
 
-const ESTADO_COLOR: Record<string, string> = {
-  PENDIENTE: 'bg-amber-100 text-amber-700',
-  PARCIAL:   'bg-blue-100 text-blue-700',
-  PAGADA:    'bg-emerald-100 text-emerald-700',
-};
 const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
 
 export function ComprasUnificadasClient() {
@@ -66,11 +62,7 @@ export function ComprasUnificadasClient() {
                 {f.generaStock
                   ? <Badge variant="violet">insumos</Badge>
                   : <Badge variant="default">gasto</Badge>}
-                {f.estadoPago && (
-                  <span className={`text-xs px-1.5 py-0.5 rounded-full ${ESTADO_COLOR[f.estadoPago] ?? 'bg-stone-100 text-stone-500'}`}>
-                    {f.estadoPago.toLowerCase()}
-                  </span>
-                )}
+                {f.estadoPago && <EstadoPagoBadge estado={f.estadoPago} />}
               </div>
               <p className="text-xs text-stone-500 mt-0.5 truncate">{f.concepto} · {f.fecha}</p>
             </div>

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { GastoCompraForm } from '@/components/compras/GastoCompraForm';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { fmtMoney } from '@/lib/format';
 
 interface Gasto {
   id:        string;
@@ -50,10 +51,6 @@ type Tipo = 'tela' | 'insumos' | 'periodo';
 const TIPOS: Tipo[] = ['tela', 'insumos', 'periodo'];
 const MARCAS = ['Zattia', 'Stunned'] as const;
 
-function fmt$(n: number) {
-  return `$${Math.round(n).toLocaleString('es-AR')}`;
-}
-
 function TotalCards({ gastos, costoMinuto }: { gastos: Gasto[]; costoMinuto: number }) {
   const porTipo = TIPOS.map((t) => ({
     tipo:  t,
@@ -66,12 +63,12 @@ function TotalCards({ gastos, costoMinuto }: { gastos: Gasto[]; costoMinuto: num
       {porTipo.map(({ tipo, total: t }) => (
         <div key={tipo} className="bg-white rounded-xl border border-stone-200 p-4">
           <p className="text-xs text-stone-400 capitalize mb-1">{tipo}</p>
-          <p className="text-lg font-bold text-stone-900">{fmt$(t)}</p>
+          <p className="text-lg font-bold text-stone-900">{fmtMoney(t)}</p>
         </div>
       ))}
       <div className="bg-stone-900 rounded-xl p-4">
         <p className="text-xs text-stone-400 mb-1">Total</p>
-        <p className="text-lg font-bold text-white">{fmt$(total)}</p>
+        <p className="text-lg font-bold text-white">{fmtMoney(total)}</p>
       </div>
     </div>
   );
@@ -111,7 +108,7 @@ function GastoRow({ gasto, costoMinuto, onDelete }: { gasto: Gasto; costoMinuto:
         {gasto.concepto && <p className="text-sm text-stone-700 mt-0.5">{gasto.concepto}</p>}
         <p className="text-xs text-stone-400 mt-0.5">{gasto.fecha} · {gasto.creadoPor}{gasto.minutos ? ` · ${gasto.minutos}min` : ''}</p>
       </div>
-      <span className="font-bold text-stone-900 tabular-nums shrink-0">{fmt$(monto)}</span>
+      <span className="font-bold text-stone-900 tabular-nums shrink-0">{fmtMoney(monto)}</span>
       {error && <span className="text-xs text-red-600 font-semibold shrink-0">No se pudo eliminar</span>}
       {!confirming ? (
         <button onClick={() => setConfirming(true)} className="text-stone-300 hover:text-red-400 text-sm transition shrink-0">×</button>

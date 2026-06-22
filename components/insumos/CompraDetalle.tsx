@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
+import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
 
 interface CompraFull {
   id: string;
@@ -119,7 +120,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
           </div>
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Estado de pago</p>
-            <p className="text-stone-800">{compra.estadoPago}</p>
+            <EstadoPagoBadge estado={compra.estadoPago} />
             {Number(compra.montoPagado) > 0 && <p className="text-xs text-stone-500">Pagado: ${fmt(compra.montoPagado)}</p>}
           </div>
         </div>

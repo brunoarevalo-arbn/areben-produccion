@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
 
 interface GastoDetalleProps {
   gasto: {
@@ -10,11 +11,6 @@ interface GastoDetalleProps {
 }
 
 const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
-const ESTADO_COLOR: Record<string, string> = {
-  PENDIENTE: 'bg-amber-100 text-amber-700',
-  PARCIAL:   'bg-blue-100 text-blue-700',
-  PAGADA:    'bg-emerald-100 text-emerald-700',
-};
 
 export function GastoDetalle({ gasto: g }: GastoDetalleProps) {
   return (
@@ -42,7 +38,7 @@ export function GastoDetalle({ gasto: g }: GastoDetalleProps) {
           <div className="mt-4 pt-4 border-t border-stone-100">
             <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Pago</p>
             <div className="flex items-center gap-3 text-sm">
-              <span className={`text-xs px-2 py-0.5 rounded-full ${ESTADO_COLOR[g.estadoPago] ?? 'bg-stone-100'}`}>{g.estadoPago.toLowerCase()}</span>
+              <EstadoPagoBadge estado={g.estadoPago} />
               {g.montoPagado != null && <span className="text-stone-500">Pagado: <strong>{fmt$(g.montoPagado)}</strong></span>}
               {g.fechaPago && <span className="text-stone-500">el {g.fechaPago}</span>}
               {g.formaPago && <span className="text-stone-500">· {g.formaPago}</span>}

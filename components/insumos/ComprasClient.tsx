@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
 
 interface Compra {
   id: string;
@@ -15,12 +16,6 @@ interface Compra {
   proveedor: { nombre: string };
   lineas: { id: string }[];
 }
-
-const ESTADO_PAGO_COLOR: Record<string, string> = {
-  PENDIENTE: 'bg-amber-100 text-amber-700',
-  PARCIAL:   'bg-blue-100 text-blue-700',
-  PAGADA:    'bg-emerald-100 text-emerald-700',
-};
 
 function fechaCorta(iso: string) {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -73,9 +68,7 @@ export function ComprasClient() {
               </div>
               <span className="text-xs font-mono text-stone-500">{c.numeroFactura || '--'}</span>
               <span className="text-sm font-bold text-stone-800 tabular-nums text-right">${fmt(c.totalBruto)}</span>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ESTADO_PAGO_COLOR[c.estadoPago] || 'bg-stone-100'}`}>
-                {c.estadoPago}
-              </span>
+              <EstadoPagoBadge estado={c.estadoPago} />
               <Link href={`/inventario/compras/${c.id}`}
                 className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
                 Ver
