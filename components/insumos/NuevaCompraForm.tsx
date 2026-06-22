@@ -3,6 +3,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 
 interface Proveedor { id: string; nombre: string; }
 interface InsumoOpt { id: string; nombre: string; categoria: string; tipoTrazabilidad: string; unidadDefault: string; activo: boolean; }
@@ -214,23 +218,14 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
       <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
         <h3 className="text-sm font-bold text-stone-800 mb-2">Datos de la compra</h3>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-          <div>
-            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Proveedor *</label>
-            <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} required className={inp}>
-              <option value="">-- Seleccionar --</option>
-              {proveedores.filter((p) => 'activo' in p ? p.activo : true).map((p) => (
-                <option key={p.id} value={p.id}>{p.nombre}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Fecha *</label>
-            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required className={inp} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nro. factura</label>
-            <input type="text" value={numeroFactura} onChange={(e) => setNumeroFactura(e.target.value)} placeholder="Ej: A-0099" className={inp} />
-          </div>
+          <Select label="Proveedor *" fullWidth value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} required>
+            <option value="">-- Seleccionar --</option>
+            {proveedores.filter((p) => 'activo' in p ? p.activo : true).map((p) => (
+              <option key={p.id} value={p.id}>{p.nombre}</option>
+            ))}
+          </Select>
+          <Input label="Fecha *" fullWidth type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} required />
+          <Input label="Nro. factura" fullWidth type="text" value={numeroFactura} onChange={(e) => setNumeroFactura(e.target.value)} placeholder="Ej: A-0099" />
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Total bruto *</label>
             <NumInput value={parseFloat(totalBruto) || 0} onChange={(n) => setTotalBruto(n ? String(n) : '')}
@@ -258,35 +253,23 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
               Precios con IVA
             </label>
           </div>
-          <div>
-            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Forma de pago</label>
-            <input type="text" value={formaPago} onChange={(e) => setFormaPago(e.target.value)} placeholder="Transferencia, cheque..." className={inp} />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Estado de pago</label>
-            <select value={estadoPago} onChange={(e) => setEstadoPago(e.target.value)} className={inp}>
-              <option value="PENDIENTE">Pendiente</option>
-              <option value="PARCIAL">Parcial</option>
-              <option value="PAGADA">Pagada</option>
-            </select>
-          </div>
+          <Input label="Forma de pago" fullWidth type="text" value={formaPago} onChange={(e) => setFormaPago(e.target.value)} placeholder="Transferencia, cheque..." />
+          <Select label="Estado de pago" fullWidth value={estadoPago} onChange={(e) => setEstadoPago(e.target.value)}>
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="PARCIAL">Parcial</option>
+            <option value="PAGADA">Pagada</option>
+          </Select>
           {(estadoPago === 'PARCIAL' || estadoPago === 'PAGADA') && (
             <>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Monto pagado</label>
                 <NumInput value={parseFloat(montoPagado) || 0} onChange={(n) => setMontoPagado(n ? String(n) : '')} min="0" step="0.01" className={inp} />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Fecha de pago</label>
-                <input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className={inp} />
-              </div>
+              <Input label="Fecha de pago" fullWidth type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} />
             </>
           )}
         </div>
-        <div>
-          <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Notas</label>
-          <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className={`${inp} resize-none`} />
-        </div>
+        <Textarea label="Notas" fullWidth value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className="resize-none" />
         {totalBrutoNum > 0 && (
           <div className="bg-stone-50 rounded-xl px-4 py-3 text-sm text-stone-600 flex items-center gap-4">
             <span>Total neto (sin IVA): <strong className="text-stone-800">${fmt(totalNetoCalc)}</strong></span>
@@ -403,14 +386,12 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
       )}
 
       <div className="flex gap-3">
-        <button type="submit" disabled={saving}
-          className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white px-6 py-3 rounded-xl text-sm font-semibold transition">
-          {saving ? 'Guardando...' : editando ? 'Guardar cambios' : 'Registrar compra'}
-        </button>
-        <button type="button" onClick={() => router.back()}
-          className="px-4 py-3 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+        <Button type="submit" size="lg" isLoading={saving}>
+          {editando ? 'Guardar cambios' : 'Registrar compra'}
+        </Button>
+        <Button type="button" variant="secondary" size="lg" onClick={() => router.back()}>
           Cancelar
-        </button>
+        </Button>
       </div>
     </form>
   );

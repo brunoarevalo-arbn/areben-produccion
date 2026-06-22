@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
 
 interface Etiqueta {
   id: string; nombre: string; tipo: string | null; precio: number; stock: number | null;
@@ -15,7 +17,7 @@ const UNIDADES = ['etiqueta', 'unidad'];
 const MARCAS = ['Zattia', 'Stunned'];
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
-const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400';
+const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 const card = 'bg-white rounded-2xl border border-stone-200';
 
 // Catálogo de avíos/etiquetas (sistema liviano): nombre + precio + stock opcional.
@@ -150,8 +152,7 @@ export function AviosCatalogoManager() {
                 </span>
                 <button onClick={() => startIngreso(it)}
                   className="text-xs px-2 py-1 border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50 transition">+ Ingresar</button>
-                <button onClick={() => startEdit(it)}
-                  className="text-xs px-2 py-1 border border-stone-200 rounded-lg text-stone-500 hover:border-stone-400 transition">Editar</button>
+                <Button variant="secondary" size="sm" onClick={() => startEdit(it)}>Editar</Button>
                 <button onClick={() => eliminar(it.id, it.nombre)}
                   className="text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">×</button>
               </div>
@@ -203,10 +204,9 @@ export function AviosCatalogoManager() {
                 <div className="flex items-center gap-2 justify-between">
                   <span className="text-xs text-stone-500">Total: <strong>{fmt$((ingCant || 0) * (ingCosto || 0))}</strong></span>
                   <div className="flex gap-2">
-                    <button onClick={() => guardarIngreso(it.id)} disabled={ingSaving || !ingCant}
-                      className="text-xs bg-stone-900 text-white px-3 py-1.5 rounded-lg font-semibold disabled:opacity-50">
-                      {ingSaving ? '...' : ingProv ? 'Registrar compra' : 'Ingresar'}
-                    </button>
+                    <Button size="sm" onClick={() => guardarIngreso(it.id)} disabled={!ingCant} isLoading={ingSaving}>
+                      {ingProv ? 'Registrar compra' : 'Ingresar'}
+                    </Button>
                     <button onClick={() => setIngId(null)} className="text-xs text-stone-400 hover:text-stone-600 px-2">Cancelar</button>
                   </div>
                 </div>
@@ -217,8 +217,8 @@ export function AviosCatalogoManager() {
       </div>
 
       <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3 space-y-2">
-        <input type="text" value={nombre} onChange={e => setNombre(e.target.value)}
-          placeholder="Nombre del avío (ej: Badana PU Zattia Negro)" className={`w-full ${inp}`} />
+        <Input fullWidth type="text" value={nombre} onChange={e => setNombre(e.target.value)}
+          placeholder="Nombre del avío (ej: Badana PU Zattia Negro)" />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <select value={categoria} onChange={e => setCategoria(e.target.value)} className={`${inp} capitalize`}>
             {CATEGORIAS.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
@@ -239,10 +239,9 @@ export function AviosCatalogoManager() {
           </select>
           <NumInput value={precio} onChange={setPrecio} placeholder="$ precio ref." min="0" step="0.01" className={`${inp} col-span-2`} />
         </div>
-        <button onClick={agregar} disabled={saving || !nombre.trim()}
-          className="w-full px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition">
+        <Button onClick={agregar} disabled={!nombre.trim()} isLoading={saving} className="w-full">
           + Agregar avío
-        </button>
+        </Button>
       </div>
     </div>
   );
