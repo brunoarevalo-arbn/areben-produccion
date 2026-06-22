@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
 
 interface OrdenActiva { id: string; sku: string | null; descripcion: string | null; marca: string; }
 interface ProveedorOpt { id: string; nombre: string; activo: boolean; }
@@ -170,10 +171,9 @@ export function GastoCompraForm({ defaultCategoria = 'desarrollo', onCreado }: {
       {error && <p className="text-red-500 text-xs">{error}</p>}
       {success && <p className="text-emerald-600 text-xs font-semibold">{success}</p>}
 
-      <button type="submit" disabled={saving || !monto}
-        className="w-full bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-semibold transition">
-        {saving ? 'Guardando...' : proveedorId ? 'Registrar compra' : 'Registrar gasto'}
-      </button>
+      <Button type="submit" isLoading={saving} disabled={saving || !monto} className="w-full">
+        {proveedorId ? 'Registrar compra' : 'Registrar gasto'}
+      </Button>
     </form>
   );
 }

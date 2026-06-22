@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { Badge } from '@/components/ui/Badge';
 
 interface Fila {
   origen: 'compra' | 'gasto';
@@ -63,8 +64,8 @@ export function ComprasUnificadasClient() {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-semibold text-stone-800">{f.proveedorNombre}</span>
                 {f.generaStock
-                  ? <span className="text-xs bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">insumos</span>
-                  : <span className="text-xs bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded-full">gasto</span>}
+                  ? <Badge variant="violet">insumos</Badge>
+                  : <Badge variant="default">gasto</Badge>}
                 {f.estadoPago && (
                   <span className={`text-xs px-1.5 py-0.5 rounded-full ${ESTADO_COLOR[f.estadoPago] ?? 'bg-stone-100 text-stone-500'}`}>
                     {f.estadoPago.toLowerCase()}

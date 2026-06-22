@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { GastoCompraForm } from '@/components/compras/GastoCompraForm';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
 interface Gasto {
   id:        string;
@@ -90,9 +92,9 @@ function GastoRow({ gasto, costoMinuto, onDelete }: { gasto: Gasto; costoMinuto:
     <div className="px-4 py-3 flex items-center gap-3 border-t border-stone-100 first:border-0">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-bold uppercase tracking-wide text-stone-500 bg-stone-100 px-1.5 py-0.5 rounded">
+          <Badge variant="default" className="font-bold uppercase tracking-wide">
             {gasto.tipo}
-          </span>
+          </Badge>
           {gasto.marca && (
             <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${gasto.marca === 'Zattia' ? 'bg-violet-100 text-violet-700' : 'bg-pink-100 text-pink-700'}`}>
               {gasto.marca}
@@ -109,10 +111,10 @@ function GastoRow({ gasto, costoMinuto, onDelete }: { gasto: Gasto; costoMinuto:
         <button onClick={() => setConfirming(true)} className="text-stone-300 hover:text-red-400 text-sm transition shrink-0">×</button>
       ) : (
         <div className="flex gap-1 shrink-0">
-          <button onClick={handleDelete} disabled={deleting} className="text-xs bg-red-600 text-white px-2 py-1 rounded font-semibold disabled:opacity-50">
-            {deleting ? '...' : 'Sí'}
-          </button>
-          <button onClick={() => setConfirming(false)} className="text-xs border border-stone-200 px-2 py-1 rounded text-stone-500">No</button>
+          <Button onClick={handleDelete} variant="danger" size="sm" isLoading={deleting}>
+            Sí
+          </Button>
+          <Button onClick={() => setConfirming(false)} variant="secondary" size="sm">No</Button>
         </div>
       )}
     </div>

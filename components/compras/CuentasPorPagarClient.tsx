@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
 interface Row {
   origen: 'compra' | 'gasto';
@@ -83,7 +85,7 @@ export function CuentasPorPagarClient() {
                       <span className={`text-xs px-1.5 py-0.5 rounded-full ${row.estadoPago === 'PARCIAL' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
                         {row.estadoPago.toLowerCase()}
                       </span>
-                      <span className="text-xs bg-stone-100 text-stone-500 px-1.5 py-0.5 rounded-full">{row.origen === 'compra' ? 'insumos' : 'gasto'}</span>
+                      <Badge variant="default">{row.origen === 'compra' ? 'insumos' : 'gasto'}</Badge>
                     </div>
                     <p className="text-xs text-stone-400 mt-0.5">
                       {row.fecha} · total {fmt$(row.monto)}{row.montoPagado > 0 ? ` · pagado ${fmt$(row.montoPagado)}` : ''}
@@ -115,10 +117,9 @@ export function CuentasPorPagarClient() {
                       <label className="text-xs text-stone-500 mb-1 block">Fecha</label>
                       <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inp} />
                     </div>
-                    <button onClick={() => registrar(row)} disabled={saving}
-                      className="text-xs bg-stone-900 text-white px-3 py-1.5 rounded-lg font-semibold disabled:opacity-50">
-                      {saving ? '...' : 'Confirmar'}
-                    </button>
+                    <Button onClick={() => registrar(row)} size="sm" isLoading={saving}>
+                      Confirmar
+                    </Button>
                     <button onClick={() => setPagoId(null)} className="text-xs text-stone-400 hover:text-stone-600 px-2 py-1.5">Cancelar</button>
                   </div>
                 )}
