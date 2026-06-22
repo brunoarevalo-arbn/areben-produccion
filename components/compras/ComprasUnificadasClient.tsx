@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface Fila {
   origen: 'compra' | 'gasto';
@@ -40,7 +41,7 @@ export function ComprasUnificadasClient() {
   const pill = (active: boolean) =>
     `px-4 py-1.5 rounded-full text-xs font-semibold border transition capitalize ${active ? 'bg-stone-900 border-stone-900 text-white' : 'bg-white border-stone-200 text-stone-500 hover:border-stone-400'}`;
 
-  if (loading) return <p className="text-stone-400 text-sm text-center py-10">Cargando...</p>;
+  if (loading) return <LoadingState />;
 
   return (
     <div className="space-y-4">

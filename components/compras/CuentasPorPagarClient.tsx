@@ -6,6 +6,8 @@ import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { fmtMoney } from '@/lib/format';
 
 interface Row {
@@ -63,13 +65,9 @@ export function CuentasPorPagarClient() {
 
   const totalGlobal = grupos.reduce((s, g) => s + g.totalPendiente, 0);
 
-  if (loading) return <p className="text-stone-400 text-sm text-center py-10">Cargando...</p>;
+  if (loading) return <LoadingState />;
   if (grupos.length === 0) {
-    return (
-      <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-10 text-center">
-        <p className="text-stone-400 text-sm">No hay cuentas por pagar. Todo al día. 🎉</p>
-      </div>
-    );
+    return <EmptyState message="No hay cuentas por pagar. Todo al día. 🎉" />;
   }
 
   return (

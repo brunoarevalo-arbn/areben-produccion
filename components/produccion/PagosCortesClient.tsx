@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface OrdenCorte {
   id: string;
@@ -187,7 +188,7 @@ export function PagosCortesClient() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-stone-400 text-center py-10">Cargando...</p>
+          <LoadingState />
         ) : ordenes.length === 0 ? (
           <p className="text-sm text-stone-400 text-center py-10">Sin cortes</p>
         ) : (

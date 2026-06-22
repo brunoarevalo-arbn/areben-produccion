@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { minutosAHorasMin } from '@/lib/utils/calculos';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
@@ -86,10 +87,7 @@ export default async function ReporteSkuPage() {
       />
 
       {filas.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-12 text-center">
-          <div className="text-4xl mb-3">📦</div>
-          <p className="text-stone-500 text-sm">Sin cortes terminados todavía.</p>
-        </div>
+        <EmptyState icon="📦" message="Sin cortes terminados todavía." />
       ) : (
         <div className="space-y-3">
           {filas.map((f) => (

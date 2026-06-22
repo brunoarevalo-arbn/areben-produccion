@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface Movimiento {
   id: string;
@@ -63,7 +64,7 @@ export function MovimientosClient() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-stone-400 text-center py-10">Cargando...</p>
+          <LoadingState />
         ) : movimientos.length === 0 ? (
           <p className="text-sm text-stone-400 text-center py-10">Sin movimientos</p>
         ) : (

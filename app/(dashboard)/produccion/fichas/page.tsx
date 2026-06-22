@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,9 +63,7 @@ export default async function FichasPage() {
         <p className="text-stone-500 text-sm mb-4">Órdenes que todavía no tienen su ficha de corte registrada.</p>
 
         {pendientes.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-10 text-center">
-            <p className="text-stone-400 text-sm">No hay fichas pendientes. 🎉</p>
-          </div>
+          <EmptyState message="No hay fichas pendientes. 🎉" />
         ) : (
           <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
             {pendientes.map((o) => (
@@ -96,9 +95,7 @@ export default async function FichasPage() {
         <p className="text-stone-500 text-sm mb-4">Todas las órdenes con SKU generado. Entrá a cada una para ver o editar su ficha.</p>
 
         {conSku.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-10 text-center">
-            <p className="text-stone-400 text-sm">No hay SKU en producción todavía.</p>
-          </div>
+          <EmptyState message="No hay SKU en producción todavía." />
         ) : (
           <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
             {conSku.map((o) => (

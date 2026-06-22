@@ -1,6 +1,7 @@
 'use client';
 
 import { TiemposProduccion } from '@/types/tiempos';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface LogRegistrosProps {
   registros: TiemposProduccion[];
@@ -27,11 +28,7 @@ const ICONOS: Record<string, string> = {
 
 export function LogRegistros({ registros, loading }: LogRegistrosProps) {
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-10 text-stone-400 text-sm">
-        <span className="animate-pulse">Cargando registros...</span>
-      </div>
-    );
+    return <LoadingState label="Cargando registros…" />;
   }
 
   if (registros.length === 0) {

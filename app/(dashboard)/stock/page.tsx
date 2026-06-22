@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { necesitaReposicion } from '@/lib/utils/calculos';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,13 +40,11 @@ export default async function StockPage() {
       />
 
       {stock.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-16 text-center">
-          <div className="text-5xl mb-4">📦</div>
-          <h2 className="text-lg font-semibold text-stone-700 mb-2">Sin stock registrado</h2>
-          <p className="text-stone-400 text-sm">
-            El inventario se actualiza automáticamente cuando se registran movimientos de producción.
-          </p>
-        </div>
+        <EmptyState
+          icon="📦"
+          title="Sin stock registrado"
+          message="El inventario se actualiza automáticamente cuando se registran movimientos de producción."
+        />
       ) : (
         <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
           <div className="overflow-x-auto"><table className="w-full text-sm">

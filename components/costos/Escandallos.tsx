@@ -11,6 +11,8 @@ import {
   deepClone, parseDatos, calcular, itemCosto,
 } from '@/lib/costos/escandallo';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface Escandallo {
   id: string; nombre: string; sku: string | null; marca: string | null;
@@ -272,7 +274,7 @@ export function Escandallos() {
     if (r.ok) setLista(prev => prev.filter(e => e.id !== id));
   };
 
-  if (loading) return <div className="text-center py-16 text-stone-400 text-sm">Cargando...</div>;
+  if (loading) return <LoadingState />;
 
   const inp = 'w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
   const lbl = 'text-xs text-stone-400 mb-1 block';
@@ -307,9 +309,7 @@ export function Escandallos() {
             {subTab === 'pendientes' && (
               <div className="space-y-3">
                 {pendientes.length === 0 && (
-                  <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-12 text-center">
-                    <p className="text-stone-400 text-sm">No hay SKU producidos pendientes de costear.</p>
-                  </div>
+                  <EmptyState message="No hay SKU producidos pendientes de costear." />
                 )}
                 {pendientes.map(p => (
                   <div key={p.sku} className="flex items-center gap-3 bg-white rounded-2xl border border-amber-200 px-4 py-3">
@@ -361,9 +361,7 @@ export function Escandallos() {
               <>
                 <div className="space-y-3">
                   {lista.length === 0 && (
-                    <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-12 text-center">
-                      <p className="text-stone-400 text-sm">No hay escandallos creados todavía.</p>
-                    </div>
+                    <EmptyState message="No hay escandallos creados todavía." />
                   )}
                   {lista.map(e => {
                     const c = calcular(parseDatos(e.datos), costoMinuto, margenes);

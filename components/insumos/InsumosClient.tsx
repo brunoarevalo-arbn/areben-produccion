@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface RolloResumen { id: string; codigo: string; pesoActual: string; costoUnitario: string; estado: string; colorId: string | null; }
 interface LoteResumen  { id: string; codigo: string; cantidadActual: string; costoUnitario: string; estado: string; colorId: string | null; }
@@ -66,7 +67,7 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
       </div>
 
       {loading ? (
-        <p className="text-stone-400 text-sm text-center py-10">Cargando...</p>
+        <LoadingState />
       ) : filtrados.length === 0 ? (
         <p className="text-stone-400 text-sm text-center py-10">Sin insumos. Cargalos desde Configuracion.</p>
       ) : (

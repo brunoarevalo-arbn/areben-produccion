@@ -7,6 +7,8 @@ import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { LoadingState } from '@/components/ui/LoadingState';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface Registro {
   id: string;
@@ -142,17 +144,19 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
       </div>
 
       {loading && (
-        <div className="text-center py-12 text-stone-400 text-sm">Cargando...</div>
+        <LoadingState />
       )}
 
       {!loading && data && data.totalRegistros === 0 && (
-        <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-12 text-center">
-          <div className="text-4xl mb-3">📋</div>
-          <p className="text-stone-500 text-sm">Sin registros para esta fecha.</p>
-          <Link href="/tiempos" className="inline-block mt-4 text-xs text-amber-600 hover:text-amber-800 font-semibold">
-            Ir a registrar tiempos →
-          </Link>
-        </div>
+        <EmptyState
+          icon="📋"
+          message="Sin registros para esta fecha."
+          action={
+            <Link href="/tiempos" className="text-xs text-amber-600 hover:text-amber-800 font-semibold">
+              Ir a registrar tiempos →
+            </Link>
+          }
+        />
       )}
 
       {!loading && data && data.totalRegistros > 0 && (

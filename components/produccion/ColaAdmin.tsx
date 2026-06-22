@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface Transicion { fecha: string; estadoNuevo: string; }
 
@@ -365,7 +366,7 @@ export function ColaAdmin() {
         </div>
 
         {loading ? (
-          <div className="px-5 py-10 text-center text-stone-400 text-sm">Cargando...</div>
+          <LoadingState />
         ) : filtradas.length === 0 ? (
           <div className="px-5 py-10 text-center text-stone-400 text-sm">Sin ordenes</div>
         ) : (

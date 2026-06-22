@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface GastoFijo { id: string; nombre: string; monto: number; categoria: string; activo: boolean; }
 interface CostoCosturera { id: string; usuarioId: string; sueldoBruto: number; cargasSociales: number; horasMes: number; }
@@ -117,7 +118,7 @@ export function Parametros() {
 
   const inputCls = 'w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 
-  if (loading) return <div className="text-center py-16 text-stone-400 text-sm">Cargando...</div>;
+  if (loading) return <LoadingState />;
 
   return (
     <div className="space-y-8 max-w-3xl">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface Huerfano {
   id: string;
@@ -92,7 +93,7 @@ export function SinColorClient() {
   return (
     <div className="space-y-5">
       {loading ? (
-        <p className="text-stone-400 text-sm text-center py-10">Cargando...</p>
+        <LoadingState />
       ) : items.length === 0 ? (
         <div className="bg-white rounded-2xl border border-stone-200 p-10 text-center">
           <p className="text-stone-400 text-sm">No hay rollos ni lotes sin color asignado.</p>

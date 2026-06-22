@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface Rollo {
   id: string;
@@ -63,7 +64,7 @@ export function RollosClient() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-stone-400 text-center py-10">Cargando...</p>
+          <LoadingState />
         ) : rollos.length === 0 ? (
           <p className="text-sm text-stone-400 text-center py-10">Sin rollos</p>
         ) : (

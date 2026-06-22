@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface Lote {
   id: string;
@@ -59,7 +60,7 @@ export function LotesClient() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-stone-400 text-center py-10">Cargando...</p>
+          <LoadingState />
         ) : lotes.length === 0 ? (
           <p className="text-sm text-stone-400 text-center py-10">Sin lotes</p>
         ) : (

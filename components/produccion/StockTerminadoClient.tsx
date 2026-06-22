@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface Item { id: string; sku: string; talle: string; tipo: string; cantidad: number; }
 interface Grupo { sku: string; tipo: string; talles: Item[]; total: number; }
@@ -26,7 +27,7 @@ export function StockTerminadoClient() {
     }, {} as Record<string, Grupo>),
   );
 
-  if (loading) return <p className="text-stone-400 text-sm text-center py-10">Cargando...</p>;
+  if (loading) return <LoadingState />;
 
   if (grupos.length === 0) {
     return (

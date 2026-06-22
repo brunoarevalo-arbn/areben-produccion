@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 interface Compra {
   id: string;
@@ -54,7 +55,7 @@ export function ComprasClient() {
         </div>
 
         {loading ? (
-          <p className="text-sm text-stone-400 text-center py-10">Cargando...</p>
+          <LoadingState />
         ) : compras.length === 0 ? (
           <p className="text-sm text-stone-400 text-center py-10">Sin compras registradas</p>
         ) : (
