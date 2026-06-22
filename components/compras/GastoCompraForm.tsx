@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Checkbox } from '@/components/ui/Checkbox';
 
 interface OrdenActiva { id: string; sku: string | null; descripcion: string | null; marca: string; }
 interface ProveedorOpt { id: string; nombre: string; activo: boolean; }
@@ -13,7 +16,8 @@ const TIPOS: Tipo[] = ['tela', 'insumos', 'periodo'];
 const MARCAS = ['Zattia', 'Stunned'] as const;
 const ESTADOS = ['PENDIENTE', 'PARCIAL', 'PAGADA'] as const;
 
-const inp = 'w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
+// Estilo para los NumInput (que no se estilan solos), alineado al de <Input>.
+const inp = 'w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm text-stone-900 focus:outline-none focus:border-amber-400';
 
 // Form compartido para "gasto / compra sin stock". Se usa en /compras/nueva y
 // en /gastos. Si elegís un proveedor, el gasto es una compra (aparece en Compras).
@@ -122,48 +126,49 @@ export function GastoCompraForm({ defaultCategoria = 'desarrollo', onCreado }: {
               </button>
             ))}
           </div>
-          <input type="text" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} placeholder="SKU (opcional)" className={inp} />
+          <Input value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} placeholder="SKU (opcional)" fullWidth />
         </div>
       ) : (
-        <select value={ordenId} onChange={(e) => setOrdenId(e.target.value)} className={inp}>
+        <Select value={ordenId} onChange={(e) => setOrdenId(e.target.value)} fullWidth>
           <option value="">— Sin orden específica —</option>
           {ordenes.map((o) => <option key={o.id} value={o.id}>{o.sku} · {o.marca}{o.descripcion ? ` — ${o.descripcion}` : ''}</option>)}
-        </select>
+        </Select>
       )}
 
       {/* Monto + concepto */}
       <div className="grid grid-cols-2 gap-2">
         <NumInput value={parseFloat(monto) || 0} onChange={(n) => setMonto(n ? String(n) : '')} placeholder="Monto $" className={inp} />
-        <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={inp} />
+        <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} fullWidth />
       </div>
-      <input type="text" value={concepto} onChange={(e) => setConcepto(e.target.value)} placeholder="Concepto (opcional)" className={inp} />
+      <Input value={concepto} onChange={(e) => setConcepto(e.target.value)} placeholder="Concepto (opcional)" fullWidth />
 
       {/* Proveedor + factura (lo que lo convierte en "compra") */}
       <div className="border-t border-stone-200 pt-3 space-y-2">
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Compra a proveedor (opcional)</p>
         <div className="grid grid-cols-2 gap-2">
-          <select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} className={inp}>
+          <Select value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} fullWidth>
             <option value="">— Sin proveedor (gasto interno) —</option>
             {proveedores.filter((p) => p.activo).map((p) => <option key={p.id} value={p.id}>{p.nombre}</option>)}
-          </select>
-          <input type="text" value={numeroFactura} onChange={(e) => setNumeroFactura(e.target.value)} placeholder="N° factura (opcional)" className={inp} />
+          </Select>
+          <Input value={numeroFactura} onChange={(e) => setNumeroFactura(e.target.value)} placeholder="N° factura (opcional)" fullWidth />
         </div>
 
         {proveedorId && (
-          <label className="flex items-center gap-2 text-xs text-stone-600 cursor-pointer">
-            <input type="checkbox" checked={seguirPago} onChange={(e) => setSeguirPago(e.target.checked)} className="rounded border-stone-300" />
-            Seguir el pago (pendiente / parcial / pagada)
-          </label>
+          <Checkbox
+            checked={seguirPago}
+            onChange={(e) => setSeguirPago(e.target.checked)}
+            label="Seguir el pago (pendiente / parcial / pagada)"
+          />
         )}
 
         {proveedorId && seguirPago && (
           <div className="grid grid-cols-2 gap-2">
-            <select value={estadoPago} onChange={(e) => setEstadoPago(e.target.value as typeof ESTADOS[number])} className={inp}>
+            <Select value={estadoPago} onChange={(e) => setEstadoPago(e.target.value as typeof ESTADOS[number])} fullWidth>
               {ESTADOS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
+            </Select>
             <NumInput value={parseFloat(montoPagado) || 0} onChange={(n) => setMontoPagado(n ? String(n) : '')} placeholder="Monto pagado $" className={inp} />
-            <input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className={inp} />
-            <input type="text" value={formaPago} onChange={(e) => setFormaPago(e.target.value)} placeholder="Forma de pago" className={inp} />
+            <Input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} fullWidth />
+            <Input value={formaPago} onChange={(e) => setFormaPago(e.target.value)} placeholder="Forma de pago" fullWidth />
           </div>
         )}
       </div>

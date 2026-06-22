@@ -412,8 +412,9 @@ export function ColaAdmin() {
                   {siguientes.length > 0 && (
                     <select
                       value=""
+                      aria-label="Avanzar estado"
                       onChange={(e) => { if (e.target.value) cambiarEstado(orden.id, e.target.value); }}
-                      className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 bg-white cursor-pointer"
+                      className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 bg-white cursor-pointer focus:outline-none focus:border-amber-400"
                     >
                       <option value="">Avanzar</option>
                       {siguientes.map((s) => (
