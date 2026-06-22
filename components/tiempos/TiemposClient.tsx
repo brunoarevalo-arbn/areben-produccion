@@ -33,7 +33,7 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
   const tiempos = useTiempos(usuario.nombre);
 
   const handleDescartar = async () => {
-    const ok = await confirmAsync('¿Descartar el registro en curso? Se va a perder el tiempo medido.');
+    const ok = await confirmAsync({ message: '¿Descartar el registro en curso? Se va a perder el tiempo medido.', danger: true, confirmLabel: 'Descartar' });
     if (ok) tiempos.descartar();
   };
 

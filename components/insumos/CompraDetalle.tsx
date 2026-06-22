@@ -73,7 +73,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
   };
 
   const revertir = async () => {
-    if (!(await confirmAsync('Esta accion revierte la compra completa: anula todos los rollos y lotes creados. Continuar?'))) return;
+    if (!(await confirmAsync({ message: 'Esta accion revierte la compra completa: anula todos los rollos y lotes creados. Continuar?', danger: true, confirmLabel: 'Revertir' }))) return;
     const r = await fetch(`/api/compras/${compra.id}/revertir`, { method: 'POST' });
     if (r.ok) {
       router.refresh();

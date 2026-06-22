@@ -88,7 +88,7 @@ export function Parametros() {
   };
 
   const eliminarGasto = async (id: string) => {
-    if (!(await confirmAsync('¿Eliminar este gasto?'))) return;
+    if (!(await confirmAsync({ message: '¿Eliminar este gasto?', danger: true, confirmLabel: 'Eliminar' }))) return;
     const r = await fetch(`/api/costos/gastos/${id}`, { method: 'DELETE' });
     if (r.ok) setGastos((prev) => prev.filter((g) => g.id !== id));
   };

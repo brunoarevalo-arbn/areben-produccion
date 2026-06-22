@@ -114,7 +114,7 @@ function FaseRow({ fase, onChange }: { fase: Fase; onChange: () => void }) {
   };
 
   const eliminar = async () => {
-    if (!(await confirmAsync(`¿Eliminar la fase "${fase.nombre}"?`))) return;
+    if (!(await confirmAsync({ message: `¿Eliminar la fase "${fase.nombre}"?`, danger: true, confirmLabel: 'Eliminar' }))) return;
     const r = await fetch(`/api/fase-catalogo/${fase.id}`, { method: 'DELETE' });
     if (r.ok) onChange();
     else {

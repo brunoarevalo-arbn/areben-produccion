@@ -84,7 +84,7 @@ export function ProyectoView({ proyecto, catalogoFases, estadoActual }: Props) {
   };
 
   const eliminar = async () => {
-    if (!(await confirmAsync(`¿Eliminar el proyecto "${proyecto.nombre}"? No se puede deshacer.`))) return;
+    if (!(await confirmAsync({ message: `¿Eliminar el proyecto "${proyecto.nombre}"? No se puede deshacer.`, danger: true, confirmLabel: 'Eliminar' }))) return;
     await fetch(`/api/proyectos/${proyecto.id}`, { method: 'DELETE' });
     router.push('/diseno');
   };
@@ -469,7 +469,7 @@ function MuestraRow({
   };
 
   const eliminar = async () => {
-    if (!(await confirmAsync(`¿Eliminar la muestra v${iteracion.version}?`))) return;
+    if (!(await confirmAsync({ message: `¿Eliminar la muestra v${iteracion.version}?`, danger: true, confirmLabel: 'Eliminar' }))) return;
     await fetch(`/api/proyectos/${proyectoId}/muestras/${iteracion.id}`, { method: 'DELETE' });
     onChange();
   };
@@ -636,7 +636,7 @@ function FaseIniciada({
   const reabrir   = () => guardar({ estado: 'en_progreso' });
 
   const desinciar = async () => {
-    if (!(await confirmAsync(`¿Deshacer el inicio de la fase "${fase.nombre}"? Se borra el registro.`))) return;
+    if (!(await confirmAsync({ message: `¿Deshacer el inicio de la fase "${fase.nombre}"? Se borra el registro.`, danger: true, confirmLabel: 'Deshacer' }))) return;
     await fetch(`/api/proyectos/${proyectoId}/fases/${fase.id}`, { method: 'DELETE' });
     onChange();
   };

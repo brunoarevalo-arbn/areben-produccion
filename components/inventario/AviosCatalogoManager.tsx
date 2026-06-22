@@ -115,7 +115,7 @@ export function AviosCatalogoManager() {
   };
 
   const eliminar = async (id: string, nom: string) => {
-    if (!(await confirmAsync(`¿Eliminar la etiqueta "${nom}"?`))) return;
+    if (!(await confirmAsync({ message: `¿Eliminar la etiqueta "${nom}"?`, danger: true, confirmLabel: 'Eliminar' }))) return;
     const r = await fetch(`/api/costos/etiquetas/${id}`, { method: 'DELETE' });
     if (r.ok) setItems(prev => prev.filter(x => x.id !== id));
   };

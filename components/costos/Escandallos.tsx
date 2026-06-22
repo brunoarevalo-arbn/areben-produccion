@@ -267,7 +267,7 @@ export function Escandallos() {
   };
 
   const eliminar = async (id: string, nom: string) => {
-    if (!(await confirmAsync(`¿Eliminar el escandallo "${nom}"?`))) return;
+    if (!(await confirmAsync({ message: `¿Eliminar el escandallo "${nom}"?`, danger: true, confirmLabel: 'Eliminar' }))) return;
     const r = await fetch(`/api/costos/escandallos/${id}`, { method: 'DELETE' });
     if (r.ok) setLista(prev => prev.filter(e => e.id !== id));
   };

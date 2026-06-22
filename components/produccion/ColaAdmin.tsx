@@ -249,7 +249,7 @@ export function ColaAdmin() {
 
   // Revierte la ficha actual (devuelve el stock) para poder volver a cargarla.
   const revertirFicha = async (id: string) => {
-    if (!(await confirmAsync('Esto revierte la ficha actual y devuelve el stock consumido, para que la vuelvas a cargar. ¿Continuar?'))) return;
+    if (!(await confirmAsync({ message: 'Esto revierte la ficha actual y devuelve el stock consumido, para que la vuelvas a cargar. ¿Continuar?', danger: true, confirmLabel: 'Revertir' }))) return;
     const r = await fetch(`/api/produccion/cola/${id}/corte/revertir`, { method: 'POST' });
     if (r.ok) cargar();
     else { const d = await r.json().catch(() => ({})); alert(d.error || 'Error al revertir'); }
@@ -295,7 +295,7 @@ export function ColaAdmin() {
   };
 
   const eliminar = async (id: string, sku: string | null) => {
-    if (!(await confirmAsync(`Eliminar la orden "${sku ?? 'sin SKU'}"?`))) return;
+    if (!(await confirmAsync({ message: `Eliminar la orden "${sku ?? 'sin SKU'}"?`, danger: true, confirmLabel: 'Eliminar' }))) return;
     const r = await fetch(`/api/produccion/cola/${id}`, { method: 'DELETE' });
     if (r.ok) setOrdenes((prev) => prev.filter((o) => o.id !== id));
   };

@@ -68,7 +68,7 @@ export function CatalogoManager({ items: initial, apiBase, label, placeholder }:
   };
 
   const eliminar = async (id: string, nombre: string) => {
-    if (!(await confirmAsync(`¿Eliminar "${nombre}"?`))) return;
+    if (!(await confirmAsync({ message: `¿Eliminar "${nombre}"?`, danger: true, confirmLabel: 'Eliminar' }))) return;
     const r = await fetch(`${apiBase}/${id}`, { method: 'DELETE' });
     if (r.ok) setItems((prev) => prev.filter((i) => i.id !== id));
   };

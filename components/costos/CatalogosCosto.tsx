@@ -57,7 +57,7 @@ function CostosCorteManager() {
   };
 
   const eliminar = async (id: string, tp: string) => {
-    if (!(await confirmAsync(`¿Eliminar el costo de corte de "${tp}"?`))) return;
+    if (!(await confirmAsync({ message: `¿Eliminar el costo de corte de "${tp}"?`, danger: true, confirmLabel: 'Eliminar' }))) return;
     const r = await fetch(`/api/costos/costos-corte/${id}`, { method: 'DELETE' });
     if (r.ok) setItems(prev => prev.filter(x => x.id !== id));
   };

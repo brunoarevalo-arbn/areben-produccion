@@ -190,7 +190,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
   };
 
   const handleDelete = async (id: string, nombre: string) => {
-    if (!(await confirmAsync(`¿Eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`))) return;
+    if (!(await confirmAsync({ message: `¿Eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`, danger: true, confirmLabel: 'Eliminar' }))) return;
     try {
       const res = await fetch(`/api/usuarios/${id}`, { method: 'DELETE' });
       if (res.ok) {

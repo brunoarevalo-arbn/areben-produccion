@@ -160,7 +160,7 @@ function EntryRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
   };
 
   const eliminar = async () => {
-    if (!(await confirmAsync(`¿Eliminar "${entry.nombre}"? Si ya hay órdenes que usan esta abreviatura, se mantienen pero no se podrán generar nuevas con esta opción.`))) return;
+    if (!(await confirmAsync({ message: `¿Eliminar "${entry.nombre}"? Si ya hay órdenes que usan esta abreviatura, se mantienen pero no se podrán generar nuevas con esta opción.`, danger: true, confirmLabel: 'Eliminar' }))) return;
     await fetch(`/api/sku-catalogo/${entry.id}`, { method: 'DELETE' });
     onChange();
   };
