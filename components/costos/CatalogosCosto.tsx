@@ -75,14 +75,14 @@ function CostosCorteManager() {
               <div className="flex items-center gap-2">
                 <NumInput value={editCosto} onChange={setEditCosto} min="0" step="0.01" className={`w-28 ${inp}`} autoFocus />
                 <button onClick={() => guardarCosto(it.id)} className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg font-semibold">OK</button>
-                <button onClick={() => setEditId(null)} className="text-xs text-stone-400 hover:text-stone-600">✕</button>
+                <button onClick={() => setEditId(null)} aria-label="Cancelar" className="text-xs text-stone-400 hover:text-stone-600">✕</button>
               </div>
             ) : (
               <div className="flex items-center gap-3">
                 <span className="text-sm font-bold text-stone-900 tabular-nums">{fmt$(it.costo)}</span>
                 <button onClick={() => { setEditId(it.id); setEditCosto(it.costo); }}
                   className="text-xs px-2 py-1 border border-stone-200 rounded-lg text-stone-500 hover:border-stone-400 transition">Editar</button>
-                <button onClick={() => eliminar(it.id, it.tipoPrenda)}
+                <button onClick={() => eliminar(it.id, it.tipoPrenda)} aria-label="Eliminar"
                   className="text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">×</button>
               </div>
             )}

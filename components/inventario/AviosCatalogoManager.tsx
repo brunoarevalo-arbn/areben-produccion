@@ -147,7 +147,7 @@ export function AviosCatalogoManager() {
                 </label>
                 {editSeguir && <NumInput value={editStock} onChange={setEditStock} min="0" step="1" placeholder="cant." className={`w-20 ${inp}`} />}
                 <button onClick={() => guardar(it.id)} className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg font-semibold">OK</button>
-                <button onClick={() => setEditId(null)} className="text-xs text-stone-400 hover:text-stone-600">✕</button>
+                <button onClick={() => setEditId(null)} aria-label="Cancelar" className="text-xs text-stone-400 hover:text-stone-600">✕</button>
               </div>
             ) : (
               <div className="flex items-center gap-3">
@@ -158,7 +158,7 @@ export function AviosCatalogoManager() {
                 <button onClick={() => startIngreso(it)}
                   className="text-xs px-2 py-1 border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50 transition">+ Ingresar</button>
                 <Button variant="secondary" size="sm" onClick={() => startEdit(it)}>Editar</Button>
-                <button onClick={() => eliminar(it.id, it.nombre)}
+                <button onClick={() => eliminar(it.id, it.nombre)} aria-label="Eliminar"
                   className="text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">×</button>
               </div>
             )}

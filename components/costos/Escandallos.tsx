@@ -393,7 +393,7 @@ export function Escandallos() {
                           <Button variant="secondary" size="sm" onClick={() => duplicar(e)}>
                             Duplicar
                           </Button>
-                          <button onClick={() => eliminar(e.id, e.nombre)}
+                          <button onClick={() => eliminar(e.id, e.nombre)} aria-label="Eliminar"
                             className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>
                         </div>
                       </div>
@@ -518,7 +518,7 @@ export function Escandallos() {
                           className={inp} />
                       </div>
                       {datos.telas.length > 1 && (
-                        <button type="button" onClick={() => delTela(i)}
+                        <button type="button" aria-label="Eliminar tela" onClick={() => delTela(i)}
                           className="text-stone-300 hover:text-red-400 transition text-xl shrink-0 leading-none mb-2">×</button>
                       )}
                     </div>
@@ -638,7 +638,7 @@ export function Escandallos() {
                     <p className="text-xs text-stone-400">
                       Sin registros de producción para <span className="font-mono">{sku}</span>
                     </p>
-                    <button type="button" onClick={() => setSinDatosProduccion(false)}
+                    <button type="button" aria-label="Descartar aviso" onClick={() => setSinDatosProduccion(false)}
                       className="text-xs text-stone-300 hover:text-stone-500 px-1">✕</button>
                   </div>
                 )}
@@ -658,7 +658,7 @@ export function Escandallos() {
                         className="text-xs px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold transition">
                         Usar {tiempoProduccion.minutos} min
                       </button>
-                      <button type="button" onClick={() => setTiempoProduccion(null)}
+                      <button type="button" aria-label="Descartar" onClick={() => setTiempoProduccion(null)}
                         className="text-xs text-stone-400 hover:text-stone-600 px-1">✕</button>
                     </div>
                   </div>
@@ -687,7 +687,7 @@ export function Escandallos() {
                   <NumInput value={v.costoUnitario} onChange={n => updVario(i, 'costoUnitario', String(n))}
                     placeholder="$ c/u" min="0" step="0.01" className={inp} />
                   <span className="text-xs font-semibold text-stone-600 tabular-nums text-right">{fmt$(itemCosto(v))}</span>
-                  <button type="button" onClick={() => delVario(i)}
+                  <button type="button" aria-label="Eliminar" onClick={() => delVario(i)}
                     className="text-stone-300 hover:text-red-400 transition text-xl leading-none">×</button>
                 </div>
               ))}
@@ -755,7 +755,7 @@ export function Escandallos() {
                     <NumInput value={ex.costoUnitario} onChange={n => updAvioExtra(i, 'costoUnitario', String(n))}
                       placeholder="$ c/u" min="0" step="0.01" className={inp} />
                     <span className="text-xs font-semibold text-stone-600 tabular-nums text-right">{fmt$(itemCosto(ex))}</span>
-                    <button type="button" onClick={() => delAvioExtra(i)}
+                    <button type="button" aria-label="Eliminar" onClick={() => delAvioExtra(i)}
                       className="text-stone-300 hover:text-red-400 transition text-xl leading-none">×</button>
                   </div>
                 ))}

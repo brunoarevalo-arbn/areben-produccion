@@ -428,6 +428,7 @@ export function ColaAdmin() {
                     ✎
                   </button>
                   <button onClick={() => eliminar(orden.id, orden.sku)}
+                    aria-label="Eliminar"
                     className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition">
                     x
                   </button>
@@ -562,7 +563,7 @@ export function ColaAdmin() {
                     className="w-24 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
                   <NumInput value={parseFloat(t.cantidad) || 0} onChange={(n) => setTalleRow(i, 'cantidad', n ? String(n) : '')} placeholder="Cant." min="0"
                     className="flex-1 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
-                  <button type="button" onClick={() => rmTalleRow(i)} className="text-stone-400 hover:text-red-500 px-1 text-lg leading-none">×</button>
+                  <button type="button" aria-label="Eliminar talle" onClick={() => rmTalleRow(i)} className="text-stone-400 hover:text-red-500 px-1 text-lg leading-none">×</button>
                 </div>
               ))}
             </div>
@@ -609,7 +610,7 @@ export function ColaAdmin() {
                 <h3 className="text-sm font-bold text-stone-800">Editar orden</h3>
                 <p className="font-mono text-xs text-stone-500 mt-0.5">{editando.sku}</p>
               </div>
-              <button type="button" onClick={cerrarEdicion} className="text-stone-400 hover:text-stone-700 text-lg leading-none">x</button>
+              <button type="button" aria-label="Cerrar" onClick={cerrarEdicion} className="text-stone-400 hover:text-stone-700 text-lg leading-none">x</button>
             </div>
             <form onSubmit={guardarEdicion} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">

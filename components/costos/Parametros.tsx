@@ -177,14 +177,14 @@ export function Parametros() {
                   <NumInput value={parseFloat(editMonto) || 0} onChange={(n) => setEditMonto(n ? String(n) : '')}
                     className="w-32 px-2 py-1 border border-violet-300 rounded-lg text-sm focus:outline-none" autoFocus />
                   <button onClick={() => guardarMonto(g.id)} className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg font-semibold">OK</button>
-                  <button onClick={() => setEditGastoId(null)} className="text-xs text-stone-400 hover:text-stone-600">✕</button>
+                  <button onClick={() => setEditGastoId(null)} aria-label="Cancelar" className="text-xs text-stone-400 hover:text-stone-600">✕</button>
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-bold text-stone-900 tabular-nums">{fmt$(g.monto)}</span>
                   <button onClick={() => { setEditGastoId(g.id); setEditMonto(String(g.monto)); }}
                     className="text-xs px-2 py-1 border border-stone-200 rounded-lg text-stone-500 hover:border-stone-400 transition">Editar</button>
-                  <button onClick={() => eliminarGasto(g.id)}
+                  <button onClick={() => eliminarGasto(g.id)} aria-label="Eliminar"
                     className="text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">×</button>
                 </div>
               )}

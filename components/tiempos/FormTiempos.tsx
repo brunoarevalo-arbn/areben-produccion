@@ -85,10 +85,10 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
         await fetchOrdenes();
       } else {
         const data = await r.json().catch(() => ({}));
-        setErrorFin(`Error ${r.status}: ${data.error ?? 'No se pudo marcar'}`);
+        setErrorFin(typeof data.error === 'string' ? data.error : 'No se pudo marcar como terminada. Probá de nuevo.');
       }
-    } catch (e) {
-      setErrorFin(`Error de red: ${String(e)}`);
+    } catch {
+      setErrorFin('Sin conexión. Revisá internet y probá de nuevo.');
     } finally {
       setFinalizando(false);
     }
@@ -128,7 +128,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       setInconvenienteNotas('');
       setShowInconv(false);
     } catch {
-      alert('Error guardando registro');
+      alert('No se pudo guardar el registro. Probá de nuevo.');
     }
   };
 

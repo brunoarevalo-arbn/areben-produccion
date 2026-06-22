@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { KANBAN_COLUMNAS, ESTADO_LABEL, type EstadoProyecto } from '@/lib/diseno/estado';
 import { Button } from '@/components/ui/Button';
@@ -125,6 +125,13 @@ function NuevoProyectoModal({ onClose }: { onClose: () => void }) {
   const [error,       setError]       = useState<string | null>(null);
   const [nombreError, setNombreError] = useState<string | null>(null);
 
+  // Cerrar con Escape (a11y de modal).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
   const crear = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nombre.trim()) { setNombreError('El nombre es obligatorio'); return; }
@@ -146,7 +153,8 @@ function NuevoProyectoModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
+      <div role="dialog" aria-modal="true" aria-label="Nuevo proyecto"
+        className="bg-white rounded-2xl p-6 max-w-md w-full" onClick={(e) => e.stopPropagation()}>
         <h2 className="text-lg font-bold text-stone-900 mb-4">Nuevo proyecto</h2>
         <form onSubmit={crear} className="space-y-4">
           <Input
