@@ -10,6 +10,7 @@ import {
   DEFAULT_DATOS, TELA_EMPTY,
   deepClone, parseDatos, calcular, itemCosto,
 } from '@/lib/costos/escandallo';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface Escandallo {
   id: string; nombre: string; sku: string | null; marca: string | null;
@@ -266,7 +267,7 @@ export function Escandallos() {
   };
 
   const eliminar = async (id: string, nom: string) => {
-    if (!confirm(`¿Eliminar el escandallo "${nom}"?`)) return;
+    if (!(await confirmAsync(`¿Eliminar el escandallo "${nom}"?`))) return;
     const r = await fetch(`/api/costos/escandallos/${id}`, { method: 'DELETE' });
     if (r.ok) setLista(prev => prev.filter(e => e.id !== id));
   };

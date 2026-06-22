@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { AviosCatalogoManager } from '@/components/inventario/AviosCatalogoManager';
 import { Button } from '@/components/ui/Button';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface CostoCorte { id: string; tipoPrenda: string; costo: number; }
 
@@ -56,7 +57,7 @@ function CostosCorteManager() {
   };
 
   const eliminar = async (id: string, tp: string) => {
-    if (!confirm(`¿Eliminar el costo de corte de "${tp}"?`)) return;
+    if (!(await confirmAsync(`¿Eliminar el costo de corte de "${tp}"?`))) return;
     const r = await fetch(`/api/costos/costos-corte/${id}`, { method: 'DELETE' });
     if (r.ok) setItems(prev => prev.filter(x => x.id !== id));
   };

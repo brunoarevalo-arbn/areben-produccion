@@ -5,6 +5,7 @@ import { useTiempos } from '@/lib/hooks/useTiempos';
 import { Cronometro } from './Cronometro';
 import { LogRegistros } from './LogRegistros';
 import { FormTiempos } from './FormTiempos';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface OrdenActiva {
   id: string;
@@ -31,8 +32,8 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
   const router  = useRouter();
   const tiempos = useTiempos(usuario.nombre);
 
-  const handleDescartar = () => {
-    const ok = window.confirm('¿Descartar el registro en curso? Se va a perder el tiempo medido.');
+  const handleDescartar = async () => {
+    const ok = await confirmAsync('¿Descartar el registro en curso? Se va a perder el tiempo medido.');
     if (ok) tiempos.descartar();
   };
 

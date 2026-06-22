@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { ESTADO_LABEL, ESTADO_COLOR, type EstadoProyecto } from '@/lib/diseno/estado';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface Iteracion {
   id:              string;
@@ -73,7 +74,7 @@ export function ProyectoView({ proyecto, catalogoFases, estadoActual }: Props) {
   };
 
   const archivar = async (archivado: boolean) => {
-    if (archivado && !confirm('¿Archivar este proyecto?')) return;
+    if (archivado && !(await confirmAsync('¿Archivar este proyecto?'))) return;
     await fetch(`/api/proyectos/${proyecto.id}`, {
       method:  'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -83,7 +84,7 @@ export function ProyectoView({ proyecto, catalogoFases, estadoActual }: Props) {
   };
 
   const eliminar = async () => {
-    if (!confirm(`¿Eliminar el proyecto "${proyecto.nombre}"? No se puede deshacer.`)) return;
+    if (!(await confirmAsync(`¿Eliminar el proyecto "${proyecto.nombre}"? No se puede deshacer.`))) return;
     await fetch(`/api/proyectos/${proyecto.id}`, { method: 'DELETE' });
     router.push('/diseno');
   };
@@ -468,7 +469,7 @@ function MuestraRow({
   };
 
   const eliminar = async () => {
-    if (!confirm(`¿Eliminar la muestra v${iteracion.version}?`)) return;
+    if (!(await confirmAsync(`¿Eliminar la muestra v${iteracion.version}?`))) return;
     await fetch(`/api/proyectos/${proyectoId}/muestras/${iteracion.id}`, { method: 'DELETE' });
     onChange();
   };
@@ -635,7 +636,7 @@ function FaseIniciada({
   const reabrir   = () => guardar({ estado: 'en_progreso' });
 
   const desinciar = async () => {
-    if (!confirm(`¿Deshacer el inicio de la fase "${fase.nombre}"? Se borra el registro.`)) return;
+    if (!(await confirmAsync(`¿Deshacer el inicio de la fase "${fase.nombre}"? Se borra el registro.`))) return;
     await fetch(`/api/proyectos/${proyectoId}/fases/${fase.id}`, { method: 'DELETE' });
     onChange();
   };

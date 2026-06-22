@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface Fase {
   id: string;
@@ -113,7 +114,7 @@ function FaseRow({ fase, onChange }: { fase: Fase; onChange: () => void }) {
   };
 
   const eliminar = async () => {
-    if (!confirm(`¿Eliminar la fase "${fase.nombre}"?`)) return;
+    if (!(await confirmAsync(`¿Eliminar la fase "${fase.nombre}"?`))) return;
     const r = await fetch(`/api/fase-catalogo/${fase.id}`, { method: 'DELETE' });
     if (r.ok) onChange();
     else {

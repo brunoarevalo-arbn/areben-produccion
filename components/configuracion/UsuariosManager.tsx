@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { PERMISOS } from '@/lib/permisos';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface Usuario {
   id:       string;
@@ -189,7 +190,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
   };
 
   const handleDelete = async (id: string, nombre: string) => {
-    if (!confirm(`¿Eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`)) return;
+    if (!(await confirmAsync(`¿Eliminar al usuario "${nombre}"? Esta acción no se puede deshacer.`))) return;
     try {
       const res = await fetch(`/api/usuarios/${id}`, { method: 'DELETE' });
       if (res.ok) {

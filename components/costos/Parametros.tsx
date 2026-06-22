@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface GastoFijo { id: string; nombre: string; monto: number; categoria: string; activo: boolean; }
 interface CostoCosturera { id: string; usuarioId: string; sueldoBruto: number; cargasSociales: number; horasMes: number; }
@@ -87,7 +88,7 @@ export function Parametros() {
   };
 
   const eliminarGasto = async (id: string) => {
-    if (!confirm('¿Eliminar este gasto?')) return;
+    if (!(await confirmAsync('¿Eliminar este gasto?'))) return;
     const r = await fetch(`/api/costos/gastos/${id}`, { method: 'DELETE' });
     if (r.ok) setGastos((prev) => prev.filter((g) => g.id !== id));
   };

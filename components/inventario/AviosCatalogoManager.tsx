@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface Etiqueta {
   id: string; nombre: string; tipo: string | null; precio: number; stock: number | null;
@@ -114,7 +115,7 @@ export function AviosCatalogoManager() {
   };
 
   const eliminar = async (id: string, nom: string) => {
-    if (!confirm(`¿Eliminar la etiqueta "${nom}"?`)) return;
+    if (!(await confirmAsync(`¿Eliminar la etiqueta "${nom}"?`))) return;
     const r = await fetch(`/api/costos/etiquetas/${id}`, { method: 'DELETE' });
     if (r.ok) setItems(prev => prev.filter(x => x.id !== id));
   };

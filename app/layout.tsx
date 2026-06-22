@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { ConfirmHost } from "@/components/ui/ConfirmProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,7 +25,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col bg-stone-50">{children}</body>
+      <body className="min-h-full flex flex-col bg-stone-50">
+        {children}
+        <ConfirmHost />
+      </body>
     </html>
   );
 }

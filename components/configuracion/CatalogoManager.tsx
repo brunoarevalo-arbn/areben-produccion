@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface Item { id: string; nombre: string; }
 
@@ -67,7 +68,7 @@ export function CatalogoManager({ items: initial, apiBase, label, placeholder }:
   };
 
   const eliminar = async (id: string, nombre: string) => {
-    if (!confirm(`¿Eliminar "${nombre}"?`)) return;
+    if (!(await confirmAsync(`¿Eliminar "${nombre}"?`))) return;
     const r = await fetch(`${apiBase}/${id}`, { method: 'DELETE' });
     if (r.ok) setItems((prev) => prev.filter((i) => i.id !== id));
   };

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface Entry {
   id: string;
@@ -159,7 +160,7 @@ function EntryRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
   };
 
   const eliminar = async () => {
-    if (!confirm(`¿Eliminar "${entry.nombre}"? Si ya hay órdenes que usan esta abreviatura, se mantienen pero no se podrán generar nuevas con esta opción.`)) return;
+    if (!(await confirmAsync(`¿Eliminar "${entry.nombre}"? Si ya hay órdenes que usan esta abreviatura, se mantienen pero no se podrán generar nuevas con esta opción.`))) return;
     await fetch(`/api/sku-catalogo/${entry.id}`, { method: 'DELETE' });
     onChange();
   };
