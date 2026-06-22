@@ -81,11 +81,16 @@ function GastoRow({ gasto, costoMinuto, onDelete }: { gasto: Gasto; costoMinuto:
   const monto = montoEfectivo(gasto, costoMinuto);
   const [confirming, setConfirming] = useState(false);
   const [deleting,   setDeleting]   = useState(false);
+  const [error,      setError]      = useState(false);
 
   const handleDelete = async () => {
-    setDeleting(true);
-    await fetch(`/api/gastos/${gasto.id}`, { method: 'DELETE' });
-    onDelete(gasto.id);
+    setDeleting(true); setError(false);
+    const r = await fetch(`/api/gastos/${gasto.id}`, { method: 'DELETE' });
+    if (r.ok) {
+      onDelete(gasto.id); // recién acá sacamos la fila de la UI
+    } else {
+      setError(true); setDeleting(false);
+    }
   };
 
   return (
@@ -107,6 +112,7 @@ function GastoRow({ gasto, costoMinuto, onDelete }: { gasto: Gasto; costoMinuto:
         <p className="text-xs text-stone-400 mt-0.5">{gasto.fecha} · {gasto.creadoPor}{gasto.minutos ? ` · ${gasto.minutos}min` : ''}</p>
       </div>
       <span className="font-bold text-stone-900 tabular-nums shrink-0">{fmt$(monto)}</span>
+      {error && <span className="text-xs text-red-600 font-semibold shrink-0">No se pudo eliminar</span>}
       {!confirming ? (
         <button onClick={() => setConfirming(true)} className="text-stone-300 hover:text-red-400 text-sm transition shrink-0">×</button>
       ) : (

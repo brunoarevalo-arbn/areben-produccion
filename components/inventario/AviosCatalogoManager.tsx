@@ -50,15 +50,17 @@ export function AviosCatalogoManager() {
   const [ingEstado, setIngEstado] = useState<'PENDIENTE' | 'PARCIAL' | 'PAGADA'>('PENDIENTE');
   const [ingPagado, setIngPagado] = useState(0);
   const [ingSaving, setIngSaving] = useState(false);
+  const [ingError, setIngError] = useState('');
 
   const startIngreso = (it: Etiqueta) => {
     setIngId(it.id); setIngCant(0); setIngCosto(it.precio); setIngActualizar(false);
     setIngProv(it.proveedorId ?? ''); setIngFactura(''); setIngSeguirPago(false); setIngEstado('PENDIENTE'); setIngPagado(0);
+    setIngError('');
   };
 
   const guardarIngreso = async (id: string) => {
     if (!ingCant || ingCant <= 0) return;
-    setIngSaving(true);
+    setIngSaving(true); setIngError('');
     const body = {
       cantidad: ingCant, costoUnitario: ingCosto || 0, actualizarPrecio: ingActualizar,
       proveedorId: ingProv || null, numeroFactura: ingFactura.trim() || null,
@@ -71,6 +73,9 @@ export function AviosCatalogoManager() {
       const d = await r.json();
       setItems(prev => prev.map(x => x.id === id ? { ...x, stock: d.stock, ...(ingActualizar ? { precio: ingCosto } : {}) } : x));
       setIngId(null);
+    } else {
+      const d = await r.json().catch(() => ({}));
+      setIngError(typeof d.error === 'string' ? d.error : 'No se pudo registrar el ingreso');
     }
     setIngSaving(false);
   };
@@ -210,6 +215,7 @@ export function AviosCatalogoManager() {
                     <button onClick={() => setIngId(null)} className="text-xs text-stone-400 hover:text-stone-600 px-2">Cancelar</button>
                   </div>
                 </div>
+                {ingError && <p className="text-xs text-red-600 font-semibold mt-2">{ingError}</p>}
               </div>
             )}
           </div>

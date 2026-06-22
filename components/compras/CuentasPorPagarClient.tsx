@@ -25,6 +25,8 @@ export function CuentasPorPagarClient() {
   const [pagado, setPagado] = useState(0);
   const [fecha, setFecha] = useState(new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+  const [okMsg, setOkMsg] = useState('');
 
   const cargar = useCallback(async () => {
     const r = await fetch('/api/cuentas-por-pagar');
@@ -38,15 +40,23 @@ export function CuentasPorPagarClient() {
     setEstado('PAGADA');
     setPagado(row.monto); // por defecto, pago total
     setFecha(new Date().toISOString().slice(0, 10));
+    setError(''); setOkMsg('');
   };
 
   const registrar = async (row: Row) => {
-    setSaving(true);
+    setSaving(true); setError('');
     const r = await fetch(row.pagoUrl, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ estadoPago: estado, montoPagado: pagado, fechaPago: fecha }),
     });
-    if (r.ok) { setPagoId(null); await cargar(); }
+    if (r.ok) {
+      setPagoId(null);
+      setOkMsg(`Pago de ${fmt$(pagado)} registrado (${estado.toLowerCase()})`);
+      await cargar();
+    } else {
+      const d = await r.json().catch(() => ({}));
+      setError(typeof d.error === 'string' ? d.error : 'No se pudo registrar el pago');
+    }
     setSaving(false);
   };
 
@@ -67,6 +77,12 @@ export function CuentasPorPagarClient() {
         <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Total a pagar</span>
         <span className="text-2xl font-bold text-amber-400 tabular-nums">{fmt$(totalGlobal)}</span>
       </div>
+
+      {okMsg && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-2.5 text-sm text-emerald-700 font-semibold">
+          ✓ {okMsg}
+        </div>
+      )}
 
       {grupos.map((g) => (
         <div key={g.proveedorId} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
@@ -121,6 +137,7 @@ export function CuentasPorPagarClient() {
                       Confirmar
                     </Button>
                     <button onClick={() => setPagoId(null)} className="text-xs text-stone-400 hover:text-stone-600 px-2 py-1.5">Cancelar</button>
+                    {error && <p className="basis-full text-xs text-red-600 font-semibold">{error}</p>}
                   </div>
                 )}
               </div>
