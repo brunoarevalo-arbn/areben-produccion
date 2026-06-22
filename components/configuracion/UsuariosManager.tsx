@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PERMISOS } from '@/lib/permisos';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
 
 interface Usuario {
   id:       string;
@@ -202,7 +204,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
     }
   };
 
-  const inputClass = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400';
+  const inputClass = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -231,7 +233,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
                     {rolLabel(u.rol)}
                   </span>
                   {!u.activo && (
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-500 font-semibold">Inactivo</span>
+                    <Badge variant="danger">Inactivo</Badge>
                   )}
                   {u.rol !== 'admin' && u.rol !== 'costurera' && (
                     <span className="text-xs text-stone-400">{u.permisos?.length ?? 0} con acceso</span>
@@ -248,12 +250,14 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
             </div>
 
             <div className="flex gap-2 shrink-0">
-              <button
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => openEdit(u)}
-                className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition"
+                className="rounded-lg"
               >
                 Editar
-              </button>
+              </Button>
               {u.id !== sesionId && (
                 <button
                   onClick={() => handleDelete(u.id, u.nombre)}
@@ -273,12 +277,9 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
 
       {/* Add user button */}
       {!showForm && !editId && (
-        <button
-          onClick={() => setShowForm(true)}
-          className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition"
-        >
+        <Button onClick={() => setShowForm(true)}>
           + Agregar usuario
-        </button>
+        </Button>
       )}
 
       {/* New user form */}
@@ -324,14 +325,12 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
 
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2 pt-1">
-              <button type="submit" disabled={saving}
-                className="flex-1 bg-stone-900 hover:bg-stone-800 text-white py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50">
+              <Button type="submit" disabled={saving} isLoading={saving} className="flex-1">
                 {saving ? 'Creando...' : 'Crear usuario'}
-              </button>
-              <button type="button" onClick={() => { setShowForm(false); setError(''); }}
-                className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => { setShowForm(false); setError(''); }}>
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -393,10 +392,9 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
                 className="flex-1 bg-violet-600 hover:bg-violet-700 text-white py-2.5 rounded-xl text-sm font-semibold transition disabled:opacity-50">
                 {editSaving ? 'Guardando...' : 'Guardar cambios'}
               </button>
-              <button type="button" onClick={() => { setEditId(null); setEditError(''); }}
-                className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+              <Button type="button" variant="secondary" onClick={() => { setEditId(null); setEditError(''); }}>
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
         </div>

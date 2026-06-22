@@ -2,6 +2,10 @@
 
 import { useState } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
 
 interface Cortador {
   id: string;
@@ -85,10 +89,9 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
   return (
     <div className="space-y-5">
       {!showForm && (
-        <button onClick={abrirNuevo}
-          className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+        <Button onClick={abrirNuevo}>
           + Agregar cortador
-        </button>
+        </Button>
       )}
 
       {showForm && (
@@ -96,42 +99,28 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
           <h3 className="text-sm font-bold text-stone-800 mb-4">{editando ? 'Editar cortador' : 'Nuevo cortador'}</h3>
           <form onSubmit={guardar} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nombre *</label>
-                <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={inp} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Contacto</label>
-                <input type="text" value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Tel / email" className={inp} />
-              </div>
+              <Input label="Nombre *" fullWidth type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+              <Input label="Contacto" fullWidth type="text" value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Tel / email" />
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Tarifa default</label>
                 <NumInput value={parseFloat(tarifaDefault) || 0} onChange={(n) => setTarifaDefault(n ? String(n) : '')}
                   min="0" step="0.01" placeholder="Opcional" className={inp} />
               </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Modo de tarifa</label>
-                <select value={tarifaModo} onChange={(e) => setTarifaModo(e.target.value as 'total' | 'unidad' | '')} className={inp}>
-                  <option value="">--</option>
-                  <option value="total">Total</option>
-                  <option value="unidad">Por unidad</option>
-                </select>
-              </div>
+              <Select label="Modo de tarifa" fullWidth value={tarifaModo} onChange={(e) => setTarifaModo(e.target.value as 'total' | 'unidad' | '')}>
+                <option value="">--</option>
+                <option value="total">Total</option>
+                <option value="unidad">Por unidad</option>
+              </Select>
             </div>
-            <div>
-              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Notas</label>
-              <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className={`${inp} resize-none`} />
-            </div>
+            <Textarea label="Notas" fullWidth value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className="resize-none" />
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2">
-              <button type="submit" disabled={saving}
-                className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+              <Button type="submit" disabled={saving} isLoading={saving}>
                 {saving ? 'Guardando...' : editando ? 'Guardar' : 'Agregar'}
-              </button>
-              <button type="button" onClick={() => { setShowForm(false); resetForm(); }}
-                className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => { setShowForm(false); resetForm(); }}>
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -155,8 +144,8 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
                 {c.activo ? 'Activo' : 'Inactivo'}
               </span>
               <div className="flex gap-1.5">
-                <button onClick={() => abrirEdicion(c)} className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">Editar</button>
-                <button onClick={() => toggleActivo(c)} className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-50 transition">{c.activo ? 'Desactivar' : 'Activar'}</button>
+                <Button variant="secondary" size="sm" onClick={() => abrirEdicion(c)} className="px-2.5 py-1 rounded-lg">Editar</Button>
+                <Button variant="secondary" size="sm" onClick={() => toggleActivo(c)} className="px-2.5 py-1 rounded-lg">{c.activo ? 'Desactivar' : 'Activar'}</Button>
               </div>
             </div>
           ))

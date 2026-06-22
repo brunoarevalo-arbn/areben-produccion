@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/Button';
 
 interface Item { id: string; nombre: string; }
 
@@ -71,7 +72,7 @@ export function CatalogoManager({ items: initial, apiBase, label, placeholder }:
     if (r.ok) setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400';
+  const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 
   return (
     <div className="max-w-lg space-y-5">
@@ -87,13 +88,12 @@ export function CatalogoManager({ items: initial, apiBase, label, placeholder }:
             placeholder={placeholder}
             className={`flex-1 ${inp}`}
           />
-          <button
+          <Button
             onClick={agregar}
             disabled={saving || !nuevo.trim()}
-            className="px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition"
           >
             {saving ? '...' : 'Agregar'}
-          </button>
+          </Button>
         </div>
         {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
       </div>

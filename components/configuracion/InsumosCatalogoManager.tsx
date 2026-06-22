@@ -3,6 +3,10 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
+import { Badge } from '@/components/ui/Badge';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 
 interface InsumoItem {
   id: string;
@@ -126,10 +130,9 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
     <div className="space-y-5">
       <div className="flex items-center gap-3">
         {!showForm && (
-          <button onClick={abrirNuevo}
-            className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+          <Button onClick={abrirNuevo}>
             + Agregar insumo
-          </button>
+          </Button>
         )}
         <select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)}
           className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400">
@@ -146,38 +149,27 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
           <form onSubmit={guardar} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nombre del artículo *</label>
-                <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={inp} />
+                <Input label="Nombre del artículo *" fullWidth type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} />
                 <p className="text-xs text-stone-400 mt-1">Como lo nombra el proveedor / factura.</p>
               </div>
               <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nombre interno</label>
-                <input type="text" value={nombreInterno} onChange={(e) => setNombreInterno(e.target.value)}
-                  list="telas-catalogo-list" placeholder="Opcional" className={inp} />
+                <Input label="Nombre interno" fullWidth type="text" value={nombreInterno} onChange={(e) => setNombreInterno(e.target.value)}
+                  list="telas-catalogo-list" placeholder="Opcional" />
                 <datalist id="telas-catalogo-list">
                   {telasCatalogo.map((t) => <option key={t} value={t} />)}
                 </datalist>
                 <p className="text-xs text-stone-400 mt-1">Cómo lo llamás internamente (sugerencias del catálogo de telas).</p>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Categoria *</label>
-                <select value={categoria} onChange={(e) => setCategoria(e.target.value)} className={inp}>
-                  {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Trazabilidad *</label>
-                <select value={tipoTrazabilidad} onChange={(e) => setTipoTrazabilidad(e.target.value)} className={inp}>
-                  <option value="rollo">Rollo (peso individual)</option>
-                  <option value="lote">Lote (cantidad total)</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Unidad default</label>
-                <select value={unidadDefault} onChange={(e) => setUnidadDefault(e.target.value)} className={inp}>
-                  {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
-                </select>
-              </div>
+              <Select label="Categoria *" fullWidth value={categoria} onChange={(e) => setCategoria(e.target.value)}>
+                {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              <Select label="Trazabilidad *" fullWidth value={tipoTrazabilidad} onChange={(e) => setTipoTrazabilidad(e.target.value)}>
+                <option value="rollo">Rollo (peso individual)</option>
+                <option value="lote">Lote (cantidad total)</option>
+              </Select>
+              <Select label="Unidad default" fullWidth value={unidadDefault} onChange={(e) => setUnidadDefault(e.target.value)}>
+                {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
+              </Select>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Stock minimo</label>
                 <NumInput value={parseFloat(stockMinimo) || 0} onChange={(n) => setStockMinimo(n ? String(n) : '')}
@@ -199,14 +191,12 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
             </div>
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2">
-              <button type="submit" disabled={saving}
-                className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+              <Button type="submit" disabled={saving} isLoading={saving}>
                 {saving ? 'Guardando...' : editando ? 'Guardar cambios' : 'Agregar'}
-              </button>
-              <button type="button" onClick={() => { setShowForm(false); resetForm(); }}
-                className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => { setShowForm(false); resetForm(); }}>
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -232,7 +222,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
                 <p className="text-sm font-medium text-stone-800 truncate">{ins.nombre}</p>
                 {ins.nombreInterno && <p className="text-xs text-stone-400 truncate">interno: {ins.nombreInterno}</p>}
               </div>
-              <span className="text-xs bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full">{ins.categoria}</span>
+              <Badge variant="default">{ins.categoria}</Badge>
               <span className="text-xs text-stone-500">{ins.tipoTrazabilidad}</span>
               <span className="text-xs text-stone-500">{ins.unidadDefault}</span>
               <span className="text-xs text-stone-500">{ins.manejaColor ? 'Si' : '--'}</span>
@@ -246,14 +236,12 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
                     Colores
                   </Link>
                 )}
-                <button onClick={() => abrirEdicion(ins)}
-                  className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
+                <Button variant="secondary" size="sm" onClick={() => abrirEdicion(ins)} className="px-2.5 py-1 rounded-lg">
                   Editar
-                </button>
-                <button onClick={() => toggleActivo(ins)}
-                  className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-50 transition">
+                </Button>
+                <Button variant="secondary" size="sm" onClick={() => toggleActivo(ins)} className="px-2.5 py-1 rounded-lg">
                   {ins.activo ? 'Desactivar' : 'Activar'}
-                </button>
+                </Button>
               </div>
             </div>
           ))

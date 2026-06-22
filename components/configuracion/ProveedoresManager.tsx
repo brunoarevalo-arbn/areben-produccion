@@ -1,6 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
+import { Textarea } from '@/components/ui/Textarea';
+import { Badge } from '@/components/ui/Badge';
 
 interface Proveedor {
   id: string;
@@ -12,8 +17,6 @@ interface Proveedor {
   activo: boolean;
 }
 
-const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
-
 const CONDICIONES_IVA = ['RI', 'MONOTRIBUTO', 'EXENTO', 'NO_RESPONSABLE'];
 
 export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
@@ -22,6 +25,7 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
   const [editando, setEditando]   = useState<Proveedor | null>(null);
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState('');
+  const [nombreError, setNombreError] = useState('');
 
   const [nombre, setNombre]             = useState('');
   const [cuit, setCuit]                 = useState('');
@@ -31,7 +35,7 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
 
   const resetForm = () => {
     setNombre(''); setCuit(''); setCondicionIva(''); setContacto(''); setNotas('');
-    setError('');
+    setError(''); setNombreError('');
   };
 
   const abrirNuevo = () => {
@@ -53,9 +57,9 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
 
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nombre.trim()) { setError('Nombre obligatorio'); return; }
+    if (!nombre.trim()) { setNombreError('Nombre obligatorio'); return; }
     setSaving(true);
-    setError('');
+    setError(''); setNombreError('');
 
     const payload = {
       nombre: nombre.trim(),
@@ -105,10 +109,7 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
   return (
     <div className="space-y-5">
       {!showForm && (
-        <button onClick={abrirNuevo}
-          className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-          + Agregar proveedor
-        </button>
+        <Button onClick={abrirNuevo}>+ Agregar proveedor</Button>
       )}
 
       {showForm && (
@@ -118,40 +119,25 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
           </h3>
           <form onSubmit={guardar} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nombre *</label>
-                <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={inp} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">CUIT</label>
-                <input type="text" value={cuit} onChange={(e) => setCuit(e.target.value)} placeholder="XX-XXXXXXXX-X" className={inp} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Condicion IVA</label>
-                <select value={condicionIva} onChange={(e) => setCondicionIva(e.target.value)} className={inp}>
-                  <option value="">--</option>
-                  {CONDICIONES_IVA.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Contacto</label>
-                <input type="text" value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Tel / email" className={inp} />
-              </div>
+              <Input label="Nombre *" value={nombre}
+                onChange={(e) => { setNombre(e.target.value); if (nombreError) setNombreError(''); }}
+                error={nombreError || undefined} fullWidth />
+              <Input label="CUIT" value={cuit} onChange={(e) => setCuit(e.target.value)} placeholder="XX-XXXXXXXX-X" fullWidth />
+              <Select label="Condicion IVA" value={condicionIva} onChange={(e) => setCondicionIva(e.target.value)} fullWidth>
+                <option value="">--</option>
+                {CONDICIONES_IVA.map((c) => <option key={c} value={c}>{c}</option>)}
+              </Select>
+              <Input label="Contacto" value={contacto} onChange={(e) => setContacto(e.target.value)} placeholder="Tel / email" fullWidth />
             </div>
-            <div>
-              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Notas</label>
-              <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className={`${inp} resize-none`} />
-            </div>
+            <Textarea label="Notas" value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className="resize-none" fullWidth />
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2">
-              <button type="submit" disabled={saving}
-                className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-                {saving ? 'Guardando...' : editando ? 'Guardar cambios' : 'Agregar'}
-              </button>
-              <button type="button" onClick={() => { setShowForm(false); resetForm(); }}
-                className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+              <Button type="submit" isLoading={saving} disabled={saving}>
+                {editando ? 'Guardar cambios' : 'Agregar'}
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => { setShowForm(false); resetForm(); }}>
                 Cancelar
-              </button>
+              </Button>
             </div>
           </form>
         </div>
@@ -177,18 +163,12 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
               </div>
               <span className="text-xs text-stone-500 font-mono">{p.cuit || '--'}</span>
               <span className="text-xs text-stone-500">{p.condicionIva || '--'}</span>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${p.activo ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
-                {p.activo ? 'Activo' : 'Inactivo'}
-              </span>
+              <Badge variant={p.activo ? 'success' : 'default'}>{p.activo ? 'Activo' : 'Inactivo'}</Badge>
               <div className="flex gap-1.5">
-                <button onClick={() => abrirEdicion(p)}
-                  className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
-                  Editar
-                </button>
-                <button onClick={() => toggleActivo(p)}
-                  className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-50 transition">
+                <Button variant="secondary" size="sm" onClick={() => abrirEdicion(p)}>Editar</Button>
+                <Button variant="secondary" size="sm" onClick={() => toggleActivo(p)}>
                   {p.activo ? 'Desactivar' : 'Activar'}
-                </button>
+                </Button>
               </div>
             </div>
           ))
