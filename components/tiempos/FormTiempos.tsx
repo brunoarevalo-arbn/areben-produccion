@@ -142,13 +142,14 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
           <button
             key={label}
             onClick={() => setActividad(label)}
+            aria-pressed={actividad === label}
             className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all active:scale-95 ${
               actividad === label
                 ? color + ' ring-2 ring-offset-1 ring-stone-400'
                 : 'bg-white border-stone-200 text-stone-500 hover:border-stone-300'
             }`}
           >
-            <span>{icon}</span>
+            <span aria-hidden>{icon}</span>
             <span className="leading-tight">{label}</span>
           </button>
         ))}
@@ -177,6 +178,8 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                 }
                 setConfirmFin(false);
               }}
+              aria-pressed={ordenId === orden.id}
+              aria-label={`Orden ${orden.sku ?? ''} ${orden.marca}${orden.descripcion ? ' — ' + orden.descripcion : ''}`}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all active:scale-95 ${
                 ordenId === orden.id ? 'bg-amber-50 border-amber-400' : 'bg-white border-stone-200 hover:border-stone-300'
               }`}
@@ -194,7 +197,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                 )}
               </div>
               <span className="text-xs text-stone-400 shrink-0">×{orden.cantidad}</span>
-              {ordenId === orden.id && <span className="text-amber-500 text-base shrink-0">✓</span>}
+              {ordenId === orden.id && <span aria-hidden className="text-amber-500 text-base shrink-0">✓</span>}
             </button>
           ))}
 
