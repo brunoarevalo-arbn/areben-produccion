@@ -48,6 +48,7 @@ export function LotesClient() {
       </div>
 
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="overflow-x-auto"><div className="min-w-[640px]">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_1fr_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Codigo</span>
           <span>Insumo</span>
@@ -83,6 +84,7 @@ export function LotesClient() {
             </div>
           ))
         )}
+        </div></div>
       </div>
     </div>
   );

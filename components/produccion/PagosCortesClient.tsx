@@ -170,6 +170,7 @@ export function PagosCortesClient() {
 
       {/* Tabla */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="overflow-x-auto"><div className="min-w-[760px]">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_auto_1fr_1fr_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400 items-center">
           <input type="checkbox"
             checked={filtro === 'pendiente' && seleccion.size > 0 && seleccion.size === ordenes.filter((o) => !o.pagoCorteId).length}
@@ -221,6 +222,7 @@ export function PagosCortesClient() {
             );
           })
         )}
+        </div></div>
       </div>
 
       {/* Modal de pago */}

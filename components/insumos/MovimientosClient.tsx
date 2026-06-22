@@ -53,6 +53,7 @@ export function MovimientosClient() {
       </div>
 
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <div className="overflow-x-auto"><div className="min-w-[640px]">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_auto_1fr_auto_1fr] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Fecha</span>
           <span>Tipo</span>
@@ -88,6 +89,7 @@ export function MovimientosClient() {
             );
           })
         )}
+        </div></div>
       </div>
     </div>
   );
