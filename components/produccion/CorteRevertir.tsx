@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { toast } from '@/components/ui/Toaster';
 
 export function CorteRevertir({ ordenId }: { ordenId: string }) {
   const router = useRouter();
@@ -16,7 +17,7 @@ export function CorteRevertir({ ordenId }: { ordenId: string }) {
       router.refresh();
     } else {
       const d = await r.json();
-      alert(d.error || 'Error al revertir');
+      toast.error(d.error || 'Error al revertir');
       setRevertiendo(false);
     }
   };

@@ -6,6 +6,7 @@ import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { toast } from '@/components/ui/Toaster';
 
 interface Transicion { fecha: string; estadoNuevo: string; }
 
@@ -211,7 +212,7 @@ export function ColaAdmin() {
       setCambioNotas('');
     } else {
       const d = await r.json();
-      alert(d.error || 'Error al cambiar estado');
+      toast.error(d.error || 'Error al cambiar estado');
     }
   };
 
@@ -252,7 +253,7 @@ export function ColaAdmin() {
     if (!(await confirmAsync({ message: 'Esto revierte la ficha actual y devuelve el stock consumido, para que la vuelvas a cargar. ¿Continuar?', danger: true, confirmLabel: 'Revertir' }))) return;
     const r = await fetch(`/api/produccion/cola/${id}/corte/revertir`, { method: 'POST' });
     if (r.ok) cargar();
-    else { const d = await r.json().catch(() => ({})); alert(d.error || 'Error al revertir'); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'Error al revertir'); }
   };
 
   // Terminar costura: prellena el conteo por talle desde la ficha (si está), editable.

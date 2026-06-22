@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { toast } from '@/components/ui/Toaster';
 
 interface Fase {
   id: string;
@@ -119,7 +120,7 @@ function FaseRow({ fase, onChange }: { fase: Fase; onChange: () => void }) {
     if (r.ok) onChange();
     else {
       const data = await r.json().catch(() => ({}));
-      alert(typeof data.error === 'string' ? data.error : 'Error al eliminar');
+      toast.error(typeof data.error === 'string' ? data.error : 'Error al eliminar');
     }
   };
 

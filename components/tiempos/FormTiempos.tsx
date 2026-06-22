@@ -5,6 +5,7 @@ import { TiemposProduccion } from '@/types/tiempos';
 import type { EstadoCronometro } from '@/lib/hooks/useTiempos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
 import { NumInput } from '@/components/ui/NumInput';
+import { toast } from '@/components/ui/Toaster';
 
 interface FormTiemposProps {
   usuario: string;
@@ -128,7 +129,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       setInconvenienteNotas('');
       setShowInconv(false);
     } catch {
-      alert('No se pudo guardar el registro. Probá de nuevo.');
+      toast.error('No se pudo guardar el registro. Probá de nuevo.');
     }
   };
 

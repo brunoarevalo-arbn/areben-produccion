@@ -6,6 +6,7 @@ import { PERMISOS } from '@/lib/permisos';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { toast } from '@/components/ui/Toaster';
 
 interface Usuario {
   id:       string;
@@ -198,10 +199,10 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
         router.refresh();
       } else {
         const data = await res.json();
-        alert(data.error || 'Error al eliminar');
+        toast.error(data.error || 'Error al eliminar');
       }
     } catch {
-      alert('Error de conexión');
+      toast.error('Error de conexión');
     }
   };
 

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
 import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { toast } from '@/components/ui/Toaster';
 
 interface CompraFull {
   id: string;
@@ -80,7 +81,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
       setCompra({ ...compra, revertida: true });
     } else {
       const d = await r.json();
-      alert(d.error || 'Error al revertir');
+      toast.error(d.error || 'Error al revertir');
     }
   };
 
