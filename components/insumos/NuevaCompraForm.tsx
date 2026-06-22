@@ -249,7 +249,7 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
           <div className="flex items-end gap-3 pb-1">
             <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer">
               <input type="checkbox" checked={conIva} onChange={(e) => setConIva(e.target.checked)}
-                className="rounded border-stone-300" />
+                className="rounded border-stone-300 accent-amber-500" />
               Precios con IVA
             </label>
           </div>

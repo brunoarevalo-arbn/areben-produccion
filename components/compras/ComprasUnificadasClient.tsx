@@ -48,7 +48,7 @@ export function ComprasUnificadasClient() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {(['todas', 'compra', 'gasto', 'pendientes'] as const).map((f) => (
           <button key={f} onClick={() => setFiltro(f)} className={pill(filtro === f)}>
             {f === 'compra' ? 'Insumos' : f === 'gasto' ? 'Gastos/otras' : f}

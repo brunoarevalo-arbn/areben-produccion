@@ -160,7 +160,7 @@ export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, cos
       {tab === 'desarrollo' && (
         <div className="space-y-6">
           {/* Filtro marca */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             {['todas', ...MARCAS].map((m) => (
               <button key={m} onClick={() => setFiltroMarca(m)}
                 className={`px-4 py-1.5 rounded-full text-xs font-semibold border transition capitalize ${

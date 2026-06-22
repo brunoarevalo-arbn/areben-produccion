@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { necesitaReposicion } from '@/lib/utils/calculos';
 import Link from 'next/link';
+import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,22 +19,24 @@ export default async function StockPage() {
 
   return (
     <div className="p-8">
-      <div className="flex items-start justify-between mb-8">
-        <div>
-          <span className="text-xs font-bold uppercase tracking-widest text-emerald-600">Inventario</span>
-          <h1 className="text-2xl font-bold text-stone-900 mt-1">Stock</h1>
-          <div className="flex gap-4 mt-2 text-sm text-stone-500">
-            <span>{stock.length} productos</span>
+      <PageHeader
+        eyebrow="Inventario"
+        title="Stock"
+        subtitle={
+          <>
+            {stock.length} productos
             {alertas.length > 0 && (
-              <span className="text-red-600 font-medium">⚠ {alertas.length} con stock bajo</span>
+              <span className="text-red-600 font-medium ml-3">⚠ {alertas.length} con stock bajo</span>
             )}
-          </div>
-        </div>
-        <Link href="/stock/reposicion"
-          className="text-sm border border-stone-200 hover:border-stone-400 text-stone-600 px-4 py-2 rounded-xl transition">
-          Ver reposiciones →
-        </Link>
-      </div>
+          </>
+        }
+        actions={
+          <Link href="/stock/reposicion"
+            className="text-sm border border-stone-200 hover:border-stone-400 text-stone-600 px-4 py-2 rounded-xl transition">
+            Ver reposiciones →
+          </Link>
+        }
+      />
 
       {stock.length === 0 ? (
         <div className="bg-white rounded-2xl border border-dashed border-stone-300 p-16 text-center">
@@ -69,13 +72,13 @@ export default async function StockPage() {
                         <span className="text-stone-400 text-xs ml-2">{s.producto.marca}</span>
                       )}
                     </td>
-                    <td className="px-5 py-3 text-center font-semibold text-stone-700">{s.cantidadDeposito}</td>
-                    <td className={`px-5 py-3 text-center font-bold ${bajo ? 'text-red-600' : 'text-stone-700'}`}>
+                    <td className="px-5 py-3 text-center font-semibold text-stone-700 tabular-nums">{s.cantidadDeposito}</td>
+                    <td className={`px-5 py-3 text-center font-bold tabular-nums ${bajo ? 'text-red-600' : 'text-stone-700'}`}>
                       {s.cantidadLocal}
                     </td>
-                    <td className="px-5 py-3 text-center text-stone-400">{s.stockMinimo}</td>
-                    <td className="px-5 py-3 text-right text-stone-700 font-medium">
-                      {s.precioVenta > 0 ? `$${s.precioVenta.toFixed(0)}` : '—'}
+                    <td className="px-5 py-3 text-center text-stone-500 tabular-nums">{s.stockMinimo}</td>
+                    <td className="px-5 py-3 text-right text-stone-700 font-medium tabular-nums">
+                      {s.precioVenta > 0 ? `$${s.precioVenta.toLocaleString('es-AR', { maximumFractionDigits: 0 })}` : '—'}
                     </td>
                     <td className="px-5 py-3 text-center">
                       <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${

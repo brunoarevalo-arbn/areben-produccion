@@ -286,7 +286,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
                     const ef = efMap.get(r.id) ?? 0;
                     return (
                       <div key={r.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${selected ? 'border-blue-300 bg-blue-50' : 'border-stone-100'}`}>
-                        <input type="checkbox" checked={!!selected} onChange={() => toggleRolloTizada(t.id, r)} className="rounded border-stone-300" />
+                        <input type="checkbox" checked={!!selected} onChange={() => toggleRolloTizada(t.id, r)} className="rounded border-stone-300 accent-amber-500" />
                         <span className="font-mono text-xs text-stone-700 w-16">{r.codigo}</span>
                         <span className="text-xs text-stone-600 flex-1 truncate">{r.insumo.nombre}{r.color ? ` · ${r.color.nombre}` : ''}</span>
                         <span className="text-xs text-stone-400 tabular-nums">{Number(r.pesoActual).toFixed(1)}kg · ~{metrosDisp.toFixed(0)}m</span>
@@ -352,7 +352,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
               const cantNum = sel ? (parseInt(sel.cantidad) || 0) : 0;
               return (
                 <div key={a.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${sel ? 'border-blue-300 bg-blue-50' : 'border-stone-100'}`}>
-                  <input type="checkbox" checked={!!sel} onChange={() => toggleAvio(a.id)} className="rounded border-stone-300" />
+                  <input type="checkbox" checked={!!sel} onChange={() => toggleAvio(a.id)} className="rounded border-stone-300 accent-amber-500" />
                   <span className="text-xs text-stone-700 flex-1 truncate">{a.nombre}{a.tipo ? ` · ${a.tipo}` : ''}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full tabular-nums ${a.stock == null ? 'text-stone-400' : a.stock > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
                     {a.stock == null ? '∞' : `${a.stock} en stock`}

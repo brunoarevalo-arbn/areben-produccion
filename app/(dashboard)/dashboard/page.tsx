@@ -58,7 +58,7 @@ export default async function DashboardPage() {
               className="bg-white rounded-2xl border border-stone-200 hover:border-violet-300 p-5 transition">
               <div className="flex items-center justify-between mb-2">
                 <h2 className="text-base font-bold text-stone-900">{marca}</h2>
-                <span className="text-2xl font-black text-stone-200">{total}</span>
+                <span className="text-2xl font-black text-stone-800 tabular-nums">{total}</span>
               </div>
               <p className="text-xs text-stone-400">{total === 1 ? '1 proyecto activo' : `${total} proyectos activos`}</p>
             </Link>

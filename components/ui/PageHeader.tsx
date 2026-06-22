@@ -4,7 +4,7 @@ interface PageHeaderProps {
   /** Etiqueta chica arriba del título (módulo/sección). */
   eyebrow?: string;
   title: string;
-  subtitle?: string;
+  subtitle?: React.ReactNode;
   /** Slot a la derecha para CTAs (botones, links). */
   actions?: React.ReactNode;
   className?: string;

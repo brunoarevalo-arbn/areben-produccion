@@ -142,7 +142,7 @@ export function AviosCatalogoManager() {
                   <NumInput value={editPrecio} onChange={setEditPrecio} min="0" step="0.01" className={`w-24 ${inp}`} autoFocus />
                 </div>
                 <label className="flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer">
-                  <input type="checkbox" checked={editSeguir} onChange={e => setEditSeguir(e.target.checked)} className="rounded border-stone-300" />
+                  <input type="checkbox" checked={editSeguir} onChange={e => setEditSeguir(e.target.checked)} className="rounded border-stone-300 accent-amber-500" />
                   Stock
                 </label>
                 {editSeguir && <NumInput value={editStock} onChange={setEditStock} min="0" step="1" placeholder="cant." className={`w-20 ${inp}`} />}
@@ -178,7 +178,7 @@ export function AviosCatalogoManager() {
                   </div>
                 </div>
                 <label className="flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer">
-                  <input type="checkbox" checked={ingActualizar} onChange={e => setIngActualizar(e.target.checked)} className="rounded border-stone-300" />
+                  <input type="checkbox" checked={ingActualizar} onChange={e => setIngActualizar(e.target.checked)} className="rounded border-stone-300 accent-amber-500" />
                   Actualizar el precio de referencia con este costo
                 </label>
 
@@ -191,7 +191,7 @@ export function AviosCatalogoManager() {
                     <>
                       <input type="text" value={ingFactura} onChange={e => setIngFactura(e.target.value)} placeholder="N° factura (opcional)" className={`w-full ${inp}`} />
                       <label className="flex items-center gap-1.5 text-xs text-stone-600 cursor-pointer">
-                        <input type="checkbox" checked={ingSeguirPago} onChange={e => setIngSeguirPago(e.target.checked)} className="rounded border-stone-300" />
+                        <input type="checkbox" checked={ingSeguirPago} onChange={e => setIngSeguirPago(e.target.checked)} className="rounded border-stone-300 accent-amber-500" />
                         Seguir el pago (aparece en cuentas por pagar)
                       </label>
                       {ingSeguirPago && (
