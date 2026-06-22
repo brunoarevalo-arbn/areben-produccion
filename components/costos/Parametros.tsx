@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
 
 interface GastoFijo { id: string; nombre: string; monto: number; categoria: string; activo: boolean; }
 interface CostoCosturera { id: string; usuarioId: string; sueldoBruto: number; cargasSociales: number; horasMes: number; }
@@ -113,7 +114,7 @@ export function Parametros() {
   const valorHora     = totalHoras > 0 ? totalMensual / totalHoras : 0;
   const costoMinuto   = valorHora / 60;
 
-  const inputCls = 'w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400';
+  const inputCls = 'w-full px-3 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 
   if (loading) return <div className="text-center py-16 text-stone-400 text-sm">Cargando...</div>;
 
@@ -199,17 +200,16 @@ export function Parametros() {
 
         <form onSubmit={agregarGasto} className="flex gap-2">
           <input type="text" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)}
-            placeholder="Nombre del gasto" className="flex-1 px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400" />
+            placeholder="Nombre del gasto" className="flex-1 px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400" />
           <NumInput value={parseFloat(nuevoMonto) || 0} onChange={(n) => setNuevoMonto(n ? String(n) : '')}
-            placeholder="Monto $" className="w-28 px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400" />
+            placeholder="Monto $" className="w-28 px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400" />
           <select value={nuevaCat} onChange={(e) => setNuevaCat(e.target.value)}
-            className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400 capitalize">
+            className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400 capitalize">
             {CATEGORIAS.map((c) => <option key={c} className="capitalize">{c}</option>)}
           </select>
-          <button type="submit" disabled={savingG || !nuevoNombre.trim()}
-            className="px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition">
+          <Button type="submit" disabled={savingG || !nuevoNombre.trim()}>
             + Agregar
-          </button>
+          </Button>
         </form>
       </div>
 
@@ -273,17 +273,17 @@ function CostoCosturеraRow({ nombre, usuarioId, inicial, onGuardar }: {
         <div>
           <label className="text-xs text-stone-400 mb-1 block">Sueldo bruto $</label>
           <NumInput value={parseFloat(sueldo) || 0} onChange={(n) => setSueldo(n ? String(n) : '')}
-            placeholder="0" className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+            placeholder="0" className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
         </div>
         <div>
           <label className="text-xs text-stone-400 mb-1 block">Cargas sociales $</label>
           <NumInput value={parseFloat(cargas) || 0} onChange={(n) => setCargas(n ? String(n) : '')}
-            placeholder="0" className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+            placeholder="0" className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
         </div>
         <div>
           <label className="text-xs text-stone-400 mb-1 block">Horas/mes</label>
           <NumInput value={parseFloat(horas) || 0} onChange={(n) => setHoras(n ? String(n) : '')}
-            placeholder="160" className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400" />
+            placeholder="160" className="w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
         </div>
       </div>
       <button onClick={guardar} disabled={saving}

@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { AviosCatalogoManager } from '@/components/inventario/AviosCatalogoManager';
+import { Button } from '@/components/ui/Button';
 
 interface CostoCorte { id: string; tipoPrenda: string; costo: number; }
 
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
-const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400';
+const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 const card = 'bg-white rounded-2xl border border-stone-200';
 
 export function CatalogosCosto() {
@@ -93,8 +94,7 @@ function CostosCorteManager() {
         <input type="text" value={tipoPrenda} onChange={e => { setTipoPrenda(e.target.value); setError(''); }}
           placeholder="Tipo de prenda (ej: Remera)" className={`flex-1 ${inp}`} />
         <NumInput value={costo} onChange={setCosto} placeholder="$ costo" min="0" step="0.01" className={`w-28 ${inp}`} />
-        <button onClick={agregar} disabled={saving || !tipoPrenda.trim()}
-          className="px-4 py-2 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white rounded-xl text-sm font-semibold transition">+ Agregar</button>
+        <Button onClick={agregar} disabled={saving || !tipoPrenda.trim()}>+ Agregar</Button>
       </div>
       {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
     </div>

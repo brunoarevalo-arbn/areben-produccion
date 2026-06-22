@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 
 interface DatosSKU {
   sku: string; marca: string;
@@ -46,34 +49,23 @@ export function Productividad() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  const inputCls = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400';
-
   return (
     <div className="space-y-6">
       {/* Filtros */}
       <div className="flex flex-wrap gap-3 items-end">
-        <div>
-          <label className="block text-xs font-semibold text-stone-500 mb-1">Desde</label>
-          <input type="date" value={desde} onChange={(e) => setDesde(e.target.value)} className={inputCls} />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-stone-500 mb-1">Hasta</label>
-          <input type="date" value={hasta} onChange={(e) => setHasta(e.target.value)} className={inputCls} />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-stone-500 mb-1">Marca</label>
-          <select value={marca} onChange={(e) => setMarca(e.target.value)} className={inputCls}>
-            <option value="">Todas</option>
-            {MARCAS.map((m) => <option key={m}>{m}</option>)}
-          </select>
-        </div>
-        <button onClick={cargar} className="px-4 py-2 bg-stone-900 text-white rounded-xl text-sm font-semibold transition hover:bg-stone-800">
+        <Input type="date" label="Desde" value={desde} onChange={(e) => setDesde(e.target.value)} />
+        <Input type="date" label="Hasta" value={hasta} onChange={(e) => setHasta(e.target.value)} />
+        <Select label="Marca" value={marca} onChange={(e) => setMarca(e.target.value)}>
+          <option value="">Todas</option>
+          {MARCAS.map((m) => <option key={m}>{m}</option>)}
+        </Select>
+        <Button onClick={cargar}>
           Aplicar
-        </button>
+        </Button>
         {(desde || hasta || marca) && (
-          <button onClick={() => { setDesde(''); setHasta(''); setMarca(''); }} className="px-4 py-2 border border-stone-200 rounded-xl text-sm text-stone-500 hover:border-stone-400 transition">
+          <Button variant="secondary" onClick={() => { setDesde(''); setHasta(''); setMarca(''); }}>
             Limpiar
-          </button>
+          </Button>
         )}
       </div>
 

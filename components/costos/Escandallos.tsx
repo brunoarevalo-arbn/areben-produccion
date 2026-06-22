@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
+import { Button } from '@/components/ui/Button';
+import { Select } from '@/components/ui/Select';
 import {
   type DatosEscandallo, type Margenes, type Tela, type ItemExtra,
   DEFAULT_DATOS, TELA_EMPTY,
@@ -271,7 +273,7 @@ export function Escandallos() {
 
   if (loading) return <div className="text-center py-16 text-stone-400 text-sm">Cargando...</div>;
 
-  const inp = 'w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-violet-400';
+  const inp = 'w-full px-2.5 py-2 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
   const lbl = 'text-xs text-stone-400 mb-1 block';
   const sec = 'text-xs font-bold uppercase tracking-widest text-stone-500';
 
@@ -319,10 +321,9 @@ export function Escandallos() {
                       className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">
                       Costear
                     </button>
-                    <button onClick={() => descartarSku(p.sku)}
-                      className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition">
+                    <Button variant="secondary" size="sm" onClick={() => descartarSku(p.sku)} className="shrink-0">
                       No costear
-                    </button>
+                    </Button>
                   </div>
                 ))}
 
@@ -342,10 +343,9 @@ export function Escandallos() {
                               {p.marca && <span className="text-xs text-stone-400 ml-2">{p.marca}</span>}
                               {p.descripcion && <span className="text-sm text-stone-500 ml-2">{p.descripcion}</span>}
                             </div>
-                            <button onClick={() => recuperarSku(p.sku)}
-                              className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+                            <Button variant="secondary" size="sm" onClick={() => recuperarSku(p.sku)} className="shrink-0">
                               Recuperar
-                            </button>
+                            </Button>
                           </div>
                         ))}
                       </div>
@@ -387,14 +387,12 @@ export function Escandallos() {
                             className="text-xs px-3 py-1.5 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-50 transition">
                             Ver PDF
                           </button>
-                          <button onClick={() => openEdit(e)}
-                            className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+                          <Button variant="secondary" size="sm" onClick={() => openEdit(e)}>
                             Editar
-                          </button>
-                          <button onClick={() => duplicar(e)}
-                            className="text-xs px-3 py-1.5 rounded-lg border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+                          </Button>
+                          <Button variant="secondary" size="sm" onClick={() => duplicar(e)}>
                             Duplicar
-                          </button>
+                          </Button>
                           <button onClick={() => eliminar(e.id, e.nombre)}
                             className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>
                         </div>
@@ -402,10 +400,9 @@ export function Escandallos() {
                     );
                   })}
                 </div>
-                <button onClick={() => setShowForm(true)}
-                  className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+                <Button onClick={() => setShowForm(true)}>
                   + Nuevo escandallo
-                </button>
+                </Button>
               </>
             )}
           </>
@@ -436,17 +433,14 @@ export function Escandallos() {
               </button>
             </div>
             {modoProducido && (
-              <div>
-                <label className={lbl}>Elegí un producto ya producido</label>
-                <select value={sku} onChange={e => onSelectProducidoSku(e.target.value)} className={inp}>
-                  <option value="">— Seleccionar producto —</option>
-                  {productos.map(p => (
-                    <option key={p.sku} value={p.sku}>
-                      {p.sku}{p.descripcion ? ` · ${p.descripcion}` : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Select label="Elegí un producto ya producido" value={sku} onChange={e => onSelectProducidoSku(e.target.value)} fullWidth>
+                <option value="">— Seleccionar producto —</option>
+                {productos.map(p => (
+                  <option key={p.sku} value={p.sku}>
+                    {p.sku}{p.descripcion ? ` · ${p.descripcion}` : ''}
+                  </option>
+                ))}
+              </Select>
             )}
           </div>
 
@@ -805,14 +799,12 @@ export function Escandallos() {
           </div>
 
           <div className="flex gap-2">
-            <button type="submit" disabled={saving || !nombre.trim()}
-              className="flex-1 bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white py-3 rounded-xl text-sm font-semibold transition">
-              {saving ? 'Guardando...' : editId ? 'Guardar cambios' : 'Crear escandallo'}
-            </button>
-            <button type="button" onClick={resetForm}
-              className="px-5 py-3 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+            <Button type="submit" disabled={saving || !nombre.trim()} isLoading={saving} className="flex-1">
+              {editId ? 'Guardar cambios' : 'Crear escandallo'}
+            </Button>
+            <Button type="button" variant="secondary" onClick={resetForm}>
               Cancelar
-            </button>
+            </Button>
           </div>
         </form>
       )}
