@@ -11,7 +11,6 @@ const ACCESOS = [
   { label: 'Compras',            desc: 'Cargar compras (factura, proveedor, costo).',    href: '/inventario/compras' },
   { label: 'Producto terminado', desc: 'Stock de prendas por SKU y talle + ajuste.',     href: '/inventario/terminado' },
   { label: 'Rollos',             desc: 'Vista plana de rollos con estado y peso.',        href: '/inventario/rollos' },
-  { label: 'Lotes',              desc: 'Insumos trazados por lote.',                      href: '/inventario/lotes' },
   { label: 'Movimientos',        desc: 'Auditoría de ingresos, consumos y ajustes.',      href: '/inventario/movimientos' },
   { label: 'Ajustes',            desc: 'Corregir stock o costo a mano (sin compra).',     href: '/inventario/ajustes' },
 ];

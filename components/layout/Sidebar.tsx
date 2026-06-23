@@ -43,7 +43,6 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
       { label: 'Insumos',            href: '/inventario' },
       { label: 'Avíos',              href: '/inventario/catalogo/avios' },
       { label: 'Rollos',             href: '/inventario/rollos' },
-      { label: 'Lotes',              href: '/inventario/lotes' },
       { label: 'Movimientos',        href: '/inventario/movimientos' },
       { label: 'Ajustes',            href: '/inventario/ajustes' },
       { label: 'Producto terminado', href: '/inventario/terminado', seccion: 'produccion' },

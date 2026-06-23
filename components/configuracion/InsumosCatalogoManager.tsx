@@ -23,9 +23,11 @@ interface InsumoItem {
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 
-// 'aviso' se quita del alta: los avíos se cargan en el Catálogo de avíos
-// (sistema liviano). El valor sigue siendo válido para mostrar datos viejos.
-const CATEGORIAS = ['tela', 'vinilo', 'etiqueta', 'badana', 'hilo', 'packaging', 'otro'];
+// Las categorías de avíos (etiqueta/badana/hilo/aviso) se quitan del alta de
+// insumos: todo avío se carga en el Catálogo de avíos (sistema liviano). Acá
+// quedan solo los materiales productivos. Los valores viejos siguen siendo
+// válidos para mostrar insumos ya cargados.
+const CATEGORIAS = ['tela', 'vinilo', 'packaging', 'otro'];
 const UNIDADES = ['kg', 'metro', 'unidad'];
 // El valor interno queda 'aviso' (para no romper datos existentes) pero se
 // muestra "Avíos" bien escrito.
