@@ -9,13 +9,14 @@ import { toast } from '@/components/ui/Toaster';
 
 interface Etiqueta {
   id: string; nombre: string; tipo: string | null; precio: number; stock: number | null;
-  categoria: string | null; unidad: string | null; marca: string | null; proveedorId: string | null;
+  categoria: string | null; frecuencia: string | null; unidad: string | null; marca: string | null; proveedorId: string | null;
 }
 interface ProveedorOpt { id: string; nombre: string; activo: boolean; }
 interface AvioMov { id: string; tipo: string; cantidad: number; motivo: string | null; creadoPor: string; fecha: string; }
 
 const TIPOS_ETIQUETA = ['principal', 'composicion', 'otro'];
-const CATEGORIAS = ['etiqueta', 'badana', 'boton', 'hilo', 'otro'];
+const CATEGORIAS = ['etiqueta', 'badana', 'boton', 'cierre', 'tacha', 'hilo', 'otro'];
+const FRECUENCIAS = ['habitual', 'ocasional'];   // habitual = va siempre; ocasional = según la prenda
 const UNIDADES = ['etiqueta', 'unidad'];
 const MARCAS = ['Zattia', 'Stunned'];
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
@@ -32,6 +33,7 @@ export function AviosCatalogoManager() {
   const [nombre, setNombre] = useState('');
   const [tipo, setTipo] = useState('principal');
   const [categoria, setCategoria] = useState('etiqueta');
+  const [frecuencia, setFrecuencia] = useState('habitual');
   const [unidad, setUnidad] = useState('etiqueta');
   const [marca, setMarca] = useState('');
   const [proveedorId, setProveedorId] = useState('');
@@ -41,6 +43,9 @@ export function AviosCatalogoManager() {
   const [editPrecio, setEditPrecio] = useState(0);
   const [editSeguir, setEditSeguir] = useState(false);
   const [editStock, setEditStock] = useState(0);
+  const [editFrecuencia, setEditFrecuencia] = useState('habitual');
+  const [filtroCat, setFiltroCat] = useState('');
+  const [filtroFrec, setFiltroFrec] = useState('');
 
   // Ingreso/compra de stock
   const [ingId, setIngId] = useState<string | null>(null);
@@ -102,21 +107,22 @@ export function AviosCatalogoManager() {
     setSaving(true);
     const r = await fetch('/api/costos/etiquetas', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, tipo, categoria, unidad, marca: marca || null, proveedorId: proveedorId || null, precio }),
+      body: JSON.stringify({ nombre, tipo, categoria, frecuencia, unidad, marca: marca || null, proveedorId: proveedorId || null, precio }),
     });
-    if (r.ok) { const it = await r.json(); setItems(prev => [...prev, { ...it, precio: Number(it.precio) }].sort((a, b) => a.nombre.localeCompare(b.nombre))); setNombre(''); setPrecio(0); setMarca(''); }
+    if (r.ok) { const it = await r.json(); setItems(prev => [...prev, { ...it, precio: Number(it.precio) }].sort((a, b) => a.nombre.localeCompare(b.nombre))); setNombre(''); setPrecio(0); setMarca(''); setFrecuencia('habitual'); }
     setSaving(false);
   };
 
   const startEdit = (it: Etiqueta) => {
     setEditId(it.id); setEditPrecio(it.precio);
     setEditSeguir(it.stock != null); setEditStock(it.stock ?? 0);
+    setEditFrecuencia(it.frecuencia ?? 'habitual');
   };
 
   const guardar = async (id: string) => {
     const r = await fetch(`/api/costos/etiquetas/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ precio: editPrecio, stock: editSeguir ? editStock : null }),
+      body: JSON.stringify({ precio: editPrecio, stock: editSeguir ? editStock : null, frecuencia: editFrecuencia }),
     });
     if (r.ok) { const it = await r.json(); setItems(prev => prev.map(x => x.id === id ? { ...it, precio: Number(it.precio) } : x)); setEditId(null); }
   };
@@ -141,18 +147,42 @@ export function AviosCatalogoManager() {
     setMovLoading(false);
   };
 
+  const visibles = items.filter(it =>
+    (!filtroCat || it.categoria === filtroCat) &&
+    (!filtroFrec || (it.frecuencia ?? 'habitual') === filtroFrec));
+
   return (
     <div className="max-w-2xl">
       <h3 className="text-sm font-bold text-stone-800 mb-1">Catálogo de avíos</h3>
-      <p className="text-xs text-stone-400 mb-4">Etiquetas, badanas, botones, hilos. Una fila por variante (color). El talle va en el nombre. Stock vacío = sin seguimiento; se descuenta al terminar producción.</p>
+      <p className="text-xs text-stone-400 mb-4">Etiquetas, badanas, botones, cierres, tachas, hilos. Una fila por variante (color); el talle va en el nombre. Habitual = va siempre; ocasional = según la prenda. Stock vacío = sin seguimiento.</p>
+
+      <div className="flex flex-wrap items-center gap-2 mb-3">
+        <select value={filtroCat} onChange={e => setFiltroCat(e.target.value)} className={`${inp} capitalize`}>
+          <option value="">Todas las categorías</option>
+          {CATEGORIAS.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
+        </select>
+        <select value={filtroFrec} onChange={e => setFiltroFrec(e.target.value)} className={`${inp} capitalize`}>
+          <option value="">Habituales + ocasionales</option>
+          {FRECUENCIAS.map(f => <option key={f} value={f} className="capitalize">solo {f}</option>)}
+        </select>
+        {(filtroCat || filtroFrec) && (
+          <button onClick={() => { setFiltroCat(''); setFiltroFrec(''); }} className="text-xs text-stone-500 hover:text-stone-800 transition">Limpiar</button>
+        )}
+        <span className="text-xs text-stone-400 ml-auto">{visibles.length} de {items.length}</span>
+      </div>
 
       <div className={`${card} divide-y divide-stone-100 mb-3`}>
-        {items.length === 0 && <p className="text-sm text-stone-400 text-center py-8 italic">Sin avíos todavía</p>}
-        {items.map(it => (
+        {visibles.length === 0 && <p className="text-sm text-stone-400 text-center py-8 italic">{items.length === 0 ? 'Sin avíos todavía' : 'Sin avíos con ese filtro'}</p>}
+        {visibles.map(it => (
           <div key={it.id} className="px-5 py-3">
             <div className="flex items-center gap-3">
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-stone-800">{it.nombre}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm text-stone-800 truncate">{it.nombre}</p>
+                <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full ${(it.frecuencia ?? 'habitual') === 'ocasional' ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500'}`}>
+                  {(it.frecuencia ?? 'habitual') === 'ocasional' ? 'ocasional' : 'habitual'}
+                </span>
+              </div>
               <p className="text-xs text-stone-400 capitalize">
                 {[it.categoria, it.marca, it.unidad ? `por ${it.unidad}` : null, it.tipo].filter(Boolean).join(' · ')}
               </p>
@@ -168,6 +198,9 @@ export function AviosCatalogoManager() {
                   Stock
                 </label>
                 {editSeguir && <NumInput value={editStock} onChange={setEditStock} min="0" step="1" placeholder="cant." className={`w-20 ${inp}`} />}
+                <select value={editFrecuencia} onChange={e => setEditFrecuencia(e.target.value)} className={`${inp} capitalize text-xs py-1`}>
+                  {FRECUENCIAS.map(f => <option key={f} value={f} className="capitalize">{f}</option>)}
+                </select>
                 <button onClick={() => guardar(it.id)} className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg font-semibold">OK</button>
                 <button onClick={() => setEditId(null)} aria-label="Cancelar" className="text-xs text-stone-400 hover:text-stone-600">✕</button>
               </div>
@@ -276,6 +309,9 @@ export function AviosCatalogoManager() {
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           <select value={categoria} onChange={e => setCategoria(e.target.value)} className={`${inp} capitalize`}>
             {CATEGORIAS.map(c => <option key={c} value={c} className="capitalize">{c}</option>)}
+          </select>
+          <select value={frecuencia} onChange={e => setFrecuencia(e.target.value)} className={`${inp} capitalize`}>
+            {FRECUENCIAS.map(f => <option key={f} value={f} className="capitalize">{f}</option>)}
           </select>
           <select value={unidad} onChange={e => setUnidad(e.target.value)} className={`${inp} capitalize`}>
             {UNIDADES.map(u => <option key={u} value={u} className="capitalize">por {u}</option>)}

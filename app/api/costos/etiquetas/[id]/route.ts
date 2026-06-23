@@ -15,6 +15,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
   if (body.tipo      !== undefined) data.tipo      = body.tipo?.trim() || null;
   if (body.categoria !== undefined) data.categoria = body.categoria?.trim() || null;
+  if (body.frecuencia !== undefined) data.frecuencia = body.frecuencia === 'ocasional' ? 'ocasional' : 'habitual';
   if (body.unidad    !== undefined) data.unidad    = body.unidad?.trim() || null;
   if (body.marca     !== undefined) data.marca     = body.marca?.trim() || null;
   if (body.proveedorId !== undefined) data.proveedorId = body.proveedorId || null;

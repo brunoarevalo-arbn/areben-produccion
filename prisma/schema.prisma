@@ -323,7 +323,8 @@ model EtiquetaCatalogo {
   id        String   @id @default(cuid())
   nombre    String
   tipo      String?  // 'principal' | 'composicion' | 'otro'
-  categoria String?  // 'etiqueta' | 'badana' | 'boton' | 'hilo' | 'otro'
+  categoria String?  // 'etiqueta' | 'badana' | 'boton' | 'cierre' | 'tacha' | 'hilo' | 'otro'
+  frecuencia String  @default("habitual") // 'habitual' (va siempre) | 'ocasional' (según la prenda)
   unidad    String?  // 'etiqueta' | 'unidad'
   marca     String?  // 'Zattia' | 'Stunned' | null
   precio    Decimal  @default(0)
