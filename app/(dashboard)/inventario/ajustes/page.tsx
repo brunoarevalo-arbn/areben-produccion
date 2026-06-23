@@ -10,7 +10,7 @@ export default function AjustesPage() {
       <PageHeader
         eyebrow="Inventario"
         title="Ajustes"
-        subtitle="Corregí a mano el stock o el costo de un insumo, sin cargar una compra."
+        subtitle="Corregí a mano el stock o el costo de un rollo de tela, sin cargar una compra. (El stock de avíos se ajusta en el Catálogo de avíos.)"
       />
       <div className="grid md:grid-cols-2 gap-6 items-start">
         <div>

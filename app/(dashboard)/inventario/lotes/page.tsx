@@ -1,13 +1,7 @@
-import { LotesClient } from '@/components/insumos/LotesClient';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
+// La sección Lotes se retiró: los avíos se manejan en el Catálogo de avíos y las
+// telas por Rollos. La ruta queda como redirect para no romper enlaces viejos.
 export default function LotesPage() {
-  return (
-    <div className="p-8 max-w-5xl">
-      <PageHeader eyebrow="Inventario" title="Lotes" subtitle="Etiquetas, badanas, hilos y otros insumos trazados por lote." />
-      <LotesClient />
-    </div>
-  );
+  redirect('/inventario');
 }

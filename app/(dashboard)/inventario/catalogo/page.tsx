@@ -17,10 +17,10 @@ export default async function InsumosCatalogoPage() {
       <PageHeader
         eyebrow="Inventario"
         title="Catálogo de insumos"
-        subtitle="Telas, etiquetas, badanas, hilos y otros materiales productivos."
+        subtitle="Telas, vinilos, packaging y otros materiales productivos. Los avíos (etiquetas, badanas, hilos) se cargan en su propio catálogo."
         actions={
           <Link href="/inventario/catalogo/avios" className="inline-block text-xs text-violet-700 hover:text-violet-900 transition">
-            → Catálogo de avíos/etiquetas (alta rápida con precio y stock)
+            → Ir al Catálogo de avíos (alta rápida con precio y stock)
           </Link>
         }
       />

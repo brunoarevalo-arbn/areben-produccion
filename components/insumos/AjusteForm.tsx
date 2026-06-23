@@ -5,16 +5,15 @@ import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
 
 interface RolloOpt { id: string; codigo: string; pesoActual: string; insumo: { nombre: string } }
-interface LoteOpt  { id: string; codigo: string; cantidadActual: string; insumo: { nombre: string } }
 interface MotivoOpt { id: string; nombre: string; categoria: string; activo: boolean; }
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 
+// Ajuste de STOCK de un rollo de tela (sin compra). Los avíos se ajustan en su
+// propio catálogo; por eso acá solo hay rollos.
 export function AjusteForm() {
   const router = useRouter();
-  const [tipo, setTipo] = useState<'rollo' | 'lote'>('rollo');
   const [rollos, setRollos] = useState<RolloOpt[]>([]);
-  const [lotes, setLotes]   = useState<LoteOpt[]>([]);
   const [motivos, setMotivos] = useState<MotivoOpt[]>([]);
   const [targetId, setTargetId] = useState('');
   const [cantidad, setCantidad] = useState('');
@@ -26,7 +25,6 @@ export function AjusteForm() {
 
   useEffect(() => {
     fetch('/api/insumos/rollos?estado=DISPONIBLE').then((r) => r.ok ? r.json() : []).then(setRollos);
-    fetch('/api/insumos/lotes?estado=DISPONIBLE').then((r) => r.ok ? r.json() : []).then(setLotes);
     fetch('/api/motivos-descarte').then((r) => r.ok ? r.json() : [])
       .then((m: MotivoOpt[]) => setMotivos(m.filter((x) => x.activo)));
   }, []);
@@ -35,7 +33,7 @@ export function AjusteForm() {
     e.preventDefault();
     setError(''); setSuccess('');
 
-    if (!targetId) { setError('Selecciona un rollo o lote'); return; }
+    if (!targetId) { setError('Selecciona un rollo'); return; }
     if (!cantidad || Number(cantidad) === 0) { setError('Cantidad no puede ser 0'); return; }
     if (!motivoDescarteId) { setError('Selecciona un motivo'); return; }
 
@@ -49,7 +47,7 @@ export function AjusteForm() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        tipo, targetId, cantidad: Number(cantidad),
+        tipo: 'rollo', targetId, cantidad: Number(cantidad),
         motivo: motivoTexto,
         motivoDescarteId,
       }),
@@ -66,40 +64,18 @@ export function AjusteForm() {
     setSaving(false);
   };
 
-  const opciones = tipo === 'rollo' ? rollos : lotes;
   const fmt = (n: string | number) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
   return (
     <div className="bg-white rounded-2xl border border-stone-200 p-6 max-w-lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Tipo</label>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => { setTipo('rollo'); setTargetId(''); }}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${tipo === 'rollo' ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600'}`}>
-              Rollo
-            </button>
-            <button type="button" onClick={() => { setTipo('lote'); setTargetId(''); }}
-              className={`px-4 py-2 rounded-xl text-sm font-semibold border transition ${tipo === 'lote' ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600'}`}>
-              Lote
-            </button>
-          </div>
-        </div>
-
-        <div>
-          <label className="text-xs font-semibold text-stone-600 mb-1.5 block">
-            {tipo === 'rollo' ? 'Rollo' : 'Lote'} *
-          </label>
+          <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Rollo *</label>
           <select value={targetId} onChange={(e) => setTargetId(e.target.value)} required className={inp}>
             <option value="">-- Seleccionar --</option>
-            {tipo === 'rollo'
-              ? (opciones as RolloOpt[]).map((r) => (
-                  <option key={r.id} value={r.id}>{r.codigo} · {r.insumo.nombre} (actual: {fmt(r.pesoActual)})</option>
-                ))
-              : (opciones as LoteOpt[]).map((l) => (
-                  <option key={l.id} value={l.id}>{l.codigo} · {l.insumo.nombre} (actual: {fmt(l.cantidadActual)})</option>
-                ))
-            }
+            {rollos.map((r) => (
+              <option key={r.id} value={r.id}>{r.codigo} · {r.insumo.nombre} (actual: {fmt(r.pesoActual)})</option>
+            ))}
           </select>
         </div>
 

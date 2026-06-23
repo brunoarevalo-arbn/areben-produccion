@@ -173,7 +173,6 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
               </Select>
               <Select label="Trazabilidad *" fullWidth value={tipoTrazabilidad} onChange={(e) => setTipoTrazabilidad(e.target.value)}>
                 <option value="rollo">Rollo (peso individual)</option>
-                <option value="lote">Lote (cantidad total)</option>
               </Select>
               <Select label="Unidad default" fullWidth value={unidadDefault} onChange={(e) => setUnidadDefault(e.target.value)}>
                 {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}

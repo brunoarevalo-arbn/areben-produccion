@@ -9,14 +9,11 @@ import { fmtMoney } from '@/lib/format';
 
 interface Opt { id: string; codigo: string; costoUnitario: string; insumo: { nombre: string } }
 
-// Ajuste manual de COSTO de un rollo/lote, sin pasar por una compra
-// (ej. revaluar stock por aumento del proveedor). El stock se ajusta en
-// AjusteForm; acá solo cambia el costo unitario.
+// Ajuste manual de COSTO de un rollo de tela, sin pasar por una compra
+// (ej. revaluar stock por aumento del proveedor).
 export function AjusteCostoForm() {
   const router = useRouter();
-  const [tipo, setTipo] = useState<'rollo' | 'lote'>('rollo');
   const [rollos, setRollos] = useState<Opt[]>([]);
-  const [lotes, setLotes] = useState<Opt[]>([]);
   const [targetId, setTargetId] = useState('');
   const [nuevoCosto, setNuevoCosto] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -25,29 +22,25 @@ export function AjusteCostoForm() {
 
   useEffect(() => {
     fetch('/api/insumos/rollos?estado=DISPONIBLE').then((r) => r.ok ? r.json() : []).then(setRollos).catch(() => {});
-    fetch('/api/insumos/lotes?estado=DISPONIBLE').then((r) => r.ok ? r.json() : []).then(setLotes).catch(() => {});
   }, []);
 
-  const opciones = tipo === 'rollo' ? rollos : lotes;
-  const sel = opciones.find((o) => o.id === targetId);
+  const sel = rollos.find((o) => o.id === targetId);
   const costoActual = sel ? Number(sel.costoUnitario) : 0;
 
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(''); setSuccess('');
-    if (!targetId) { setError('Elegí un rollo o lote'); return; }
+    if (!targetId) { setError('Elegí un rollo'); return; }
     if (!nuevoCosto || nuevoCosto <= 0) { setError('Cargá el nuevo costo'); return; }
 
     setSaving(true);
-    const r = await fetch(`/api/insumos/${tipo === 'rollo' ? 'rollos' : 'lotes'}/${targetId}`, {
+    const r = await fetch(`/api/insumos/rollos/${targetId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ costoUnitario: nuevoCosto }),
     });
     if (r.ok) {
       setSuccess(`Costo actualizado a ${fmtMoney(nuevoCosto, 2)}`);
-      // refrescar el costo en la lista local
-      const upd = (arr: Opt[]) => arr.map((o) => o.id === targetId ? { ...o, costoUnitario: String(nuevoCosto) } : o);
-      if (tipo === 'rollo') setRollos(upd); else setLotes(upd);
+      setRollos((arr) => arr.map((o) => o.id === targetId ? { ...o, costoUnitario: String(nuevoCosto) } : o));
       setTargetId(''); setNuevoCosto(0);
       router.refresh();
     } else {
@@ -60,22 +53,11 @@ export function AjusteCostoForm() {
   return (
     <div className="bg-white rounded-2xl border border-stone-200 p-6 max-w-lg">
       <h3 className="text-sm font-bold text-stone-800 mb-1">Ajustar costo (sin compra)</h3>
-      <p className="text-xs text-stone-500 mb-4">Cambiá el costo unitario de un rollo/lote, ej. por aumento del proveedor.</p>
+      <p className="text-xs text-stone-500 mb-4">Cambiá el costo unitario de un rollo, ej. por aumento del proveedor.</p>
       <form onSubmit={guardar} className="space-y-4">
-        <div>
-          <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Tipo</label>
-          <div className="flex gap-2">
-            <Button type="button" variant={tipo === 'rollo' ? 'primary' : 'secondary'} size="sm"
-              onClick={() => { setTipo('rollo'); setTargetId(''); }}>Rollo</Button>
-            <Button type="button" variant={tipo === 'lote' ? 'primary' : 'secondary'} size="sm"
-              onClick={() => { setTipo('lote'); setTargetId(''); }}>Lote</Button>
-          </div>
-        </div>
-
-        <Select label={`${tipo === 'rollo' ? 'Rollo' : 'Lote'} *`} value={targetId}
-          onChange={(e) => { setTargetId(e.target.value); }} fullWidth>
+        <Select label="Rollo *" value={targetId} onChange={(e) => { setTargetId(e.target.value); }} fullWidth>
           <option value="">-- Seleccionar --</option>
-          {opciones.map((o) => (
+          {rollos.map((o) => (
             <option key={o.id} value={o.id}>{o.codigo} · {o.insumo.nombre} (costo: {fmtMoney(Number(o.costoUnitario), 2)})</option>
           ))}
         </Select>

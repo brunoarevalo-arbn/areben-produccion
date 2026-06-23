@@ -8,7 +8,6 @@ const ACCESOS = [
   { label: 'Telas',              desc: 'Stock de telas (rollos por kg).',                href: '/inventario?cat=tela' },
   { label: 'Avíos',              desc: 'Etiquetas, badanas, hilos y avíos.',             href: '/inventario/catalogo/avios' },
   { label: 'Alta de insumos',    desc: 'Dar de alta un insumo o avío nuevo.',            href: '/inventario/catalogo' },
-  { label: 'Compras',            desc: 'Cargar compras (factura, proveedor, costo).',    href: '/inventario/compras' },
   { label: 'Producto terminado', desc: 'Stock de prendas por SKU y talle + ajuste.',     href: '/inventario/terminado' },
   { label: 'Rollos',             desc: 'Vista plana de rollos con estado y peso.',        href: '/inventario/rollos' },
   { label: 'Movimientos',        desc: 'Auditoría de ingresos, consumos y ajustes.',      href: '/inventario/movimientos' },
