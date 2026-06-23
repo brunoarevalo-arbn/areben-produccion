@@ -29,6 +29,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   if (!(await requireAlguno(req, ['costos', 'insumos']))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const { id } = await params;
-  await prisma.etiquetaCatalogo.delete({ where: { id } });
+  // Baja lógica: no borramos físicamente (preserva AvioMovimiento y no rompe
+  // OrdenAvio que lo referencien). El GET filtra activo:true.
+  await prisma.etiquetaCatalogo.update({ where: { id }, data: { activo: false } });
   return NextResponse.json({ ok: true });
 }

@@ -5,12 +5,14 @@ import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { toast } from '@/components/ui/Toaster';
 
 interface Etiqueta {
   id: string; nombre: string; tipo: string | null; precio: number; stock: number | null;
   categoria: string | null; unidad: string | null; marca: string | null; proveedorId: string | null;
 }
 interface ProveedorOpt { id: string; nombre: string; activo: boolean; }
+interface AvioMov { id: string; tipo: string; cantidad: number; motivo: string | null; creadoPor: string; fecha: string; }
 
 const TIPOS_ETIQUETA = ['principal', 'composicion', 'otro'];
 const CATEGORIAS = ['etiqueta', 'badana', 'boton', 'hilo', 'otro'];
@@ -52,6 +54,11 @@ export function AviosCatalogoManager() {
   const [ingPagado, setIngPagado] = useState(0);
   const [ingSaving, setIngSaving] = useState(false);
   const [ingError, setIngError] = useState('');
+
+  // Movimientos (auditoría) por avío
+  const [movId, setMovId] = useState<string | null>(null);
+  const [movs, setMovs] = useState<AvioMov[]>([]);
+  const [movLoading, setMovLoading] = useState(false);
 
   const startIngreso = (it: Etiqueta) => {
     setIngId(it.id); setIngCant(0); setIngCosto(it.precio); setIngActualizar(false);
@@ -115,9 +122,23 @@ export function AviosCatalogoManager() {
   };
 
   const eliminar = async (id: string, nom: string) => {
-    if (!(await confirmAsync({ message: `¿Eliminar la etiqueta "${nom}"?`, danger: true, confirmLabel: 'Eliminar' }))) return;
-    const r = await fetch(`/api/costos/etiquetas/${id}`, { method: 'DELETE' });
+    if (!(await confirmAsync({ message: `¿Eliminar "${nom}" del catálogo? Se conserva el historial de movimientos.`, danger: true, confirmLabel: 'Eliminar' }))) return;
+    // Baja lógica (activo=false): el GET ya filtra activo, así que desaparece de
+    // la lista, pero no se borra el historial ni rompe órdenes que lo referencian.
+    const r = await fetch(`/api/costos/etiquetas/${id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ activo: false }),
+    });
     if (r.ok) setItems(prev => prev.filter(x => x.id !== id));
+    else toast.error('No se pudo eliminar el avío');
+  };
+
+  const verMovimientos = async (id: string) => {
+    if (movId === id) { setMovId(null); return; }
+    setMovId(id); setMovLoading(true); setMovs([]);
+    const r = await fetch(`/api/costos/etiquetas/${id}/movimientos`);
+    if (r.ok) setMovs(await r.json());
+    setMovLoading(false);
   };
 
   return (
@@ -158,6 +179,7 @@ export function AviosCatalogoManager() {
                 </span>
                 <button onClick={() => startIngreso(it)}
                   className="text-xs px-2 py-1 border border-emerald-200 text-emerald-700 rounded-lg hover:bg-emerald-50 transition">+ Ingresar</button>
+                <Button variant="secondary" size="sm" onClick={() => verMovimientos(it.id)}>Mov.</Button>
                 <Button variant="secondary" size="sm" onClick={() => startEdit(it)}>Editar</Button>
                 <button onClick={() => eliminar(it.id, it.nombre)} aria-label="Eliminar"
                   className="text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">×</button>
@@ -217,6 +239,31 @@ export function AviosCatalogoManager() {
                   </div>
                 </div>
                 {ingError && <p className="text-xs text-red-600 font-semibold mt-2">{ingError}</p>}
+              </div>
+            )}
+
+            {movId === it.id && (
+              <div className="mt-3 border-t border-stone-100 pt-3">
+                {movLoading ? (
+                  <p className="text-xs text-stone-400">Cargando…</p>
+                ) : movs.length === 0 ? (
+                  <p className="text-xs text-stone-400 italic">Sin movimientos registrados</p>
+                ) : (
+                  <div className="space-y-1">
+                    {movs.map((m) => (
+                      <div key={m.id} className="flex items-center gap-2 text-xs">
+                        <span className="text-stone-400 w-28 shrink-0">
+                          {new Date(m.fecha).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="font-semibold w-16 shrink-0">{m.tipo}</span>
+                        <span className={`tabular-nums w-12 text-right shrink-0 ${m.cantidad >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                          {m.cantidad >= 0 ? '+' : ''}{m.cantidad}
+                        </span>
+                        <span className="text-stone-500 truncate">{[m.motivo, m.creadoPor].filter(Boolean).join(' · ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
