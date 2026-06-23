@@ -23,7 +23,9 @@ interface InsumoItem {
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 
-const CATEGORIAS = ['tela', 'vinilo', 'etiqueta', 'badana', 'hilo', 'aviso', 'packaging', 'otro'];
+// 'aviso' se quita del alta: los avíos se cargan en el Catálogo de avíos
+// (sistema liviano). El valor sigue siendo válido para mostrar datos viejos.
+const CATEGORIAS = ['tela', 'vinilo', 'etiqueta', 'badana', 'hilo', 'packaging', 'otro'];
 const UNIDADES = ['kg', 'metro', 'unidad'];
 // El valor interno queda 'aviso' (para no romper datos existentes) pero se
 // muestra "Avíos" bien escrito.
