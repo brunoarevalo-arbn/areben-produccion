@@ -27,6 +27,10 @@ const inpSm = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outl
 
 let keyCounter = 0;
 
+// Normaliza para matchear nombres (minúsculas, sin acentos ni espacios extra).
+const normalizar = (s: string) =>
+  (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+
 interface InicialCompra {
   id: string;
   proveedorId: string; fecha: string; numeroFactura: string; conIva: boolean;
@@ -59,6 +63,12 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
   const [montoPagado, setMontoPagado]     = useState(inicial?.montoPagado ?? '');
   const [fechaPago, setFechaPago]         = useState(inicial?.fechaPago ?? '');
   const [notas, setNotas]                 = useState(inicial?.notas ?? '');
+
+  // Importar desde factura (pegando el JSON que devuelve claude.ai — sin costo)
+  const [importOpen, setImportOpen]   = useState(false);
+  const [importText, setImportText]   = useState('');
+  const [importMsg, setImportMsg]     = useState<{ ok: boolean; texto: string } | null>(null);
+  const [promptCopiado, setPromptCopiado] = useState(false);
 
   // Lineas
   const [lineas, setLineas] = useState<Linea[]>(
@@ -139,6 +149,140 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
 
   const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
+  // --- Importar desde factura ---------------------------------------------
+  // Prompt listo para pegar en claude.ai junto a la foto/PDF de la factura.
+  // Embebe los nombres de tus telas y proveedores para que matchee exacto.
+  const construirPrompt = () => {
+    const telas = insumos.filter((i) => i.activo).map((i) => `- ${i.nombre}`).join('\n') || '- (sin telas cargadas)';
+    const provs = proveedores.map((p) => `- ${p.nombre}`).join('\n') || '- (sin proveedores)';
+    return `Sos un asistente que extrae los datos de una factura de compra de telas.
+Te voy a pasar la foto o el PDF de una factura. Devolveme SOLO un bloque JSON (sin texto antes ni después) con esta forma exacta:
+
+{
+  "proveedor": "<el más parecido de la lista de proveedores>",
+  "fecha": "AAAA-MM-DD",
+  "numeroFactura": "<nro de factura, o vacío>",
+  "preciosConIva": true,
+  "totalBruto": <número: el total de la factura tal cual figura>,
+  "lineas": [
+    {
+      "descripcion": "<usá EXACTAMENTE uno de los nombres de la lista de telas>",
+      "cantidad": <número>,
+      "unidad": "kg" | "metro" | "unidad",
+      "precioUnitario": <número: precio por unidad tal cual figura>,
+      "color": "<color del proveedor si aparece, o vacío>"
+    }
+  ]
+}
+
+Reglas:
+- "descripcion": elegí el nombre MÁS PARECIDO de esta lista de telas (no inventes nombres nuevos):
+${telas}
+- "proveedor": elegí el más parecido de esta lista:
+${provs}
+- "preciosConIva": true si los precios de la factura incluyen IVA, false si están sin IVA.
+- Números sin símbolos de moneda ni separadores de miles. Usá punto como decimal (ej: 1234.50).
+- Si un dato no aparece en la factura, dejalo vacío ("" o 0).
+- No agregues comentarios ni explicaciones: solo el JSON.`;
+  };
+
+  const copiarPrompt = async () => {
+    try {
+      await navigator.clipboard.writeText(construirPrompt());
+      setPromptCopiado(true);
+      setTimeout(() => setPromptCopiado(false), 2500);
+    } catch {
+      setImportMsg({ ok: false, texto: 'No se pudo copiar. Seleccioná y copiá el prompt manualmente.' });
+    }
+  };
+
+  // Busca el insumo que mejor matchea una descripción de la factura.
+  const matchInsumo = (descripcion: string): InsumoOpt | null => {
+    const n = normalizar(descripcion);
+    if (!n) return null;
+    const activos = insumos.filter((i) => i.activo);
+    return (
+      activos.find((i) => normalizar(i.nombre) === n) ||
+      activos.find((i) => normalizar(i.nombre).includes(n) || n.includes(normalizar(i.nombre))) ||
+      null
+    );
+  };
+
+  const cargarImport = () => {
+    setImportMsg(null);
+    let raw = importText.trim();
+    if (!raw) { setImportMsg({ ok: false, texto: 'Pegá primero el JSON que te devolvió Claude.' }); return; }
+    // Tolera que Claude lo envuelva en ```json ... ```
+    raw = raw.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
+    // O que venga con texto alrededor: tomar del primer { al último }.
+    const ini = raw.indexOf('{'), fin = raw.lastIndexOf('}');
+    if (ini > 0 || fin < raw.length - 1) raw = raw.slice(ini, fin + 1);
+
+    let data: {
+      proveedor?: string; fecha?: string; numeroFactura?: string;
+      preciosConIva?: boolean; totalBruto?: number;
+      lineas?: { descripcion?: string; cantidad?: number; unidad?: string; precioUnitario?: number; color?: string }[];
+    };
+    try {
+      data = JSON.parse(raw);
+    } catch {
+      setImportMsg({ ok: false, texto: 'El texto pegado no es un JSON válido. Pegá el bloque completo (con sus llaves { }).' });
+      return;
+    }
+
+    const conIvaImp = data.preciosConIva !== false; // default: con IVA
+
+    // Cabecera
+    if (data.proveedor) {
+      const prov = proveedores.find((p) => normalizar(p.nombre) === normalizar(data.proveedor!))
+        || proveedores.find((p) => normalizar(p.nombre).includes(normalizar(data.proveedor!)));
+      if (prov) setProveedorId(prov.id);
+    }
+    if (data.fecha && /^\d{4}-\d{2}-\d{2}$/.test(data.fecha)) setFecha(data.fecha);
+    if (data.numeroFactura) setNumeroFactura(String(data.numeroFactura));
+    setConIva(conIvaImp);
+    if (data.totalBruto && Number(data.totalBruto) > 0) setTotalBruto(String(Number(data.totalBruto)));
+
+    // Líneas
+    const filas = Array.isArray(data.lineas) ? data.lineas : [];
+    let matcheados = 0;
+    const nuevas: Linea[] = filas.map((f) => {
+      const ins = matchInsumo(f.descripcion || '');
+      if (ins) matcheados++;
+      const cant = Number(f.cantidad) || 0;
+      // El form pide precio SIN IVA por línea; si la factura es con IVA, lo paso a neto.
+      const precioBruto = Number(f.precioUnitario) || 0;
+      const precio = conIvaImp ? precioBruto / 1.21 : precioBruto;
+      const unidad = ins?.unidadDefault || (['kg', 'metro', 'unidad'].includes(f.unidad || '') ? f.unidad! : 'kg');
+      const esRollo = ins?.tipoTrazabilidad === 'rollo';
+      return {
+        key: ++keyCounter,
+        insumoId: ins?.id || '',
+        colorProveedor: f.color || '',
+        unidad,
+        cantidad: cant ? String(cant) : '',
+        precioUnitario: precio ? String(Number(precio.toFixed(4))) : '',
+        // Por defecto 1 rollo = la cantidad total (se puede dividir después).
+        rollos: esRollo ? [{ pesoInicial: cant ? String(cant) : '', ubicacion: '' }] : [],
+      };
+    });
+
+    if (nuevas.length === 0) {
+      setImportMsg({ ok: false, texto: 'El JSON no trae renglones ("lineas"). Revisá lo que pegaste.' });
+      return;
+    }
+
+    setLineas(nuevas);
+    const sinMatch = nuevas.length - matcheados;
+    setImportMsg({
+      ok: true,
+      texto: `Cargado: ${nuevas.length} renglón(es), ${matcheados} matcheado(s) con tus telas`
+        + (sinMatch > 0 ? ` · ${sinMatch} sin tela asignada — elegila en el selector de cada renglón.` : '.')
+        + (conIvaImp ? ' Precios convertidos a netos (sin IVA).' : ''),
+    });
+    setImportOpen(false);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -214,6 +358,60 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Importar desde factura (vía claude.ai, sin costo) */}
+      {!editando && (
+        <div className="bg-amber-50/60 rounded-2xl border border-amber-200 p-5">
+          <button type="button" onClick={() => setImportOpen((o) => !o)}
+            className="w-full flex items-center justify-between text-left">
+            <span className="text-sm font-bold text-amber-900 flex items-center gap-2">
+              📋 Importar desde factura
+              <span className="text-xs font-normal text-amber-700/80">(pegá lo que te da claude.ai — sin costo)</span>
+            </span>
+            <span className="text-amber-700 text-lg leading-none">{importOpen ? '−' : '+'}</span>
+          </button>
+
+          {importOpen && (
+            <div className="mt-4 space-y-3">
+              <ol className="text-xs text-amber-900/80 space-y-1 list-decimal list-inside">
+                <li>Copiá el prompt y pegalo en <strong>claude.ai</strong> junto a la foto o PDF de la factura.</li>
+                <li>Claude te devuelve un bloque JSON. Copialo y pegalo en el cuadro de abajo.</li>
+                <li>Tocá <strong>Cargar en el formulario</strong>, revisá los renglones y registrá la compra.</li>
+              </ol>
+
+              <div className="flex flex-wrap gap-2">
+                <Button type="button" variant="secondary" size="sm" onClick={copiarPrompt}>
+                  {promptCopiado ? '✓ Prompt copiado' : 'Copiar prompt para claude.ai'}
+                </Button>
+              </div>
+
+              <Textarea
+                label="Pegá acá el JSON de la factura"
+                fullWidth
+                value={importText}
+                onChange={(e) => setImportText(e.target.value)}
+                rows={6}
+                placeholder={'{\n  "proveedor": "...",\n  "totalBruto": 150000,\n  "lineas": [ ... ]\n}'}
+                className="resize-none font-mono text-xs"
+              />
+
+              <div className="flex flex-wrap items-center gap-3">
+                <Button type="button" size="sm" onClick={cargarImport}>Cargar en el formulario</Button>
+                {importText && (
+                  <button type="button" onClick={() => { setImportText(''); setImportMsg(null); }}
+                    className="text-xs text-stone-500 hover:text-stone-800 transition">Limpiar</button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {importMsg && (
+            <div className={`mt-3 rounded-xl px-4 py-2.5 text-xs ${importMsg.ok ? 'bg-green-50 border border-green-200 text-green-800' : 'bg-red-50 border border-red-200 text-red-700'}`}>
+              {importMsg.texto}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Cabecera */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
         <h3 className="text-sm font-bold text-stone-800 mb-2">Datos de la compra</h3>
