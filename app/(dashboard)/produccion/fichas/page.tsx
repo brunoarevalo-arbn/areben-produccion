@@ -9,9 +9,7 @@ const ESTADO_LABEL: Record<string, string> = {
   PENDIENTE: 'Pendiente',
   CORTE: 'En corte',
   COSTURA: 'En costura',
-  TERMINADO_SIN_ESTAMPA: 'Sin estampa',
-  ESTAMPA: 'En estampa',
-  CONTROL_CALIDAD: 'Control calidad',
+  TERMINADO_SIN_ESTAMPA: 'Listo',
   CERRADA: 'Cerrada',
 };
 const ESTADO_COLOR: Record<string, string> = {
@@ -19,8 +17,6 @@ const ESTADO_COLOR: Record<string, string> = {
   CORTE: 'bg-blue-100 text-blue-700',
   COSTURA: 'bg-violet-100 text-violet-700',
   TERMINADO_SIN_ESTAMPA: 'bg-stone-100 text-stone-600',
-  ESTAMPA: 'bg-fuchsia-100 text-fuchsia-700',
-  CONTROL_CALIDAD: 'bg-cyan-100 text-cyan-700',
   CERRADA: 'bg-emerald-100 text-emerald-700',
 };
 

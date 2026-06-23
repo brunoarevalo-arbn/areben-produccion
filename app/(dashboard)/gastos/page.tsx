@@ -23,7 +23,7 @@ export default async function GastosPage() {
     prisma.gasto.findMany({ where: { categoria: 'desarrollo' }, orderBy: { createdAt: 'desc' } }),
     prisma.gasto.findMany({ where: { categoria: 'produccion' }, orderBy: { createdAt: 'desc' } }),
     prisma.ordenProduccion.findMany({
-      where: { estado: { in: ['PENDIENTE', 'CORTE', 'COSTURA', 'TERMINADO_SIN_ESTAMPA', 'ESTAMPA', 'CONTROL_CALIDAD'] } },
+      where: { estado: { not: 'CERRADA' } },   // órdenes activas (todas menos las cerradas)
       orderBy: { createdAt: 'asc' },
       select: { id: true, sku: true, descripcion: true, marca: true },
     }),

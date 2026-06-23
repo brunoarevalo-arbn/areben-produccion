@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 const ESTADO_LABEL: Record<string, string> = {
   PENDIENTE: 'Pendiente', CORTE: 'Corte', COSTURA: 'Costura',
-  TERMINADO_SIN_ESTAMPA: 'Liso terminado', ESTAMPA: 'Estampa',
+  TERMINADO_SIN_ESTAMPA: 'Listo', ESTAMPA: 'Estampa',
   CONTROL_CALIDAD: 'Control calidad', CERRADA: 'Cerrada',
 };
 const ESTADO_BADGE: Record<string, 'success' | 'warning' | 'default' | 'amber' | 'blue' | 'violet' | 'pink'> = {

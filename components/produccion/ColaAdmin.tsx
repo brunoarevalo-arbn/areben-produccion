@@ -35,13 +35,14 @@ interface CatalogoEntry {
   activo: boolean;
 }
 
-const ESTADOS = ['PENDIENTE', 'CORTE', 'COSTURA', 'TERMINADO_SIN_ESTAMPA', 'ESTAMPA', 'CONTROL_CALIDAD', 'CERRADA'] as const;
+// Estampa y Control de calidad quedan fuera del flujo (la estampa se terceriza).
+const ESTADOS = ['PENDIENTE', 'CORTE', 'COSTURA', 'TERMINADO_SIN_ESTAMPA', 'CERRADA'] as const;
 
 const ESTADO_LABEL: Record<string, string> = {
   PENDIENTE:             'Pendiente',
   CORTE:                 'Corte',
   COSTURA:               'Costura',
-  TERMINADO_SIN_ESTAMPA: 'Liso terminado',
+  TERMINADO_SIN_ESTAMPA: 'Listo',
   ESTAMPA:               'Estampa',
   CONTROL_CALIDAD:       'Control calidad',
   CERRADA:               'Cerrada',
@@ -58,12 +59,12 @@ const ESTADO_BADGE: Record<string, 'success' | 'warning' | 'default' | 'amber' |
   CERRADA:               'default',
 };
 
-// Flujo de producción: termina en TERMINADO_SIN_ESTAMPA ("liso terminado").
+// Flujo: Pendiente → (Corte) → Costura → Listo → Cerrada (archivada).
 const ESTADO_SIGUIENTE: Record<string, string[]> = {
   PENDIENTE:             ['CORTE', 'COSTURA'],   // se puede saltar a costura si el corte ya está
   CORTE:                 ['COSTURA'],
   COSTURA:               ['TERMINADO_SIN_ESTAMPA'],
-  TERMINADO_SIN_ESTAMPA: [],
+  TERMINADO_SIN_ESTAMPA: ['CERRADA'],            // "Listo" → se cierra y sale de activos
   ESTAMPA:               [],
   CONTROL_CALIDAD:       [],
   CERRADA:               [],
