@@ -6,7 +6,7 @@ import { MotivoDescarteSchema } from '@/lib/validators/produccion';
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
-  if (!(await requirePermiso(req, 'configuracion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'motivos'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
   const body = await req.json();

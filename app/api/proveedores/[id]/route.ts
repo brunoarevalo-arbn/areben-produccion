@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requireInsumos } from '@/lib/auth';
+import { requirePermiso } from '@/lib/auth';
 import { ProveedorSchema } from '@/lib/validators/insumos';
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
-  const session = await requireInsumos(req);
+  const session = await requirePermiso(req, 'proveedores');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;

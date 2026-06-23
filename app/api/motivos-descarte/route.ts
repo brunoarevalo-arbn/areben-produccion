@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await requirePermiso(req, 'configuracion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'motivos'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const body = await req.json();
   const parsed = MotivoDescarteSchema.safeParse(body);

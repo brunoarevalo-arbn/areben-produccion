@@ -25,6 +25,10 @@ const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus
 
 const CATEGORIAS = ['tela', 'vinilo', 'etiqueta', 'badana', 'hilo', 'aviso', 'packaging', 'otro'];
 const UNIDADES = ['kg', 'metro', 'unidad'];
+// El valor interno queda 'aviso' (para no romper datos existentes) pero se
+// muestra "Avíos" bien escrito.
+const CAT_LABEL: Record<string, string> = { aviso: 'Avíos' };
+const catLabel = (c: string) => CAT_LABEL[c] ?? c;
 
 export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
   const [insumos, setInsumos]       = useState(initial);
@@ -137,7 +141,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
         <select value={filtroCategoria} onChange={(e) => setFiltroCategoria(e.target.value)}
           className="px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400">
           <option value="">Todas las categorias</option>
-          {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+          {CATEGORIAS.map((c) => <option key={c} value={c}>{catLabel(c)}</option>)}
         </select>
       </div>
 
@@ -161,7 +165,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
                 <p className="text-xs text-stone-400 mt-1">Cómo lo llamás internamente (sugerencias del catálogo de telas).</p>
               </div>
               <Select label="Categoria *" fullWidth value={categoria} onChange={(e) => setCategoria(e.target.value)}>
-                {CATEGORIAS.map((c) => <option key={c} value={c}>{c}</option>)}
+                {CATEGORIAS.map((c) => <option key={c} value={c}>{catLabel(c)}</option>)}
               </Select>
               <Select label="Trazabilidad *" fullWidth value={tipoTrazabilidad} onChange={(e) => setTipoTrazabilidad(e.target.value)}>
                 <option value="rollo">Rollo (peso individual)</option>
@@ -222,7 +226,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
                 <p className="text-sm font-medium text-stone-800 truncate">{ins.nombre}</p>
                 {ins.nombreInterno && <p className="text-xs text-stone-400 truncate">interno: {ins.nombreInterno}</p>}
               </div>
-              <Badge variant="default">{ins.categoria}</Badge>
+              <Badge variant="default">{catLabel(ins.categoria)}</Badge>
               <span className="text-xs text-stone-500">{ins.tipoTrazabilidad}</span>
               <span className="text-xs text-stone-500">{ins.unidadDefault}</span>
               <span className="text-xs text-stone-500">{ins.manejaColor ? 'Si' : '--'}</span>

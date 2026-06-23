@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession, requireInsumos } from '@/lib/auth';
+import { getSession, requirePermiso } from '@/lib/auth';
 import { ProveedorSchema } from '@/lib/validators/insumos';
 
 export async function GET(req: NextRequest) {
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requireInsumos(req);
+  const session = await requirePermiso(req, 'proveedores');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const body = await req.json();
