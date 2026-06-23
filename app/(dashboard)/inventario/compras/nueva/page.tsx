@@ -7,9 +7,9 @@ export default function NuevaCompraPage() {
   return (
     <div className="p-8 max-w-5xl">
       <PageHeader
-        eyebrow="Inventario"
-        title="Nueva Compra"
-        subtitle="Registra una compra con lineas, rollos y lotes."
+        eyebrow="Compras"
+        title="Nueva compra de tela"
+        subtitle="Registrá una compra que genera stock (líneas y rollos)."
       />
       <NuevaCompraForm />
     </div>

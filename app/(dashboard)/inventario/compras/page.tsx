@@ -1,17 +1,8 @@
-import { ComprasClient } from '@/components/insumos/ComprasClient';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
-export default function ComprasPage() {
-  return (
-    <div className="p-8 max-w-5xl">
-      <PageHeader
-        eyebrow="Inventario"
-        title="Compras"
-        subtitle="Historial de compras a proveedores con estado de pago."
-      />
-      <ComprasClient />
-    </div>
-  );
+// El historial de compras es uno solo: el módulo Compras (unificado: compras de
+// tela con stock + gastos/compras a proveedor). Esta ruta redirige allá; el alta
+// de compra de tela con stock sigue en /inventario/compras/nueva.
+export default function ComprasInventarioPage() {
+  redirect('/compras');
 }
