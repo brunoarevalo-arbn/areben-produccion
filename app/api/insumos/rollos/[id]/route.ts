@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getSession, requireInsumos } from '@/lib/auth';
 
@@ -30,12 +31,15 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
-  const { colorId } = await req.json();
+  const body = await req.json();
+  const data: Record<string, unknown> = {};
+  if (body.colorId !== undefined) data.colorId = body.colorId || null;
+  if (body.costoUnitario !== undefined) {
+    const c = Number(body.costoUnitario);
+    if (!isFinite(c) || c < 0) return NextResponse.json({ error: 'Costo inválido' }, { status: 400 });
+    data.costoUnitario = new Prisma.Decimal(c);
+  }
 
-  const rollo = await prisma.rollo.update({
-    where: { id },
-    data: { colorId: colorId || null },
-  });
-
+  const rollo = await prisma.rollo.update({ where: { id }, data });
   return NextResponse.json(rollo);
 }
