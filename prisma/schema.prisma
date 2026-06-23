@@ -315,8 +315,10 @@ model Escandallo {
   @@map("escandallos")
 }
 
-// Catálogo de etiquetas con su precio. El escandallo elige la etiqueta y se
-// autocompleta el precio (snapshot) en vez de tipearlo a mano cada vez.
+// Catálogo de AVÍOS (en la UI se llama "Avíos": etiquetas, badanas, botones,
+// hilos). El modelo se llama EtiquetaCatalogo por historia; EtiquetaCatalogo ≡
+// Avío. El escandallo elige el avío y autocompleta el precio (snapshot).
+// Es el sistema liviano que reemplazó al pesado (Insumo+Lote) para avíos.
 model EtiquetaCatalogo {
   id        String   @id @default(cuid())
   nombre    String
