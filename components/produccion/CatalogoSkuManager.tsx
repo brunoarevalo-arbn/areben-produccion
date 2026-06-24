@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { toast } from '@/components/ui/Toaster';
 
 interface Entry {
   id: string;
@@ -160,8 +161,12 @@ function EntryRow({ entry, onChange }: { entry: Entry; onChange: () => void }) {
   };
 
   const eliminar = async () => {
-    if (!(await confirmAsync({ message: `¿Eliminar "${entry.nombre}"? Si ya hay órdenes que usan esta abreviatura, se mantienen pero no se podrán generar nuevas con esta opción.`, danger: true, confirmLabel: 'Eliminar' }))) return;
-    await fetch(`/api/sku-catalogo/${entry.id}`, { method: 'DELETE' });
+    if (!(await confirmAsync({ message: `¿Eliminar "${entry.nombre}"? Si está en uso (rollos, lotes o insumos), se desactiva en vez de borrarse para no romper nada.`, danger: true, confirmLabel: 'Eliminar' }))) return;
+    const r = await fetch(`/api/sku-catalogo/${entry.id}`, { method: 'DELETE' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast.error(typeof d.error === 'string' ? d.error : 'No se pudo eliminar'); return; }
+    if (d.deleted) toast.success('Opción eliminada');
+    else toast.info(d.motivo || 'Se desactivó en vez de borrarse');
     onChange();
   };
 

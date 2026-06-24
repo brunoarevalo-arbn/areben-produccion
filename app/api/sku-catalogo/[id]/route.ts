@@ -30,10 +30,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 }
 
+// Eliminar inteligente: borra si la opción (color/marca/prenda) no está en uso;
+// si la usan rollos, lotes o insumo-colores, se desactiva para no romper nada.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
-  await prisma.skuCatalogo.delete({ where: { id } });
-  return NextResponse.json({ ok: true });
+  const [rollos, lotes, insumoColores] = await Promise.all([
+    prisma.rollo.count({ where: { colorId: id } }),
+    prisma.lote.count({ where: { colorId: id } }),
+    prisma.insumoColor.count({ where: { skuCatalogoId: id } }),
+  ]);
+
+  if (rollos + lotes + insumoColores === 0) {
+    await prisma.skuCatalogo.delete({ where: { id } });
+    return NextResponse.json({ ok: true, deleted: true });
+  }
+
+  await prisma.skuCatalogo.update({ where: { id }, data: { activo: false } });
+  return NextResponse.json({
+    ok: true, deleted: false, deactivated: true,
+    motivo: `Está en uso (${rollos} rollos, ${lotes} lotes, ${insumoColores} insumos); se desactivó en vez de borrarse.`,
+  });
 }
