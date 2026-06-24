@@ -160,3 +160,43 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 
   return NextResponse.json({ ok: true });
 }
+
+// Eliminar una compra de verdad: borra sus rollos/lotes, líneas y movimientos.
+// Solo si ninguno de sus rollos/lotes fue consumido (cortes/muestras). Si ya se
+// usó, no se borra (hay que revertirla para conservar la traza).
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  const session = await requireInsumos(req);
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  const { id } = await params;
+
+  const compra = await prisma.compra.findUnique({
+    where: { id },
+    include: { rollos: { select: { id: true } }, lotes: { select: { id: true } } },
+  });
+  if (!compra) return NextResponse.json({ error: 'Compra no encontrada' }, { status: 404 });
+
+  const rolloIds = compra.rollos.map((r) => r.id);
+  const loteIds = compra.lotes.map((l) => l.id);
+  const consumos = await prisma.movimientoInsumo.count({
+    where: { tipo: { notIn: ['INGRESO', 'REVERSION'] }, OR: [{ rolloId: { in: rolloIds } }, { loteId: { in: loteIds } }] },
+  });
+  if (consumos > 0) {
+    return NextResponse.json(
+      { error: 'Esta compra tiene rollos/lotes ya usados en producción. No se puede borrar; revertila para conservar la traza.' },
+      { status: 400 },
+    );
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.movimientoInsumo.deleteMany({ where: { OR: [{ rolloId: { in: rolloIds } }, { loteId: { in: loteIds } }] } });
+    await tx.rollo.deleteMany({ where: { compraId: id } });
+    await tx.lote.deleteMany({ where: { compraId: id } });
+    await tx.compraLinea.deleteMany({ where: { compraId: id } });
+    await tx.compra.delete({ where: { id } });
+  });
+
+  revalidatePath('/inventario/compras');
+  revalidatePath('/compras');
+  revalidatePath('/inventario/rollos');
+  return NextResponse.json({ deleted: true });
+}

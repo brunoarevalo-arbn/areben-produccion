@@ -85,13 +85,29 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
     }
   };
 
+  const eliminar = async () => {
+    if (!(await confirmAsync({ message: '¿Eliminar esta compra definitivamente? Se borran sus rollos/lotes y movimientos. Solo se puede si no se usó en producción.', danger: true, confirmLabel: 'Eliminar' }))) return;
+    const r = await fetch(`/api/compras/${compra.id}`, { method: 'DELETE' });
+    if (r.ok) {
+      toast.success('Compra eliminada');
+      router.push('/compras');
+      router.refresh();
+    } else {
+      const d = await r.json().catch(() => ({}));
+      toast.error(d.error || 'No se pudo eliminar');
+    }
+  };
+
   const fechaFmt = new Date(compra.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
 
   return (
     <div className="space-y-6">
       {compra.revertida && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 font-semibold">
-          Compra revertida{compra.revertidaPor ? ` por ${compra.revertidaPor}` : ''}
+        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 font-semibold flex items-center justify-between gap-3">
+          <span>Compra revertida{compra.revertidaPor ? ` por ${compra.revertidaPor}` : ''} · deuda anulada</span>
+          <button onClick={eliminar} className="text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-100 transition shrink-0">
+            Eliminar definitivamente
+          </button>
         </div>
       )}
 
@@ -122,8 +138,10 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
           </div>
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Estado de pago</p>
-            <EstadoPagoBadge estado={compra.estadoPago} />
-            {Number(compra.montoPagado) > 0 && <p className="text-xs text-stone-500">Pagado: ${fmt(compra.montoPagado)}</p>}
+            {compra.revertida
+              ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-stone-100 text-stone-500">Deuda anulada</span>
+              : <EstadoPagoBadge estado={compra.estadoPago} />}
+            {!compra.revertida && Number(compra.montoPagado) > 0 && <p className="text-xs text-stone-500">Pagado: ${fmt(compra.montoPagado)}</p>}
           </div>
         </div>
         {compra.notas && (
@@ -145,6 +163,10 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
             <button onClick={revertir}
               className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition">
               Revertir compra
+            </button>
+            <button onClick={eliminar}
+              className="text-xs px-3 py-1.5 rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition">
+              Eliminar
             </button>
           </div>
         )}

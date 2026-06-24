@@ -7,7 +7,9 @@ export async function GET(req: NextRequest) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
 
+  const incluirInactivos = new URL(req.url).searchParams.get('incluirInactivos') === '1';
   const proveedores = await prisma.proveedor.findMany({
+    where: incluirInactivos ? {} : { activo: true },
     orderBy: { nombre: 'asc' },
   });
   return NextResponse.json(proveedores);
