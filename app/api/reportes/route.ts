@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requirePermiso } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+  if (!(await requirePermiso(req, 'produccion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   try {
     const { searchParams } = new URL(req.url);
     const fecha   = searchParams.get('fecha') ?? new Date().toISOString().split('T')[0];

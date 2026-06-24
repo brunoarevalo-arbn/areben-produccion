@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { TiempoSchema } from '@/lib/validators/tiempos';
 import { prisma } from '@/lib/prisma';
 import { calcularCostoMinuto } from '@/lib/costoMinuto';
+import { getSession } from '@/lib/auth';
 import { ZodError } from 'zod';
 
 const MARCAS_MUESTRA: Record<string, string> = {
@@ -15,6 +16,7 @@ function horaASegundos(h: string): number {
 }
 
 export async function GET(req: NextRequest) {
+  if (!(await getSession(req))) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
   try {
     const { searchParams } = new URL(req.url);
     const usuario = searchParams.get('usuario');
@@ -40,6 +42,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await getSession(req))) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
   try {
     const body      = await req.json();
     const validated = TiempoSchema.parse(body);

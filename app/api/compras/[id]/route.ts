@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
-import { getSession, requireInsumos } from '@/lib/auth';
+import { requireAlguno, requireInsumos } from '@/lib/auth';
 import { CompraSchema } from '@/lib/validators/insumos';
 import { nextCodigoRollo, nextCodigoLote } from '@/lib/insumos/codigos';
 import { Prisma } from '@prisma/client';
@@ -9,8 +9,8 @@ import { Prisma } from '@prisma/client';
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Ctx) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
+  const session = await requireAlguno(req, ['insumos', 'gastos']);
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
   const compra = await prisma.compra.findUnique({

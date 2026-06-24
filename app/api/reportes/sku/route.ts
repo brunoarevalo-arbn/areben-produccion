@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { requirePermiso } from '@/lib/auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +12,8 @@ interface BreakdownCosturera extends Breakdown {
   prendas: number;
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!(await requirePermiso(req, 'produccion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   try {
     const ordenes = await prisma.ordenProduccion.findMany({
       where: { estado: 'CERRADA' },

@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession, requireInsumos } from '@/lib/auth';
+import { requireAlguno, requireInsumos } from '@/lib/auth';
 import { CompraSchema } from '@/lib/validators/insumos';
 import { nextCodigoRollo, nextCodigoLote } from '@/lib/insumos/codigos';
 import { Prisma } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
+  const session = await requireAlguno(req, ['insumos', 'gastos']);
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const compras = await prisma.compra.findMany({
     include: {

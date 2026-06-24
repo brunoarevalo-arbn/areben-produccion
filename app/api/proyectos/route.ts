@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 
 export async function GET(req: NextRequest) {
+  if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   try {
     const { searchParams } = new URL(req.url);
     const marca = searchParams.get('marca') ?? undefined;
