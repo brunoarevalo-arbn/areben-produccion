@@ -27,7 +27,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     // Stock: si estaba sin seguimiento (null), empieza a trackear en cantidad.
     const nuevoStock = (avio.stock ?? 0) + d.cantidad;
     const dataAvio: Record<string, unknown> = { stock: nuevoStock };
-    if (d.actualizarPrecio && d.costoUnitario != null) dataAvio.precio = new Prisma.Decimal(d.costoUnitario);
+    // Solo pisa el precio de referencia si el costo es > 0 (evita dejarlo en $0).
+    if (d.actualizarPrecio && d.costoUnitario != null && d.costoUnitario > 0) dataAvio.precio = new Prisma.Decimal(d.costoUnitario);
     await tx.etiquetaCatalogo.update({ where: { id }, data: dataAvio });
 
     // Gasto-compra (solo si hay proveedor): aparece en Compras + cuentas por pagar.

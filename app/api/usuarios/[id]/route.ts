@@ -19,13 +19,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (Array.isArray(body.permisos)) data.permisos = body.permisos;
   if (typeof body.activo === 'boolean') data.activo = body.activo;
 
-  const updated = await prisma.usuario.update({
-    where: { id },
-    data,
-    select: { id: true, nombre: true, username: true, rol: true, permisos: true, activo: true },
-  });
-
-  return NextResponse.json(updated);
+  try {
+    const updated = await prisma.usuario.update({
+      where: { id },
+      data,
+      select: { id: true, nombre: true, username: true, rol: true, permisos: true, activo: true },
+    });
+    return NextResponse.json(updated);
+  } catch (err: unknown) {
+    if (typeof err === 'object' && err && 'code' in err && err.code === 'P2002') {
+      return NextResponse.json({ error: 'Ya existe un usuario con ese nombre de usuario' }, { status: 409 });
+    }
+    throw err;
+  }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
