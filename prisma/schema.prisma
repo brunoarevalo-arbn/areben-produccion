@@ -61,7 +61,6 @@ model Producto {
   temporada   String?
   fotos       Foto[]
   historial   HistorialDiseno[]
-  stock       Stock?
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
@@ -90,31 +89,6 @@ model HistorialDiseno {
   createdAt  DateTime @default(now())
 
   @@map("historial_diseno")
-}
-
-model Stock {
-  id               String   @id @default(cuid())
-  productoId       String   @unique
-  producto         Producto @relation(fields: [productoId], references: [id], onDelete: Cascade)
-  cantidadDeposito Int      @default(0)
-  cantidadLocal    Int      @default(0)
-  stockMinimo      Int      @default(5)
-  precioVenta      Float    @default(0)
-  updatedAt        DateTime @updatedAt
-
-  @@map("stock")
-}
-
-model MovimientoStock {
-  id         String   @id @default(cuid())
-  productoId String
-  tipo       String
-  cantidad   Int
-  nota       String?
-  creadoPor  String   @default("sistema")
-  createdAt  DateTime @default(now())
-
-  @@map("movimientos_stock")
 }
 
 model ProyectoDiseno {
