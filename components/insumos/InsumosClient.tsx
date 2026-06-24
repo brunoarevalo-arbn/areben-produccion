@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LoadingState } from '@/components/ui/LoadingState';
 
-interface RolloResumen { id: string; codigo: string; pesoActual: string; costoUnitario: string; estado: string; colorId: string | null; }
-interface LoteResumen  { id: string; codigo: string; cantidadActual: string; costoUnitario: string; estado: string; colorId: string | null; }
+interface RolloResumen { id: string; codigo: string; pesoActual: string; costoUnitario: string; estado: string; colorId: string | null; colorProveedor: string | null; }
+interface LoteResumen  { id: string; codigo: string; cantidadActual: string; costoUnitario: string; estado: string; colorId: string | null; colorProveedor: string | null; }
 interface InsumoConStock {
   id: string;
   nombre: string;
@@ -127,10 +127,11 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
                             </div>
                           ))}
                           {sinColor > 0 && (
-                            <div className="bg-amber-50 rounded-lg px-3 py-1.5 text-xs">
+                            <Link href="/inventario/rollos/sin-color" className="bg-amber-50 rounded-lg px-3 py-1.5 text-xs hover:bg-amber-100 transition">
                               <span className="text-amber-600">Sin color:</span>{' '}
                               <span className="font-bold text-amber-800 tabular-nums">{fmt(sinColor)}</span>
-                            </div>
+                              <span className="text-amber-500 ml-1">→ asignar</span>
+                            </Link>
                           )}
                         </div>
                       );
@@ -143,6 +144,7 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
                           <thead>
                             <tr className="text-stone-400 uppercase tracking-widest">
                               <th className="text-left py-1.5 font-bold">Codigo</th>
+                              <th className="text-left py-1.5 font-bold">Color</th>
                               <th className="text-right py-1.5 font-bold">Peso actual</th>
                               <th className="text-right py-1.5 font-bold">$/unidad</th>
                               <th className="text-right py-1.5 font-bold">Estado</th>
@@ -155,6 +157,13 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
                                   <Link href={`/inventario/rollos/${r.id}`} className="font-mono text-stone-700 hover:text-amber-600 transition">
                                     {r.codigo}
                                   </Link>
+                                </td>
+                                <td className="py-1.5">
+                                  {r.colorId
+                                    ? <span className="text-stone-700">{coloresMap.get(r.colorId) || '?'}</span>
+                                    : r.colorProveedor
+                                      ? <Link href="/inventario/rollos/sin-color" className="text-stone-400 italic hover:text-amber-600 transition">{r.colorProveedor} <span className="text-amber-500 not-italic">(asignar)</span></Link>
+                                      : <Link href="/inventario/rollos/sin-color" className="text-amber-500 hover:underline">— asignar —</Link>}
                                 </td>
                                 <td className="text-right tabular-nums text-stone-700">{fmt(r.pesoActual)}</td>
                                 <td className="text-right tabular-nums text-stone-500">${fmt(r.costoUnitario)}</td>
@@ -176,6 +185,7 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
                           <thead>
                             <tr className="text-stone-400 uppercase tracking-widest">
                               <th className="text-left py-1.5 font-bold">Codigo</th>
+                              <th className="text-left py-1.5 font-bold">Color</th>
                               <th className="text-right py-1.5 font-bold">Cantidad</th>
                               <th className="text-right py-1.5 font-bold">$/unidad</th>
                               <th className="text-right py-1.5 font-bold">Estado</th>
@@ -185,6 +195,13 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
                             {ins.lotes.map((l) => (
                               <tr key={l.id} className="border-t border-stone-50">
                                 <td className="py-1.5 font-mono text-stone-700">{l.codigo}</td>
+                                <td className="py-1.5">
+                                  {l.colorId
+                                    ? <span className="text-stone-700">{coloresMap.get(l.colorId) || '?'}</span>
+                                    : l.colorProveedor
+                                      ? <Link href="/inventario/rollos/sin-color" className="text-stone-400 italic hover:text-amber-600 transition">{l.colorProveedor} <span className="text-amber-500 not-italic">(asignar)</span></Link>
+                                      : <Link href="/inventario/rollos/sin-color" className="text-amber-500 hover:underline">— asignar —</Link>}
+                                </td>
                                 <td className="text-right tabular-nums text-stone-700">{fmt(l.cantidadActual)}</td>
                                 <td className="text-right tabular-nums text-stone-500">${fmt(l.costoUnitario)}</td>
                                 <td className="text-right">

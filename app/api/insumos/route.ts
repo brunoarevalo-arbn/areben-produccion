@@ -16,11 +16,11 @@ export async function GET(req: NextRequest) {
       },
       rollos: {
         where: { estado: { not: 'DESCARTADO' } },
-        select: { id: true, codigo: true, pesoActual: true, costoUnitario: true, estado: true, colorId: true },
+        select: { id: true, codigo: true, pesoActual: true, costoUnitario: true, estado: true, colorId: true, colorProveedor: true },
       },
       lotes: {
         where: { estado: { not: 'AGOTADO' } },
-        select: { id: true, codigo: true, cantidadActual: true, costoUnitario: true, estado: true, colorId: true },
+        select: { id: true, codigo: true, cantidadActual: true, costoUnitario: true, estado: true, colorId: true, colorProveedor: true },
       },
     },
   });
