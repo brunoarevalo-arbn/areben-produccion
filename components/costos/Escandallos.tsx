@@ -31,6 +31,7 @@ interface ProductoProd {
 }
 interface EtiquetaOpt { id: string; nombre: string; tipo: string | null; precio: number; }
 interface CostoCorteOpt { id: string; tipoPrenda: string; costo: number; }
+interface TelaOpt { id: string; nombre: string; rinde: number; precioKg: number; }
 
 const MARCAS = ['Zattia', 'Stunned'];
 
@@ -48,6 +49,7 @@ export function Escandallos() {
   const [productos, setProductos] = useState<ProductoProd[]>([]);
   const [etiquetas, setEtiquetas] = useState<EtiquetaOpt[]>([]);
   const [costosCorte, setCostosCorte] = useState<CostoCorteOpt[]>([]);
+  const [telasCatalogo, setTelasCatalogo] = useState<TelaOpt[]>([]);
   const [modoProducido, setModoProducido] = useState(false);
   const [subTab, setSubTab] = useState<'pendientes' | 'listos'>('pendientes');
   const [verDescartados, setVerDescartados] = useState(false);
@@ -83,6 +85,31 @@ export function Escandallos() {
     fetch('/api/costos/costos-corte')
       .then((r) => r.ok ? r.json() : [])
       .then((c) => { if (Array.isArray(c)) setCostosCorte(c.map((x) => ({ ...x, costo: Number(x.costo) }))); })
+      .catch(() => {});
+
+    // Telas del catálogo (insumos tipo rollo): nombre, rinde y precio/kg real
+    // (promedio ponderado del costo de los rollos — ya incluye flete).
+    fetch('/api/insumos')
+      .then((r) => r.ok ? r.json() : [])
+      .then((arr) => {
+        if (!Array.isArray(arr)) return;
+        type Rollo = { pesoActual: number | string; costoUnitario: number | string };
+        type Ins = { id: string; nombre: string; rinde: number | string | null; tipoTrazabilidad: string; activo: boolean; rollos?: Rollo[] };
+        const telas: TelaOpt[] = arr
+          .filter((ins: Ins) => ins.tipoTrazabilidad === 'rollo' && ins.activo)
+          .map((ins: Ins) => {
+            const rollos = ins.rollos ?? [];
+            const conPeso = rollos.filter((r) => Number(r.pesoActual) > 0);
+            const base = conPeso.length ? conPeso : rollos;
+            const totalPeso = base.reduce((s: number, r) => s + Number(r.pesoActual), 0);
+            const precioKg = base.length === 0 ? 0
+              : totalPeso > 0
+                ? base.reduce((s: number, r) => s + Number(r.costoUnitario) * Number(r.pesoActual), 0) / totalPeso
+                : base.reduce((s: number, r) => s + Number(r.costoUnitario), 0) / base.length;
+            return { id: ins.id, nombre: ins.nombre, rinde: Number(ins.rinde) || 0, precioKg: Math.round(precioKg * 100) / 100 };
+          });
+        setTelasCatalogo(telas);
+      })
       .catch(() => {});
   }, []);
 
@@ -128,6 +155,15 @@ export function Escandallos() {
   const updTela = (i: number, field: string, val: string) =>
     setDatos(prev => ({ ...prev, telas: prev.telas.map((t, idx) => idx !== i ? t : ({ ...t, [field]: field === 'nombre' ? val : pf(val) } as Tela)) }));
   const delTela = (i: number) => setDatos(prev => ({ ...prev, telas: prev.telas.filter((_, idx) => idx !== i) }));
+  // Autocompleta una fila de tela con los datos del catálogo (nombre, rinde,
+  // precio/kg). El precio ya trae flete prorrateado, así que dejamos flete en 0.
+  const setTelaDesdeCatalogo = (i: number, insumoId: string) => {
+    const tc = telasCatalogo.find((x) => x.id === insumoId);
+    if (!tc) return;
+    setDatos(prev => ({ ...prev, telas: prev.telas.map((t, idx) => idx !== i ? t : ({
+      ...t, nombre: tc.nombre, precioKgNeto: tc.precioKg, rindeMetrosKg: tc.rinde, fletePercent: 0,
+    })) }));
+  };
 
   // Varios
   const addVario = () => setDatos(prev => ({ ...prev, varios: [...prev.varios, { nombre: '', cantidad: 1, costoUnitario: 0 }] }));
@@ -516,6 +552,15 @@ export function Escandallos() {
                           placeholder="Ej: Jersey de algodón, Morley, French terry"
                           className={inp} />
                       </div>
+                      {telasCatalogo.length > 0 && (
+                        <div className="w-56">
+                          <label className={lbl}>Traer del catálogo</label>
+                          <select value="" onChange={e => { if (e.target.value) setTelaDesdeCatalogo(i, e.target.value); }} className={inp}>
+                            <option value="">— autocompletar —</option>
+                            {telasCatalogo.map(tc => <option key={tc.id} value={tc.id}>{tc.nombre}{tc.precioKg > 0 ? ` ($${tc.precioKg}/kg)` : ''}</option>)}
+                          </select>
+                        </div>
+                      )}
                       {datos.telas.length > 1 && (
                         <button type="button" aria-label="Eliminar tela" onClick={() => delTela(i)}
                           className="text-stone-300 hover:text-red-400 transition text-xl shrink-0 leading-none mb-2">×</button>
