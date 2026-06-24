@@ -12,6 +12,7 @@ export default async function RolloDetallePage({ params }: { params: Promise<{ i
     where: { id },
     include: {
       insumo: { select: { nombre: true, categoria: true, unidadDefault: true } },
+      color: { select: { nombre: true } },
       compra: { select: { id: true, fecha: true, numeroFactura: true, proveedor: { select: { nombre: true } } } },
       movimientos: { orderBy: { fecha: 'desc' } },
     },

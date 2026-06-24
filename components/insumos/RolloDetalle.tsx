@@ -21,6 +21,7 @@ interface RolloFull {
   createdAt: string;
   insumo: { nombre: string; categoria: string; unidadDefault: string };
   color: { nombre: string } | null;
+  colorProveedor: string | null;
   compra: { id: string; fecha: string; numeroFactura: string | null; proveedor: { nombre: string } };
   movimientos: Movimiento[];
 }
@@ -51,7 +52,12 @@ export function RolloDetalle({ rollo }: { rollo: RolloFull }) {
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Insumo</p>
             <p className="text-stone-800 font-medium">{rollo.insumo.nombre}</p>
             <p className="text-xs text-stone-400">
-              {rollo.insumo.categoria}{rollo.color ? ` · ${rollo.color.nombre}` : ''}
+              {rollo.insumo.categoria}
+              {rollo.color
+                ? ` · ${rollo.color.nombre}`
+                : rollo.colorProveedor
+                  ? <span className="italic"> · {rollo.colorProveedor} <span className="text-stone-300">(s/asignar)</span></span>
+                  : ''}
             </p>
           </div>
           <div>

@@ -10,11 +10,13 @@ import { Textarea } from '@/components/ui/Textarea';
 
 interface Proveedor { id: string; nombre: string; }
 interface InsumoOpt { id: string; nombre: string; categoria: string; tipoTrazabilidad: string; unidadDefault: string; activo: boolean; }
+interface ColorOpt { id: string; nombre: string; categoria: string; activo: boolean; }
 
 interface RolloLinea { pesoInicial: string; ubicacion: string; }
 interface Linea {
   key: number;
   insumoId: string;
+  colorId: string;
   colorProveedor: string;
   unidad: string;
   cantidad: string;
@@ -45,6 +47,7 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
   const editando = !!inicial;
   const [proveedores, setProveedores] = useState<Proveedor[]>([]);
   const [insumos, setInsumos]         = useState<InsumoOpt[]>([]);
+  const [colores, setColores]         = useState<ColorOpt[]>([]);
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState('');
 
@@ -74,14 +77,18 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
   const [lineas, setLineas] = useState<Linea[]>(
     inicial?.lineas?.length
       ? inicial.lineas.map((l) => ({ ...l, key: ++keyCounter }))
-      : [{ key: ++keyCounter, insumoId: '', colorProveedor: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] }],
+      : [{ key: ++keyCounter, insumoId: '', colorId: '', colorProveedor: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] }],
   );
 
   useEffect(() => {
     Promise.all([
       fetch('/api/proveedores').then((r) => r.ok ? r.json() : []),
       fetch('/api/insumos').then((r) => r.ok ? r.json() : []),
-    ]).then(([p, i]) => { setProveedores(p); setInsumos(i); });
+      fetch('/api/sku-catalogo').then((r) => r.ok ? r.json() : []),
+    ]).then(([p, i, c]) => {
+      setProveedores(p); setInsumos(i);
+      setColores((Array.isArray(c) ? c : []).filter((x: ColorOpt) => x.categoria === 'color' && x.activo));
+    });
   }, []);
 
   const insumosMap = new Map(insumos.map((i) => [i.id, i]));
@@ -94,6 +101,7 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
         const ins = insumosMap.get(value);
         if (ins) {
           updated.unidad = ins.unidadDefault;
+          updated.colorId = '';
           updated.colorProveedor = '';
           if (ins.tipoTrazabilidad === 'rollo' && updated.rollos.length === 0) {
             updated.rollos = [{ pesoInicial: '', ubicacion: '' }];
@@ -107,7 +115,7 @@ export function NuevaCompraForm({ inicial }: { inicial?: InicialCompra }) {
   }, [insumosMap]);
 
   const addLinea = () => {
-    setLineas((prev) => [...prev, { key: ++keyCounter, insumoId: '', colorProveedor: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] }]);
+    setLineas((prev) => [...prev, { key: ++keyCounter, insumoId: '', colorId: '', colorProveedor: '', unidad: 'kg', cantidad: '', precioUnitario: '', rollos: [] }]);
   };
 
   const removeLinea = (key: number) => {
@@ -258,6 +266,7 @@ ${provs}
       return {
         key: ++keyCounter,
         insumoId: ins?.id || '',
+        colorId: '',
         colorProveedor: f.color || '',
         unidad,
         cantidad: cant ? String(cant) : '',
@@ -325,6 +334,7 @@ ${provs}
       notas: notas || undefined,
       lineas: lineas.map((l) => ({
         insumoId: l.insumoId,
+        colorId: l.colorId || undefined,
         colorProveedor: l.colorProveedor || undefined,
         cantidad: parseFloat(l.cantidad),
         unidad: l.unidad,
@@ -527,6 +537,15 @@ ${provs}
                   <NumInput value={parseFloat(l.precioUnitario) || 0} onChange={(n) => updateLinea(l.key, 'precioUnitario', n ? String(n) : '')}
                     min="0" step="0.01" className={`${inpSm} w-full`} />
                 </div>
+                {l.insumoId && (
+                  <div className="w-40">
+                    <label className="text-xs font-semibold text-stone-600 mb-1 block">Color interno</label>
+                    <select value={l.colorId} onChange={(e) => updateLinea(l.key, 'colorId', e.target.value)} className={`${inpSm} w-full`}>
+                      <option value="">— sin asignar —</option>
+                      {colores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                    </select>
+                  </div>
+                )}
                 {l.insumoId && (
                   <div className="w-44">
                     <label className="text-xs font-semibold text-stone-600 mb-1 block">Color (proveedor)</label>

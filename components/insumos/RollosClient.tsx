@@ -15,6 +15,7 @@ interface Rollo {
   createdAt: string;
   insumo: { nombre: string; categoria: string; unidadDefault: string };
   color: { nombre: string } | null;
+  colorProveedor: string | null;
   compra: { id: string; fecha: string; proveedor: { nombre: string } };
 }
 
@@ -40,6 +41,8 @@ export function RollosClient() {
       .finally(() => setLoading(false));
   }, [filtroEstado]);
 
+  const sinColor = rollos.filter((r) => !r.color && r.estado !== 'DESCARTADO').length;
+
   return (
     <div className="space-y-5">
       <div className="flex gap-2">
@@ -50,6 +53,14 @@ export function RollosClient() {
           </button>
         ))}
       </div>
+
+      {sinColor > 0 && (
+        <Link href="/inventario/rollos/sin-color"
+          className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-sm text-amber-800 hover:bg-amber-100 transition">
+          🎨 {sinColor} {sinColor === 1 ? 'rollo' : 'rollos'} sin color interno asignado —
+          <span className="font-semibold underline">asignar color</span>
+        </Link>
+      )}
 
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
         <div className="overflow-x-auto"><div className="min-w-[760px]">
@@ -74,7 +85,12 @@ export function RollosClient() {
               <span className="font-mono font-semibold text-sm text-stone-700">{r.codigo}</span>
               <div className="min-w-0">
                 <p className="text-sm text-stone-800 truncate">
-                  {r.insumo.nombre}{r.color ? ` · ${r.color.nombre}` : ''}
+                  {r.insumo.nombre}
+                  {r.color
+                    ? ` · ${r.color.nombre}`
+                    : r.colorProveedor
+                      ? <span className="text-stone-400 italic"> · {r.colorProveedor}</span>
+                      : ''}
                 </p>
                 <p className="text-xs text-stone-400">{r.insumo.categoria}</p>
               </div>

@@ -61,6 +61,7 @@ export default async function EditarCompraPage({ params }: { params: Promise<{ i
       const loteDeLinea   = compra.lotes.find((lo) => lo.insumoId === l.insumoId);
       return {
         insumoId:       l.insumoId,
+        colorId:        rollosDeLinea[0]?.colorId ?? loteDeLinea?.colorId ?? '',
         colorProveedor: rollosDeLinea[0]?.colorProveedor ?? loteDeLinea?.colorProveedor ?? '',
         unidad:         l.unidad,
         cantidad:       String(Number(l.cantidad)),
