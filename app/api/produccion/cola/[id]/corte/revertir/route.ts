@@ -20,6 +20,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   if (!orden) return NextResponse.json({ error: 'OP no encontrada' }, { status: 404 });
   if (!orden.fichaCorteCargada) return NextResponse.json({ error: 'No hay corte registrado' }, { status: 400 });
+  if (orden.terminadoAt) return NextResponse.json({ error: 'La orden ya está terminada. Retrocedela a Costura antes de revertir la ficha.' }, { status: 400 });
 
   await prisma.$transaction(async (tx) => {
     for (const mov of orden.movimientosInsumo) {

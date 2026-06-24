@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, requirePermiso } from '@/lib/auth';
+import { deshacerCierreOrden, revertirConsumoTela } from '@/lib/produccion/cierre';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -61,6 +62,16 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
   if (!(await requirePermiso(req, 'produccion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
-  await prisma.ordenProduccion.delete({ where: { id } });
+  // Antes de borrar la OP hay que deshacer su impacto en stock: reponer lo que
+  // ingresó a terminados + los avíos, y devolver la tela consumida en el corte.
+  // Si no, eliminar deja stock inflado y rollos sin reponer.
+  await prisma.$transaction(async (tx) => {
+    await deshacerCierreOrden(tx, id);
+    await revertirConsumoTela(tx, id);
+    await tx.ordenAvio.deleteMany({ where: { ordenId: id } });
+    await tx.cortePorTalle.deleteMany({ where: { ordenId: id } });
+    await tx.estadoTransicion.deleteMany({ where: { ordenId: id } });
+    await tx.ordenProduccion.delete({ where: { id } });
+  });
   return NextResponse.json({ ok: true });
 }

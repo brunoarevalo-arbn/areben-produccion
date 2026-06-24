@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { CambioEstadoSchema, ESTADO_SIGUIENTE } from '@/lib/validators/produccion';
+import { deshacerCierreOrden } from '@/lib/produccion/cierre';
 import { EstadoOP } from '@prisma/client';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -51,16 +52,21 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     }
   }
 
-  const updated = await prisma.$transaction([
-    prisma.ordenProduccion.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    // Si se retrocede DESDE "liso terminado" (a costura/corte/pendiente), hay que
+    // deshacer el ingreso a stock y reponer los avíos; si no, el stock queda inflado.
+    if (estadoActual === 'TERMINADO_SIN_ESTAMPA' && nuevoEstado !== 'CERRADA') {
+      await deshacerCierreOrden(tx, id);
+    }
+    const op = await tx.ordenProduccion.update({
       where: { id },
       data: {
         estado: nuevoEstado as EstadoOP,
         // Producción termina en TERMINADO_SIN_ESTAMPA (liso terminado).
         terminadoAt: (nuevoEstado === 'TERMINADO_SIN_ESTAMPA' || nuevoEstado === 'CERRADA') ? new Date() : null,
       },
-    }),
-    prisma.estadoTransicion.create({
+    });
+    await tx.estadoTransicion.create({
       data: {
         ordenId: id,
         estadoAnterior: estadoActual,
@@ -68,8 +74,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         usuarioId: session.id,
         notas: notas?.trim() || null,
       },
-    }),
-  ]);
+    });
+    return op;
+  });
 
-  return NextResponse.json(updated[0]);
+  return NextResponse.json(updated);
 }
