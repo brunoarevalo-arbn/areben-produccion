@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { PrintButton } from '@/components/costos/PrintButton';
-import { parseDatos, telaCosto, itemCosto } from '@/lib/costos/escandallo';
+import { parseDatos, telaCosto, itemCosto, calcular } from '@/lib/costos/escandallo';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,18 +32,11 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
     return { ...t, pMetro, costo };
   });
 
-  // Si el escandallo viene de una ficha de corte, el costo de tela es el de la ficha.
-  const costoTelas     = datos.costoTelaFicha != null ? datos.costoTelaFicha : telasCosts.reduce((s, t) => s + t.costo, 0);
-  const costoServicios = datos.costoCorte + datos.costoTizada + datos.costoLavadero;
-  const costoMO        = datos.tiempoConfeccion * costoMinuto;
-  const costoVarios    = datos.varios.reduce((s, v) => s + itemCosto(v), 0);
-  const costoEmbolsado = datos.avios.tiempoEmbolsado * costoMinuto;
-  const costoAvios     = datos.avios.etiquetaPrincipal + datos.avios.etiquetaComposicion +
-    datos.avios.bolsaPolipropileno + costoEmbolsado +
-    datos.avios.extras.reduce((s, e) => s + itemCosto(e), 0);
-  const costoBase      = costoTelas + costoServicios + costoMO + costoVarios + costoAvios;
-  const conDesarrollo  = costoBase * (1 + datos.margenDesarrollo / 100);
-  const costoTotal     = conDesarrollo * (1 + datos.margenFallas / 100);
+  // Fuente única de cálculo: la misma calcular() que usan el editor y la lista,
+  // con los márgenes congelados en el escandallo. (Antes el PDF lo recalculaba
+  // a mano y con otra fuente de márgenes → divergía de la lista.)
+  const { costoTelas, costoServicios, costoMO, costoVarios, costoAvios, costoEmbolsado, costoBase, conDesarrollo, costoTotal } =
+    calcular(datos, costoMinuto, { margenDesarrollo: datos.margenDesarrollo, margenFallas: datos.margenFallas });
 
   const fecha = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
 

@@ -400,7 +400,10 @@ export function Escandallos() {
                     <EmptyState message="No hay escandallos creados todavía." />
                   )}
                   {lista.map(e => {
-                    const c = calcular(parseDatos(e.datos), costoMinuto, margenes);
+                    // Usa los márgenes congelados en el escandallo (snapshot), igual
+                    // que el PDF — no los globales del config, que pueden haber cambiado.
+                    const d = parseDatos(e.datos);
+                    const c = calcular(d, costoMinuto, { margenDesarrollo: d.margenDesarrollo, margenFallas: d.margenFallas });
                     return (
                       <div key={e.id} className="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
                         <div className="flex-1 min-w-0">
