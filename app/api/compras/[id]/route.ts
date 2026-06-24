@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/prisma';
 import { getSession, requireInsumos } from '@/lib/auth';
 import { CompraSchema } from '@/lib/validators/insumos';
@@ -139,17 +140,23 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
         for (const r of linea.rollos) {
           const codigo = rolloCodigos[rolloIdx++];
           const peso = new Prisma.Decimal(r.pesoInicial);
-          const rollo = await tx.rollo.create({ data: { codigo, insumoId: linea.insumoId, colorProveedor: linea.colorProveedor || null, compraId: id, pesoInicial: peso, pesoActual: peso, costoUnitario: costoUnitarioNeto, ubicacion: r.ubicacion || null } });
+          const rollo = await tx.rollo.create({ data: { codigo, insumoId: linea.insumoId, colorId: linea.colorId || null, colorProveedor: linea.colorProveedor || null, compraId: id, pesoInicial: peso, pesoActual: peso, costoUnitario: costoUnitarioNeto, ubicacion: r.ubicacion || null } });
           await tx.movimientoInsumo.create({ data: { tipo: 'INGRESO', rolloId: rollo.id, cantidad: peso, motivo: `Compra ${id} (editada)`, usuarioId: session.id } });
         }
       } else if (insumo.tipoTrazabilidad === 'lote') {
         const codigo = loteCodigos[loteIdx++];
         const cant = new Prisma.Decimal(linea.cantidad);
-        const lote = await tx.lote.create({ data: { codigo, insumoId: linea.insumoId, colorProveedor: linea.colorProveedor || null, compraId: id, cantidadInicial: cant, cantidadActual: cant, costoUnitario: costoUnitarioNeto } });
+        const lote = await tx.lote.create({ data: { codigo, insumoId: linea.insumoId, colorId: linea.colorId || null, colorProveedor: linea.colorProveedor || null, compraId: id, cantidadInicial: cant, cantidadActual: cant, costoUnitario: costoUnitarioNeto } });
         await tx.movimientoInsumo.create({ data: { tipo: 'INGRESO', loteId: lote.id, cantidad: cant, motivo: `Compra ${id} (editada)`, usuarioId: session.id } });
       }
     }
   });
+
+  // Invalidar la caché de las páginas que leen esta compra (si no, al reabrir
+  // el formulario Next sirve la versión vieja del Router Cache del cliente).
+  revalidatePath(`/inventario/compras/${id}`);
+  revalidatePath(`/inventario/compras/${id}/editar`);
+  revalidatePath('/inventario/rollos');
 
   return NextResponse.json({ ok: true });
 }
