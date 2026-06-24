@@ -26,6 +26,11 @@ const ESTADO_COLOR: Record<string, string> = {
   DESCARTADO:      'bg-red-100 text-red-600',
 };
 
+const ESTADO_LABEL: Record<string, string> = {
+  '': 'Activos', DISPONIBLE: 'Disponible', EN_USO_PARCIAL: 'En uso parcial',
+  AGOTADO: 'Agotado', DESCARTADO: 'Descartados (revertidos)',
+};
+
 const fmt = (n: string | number) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
 export function RollosClient() {
@@ -42,6 +47,9 @@ export function RollosClient() {
   }, [filtroEstado]);
 
   const sinColor = rollos.filter((r) => !r.color && r.estado !== 'DESCARTADO').length;
+  // "Activos" (filtro vacío) esconde los descartados (de compras revertidas).
+  // Para verlos está el botón "Descartados".
+  const visibles = filtroEstado === '' ? rollos.filter((r) => r.estado !== 'DESCARTADO') : rollos;
 
   return (
     <div className="space-y-5">
@@ -49,7 +57,7 @@ export function RollosClient() {
         {['', 'DISPONIBLE', 'EN_USO_PARCIAL', 'AGOTADO', 'DESCARTADO'].map((e) => (
           <button key={e} onClick={() => { setLoading(true); setFiltroEstado(e); }}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${filtroEstado === e ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'}`}>
-            {e ? e.replace(/_/g, ' ') : 'Todos'}
+            {ESTADO_LABEL[e] ?? e.replace(/_/g, ' ')}
           </button>
         ))}
       </div>
@@ -76,10 +84,10 @@ export function RollosClient() {
 
         {loading ? (
           <LoadingState />
-        ) : rollos.length === 0 ? (
+        ) : visibles.length === 0 ? (
           <p className="text-sm text-stone-400 text-center py-10">Sin rollos</p>
         ) : (
-          rollos.map((r, i) => (
+          visibles.map((r, i) => (
             <div key={r.id}
               className={`px-5 py-3 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''}`}>
               <span className="font-mono font-semibold text-sm text-stone-700">{r.codigo}</span>

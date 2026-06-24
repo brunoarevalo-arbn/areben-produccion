@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
     estadoPago: c.estadoPago as string | null,
     montoPagado: Number(c.montoPagado),
     generaStock: true,
+    revertida: c.revertida,
     href: `/inventario/compras/${c.id}`,
   }));
 
@@ -42,6 +43,7 @@ export async function GET(req: NextRequest) {
     estadoPago: (g.estadoPago as string | null) ?? null,
     montoPagado: g.montoPagado != null ? Number(g.montoPagado) : 0,
     generaStock: false,
+    revertida: false,
     href: `/compras/${g.id}`,
   }));
 

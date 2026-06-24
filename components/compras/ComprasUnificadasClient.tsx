@@ -16,6 +16,7 @@ interface Fila {
   estadoPago: string | null;
   montoPagado: number;
   generaStock: boolean;
+  revertida?: boolean;
   href: string;
 }
 
@@ -34,7 +35,7 @@ export function ComprasUnificadasClient() {
     if (filtro === 'todas') return true;
     if (filtro === 'compra') return f.origen === 'compra';
     if (filtro === 'gasto') return f.origen === 'gasto';
-    if (filtro === 'pendientes') return f.estadoPago === 'PENDIENTE' || f.estadoPago === 'PARCIAL';
+    if (filtro === 'pendientes') return !f.revertida && (f.estadoPago === 'PENDIENTE' || f.estadoPago === 'PARCIAL');
     return true;
   });
 
@@ -56,18 +57,20 @@ export function ComprasUnificadasClient() {
       <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
         {visibles.length === 0 && <p className="px-4 py-10 text-center text-stone-400 text-sm">Sin compras todavía</p>}
         {visibles.map((f) => (
-          <Link key={`${f.origen}-${f.id}`} href={f.href} className="flex items-center gap-3 px-4 py-3 hover:bg-stone-50 transition">
+          <Link key={`${f.origen}-${f.id}`} href={f.href} className={`flex items-center gap-3 px-4 py-3 hover:bg-stone-50 transition ${f.revertida ? 'opacity-60' : ''}`}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-semibold text-stone-800">{f.proveedorNombre}</span>
                 {f.generaStock
                   ? <Badge variant="violet">insumos</Badge>
                   : <Badge variant="default">gasto</Badge>}
-                {f.estadoPago && <EstadoPagoBadge estado={f.estadoPago} />}
+                {f.revertida
+                  ? <Badge variant="danger">revertida</Badge>
+                  : f.estadoPago && <EstadoPagoBadge estado={f.estadoPago} />}
               </div>
               <p className="text-xs text-stone-500 mt-0.5 truncate">{f.concepto} · {f.fecha}</p>
             </div>
-            <span className="font-bold text-stone-900 tabular-nums shrink-0">{fmt$(f.monto)}</span>
+            <span className={`font-bold tabular-nums shrink-0 ${f.revertida ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{fmt$(f.monto)}</span>
           </Link>
         ))}
       </div>
