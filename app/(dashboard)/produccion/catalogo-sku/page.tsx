@@ -16,7 +16,7 @@ export default async function CatalogoSkuPage() {
 
   if (session.rol !== 'admin') {
     const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-    if (user?.permisos.includes('produccion')) redirect('/dashboard');
+    if (!user?.permisos.includes('produccion')) redirect('/dashboard');
   }
 
   const entries = await prisma.skuCatalogo.findMany({

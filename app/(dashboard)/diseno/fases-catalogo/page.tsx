@@ -16,7 +16,7 @@ export default async function FasesCatalogoPage() {
 
   if (session.rol !== 'admin') {
     const user = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
-    if (user?.permisos.includes('diseno')) redirect('/dashboard');
+    if (!user?.permisos.includes('diseno')) redirect('/dashboard');
   }
 
   const fases = await prisma.faseCatalogo.findMany({ orderBy: [{ orden: 'asc' }, { nombre: 'asc' }] });

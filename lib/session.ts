@@ -1,5 +1,10 @@
 export const SESSION_COOKIE = 'areben_session';
-const SECRET = process.env.SESSION_SECRET ?? 'areben-secret-local-dev-change-in-prod';
+// En producción exigimos SESSION_SECRET seteada: con el fallback hardcodeado se
+// podrían forjar tokens (incluido admin). En dev usa un secreto local.
+const SECRET = process.env.SESSION_SECRET
+  ?? (process.env.NODE_ENV === 'production'
+    ? (() => { throw new Error('SESSION_SECRET no está configurada en producción'); })()
+    : 'areben-secret-local-dev-change-in-prod');
 
 export interface SessionPayload {
   id: string;
