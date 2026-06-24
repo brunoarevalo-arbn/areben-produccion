@@ -27,11 +27,25 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   return NextResponse.json(item);
 }
 
+// Eliminar inteligente: si el avío no tiene órdenes ni movimientos, se borra de
+// verdad; si tiene historial, se desactiva (baja lógica) para no perderlo.
 export async function DELETE(req: NextRequest, { params }: Ctx) {
   if (!(await requireAlguno(req, ['costos', 'insumos']))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const { id } = await params;
-  // Baja lógica: no borramos físicamente (preserva AvioMovimiento y no rompe
-  // OrdenAvio que lo referencien). El GET filtra activo:true.
+
+  const [ordenes, movimientos] = await Promise.all([
+    prisma.ordenAvio.count({ where: { etiquetaId: id } }),
+    prisma.avioMovimiento.count({ where: { etiquetaId: id } }),
+  ]);
+
+  if (ordenes + movimientos === 0) {
+    await prisma.etiquetaCatalogo.delete({ where: { id } });
+    return NextResponse.json({ ok: true, deleted: true });
+  }
+
   await prisma.etiquetaCatalogo.update({ where: { id }, data: { activo: false } });
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true, deleted: false, deactivated: true,
+    motivo: `Tiene historial asociado (${ordenes} órdenes, ${movimientos} movimientos); se desactivó en vez de borrarse.`,
+  });
 }

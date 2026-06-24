@@ -7,6 +7,8 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { toast } from '@/components/ui/Toaster';
 
 interface InsumoItem {
   id: string;
@@ -130,6 +132,21 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
     }
   };
 
+  // Eliminar inteligente: borra si no tiene historial, desactiva con aviso si sí.
+  const eliminar = async (ins: InsumoItem) => {
+    if (!(await confirmAsync({ message: `¿Eliminar "${ins.nombre}"? Si tiene rollos, lotes o compras asociadas, se desactivará en vez de borrarse (para no perder el historial).`, danger: true, confirmLabel: 'Eliminar' }))) return;
+    const r = await fetch(`/api/insumos/${ins.id}`, { method: 'DELETE' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast.error(d.error || 'No se pudo eliminar'); return; }
+    if (d.deleted) {
+      setInsumos((prev) => prev.filter((x) => x.id !== ins.id));
+      toast.success('Insumo eliminado');
+    } else {
+      setInsumos((prev) => prev.map((x) => x.id === ins.id ? { ...x, activo: false } : x));
+      toast.info(d.motivo || 'Se desactivó en vez de borrarse');
+    }
+  };
+
   const filtrados = filtroCategoria
     ? insumos.filter((i) => i.categoria === filtroCategoria)
     : insumos;
@@ -249,6 +266,8 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
                 <Button variant="secondary" size="sm" onClick={() => toggleActivo(ins)} className="px-2.5 py-1 rounded-lg">
                   {ins.activo ? 'Desactivar' : 'Activar'}
                 </Button>
+                <button onClick={() => eliminar(ins)} aria-label="Eliminar"
+                  className="text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">×</button>
               </div>
             </div>
           ))

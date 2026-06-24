@@ -6,6 +6,8 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Badge } from '@/components/ui/Badge';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { toast } from '@/components/ui/Toaster';
 
 interface Proveedor {
   id: string;
@@ -106,6 +108,21 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
     }
   };
 
+  // Eliminar inteligente: borra si no tiene historial, desactiva con aviso si sí.
+  const eliminar = async (p: Proveedor) => {
+    if (!(await confirmAsync({ message: `¿Eliminar "${p.nombre}"? Si tiene compras, gastos o avíos asociados, se desactivará en vez de borrarse (para no perder el historial).`, danger: true, confirmLabel: 'Eliminar' }))) return;
+    const r = await fetch(`/api/proveedores/${p.id}`, { method: 'DELETE' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast.error(d.error || 'No se pudo eliminar'); return; }
+    if (d.deleted) {
+      setProveedores((prev) => prev.filter((x) => x.id !== p.id));
+      toast.success('Proveedor eliminado');
+    } else {
+      setProveedores((prev) => prev.map((x) => x.id === p.id ? { ...x, activo: false } : x));
+      toast.info(d.motivo || 'Se desactivó en vez de borrarse');
+    }
+  };
+
   return (
     <div className="space-y-5">
       {!showForm && (
@@ -169,6 +186,8 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
                 <Button variant="secondary" size="sm" onClick={() => toggleActivo(p)}>
                   {p.activo ? 'Desactivar' : 'Activar'}
                 </Button>
+                <button onClick={() => eliminar(p)} aria-label="Eliminar"
+                  className="text-xs px-2 py-1 border border-red-200 text-red-500 rounded-lg hover:bg-red-50 transition">×</button>
               </div>
             </div>
           ))

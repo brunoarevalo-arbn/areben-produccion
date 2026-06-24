@@ -128,15 +128,15 @@ export function AviosCatalogoManager() {
   };
 
   const eliminar = async (id: string, nom: string) => {
-    if (!(await confirmAsync({ message: `¿Eliminar "${nom}" del catálogo? Se conserva el historial de movimientos.`, danger: true, confirmLabel: 'Eliminar' }))) return;
-    // Baja lógica (activo=false): el GET ya filtra activo, así que desaparece de
-    // la lista, pero no se borra el historial ni rompe órdenes que lo referencian.
-    const r = await fetch(`/api/costos/etiquetas/${id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ activo: false }),
-    });
-    if (r.ok) setItems(prev => prev.filter(x => x.id !== id));
-    else toast.error('No se pudo eliminar el avío');
+    if (!(await confirmAsync({ message: `¿Eliminar "${nom}"? Si tiene órdenes o movimientos asociados, se desactivará en vez de borrarse (para no perder el historial).`, danger: true, confirmLabel: 'Eliminar' }))) return;
+    // DELETE inteligente: borra de verdad si no está en uso, o desactiva si tiene
+    // historial. En ambos casos sale de la lista (el GET filtra activo:true).
+    const r = await fetch(`/api/costos/etiquetas/${id}`, { method: 'DELETE' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast.error(d.error || 'No se pudo eliminar el avío'); return; }
+    setItems(prev => prev.filter(x => x.id !== id));
+    if (d.deleted) toast.success('Avío eliminado');
+    else toast.info(d.motivo || 'Se desactivó en vez de borrarse');
   };
 
   const verMovimientos = async (id: string) => {
