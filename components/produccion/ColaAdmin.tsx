@@ -253,6 +253,25 @@ export function ColaAdmin() {
     }
   };
 
+  // Cambio de estado por lote (mandar a costura / cerrar todos los colores elegibles).
+  const cambiarEstadoLote = async (loteId: string, estado: 'COSTURA' | 'CERRADA') => {
+    const accion = estado === 'COSTURA' ? 'mandar a costura' : 'cerrar';
+    if (!(await confirmAsync({ message: `¿Querés ${accion} todos los colores elegibles del lote?`, confirmLabel: estado === 'COSTURA' ? 'A costura' : 'Cerrar', danger: estado === 'CERRADA' }))) return;
+    const r = await fetch(`/api/produccion/lote/${loteId}/estado`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estado }),
+    });
+    if (r.ok) {
+      const d = await r.json().catch(() => ({}));
+      toast.success(`${d.avanzados ?? ''} ${d.avanzados === 1 ? 'color' : 'colores'} ${estado === 'COSTURA' ? 'a costura' : 'cerrados'}`);
+      cargar();
+    } else {
+      const d = await r.json().catch(() => ({}));
+      toast.error(d.error || 'Error al cambiar estado del lote');
+    }
+  };
+
   // Revierte la ficha actual (devuelve el stock) para poder volver a cargarla.
   const revertirFicha = async (id: string) => {
     if (!(await confirmAsync({ message: 'Esto revierte la ficha actual y devuelve el stock consumido, para que la vuelvas a cargar. ¿Continuar?', danger: true, confirmLabel: 'Revertir' }))) return;
@@ -471,7 +490,10 @@ export function ColaAdmin() {
             if (fila.kind === 'lote') {
               const lote = fila.ordenes[0].lote;
               const totalU = fila.ordenes.reduce((s, o) => s + o.cantidad, 0);
-              const hayParaCortar = fila.ordenes.some((o) => !o.fichaCorteCargada && o.estado !== 'CERRADA');
+              const hayParaCortar    = fila.ordenes.some((o) => !o.fichaCorteCargada && o.estado !== 'CERRADA');
+              const hayParaCostura   = fila.ordenes.some((o) => (ESTADO_SIGUIENTE[o.estado] || []).includes('COSTURA') && o.sku);
+              const hayParaTerminar  = fila.ordenes.some((o) => o.estado === 'COSTURA');
+              const hayParaCerrar    = fila.ordenes.some((o) => o.estado === 'TERMINADO_SIN_ESTAMPA');
               return (
                 <div key={fila.loteId} className="border-t border-stone-100">
                   <div className="px-6 py-2.5 bg-amber-50/60 flex items-center gap-2 text-xs">
@@ -488,6 +510,24 @@ export function ColaAdmin() {
                         className="px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition font-semibold">
                         ✂ Cortar lote
                       </Link>
+                    )}
+                    {hayParaCostura && (
+                      <button onClick={() => cambiarEstadoLote(fila.loteId, 'COSTURA')}
+                        className="px-2.5 py-1 rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 transition font-semibold">
+                        → Costura
+                      </button>
+                    )}
+                    {hayParaTerminar && (
+                      <Link href={`/produccion/lote/${fila.loteId}/terminar`}
+                        className="px-2.5 py-1 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-50 transition font-semibold">
+                        ✓ Terminar lote
+                      </Link>
+                    )}
+                    {hayParaCerrar && (
+                      <button onClick={() => cambiarEstadoLote(fila.loteId, 'CERRADA')}
+                        className="px-2.5 py-1 rounded-lg border border-stone-300 text-stone-600 hover:bg-stone-100 transition font-semibold">
+                        Cerrar lote
+                      </button>
                     )}
                   </div>
                   {fila.ordenes.map((orden) => renderOrden(orden, true))}

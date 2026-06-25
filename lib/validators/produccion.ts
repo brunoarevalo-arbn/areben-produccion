@@ -92,6 +92,24 @@ export const CortarLoteSchema = z.object({
   notas:      z.string().optional(),
 });
 
+// Terminar costura por lote: conteo por talle de cada color (OP). Parcial permitido
+// (los colores que no se mandan quedan en COSTURA). Cada color reusa el terminar por OP.
+export const TerminarLoteSchema = z.object({
+  colores: z.array(z.object({
+    ordenId: z.string().min(1),
+    talles:  z.array(z.object({
+      talle:    z.string().min(1),
+      cantidad: z.number().int().nonnegative(),
+    })).min(1),
+  })).min(1, 'Cargá al menos un color con su conteo'),
+});
+
+// Cambio de estado por lote (avanzar todos los colores elegibles): mandar a costura o cerrar.
+export const CambioEstadoLoteSchema = z.object({
+  estado: z.enum(['COSTURA', 'CERRADA']),
+  notas:  z.string().optional(),
+});
+
 export const CortadorSchema = z.object({
   nombre:        z.string().min(1, 'Nombre obligatorio'),
   contacto:      z.string().optional(),
