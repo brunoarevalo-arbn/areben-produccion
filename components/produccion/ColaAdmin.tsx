@@ -125,6 +125,11 @@ export function ColaAdmin() {
   const [terminarSaving, setTerminarSaving] = useState(false);
   const [terminarError,  setTerminarError]  = useState('');
 
+  // Agrupar OPs sueltas existentes en un lote
+  const [agrupando,    setAgrupando]    = useState(false);
+  const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
+  const [agrupSaving,  setAgrupSaving]  = useState(false);
+
   const marcas  = catalogo.filter((c) => c.categoria === 'marca' && c.activo);
   const prendas = catalogo.filter((c) => c.categoria === 'prenda' && c.activo);
   const colores = catalogo.filter((c) => c.categoria === 'color' && c.activo);
@@ -355,6 +360,37 @@ export function ColaAdmin() {
     setEditSaving(false);
   };
 
+  // --- Agrupar OPs sueltas en un lote ---
+  const toggleSel = (id: string) =>
+    setSeleccionadas((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const salirAgrupar = () => { setAgrupando(false); setSeleccionadas(new Set()); };
+
+  const agruparSeleccionadas = async () => {
+    const ids = [...seleccionadas];
+    if (ids.length < 2) return;
+    const elegidas = ordenes.filter((o) => seleccionadas.has(o.id));
+    if (new Set(elegidas.map((o) => o.marca)).size > 1) {
+      toast.error('Elegí órdenes de la misma marca');
+      return;
+    }
+    setAgrupSaving(true);
+    const r = await fetch('/api/produccion/lote/agrupar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ordenIds: ids }),
+    });
+    setAgrupSaving(false);
+    if (r.ok) {
+      toast.success(`${ids.length} órdenes agrupadas en un lote`);
+      salirAgrupar();
+      cargar();
+    } else {
+      const d = await r.json().catch(() => ({}));
+      toast.error(d.error || 'No se pudo agrupar');
+    }
+  };
+
   const filtradas = filtro === 'activos'
     ? ordenes.filter((o) => o.estado !== 'CERRADA')
     : ordenes.filter((o) => o.estado === filtro);
@@ -393,10 +429,16 @@ export function ColaAdmin() {
     return (
       <div key={orden.id}
         className={`px-6 py-4 ${GRID} items-center hover:bg-stone-50 transition border-t border-stone-100 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
-        <Link href={`/produccion/${orden.id}`}
-          className={`font-mono font-bold text-sm px-2 py-1 rounded-lg transition ${orden.sku ? 'bg-stone-100 text-stone-700 hover:text-amber-600' : 'bg-amber-50 text-amber-600 hover:text-amber-700'}`}>
-          {orden.sku ?? 'S/SKU'}
-        </Link>
+        <div className="flex items-center gap-2">
+          {agrupando && !dentroDeGrupo && !orden.loteId && orden.estado !== 'CERRADA' && (
+            <input type="checkbox" checked={seleccionadas.has(orden.id)} onChange={() => toggleSel(orden.id)}
+              aria-label={`Seleccionar ${orden.sku ?? orden.id}`} className="rounded border-stone-300 accent-amber-500" />
+          )}
+          <Link href={`/produccion/${orden.id}`}
+            className={`font-mono font-bold text-sm px-2 py-1 rounded-lg transition ${orden.sku ? 'bg-stone-100 text-stone-700 hover:text-amber-600' : 'bg-amber-50 text-amber-600 hover:text-amber-700'}`}>
+            {orden.sku ?? 'S/SKU'}
+          </Link>
+        </div>
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm text-stone-800 font-medium truncate">{orden.descripcion || '--'}</p>
@@ -466,8 +508,24 @@ export function ColaAdmin() {
             {label} <span className="ml-1 opacity-70">{n}</span>
           </Button>
         ))}
-        <Button variant="ghost" size="sm" onClick={cargar} className="ml-auto">🔄 Actualizar</Button>
+        <Button variant={agrupando ? 'primary' : 'ghost'} size="sm" onClick={() => agrupando ? salirAgrupar() : setAgrupando(true)} className="ml-auto">
+          {agrupando ? 'Cancelar' : '🧷 Agrupar sueltas'}
+        </Button>
+        <Button variant="ghost" size="sm" onClick={cargar}>🔄 Actualizar</Button>
       </div>
+
+      {/* Barra de agrupado */}
+      {agrupando && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+          <span className="text-sm text-amber-900">
+            Tildá las órdenes sueltas (mismo molde) que querés agrupar en un lote.
+            {seleccionadas.size > 0 && <strong className="ml-1">{seleccionadas.size} seleccionada{seleccionadas.size === 1 ? '' : 's'}</strong>}
+          </span>
+          <Button variant="primary" size="sm" onClick={agruparSeleccionadas} isLoading={agrupSaving} disabled={seleccionadas.size < 2} className="ml-auto">
+            Agrupar en lote {seleccionadas.size >= 2 ? `(${seleccionadas.size})` : ''}
+          </Button>
+        </div>
+      )}
 
       {/* Tabla */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
