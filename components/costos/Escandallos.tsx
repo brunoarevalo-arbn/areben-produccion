@@ -757,7 +757,7 @@ export function Escandallos() {
                   <select value={datos.avios.etiquetaPrincipalId ?? ''} onChange={e => elegirEtiqueta('etiquetaPrincipal', e.target.value)}
                     className={`${inp} mb-1.5`}>
                     <option value="">— Precio manual —</option>
-                    {etiquetas.filter(et => !et.marca || et.marca === marca).map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
+                    {etiquetas.filter(et => et.tipo === 'principal' && (!et.marca || et.marca === marca)).map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
                   </select>
                 )}
                 <NumInput value={datos.avios.etiquetaPrincipal} onChange={n => updAvios('etiquetaPrincipal', String(n))}
@@ -769,7 +769,7 @@ export function Escandallos() {
                   <select value={datos.avios.etiquetaComposicionId ?? ''} onChange={e => elegirEtiqueta('etiquetaComposicion', e.target.value)}
                     className={`${inp} mb-1.5`}>
                     <option value="">— Precio manual —</option>
-                    {etiquetas.filter(et => !et.marca || et.marca === marca).map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
+                    {etiquetas.filter(et => et.tipo === 'composicion').map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
                   </select>
                 )}
                 <NumInput value={datos.avios.etiquetaComposicion} onChange={n => updAvios('etiquetaComposicion', String(n))}
