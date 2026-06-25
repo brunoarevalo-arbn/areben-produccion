@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
       const recargoEnvio = linea.cantidad > 0 ? lineaEnvio / linea.cantidad : 0;
       const costoUnitarioNeto = new Prisma.Decimal(linea.precioUnitario + recargoEnvio);
 
-      await tx.compraLinea.create({
+      const compraLinea = await tx.compraLinea.create({
         data: {
           compraId:       c.id,
           insumoId:       linea.insumoId,
@@ -166,6 +166,7 @@ export async function POST(req: NextRequest) {
               colorId: linea.colorId || null,
               colorProveedor: linea.colorProveedor || null,
               compraId:      c.id,
+              compraLineaId: compraLinea.id,
               pesoInicial:   peso,
               pesoActual:    peso,
               costoUnitario: costoUnitarioNeto,
@@ -192,6 +193,7 @@ export async function POST(req: NextRequest) {
             colorId:         linea.colorId || null,
             colorProveedor:  linea.colorProveedor || null,
             compraId:        c.id,
+            compraLineaId:   compraLinea.id,
             cantidadInicial: cant,
             cantidadActual:  cant,
             costoUnitario:   costoUnitarioNeto,

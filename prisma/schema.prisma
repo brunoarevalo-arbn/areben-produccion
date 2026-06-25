@@ -615,6 +615,8 @@ model CompraLinea {
   unidad         String
   precioUnitario Decimal
   subtotal       Decimal
+  rollos         Rollo[]
+  lotes          Lote[]
 
   @@map("compra_lineas")
 }
@@ -669,6 +671,8 @@ model Rollo {
   colorProveedor String?           // nombre comercial del color que pone el proveedor (ej. "Lindt")
   compraId      String
   compra        Compra             @relation(fields: [compraId], references: [id])
+  compraLineaId String?
+  compraLinea   CompraLinea?       @relation(fields: [compraLineaId], references: [id], onDelete: SetNull)
   pesoInicial   Decimal
   pesoActual    Decimal
   costoUnitario Decimal
@@ -697,6 +701,8 @@ model Lote {
   colorProveedor  String?            // nombre comercial del color que pone el proveedor (ej. "Lindt")
   compraId        String
   compra          Compra             @relation(fields: [compraId], references: [id])
+  compraLineaId   String?
+  compraLinea     CompraLinea?       @relation(fields: [compraLineaId], references: [id], onDelete: SetNull)
   cantidadInicial Decimal
   cantidadActual  Decimal
   costoUnitario   Decimal

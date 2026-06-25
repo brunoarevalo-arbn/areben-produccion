@@ -57,8 +57,15 @@ export default async function EditarCompraPage({ params }: { params: Promise<{ i
     fechaPago:     compra.fechaPago ? compra.fechaPago.toISOString().slice(0, 10) : '',
     notas:         compra.notas ?? '',
     lineas: compra.lineas.map((l) => {
-      const rollosDeLinea = compra.rollos.filter((r) => r.insumoId === l.insumoId);
-      const loteDeLinea   = compra.lotes.find((lo) => lo.insumoId === l.insumoId);
+      // Cada rollo/lote queda atado a su línea por compraLineaId (un insumo puede
+      // aparecer en varias líneas, una por color). Fallback por insumoId para datos
+      // viejos sin backfill (no debería quedar ninguno).
+      const rollosDeLinea = compra.rollos.some((r) => r.compraLineaId)
+        ? compra.rollos.filter((r) => r.compraLineaId === l.id)
+        : compra.rollos.filter((r) => r.insumoId === l.insumoId);
+      const loteDeLinea = compra.lotes.some((lo) => lo.compraLineaId)
+        ? compra.lotes.find((lo) => lo.compraLineaId === l.id)
+        : compra.lotes.find((lo) => lo.insumoId === l.insumoId);
       return {
         insumoId:       l.insumoId,
         colorId:        rollosDeLinea[0]?.colorId ?? loteDeLinea?.colorId ?? '',
