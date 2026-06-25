@@ -15,7 +15,7 @@ interface CortadorOpt {
 }
 
 interface ConsumoRollo { rolloId: string; metros: string; codigo: string; pesoActual: number; costoUnitario: number; rinde: number; nombre: string; }
-interface AvioOpt { id: string; nombre: string; tipo: string | null; precio: number; stock: number | null; }
+interface AvioOpt { id: string; nombre: string; tipo: string | null; precio: number; stock: number | null; marca: string | null; frecuencia: string | null; }
 interface AvioSel { etiquetaId: string; cantidad: string; }
 
 // Una ficha puede tener varias tizadas (cuerpo, puño, manga, complementos...).
@@ -55,7 +55,7 @@ function calcTizada(t: Tizada, totalUnidades: number) {
   return { metrosPorUnidad, metrosNecesarios, rollosCalc, faltante, metros, kg, costo };
 }
 
-export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { ordenId: string; sku: string; cantidadPlanificada: number }) {
+export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca }: { ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null }) {
   const router = useRouter();
   const [rollosDisp, setRollosDisp] = useState<RolloDisp[]>([]);
   const [cortadores, setCortadores] = useState<CortadorOpt[]>([]);
@@ -66,6 +66,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
   const [tizadas, setTizadas] = useState<Tizada[]>([{ id: 't1', nombre: '', modo: 'tizada', metros: '', unidades: '1', rollos: [] }]);
   const [aviosCatalogo, setAviosCatalogo] = useState<AvioOpt[]>([]);
   const [aviosSel, setAviosSel] = useState<AvioSel[]>([]);
+  const [verOcasionales, setVerOcasionales] = useState(false);
   const [talles, setTalles] = useState<Record<string, string>>({});
   const [cortadorId, setCortadorId] = useState('');
   const [costoCorte, setCostoCorte] = useState('');
@@ -106,6 +107,30 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
       : [...prev, { etiquetaId, cantidad: '1' }]);
   const updateAvioCant = (etiquetaId: string, val: string) =>
     setAviosSel((prev) => prev.map((a) => a.etiquetaId === etiquetaId ? { ...a, cantidad: val } : a));
+
+  const renderAvio = (a: AvioOpt) => {
+    const sel = aviosSel.find((x) => x.etiquetaId === a.id);
+    const cantNum = sel ? (parseInt(sel.cantidad) || 0) : 0;
+    return (
+      <div key={a.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${sel ? 'border-blue-300 bg-blue-50' : 'border-stone-100'}`}>
+        <input type="checkbox" checked={!!sel} onChange={() => toggleAvio(a.id)} className="rounded border-stone-300 accent-amber-500" />
+        <span className="text-xs text-stone-700 flex-1 truncate">{a.nombre}{a.tipo ? ` · ${a.tipo}` : ''}</span>
+        <span className={`text-xs px-2 py-0.5 rounded-full tabular-nums ${a.stock == null ? 'text-stone-400' : a.stock > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+          {a.stock == null ? '∞' : `${a.stock} en stock`}
+        </span>
+        {sel && (
+          <div className="flex items-center gap-1">
+            <NumInput value={parseFloat(sel.cantidad) || 0} onChange={(n) => updateAvioCant(a.id, n ? String(n) : '')}
+              min="1" step="1" placeholder="x prenda" className={`w-20 ${inpSm}`} />
+            <span className="text-xs text-stone-400">/u</span>
+            {totalUnidades > 0 && cantNum > 0 && (
+              <span className="text-xs text-stone-400 ml-1 tabular-nums">= {cantNum * totalUnidades}</span>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Tizadas
   const addTizada = () =>
@@ -345,33 +370,30 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada }: { orde
         </p>
         {aviosCatalogo.length === 0 ? (
           <p className="text-sm text-stone-400 py-2">No hay avíos en el catálogo. Cargalos en Inventario → Catálogo → Avíos.</p>
-        ) : (
-          <div className="space-y-2">
-            {aviosCatalogo.map((a) => {
-              const sel = aviosSel.find((x) => x.etiquetaId === a.id);
-              const cantNum = sel ? (parseInt(sel.cantidad) || 0) : 0;
-              return (
-                <div key={a.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${sel ? 'border-blue-300 bg-blue-50' : 'border-stone-100'}`}>
-                  <input type="checkbox" checked={!!sel} onChange={() => toggleAvio(a.id)} className="rounded border-stone-300 accent-amber-500" />
-                  <span className="text-xs text-stone-700 flex-1 truncate">{a.nombre}{a.tipo ? ` · ${a.tipo}` : ''}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full tabular-nums ${a.stock == null ? 'text-stone-400' : a.stock > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                    {a.stock == null ? '∞' : `${a.stock} en stock`}
-                  </span>
-                  {sel && (
-                    <div className="flex items-center gap-1">
-                      <NumInput value={parseFloat(sel.cantidad) || 0} onChange={(n) => updateAvioCant(a.id, n ? String(n) : '')}
-                        min="1" step="1" placeholder="x prenda" className={`w-20 ${inpSm}`} />
-                      <span className="text-xs text-stone-400">/u</span>
-                      {totalUnidades > 0 && cantNum > 0 && (
-                        <span className="text-xs text-stone-400 ml-1 tabular-nums">= {cantNum * totalUnidades}</span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
+        ) : (() => {
+          // Solo avíos de la marca de la prenda + los genéricos (sin marca, como
+          // composición/cierres). Habituales arriba; ocasionales bajo demanda.
+          const relevantes  = aviosCatalogo.filter((a) => !a.marca || a.marca === marca);
+          const habituales  = relevantes.filter((a) => (a.frecuencia ?? 'habitual') !== 'ocasional');
+          const ocasionales = relevantes.filter((a) => (a.frecuencia ?? 'habitual') === 'ocasional');
+          // Los ocasionales ya elegidos se muestran siempre; el resto, al desplegar.
+          const ocasVisibles = verOcasionales ? ocasionales : ocasionales.filter((a) => aviosSel.some((s) => s.etiquetaId === a.id));
+          return (
+            <div className="space-y-2">
+              {habituales.map(renderAvio)}
+              {ocasVisibles.map(renderAvio)}
+              {habituales.length === 0 && ocasVisibles.length === 0 && (
+                <p className="text-xs text-stone-400">Sin avíos habituales para esta marca.</p>
+              )}
+              {ocasionales.length > 0 && (
+                <button type="button" onClick={() => setVerOcasionales((v) => !v)}
+                  className="text-xs text-stone-500 hover:text-stone-800 transition mt-1">
+                  {verOcasionales ? '− Ocultar ocasionales' : `+ Avíos ocasionales (cierres, tachas… ${ocasionales.length})`}
+                </button>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Desglose por talles */}

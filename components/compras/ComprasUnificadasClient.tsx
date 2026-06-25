@@ -25,18 +25,19 @@ const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
 export function ComprasUnificadasClient() {
   const [filas, setFilas] = useState<Fila[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtro, setFiltro] = useState<'todas' | 'compra' | 'gasto' | 'pendientes'>('todas');
+  const [filtro, setFiltro] = useState<'todas' | 'compra' | 'gasto' | 'pendientes' | 'revertidas'>('todas');
 
   useEffect(() => {
     fetch('/api/compras-unificadas').then((r) => r.ok ? r.json() : []).then(setFilas).finally(() => setLoading(false));
   }, []);
 
   const visibles = filas.filter((f) => {
-    if (filtro === 'todas') return true;
+    if (filtro === 'revertidas') return f.revertida;
+    if (f.revertida) return false; // las demás vistas esconden las revertidas
     if (filtro === 'compra') return f.origen === 'compra';
     if (filtro === 'gasto') return f.origen === 'gasto';
-    if (filtro === 'pendientes') return !f.revertida && (f.estadoPago === 'PENDIENTE' || f.estadoPago === 'PARCIAL');
-    return true;
+    if (filtro === 'pendientes') return f.estadoPago === 'PENDIENTE' || f.estadoPago === 'PARCIAL';
+    return true; // 'todas' = activas (no revertidas)
   });
 
   const pill = (active: boolean) =>
@@ -47,9 +48,9 @@ export function ComprasUnificadasClient() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        {(['todas', 'compra', 'gasto', 'pendientes'] as const).map((f) => (
+        {(['todas', 'compra', 'gasto', 'pendientes', 'revertidas'] as const).map((f) => (
           <button key={f} onClick={() => setFiltro(f)} className={pill(filtro === f)}>
-            {f === 'compra' ? 'Insumos' : f === 'gasto' ? 'Gastos/otras' : f}
+            {f === 'compra' ? 'Insumos' : f === 'gasto' ? 'Gastos/otras' : f === 'todas' ? 'Activas' : f}
           </button>
         ))}
       </div>

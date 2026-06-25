@@ -60,7 +60,7 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
         title={orden.sku ?? ''}
         subtitle={`${orden.descripcion || orden.marca} · Planificadas: ${orden.cantidad} unidades`}
       />
-      <RegistrarCorteForm ordenId={orden.id} sku={orden.sku ?? ''} cantidadPlanificada={orden.cantidad} />
+      <RegistrarCorteForm ordenId={orden.id} sku={orden.sku ?? ''} cantidadPlanificada={orden.cantidad} marca={orden.marca} />
     </div>
   );
 }
