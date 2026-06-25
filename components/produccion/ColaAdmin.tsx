@@ -25,6 +25,8 @@ interface Orden {
   terminadoAt: string | null;
   createdAt: string;
   transiciones: Transicion[];
+  loteId: string | null;
+  lote: { id: string; prenda: string | null; descripcion: string | null; marca: string } | null;
 }
 
 interface CatalogoEntry {
@@ -82,6 +84,8 @@ function diasEnEstado(transiciones: Transicion[]): number {
 
 const fmt = (n: string | number) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 0 });
 
+const GRID = 'grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4';
+
 export function ColaAdmin() {
   const [ordenes, setOrdenes]   = useState<Orden[]>([]);
   const [loading, setLoading]   = useState(true);
@@ -97,12 +101,10 @@ export function ColaAdmin() {
   const [catalogo, setCatalogo]       = useState<CatalogoEntry[]>([]);
   const [marcaAbrev, setMarcaAbrev]   = useState('');
   const [prendaAbrev, setPrendaAbrev] = useState('');
-  const [colorAbrev, setColorAbrev]   = useState('');
-  const [skuSugerido, setSkuSugerido] = useState<string | null>(null);
-  const [loadingSku, setLoadingSku]   = useState(false);
   const [descripcion, setDescripcion] = useState('');
-  const [cantidad, setCantidad]       = useState('1');
   const [notas, setNotas]             = useState('');
+  // Una fila por color: cada una genera una OP (con su SKU) bajo el mismo lote.
+  const [variantes, setVariantes]     = useState<{ color: string; cantidad: string }[]>([{ color: '', cantidad: '1' }]);
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState('');
 
@@ -110,7 +112,7 @@ export function ColaAdmin() {
   const [cambioId, setCambioId]       = useState<string | null>(null);
   const [cambioNotas, setCambioNotas] = useState('');
 
-  // Mini-modal de SKU (al mandar a costura una OP sin SKU)
+  // Mini-modal de SKU (para OPs viejas sin SKU, al mandar a costura)
   const [skuModalOrden, setSkuModalOrden] = useState<Orden | null>(null);
   const [skuPrenda,     setSkuPrenda]     = useState('');
   const [skuColor,      setSkuColor]      = useState('');
@@ -127,23 +129,12 @@ export function ColaAdmin() {
   const prendas = catalogo.filter((c) => c.categoria === 'prenda' && c.activo);
   const colores = catalogo.filter((c) => c.categoria === 'color' && c.activo);
 
+  const prendaNombre = (abrev?: string | null) =>
+    abrev ? (prendas.find((p) => p.abreviatura === abrev)?.nombre ?? abrev) : null;
+
   useEffect(() => {
     fetch('/api/sku-catalogo').then((r) => r.ok ? r.json() : []).then(setCatalogo).catch(() => {});
   }, []);
-
-  useEffect(() => {
-    if (!marcaAbrev || !prendaAbrev || !colorAbrev) { setSkuSugerido(null); return; }
-    setLoadingSku(true);
-    fetch('/api/sku/next', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ marca: marcaAbrev, prenda: prendaAbrev, color: colorAbrev }),
-    })
-      .then((r) => r.ok ? r.json() : null)
-      .then((data) => setSkuSugerido(data?.sku ?? null))
-      .catch(() => setSkuSugerido(null))
-      .finally(() => setLoadingSku(false));
-  }, [marcaAbrev, prendaAbrev, colorAbrev]);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -154,25 +145,37 @@ export function ColaAdmin() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
+  // --- Form "Nueva producción" (lote madre + una OP por color) ---
+  const setVarRow = (i: number, field: 'color' | 'cantidad', val: string) =>
+    setVariantes((prev) => prev.map((v, idx) => idx === i ? { ...v, [field]: val } : v));
+  const addVarRow = () => setVariantes((prev) => [...prev, { color: '', cantidad: '1' }]);
+  const rmVarRow  = (i: number) => setVariantes((prev) => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev);
+
+  const resetForm = () => {
+    setMarcaAbrev(''); setPrendaAbrev(''); setDescripcion(''); setNotas('');
+    setVariantes([{ color: '', cantidad: '1' }]); setError('');
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    // SKU opcional: si elegiste marca+prenda+color se asigna ya; si no, se crea sin SKU
-    // y se genera al mandar a costura.
-    const marcaEntry = marcas.find((m) => m.abreviatura === marcaAbrev);
-    setSaving(true);
     setError('');
-    const r = await fetch('/api/produccion/cola', {
+    if (!marcaAbrev || !prendaAbrev) { setError('Elegí marca y prenda'); return; }
+    const vs = variantes
+      .filter((v) => v.color && (parseInt(v.cantidad) || 0) > 0)
+      .map((v) => ({ color: v.color, cantidad: parseInt(v.cantidad) }));
+    if (vs.length === 0) { setError('Agregá al menos un color con cantidad'); return; }
+    setSaving(true);
+    const r = await fetch('/api/produccion/lote', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku: skuSugerido || undefined, descripcion, marca: marcaEntry?.nombre || undefined, cantidad, notas }),
+      body: JSON.stringify({ marca: marcaAbrev, prenda: prendaAbrev, descripcion, notas, variantes: vs }),
     });
     const data = await r.json();
     if (!r.ok) {
       setError(data.error || 'Error al crear');
     } else {
       cargar();
-      setMarcaAbrev(''); setPrendaAbrev(''); setColorAbrev('');
-      setSkuSugerido(null); setDescripcion(''); setCantidad('1'); setNotas('');
+      resetForm();
       setShowForm(false);
     }
     setSaving(false);
@@ -337,10 +340,103 @@ export function ColaAdmin() {
     ? ordenes.filter((o) => o.estado !== 'CERRADA')
     : ordenes.filter((o) => o.estado === filtro);
 
+  // Agrupa las órdenes hermanas (mismo lote) para mostrarlas juntas bajo el molde,
+  // preservando el orden de aparición. Un lote con una sola orden visible se muestra plano.
+  type Fila = { kind: 'lote'; loteId: string; ordenes: Orden[] } | { kind: 'single'; orden: Orden };
+  const filas: Fila[] = (() => {
+    const byLote = new Map<string, Orden[]>();
+    const secuencia: (string | Orden)[] = [];
+    for (const o of filtradas) {
+      if (o.loteId) {
+        if (!byLote.has(o.loteId)) { byLote.set(o.loteId, []); secuencia.push(o.loteId); }
+        byLote.get(o.loteId)!.push(o);
+      } else {
+        secuencia.push(o);
+      }
+    }
+    return secuencia.map((x): Fila => {
+      if (typeof x === 'string') {
+        const ords = byLote.get(x)!;
+        return ords.length >= 2 ? { kind: 'lote', loteId: x, ordenes: ords } : { kind: 'single', orden: ords[0] };
+      }
+      return { kind: 'single', orden: x };
+    });
+  })();
+
   const counts: Record<string, number> = { activos: ordenes.filter((o) => o.estado !== 'CERRADA').length };
   for (const e of ESTADOS) counts[e] = ordenes.filter((o) => o.estado === e).length;
 
   const inputClass = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
+
+  const renderOrden = (orden: Orden, dentroDeGrupo = false) => {
+    const dias = diasEnEstado(orden.transiciones);
+    const siguientes = ESTADO_SIGUIENTE[orden.estado] || [];
+    return (
+      <div key={orden.id}
+        className={`px-6 py-4 ${GRID} items-center hover:bg-stone-50 transition border-t border-stone-100 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
+        <Link href={`/produccion/${orden.id}`}
+          className={`font-mono font-bold text-sm px-2 py-1 rounded-lg transition ${orden.sku ? 'bg-stone-100 text-stone-700 hover:text-amber-600' : 'bg-amber-50 text-amber-600 hover:text-amber-700'}`}>
+          {orden.sku ?? 'S/SKU'}
+        </Link>
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-sm text-stone-800 font-medium truncate">{orden.descripcion || '--'}</p>
+            <span className="text-xs text-stone-400 shrink-0">{orden.marca}</span>
+            {!orden.sku && <Badge variant="warning" size="sm">SKU pendiente</Badge>}
+            {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && <Badge variant="info" size="sm">Ficha pendiente</Badge>}
+          </div>
+          <p className="text-xs text-stone-400">{fechaCorta(orden.createdAt)} · {orden.creadoPor}</p>
+        </div>
+        <span className="text-sm font-bold text-stone-700 text-center tabular-nums">{orden.cantidad}</span>
+        <Badge variant={ESTADO_BADGE[orden.estado] ?? 'default'} size="sm" className="whitespace-nowrap justify-self-start">
+          {ESTADO_LABEL[orden.estado] ?? orden.estado}
+        </Badge>
+        <span className={`text-xs tabular-nums text-right ${dias > 3 ? 'text-red-500 font-semibold' : 'text-stone-400'}`}>
+          {dias}d
+        </span>
+        <span className="text-xs tabular-nums text-right text-stone-500">
+          {Number(orden.costoTotal) > 0 ? `$${fmt(orden.costoTotal)}` : '--'}
+        </span>
+        <div className="flex gap-1.5 shrink-0">
+          {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
+            <Link href={`/produccion/${orden.id}/corte`}
+              className="text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition">
+              Ficha
+            </Link>
+          )}
+          {orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
+            <button onClick={() => revertirFicha(orden.id)} title="Editar ficha (la revierte para recargarla)"
+              className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-50 transition">
+              ✎ Ficha
+            </button>
+          )}
+          {siguientes.length > 0 && (
+            <select
+              value=""
+              aria-label="Avanzar estado"
+              onChange={(e) => { if (e.target.value) cambiarEstado(orden.id, e.target.value); }}
+              className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 bg-white cursor-pointer focus:outline-none focus:border-amber-400"
+            >
+              <option value="">Avanzar</option>
+              {siguientes.map((s) => (
+                <option key={s} value={s}>{ESTADO_LABEL[s]}</option>
+              ))}
+            </select>
+          )}
+          <button onClick={() => abrirEdicion(orden)}
+            title="Editar"
+            className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
+            ✎
+          </button>
+          <button onClick={() => eliminar(orden.id, orden.sku)}
+            aria-label="Eliminar"
+            className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition">
+            x
+          </button>
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div className="space-y-5">
@@ -356,7 +452,7 @@ export function ColaAdmin() {
 
       {/* Tabla */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-        <div className="px-6 py-4 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-500">
+        <div className={`px-6 py-4 bg-stone-50 border-b border-stone-100 ${GRID} text-xs font-bold uppercase tracking-widest text-stone-500`}>
           <span>SKU</span>
           <span>Descripcion</span>
           <span className="text-center">Cant.</span>
@@ -368,77 +464,30 @@ export function ColaAdmin() {
 
         {loading ? (
           <LoadingState />
-        ) : filtradas.length === 0 ? (
+        ) : filas.length === 0 ? (
           <div className="px-5 py-10 text-center text-stone-400 text-sm">Sin ordenes</div>
         ) : (
-          filtradas.map((orden, i) => {
-            const dias = diasEnEstado(orden.transiciones);
-            const siguientes = ESTADO_SIGUIENTE[orden.estado] || [];
-            return (
-              <div key={orden.id}
-                className={`px-6 py-4 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 items-center hover:bg-stone-50 transition ${i !== 0 ? 'border-t border-stone-100' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
-                <Link href={`/produccion/${orden.id}`}
-                  className={`font-mono font-bold text-sm px-2 py-1 rounded-lg transition ${orden.sku ? 'bg-stone-100 text-stone-700 hover:text-amber-600' : 'bg-amber-50 text-amber-600 hover:text-amber-700'}`}>
-                  {orden.sku ?? 'S/SKU'}
-                </Link>
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-sm text-stone-800 font-medium truncate">{orden.descripcion || '--'}</p>
-                    <span className="text-xs text-stone-400 shrink-0">{orden.marca}</span>
-                    {!orden.sku && <Badge variant="warning" size="sm">SKU pendiente</Badge>}
-                    {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && <Badge variant="info" size="sm">Ficha pendiente</Badge>}
+          filas.map((fila) => {
+            if (fila.kind === 'lote') {
+              const lote = fila.ordenes[0].lote;
+              const totalU = fila.ordenes.reduce((s, o) => s + o.cantidad, 0);
+              return (
+                <div key={fila.loteId} className="border-t border-stone-100">
+                  <div className="px-6 py-2.5 bg-amber-50/60 flex items-center gap-2 text-xs">
+                    <span className="text-base">🧵</span>
+                    <span className="font-bold text-stone-700">{prendaNombre(lote?.prenda) || lote?.descripcion || 'Molde'}</span>
+                    <span className="text-stone-400">{lote?.marca}</span>
+                    <Badge variant="amber" size="sm">{fila.ordenes.length} colores</Badge>
+                    {lote?.descripcion && prendaNombre(lote?.prenda) && (
+                      <span className="text-stone-400 truncate">· {lote.descripcion}</span>
+                    )}
+                    <span className="ml-auto text-stone-500 font-semibold tabular-nums">{totalU} u</span>
                   </div>
-                  <p className="text-xs text-stone-400">{fechaCorta(orden.createdAt)} · {orden.creadoPor}</p>
+                  {fila.ordenes.map((orden) => renderOrden(orden, true))}
                 </div>
-                <span className="text-sm font-bold text-stone-700 text-center tabular-nums">{orden.cantidad}</span>
-                <Badge variant={ESTADO_BADGE[orden.estado] ?? 'default'} size="sm" className="whitespace-nowrap justify-self-start">
-                  {ESTADO_LABEL[orden.estado] ?? orden.estado}
-                </Badge>
-                <span className={`text-xs tabular-nums text-right ${dias > 3 ? 'text-red-500 font-semibold' : 'text-stone-400'}`}>
-                  {dias}d
-                </span>
-                <span className="text-xs tabular-nums text-right text-stone-500">
-                  {Number(orden.costoTotal) > 0 ? `$${fmt(orden.costoTotal)}` : '--'}
-                </span>
-                <div className="flex gap-1.5 shrink-0">
-                  {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
-                    <Link href={`/produccion/${orden.id}/corte`}
-                      className="text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition">
-                      Ficha
-                    </Link>
-                  )}
-                  {orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
-                    <button onClick={() => revertirFicha(orden.id)} title="Editar ficha (la revierte para recargarla)"
-                      className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-500 hover:bg-stone-50 transition">
-                      ✎ Ficha
-                    </button>
-                  )}
-                  {siguientes.length > 0 && (
-                    <select
-                      value=""
-                      aria-label="Avanzar estado"
-                      onChange={(e) => { if (e.target.value) cambiarEstado(orden.id, e.target.value); }}
-                      className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 bg-white cursor-pointer focus:outline-none focus:border-amber-400"
-                    >
-                      <option value="">Avanzar</option>
-                      {siguientes.map((s) => (
-                        <option key={s} value={s}>{ESTADO_LABEL[s]}</option>
-                      ))}
-                    </select>
-                  )}
-                  <button onClick={() => abrirEdicion(orden)}
-                    title="Editar"
-                    className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
-                    ✎
-                  </button>
-                  <button onClick={() => eliminar(orden.id, orden.sku)}
-                    aria-label="Eliminar"
-                    className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition">
-                    x
-                  </button>
-                </div>
-              </div>
-            );
+              );
+            }
+            return renderOrden(fila.orden, false);
           })
         )}
       </div>
@@ -446,21 +495,21 @@ export function ColaAdmin() {
       {/* Boton agregar */}
       {!showForm && (
         <Button variant="primary" size="lg" onClick={() => setShowForm(true)}>
-          + Agregar a la cola
+          + Nueva producción
         </Button>
       )}
 
-      {/* Form crear */}
+      {/* Form crear: lote madre + una OP por color */}
       {showForm && (
         <div className="bg-white rounded-2xl border border-stone-200 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-stone-800">Nueva orden de produccion</h3>
+            <h3 className="text-sm font-bold text-stone-800">Nueva producción</h3>
             <Link href="/produccion/catalogo-sku" className="text-xs text-stone-500 hover:text-stone-800 transition">
               Editar catalogo →
             </Link>
           </div>
           <form onSubmit={handleCreate} className="space-y-4">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Marca</label>
                 <select value={marcaAbrev} onChange={(e) => setMarcaAbrev(e.target.value)} className={inputClass}>
@@ -469,38 +518,39 @@ export function ColaAdmin() {
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Prenda</label>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Prenda (molde)</label>
                 <select value={prendaAbrev} onChange={(e) => setPrendaAbrev(e.target.value)} className={inputClass}>
                   <option value="">--</option>
                   {prendas.map((p) => <option key={p.id} value={p.abreviatura}>{p.nombre} ({p.abreviatura})</option>)}
                 </select>
               </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Color</label>
-                <select value={colorAbrev} onChange={(e) => setColorAbrev(e.target.value)} className={inputClass}>
-                  <option value="">--</option>
-                  {colores.map((c) => <option key={c.id} value={c.abreviatura}>{c.nombre} ({c.abreviatura})</option>)}
-                </select>
-              </div>
             </div>
-            <div className="bg-stone-50 border border-stone-200 rounded-xl px-4 py-3 flex items-center justify-between">
-              <div>
-                <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">SKU (opcional)</p>
-                <p className="font-mono font-bold text-base text-stone-800">
-                  {loadingSku ? '...' : skuSugerido ?? '— se asigna al mandar a costura —'}
-                </p>
+
+            <div>
+              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Colores y cantidades</label>
+              <div className="space-y-2">
+                {variantes.map((v, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <select value={v.color} onChange={(e) => setVarRow(i, 'color', e.target.value)} className={`${inputClass} flex-1`}>
+                      <option value="">Color…</option>
+                      {colores.map((c) => <option key={c.id} value={c.abreviatura}>{c.nombre} ({c.abreviatura})</option>)}
+                    </select>
+                    <NumInput value={parseFloat(v.cantidad) || 0} onChange={(n) => setVarRow(i, 'cantidad', n ? String(n) : '')} min="1"
+                      className="w-24 px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400" />
+                    <span className="font-mono text-[11px] text-stone-400 w-36 truncate hidden sm:block">
+                      {marcaAbrev && prendaAbrev && v.color ? `${marcaAbrev}-${prendaAbrev}-${v.color}-•••` : ''}
+                    </span>
+                    <button type="button" aria-label="Quitar color" onClick={() => rmVarRow(i)} disabled={variantes.length === 1}
+                      className="text-stone-400 hover:text-red-500 disabled:opacity-30 disabled:hover:text-stone-400 px-1 text-lg leading-none">×</button>
+                  </div>
+                ))}
               </div>
-              {skuSugerido && <span className="text-xs bg-emerald-100 text-emerald-700 font-semibold px-2 py-1 rounded">próximo libre</span>}
+              <button type="button" onClick={addVarRow} className="text-xs text-amber-600 hover:text-amber-700 font-semibold mt-2">+ Agregar color</button>
             </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad</label>
-                <NumInput value={parseFloat(cantidad) || 0} onChange={(n) => setCantidad(n ? String(n) : '')} min="1" className={inputClass} />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Descripcion</label>
-                <input type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Opcional" className={inputClass} />
-              </div>
+
+            <div>
+              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Descripcion</label>
+              <input type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Opcional (se aplica a todos los colores)" className={inputClass} />
             </div>
             <div>
               <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Notas internas</label>
@@ -509,9 +559,9 @@ export function ColaAdmin() {
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2 pt-1">
               <Button type="submit" variant="primary" size="lg" isLoading={saving} className="flex-1">
-                {saving ? 'Agregando...' : 'Agregar a la cola'}
+                {saving ? 'Creando...' : 'Crear producción'}
               </Button>
-              <Button type="button" variant="secondary" size="lg" onClick={() => { setShowForm(false); setError(''); }}>
+              <Button type="button" variant="secondary" size="lg" onClick={() => { setShowForm(false); resetForm(); }}>
                 Cancelar
               </Button>
             </div>
@@ -519,7 +569,7 @@ export function ColaAdmin() {
         </div>
       )}
 
-      {/* Mini-modal: asignar SKU al mandar a costura */}
+      {/* Mini-modal: asignar SKU al mandar a costura (OPs viejas sin SKU) */}
       {skuModalOrden && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={() => setSkuModalOrden(null)}>
           <div className="bg-white rounded-2xl border border-stone-200 p-5 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>

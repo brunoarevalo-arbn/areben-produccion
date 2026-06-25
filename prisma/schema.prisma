@@ -409,10 +409,30 @@ model OrdenProduccion {
   movimientosInsumo       MovimientoInsumo[]
   cortesPorTalle          CortePorTalle[]
 
+  loteId                  String?
+  lote                    LoteProduccion? @relation(fields: [loteId], references: [id], onDelete: SetNull)
+
   createdAt               DateTime  @default(now())
   updatedAt               DateTime  @updatedAt
 
+  @@index([loteId])
   @@map("ordenes_produccion")
+}
+
+// Agrupa las órdenes hermanas (mismo molde/prenda, distinto color) de una misma
+// producción. Es opcional y aditivo: una OP sin lote funciona como siempre.
+model LoteProduccion {
+  id          String            @id @default(cuid())
+  marca       String            @default("Zattia")
+  prenda      String?           // abreviatura de la prenda (molde)
+  descripcion String?
+  notas       String?
+  creadoPor   String            @default("admin")
+  ordenes     OrdenProduccion[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  @@map("lotes_produccion")
 }
 
 model CortePorTalle {

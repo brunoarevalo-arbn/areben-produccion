@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
           take: 1,
           select: { fecha: true, estadoNuevo: true },
         },
+        lote: { select: { id: true, prenda: true, descripcion: true, marca: true } },
       },
     });
 
