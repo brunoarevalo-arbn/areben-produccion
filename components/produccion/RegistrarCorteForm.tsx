@@ -66,7 +66,6 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca }:
   const [tizadas, setTizadas] = useState<Tizada[]>([{ id: 't1', nombre: '', modo: 'tizada', metros: '', unidades: '1', rollos: [] }]);
   const [aviosCatalogo, setAviosCatalogo] = useState<AvioOpt[]>([]);
   const [aviosSel, setAviosSel] = useState<AvioSel[]>([]);
-  const [verOcasionales, setVerOcasionales] = useState(false);
   const [filtroTela, setFiltroTela] = useState<Record<string, string>>({}); // por tizada → nombre de tela
   const [talles, setTalles] = useState<Record<string, string>>({});
   const [cortadorId, setCortadorId] = useState('');
@@ -108,6 +107,14 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca }:
       : [...prev, { etiquetaId, cantidad: '1' }]);
   const updateAvioCant = (etiquetaId: string, val: string) =>
     setAviosSel((prev) => prev.map((a) => a.etiquetaId === etiquetaId ? { ...a, cantidad: val } : a));
+  // Slot fijo (principal/composición): reemplaza el avío de ese tipo por el elegido.
+  const setSlotAvio = (tipoSlot: string, etiquetaId: string) =>
+    setAviosSel((prev) => {
+      const sinTipo = prev.filter((s) => (aviosCatalogo.find((a) => a.id === s.etiquetaId)?.tipo ?? '') !== tipoSlot);
+      return etiquetaId ? [...sinTipo, { etiquetaId, cantidad: '1' }] : sinTipo;
+    });
+  const addOtroAvio = (etiquetaId: string) =>
+    setAviosSel((prev) => prev.some((s) => s.etiquetaId === etiquetaId) ? prev : [...prev, { etiquetaId, cantidad: '1' }]);
 
   const renderAvio = (a: AvioOpt) => {
     const sel = aviosSel.find((x) => x.etiquetaId === a.id);
@@ -383,26 +390,47 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca }:
         {aviosCatalogo.length === 0 ? (
           <p className="text-sm text-stone-400 py-2">No hay avíos en el catálogo. Cargalos en Inventario → Catálogo → Avíos.</p>
         ) : (() => {
-          // Solo avíos de la marca de la prenda + los genéricos (sin marca, como
-          // composición/cierres). Habituales arriba; ocasionales bajo demanda.
-          const relevantes  = aviosCatalogo.filter((a) => !a.marca || a.marca === marca);
-          const habituales  = relevantes.filter((a) => (a.frecuencia ?? 'habitual') !== 'ocasional');
-          const ocasionales = relevantes.filter((a) => (a.frecuencia ?? 'habitual') === 'ocasional');
-          // Los ocasionales ya elegidos se muestran siempre; el resto, al desplegar.
-          const ocasVisibles = verOcasionales ? ocasionales : ocasionales.filter((a) => aviosSel.some((s) => s.etiquetaId === a.id));
+          const catById = (id: string) => aviosCatalogo.find((a) => a.id === id);
+          // Principal = etiqueta de la marca de la prenda. Composición = genérica (va en todas).
+          // Otros = el resto (badanas, botones, cierres, tachas) de la marca + genéricos.
+          const principales   = aviosCatalogo.filter((a) => a.tipo === 'principal' && (!a.marca || a.marca === marca));
+          const composiciones = aviosCatalogo.filter((a) => a.tipo === 'composicion');
+          const otros         = aviosCatalogo.filter((a) => a.tipo !== 'principal' && a.tipo !== 'composicion' && (!a.marca || a.marca === marca));
+          const principalSel   = aviosSel.find((s) => catById(s.etiquetaId)?.tipo === 'principal');
+          const composicionSel = aviosSel.find((s) => catById(s.etiquetaId)?.tipo === 'composicion');
+          const otrosSel       = aviosSel.filter((s) => { const t = catById(s.etiquetaId)?.tipo; return t !== 'principal' && t !== 'composicion'; });
           return (
-            <div className="space-y-2">
-              {habituales.map(renderAvio)}
-              {ocasVisibles.map(renderAvio)}
-              {habituales.length === 0 && ocasVisibles.length === 0 && (
-                <p className="text-xs text-stone-400">Sin avíos habituales para esta marca.</p>
-              )}
-              {ocasionales.length > 0 && (
-                <button type="button" onClick={() => setVerOcasionales((v) => !v)}
-                  className="text-xs text-stone-500 hover:text-stone-800 transition mt-1">
-                  {verOcasionales ? '− Ocultar ocasionales' : `+ Avíos ocasionales (cierres, tachas… ${ocasionales.length})`}
-                </button>
-              )}
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-xs font-semibold text-stone-600 mb-1 block">Etiqueta principal</label>
+                  <select value={principalSel?.etiquetaId ?? ''} onChange={(e) => setSlotAvio('principal', e.target.value)} className={`${inpSm} w-full`}>
+                    <option value="">— Ninguna —</option>
+                    {principales.map((a) => <option key={a.id} value={a.id}>{a.nombre}{a.stock != null ? ` (${a.stock})` : ''}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-stone-600 mb-1 block">Etiqueta composición <span className="font-normal text-stone-400">(todas)</span></label>
+                  <select value={composicionSel?.etiquetaId ?? ''} onChange={(e) => setSlotAvio('composicion', e.target.value)} className={`${inpSm} w-full`}>
+                    <option value="">— Ninguna —</option>
+                    {composiciones.map((a) => <option key={a.id} value={a.id}>{a.nombre}{a.stock != null ? ` (${a.stock})` : ''}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <div className="flex items-center justify-between gap-2 mb-2">
+                  <span className="text-xs font-semibold text-stone-600">Otros avíos <span className="font-normal text-stone-400">(cierres, tachas, badanas…)</span></span>
+                  {otros.length > 0 && (
+                    <select value="" onChange={(e) => { if (e.target.value) addOtroAvio(e.target.value); }} className={`${inpSm} max-w-[16rem]`}>
+                      <option value="">+ Del catálogo</option>
+                      {otros.map((a) => <option key={a.id} value={a.id}>{a.nombre}{a.stock != null ? ` (${a.stock})` : ''}</option>)}
+                    </select>
+                  )}
+                </div>
+                {otrosSel.length === 0
+                  ? <p className="text-xs text-stone-400 italic">Sin otros avíos.</p>
+                  : <div className="space-y-2">{otrosSel.map((s) => { const a = catById(s.etiquetaId); return a ? renderAvio(a) : null; })}</div>}
+              </div>
             </div>
           );
         })()}
