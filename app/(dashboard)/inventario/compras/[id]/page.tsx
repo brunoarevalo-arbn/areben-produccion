@@ -16,10 +16,10 @@ export default async function CompraDetallaPage({ params }: { params: Promise<{ 
         include: { insumo: { select: { nombre: true, categoria: true, tipoTrazabilidad: true } } },
       },
       rollos: {
-        include: { insumo: { select: { nombre: true } } },
+        include: { insumo: { select: { nombre: true } }, color: { select: { nombre: true } } },
       },
       lotes: {
-        include: { insumo: { select: { nombre: true } } },
+        include: { insumo: { select: { nombre: true } }, color: { select: { nombre: true } } },
       },
     },
   });

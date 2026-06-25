@@ -33,8 +33,8 @@ interface CompraFull {
     subtotal: string;
     insumo: { nombre: string; categoria: string; tipoTrazabilidad: string };
   }[];
-  rollos: { id: string; codigo: string; pesoInicial: string; pesoActual: string; costoUnitario: string; estado: string; insumo: { nombre: string } }[];
-  lotes: { id: string; codigo: string; cantidadInicial: string; cantidadActual: string; costoUnitario: string; estado: string; insumo: { nombre: string } }[];
+  rollos: { id: string; codigo: string; pesoInicial: string; pesoActual: string; costoUnitario: string; estado: string; colorProveedor: string | null; insumo: { nombre: string }; color: { nombre: string } | null }[];
+  lotes: { id: string; codigo: string; cantidadInicial: string; cantidadActual: string; costoUnitario: string; estado: string; colorProveedor: string | null; insumo: { nombre: string }; color: { nombre: string } | null }[];
 }
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
@@ -236,6 +236,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
               <tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
                 <th className="text-left py-2 font-bold">Codigo</th>
                 <th className="text-left py-2 font-bold">Insumo</th>
+                <th className="text-left py-2 font-bold">Color</th>
                 <th className="text-right py-2 font-bold">Peso inicial</th>
                 <th className="text-right py-2 font-bold">Peso actual</th>
                 <th className="text-right py-2 font-bold">Precio sin IVA</th>
@@ -251,6 +252,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
                     </Link>
                   </td>
                   <td className="text-stone-600">{r.insumo.nombre}</td>
+                  <td className="text-stone-600">{r.color?.nombre ?? r.colorProveedor ?? <span className="text-stone-300">—</span>}</td>
                   <td className="text-right tabular-nums">{fmt(r.pesoInicial)}</td>
                   <td className="text-right tabular-nums">{fmt(r.pesoActual)}</td>
                   <td className="text-right tabular-nums text-stone-500">${fmt(r.costoUnitario)}</td>
@@ -271,6 +273,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
               <tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
                 <th className="text-left py-2 font-bold">Codigo</th>
                 <th className="text-left py-2 font-bold">Insumo</th>
+                <th className="text-left py-2 font-bold">Color</th>
                 <th className="text-right py-2 font-bold">Cantidad</th>
                 <th className="text-right py-2 font-bold">Precio sin IVA</th>
                 <th className="text-right py-2 font-bold">Estado</th>
@@ -281,6 +284,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
                 <tr key={l.id} className="border-b border-stone-50">
                   <td className="py-2 font-mono text-stone-700">{l.codigo}</td>
                   <td className="text-stone-600">{l.insumo.nombre}</td>
+                  <td className="text-stone-600">{l.color?.nombre ?? l.colorProveedor ?? <span className="text-stone-300">—</span>}</td>
                   <td className="text-right tabular-nums">{fmt(l.cantidadActual)} / {fmt(l.cantidadInicial)}</td>
                   <td className="text-right tabular-nums text-stone-500">${fmt(l.costoUnitario)}</td>
                   <td className="text-right text-xs">{l.estado.replace(/_/g, ' ')}</td>
