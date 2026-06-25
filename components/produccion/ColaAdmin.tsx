@@ -471,6 +471,7 @@ export function ColaAdmin() {
             if (fila.kind === 'lote') {
               const lote = fila.ordenes[0].lote;
               const totalU = fila.ordenes.reduce((s, o) => s + o.cantidad, 0);
+              const hayParaCortar = fila.ordenes.some((o) => !o.fichaCorteCargada && o.estado !== 'CERRADA');
               return (
                 <div key={fila.loteId} className="border-t border-stone-100">
                   <div className="px-6 py-2.5 bg-amber-50/60 flex items-center gap-2 text-xs">
@@ -482,6 +483,12 @@ export function ColaAdmin() {
                       <span className="text-stone-400 truncate">· {lote.descripcion}</span>
                     )}
                     <span className="ml-auto text-stone-500 font-semibold tabular-nums">{totalU} u</span>
+                    {hayParaCortar && (
+                      <Link href={`/produccion/lote/${fila.loteId}/corte`}
+                        className="px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition font-semibold">
+                        ✂ Cortar lote
+                      </Link>
+                    )}
                   </div>
                   {fila.ordenes.map((orden) => renderOrden(orden, true))}
                 </div>

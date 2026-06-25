@@ -77,6 +77,21 @@ export const RegistrarCorteSchema = z.object({
   notas:          z.string().optional(),
 });
 
+// Corte por lote: una receta/avíos/cortador compartidos + rollos y talles por color.
+// Cada color se registra como una ficha individual (reusa RegistrarCorteSchema por OP).
+export const CortarLoteSchema = z.object({
+  colores: z.array(z.object({
+    ordenId:        z.string().min(1),
+    consumoRollos:  z.array(ConsumoRolloSchema).min(1),
+    cortesPorTalle: z.array(TalleSchema).min(1),
+  })).min(1, 'Cargá al menos un color con rollos y talles'),
+  avios:      z.array(AvioCorteSchema).optional(),
+  cortadorId: z.string().optional(),
+  costoCorte: z.number().min(0).optional(),         // total o por unidad según modoCosto
+  modoCosto:  z.enum(['total', 'unidad']).default('total'),
+  notas:      z.string().optional(),
+});
+
 export const CortadorSchema = z.object({
   nombre:        z.string().min(1, 'Nombre obligatorio'),
   contacto:      z.string().optional(),
