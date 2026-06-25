@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { toast } from '@/components/ui/Toaster';
 
 interface Rollo {
   id: string;
@@ -14,10 +15,12 @@ interface Rollo {
   ubicacion: string | null;
   createdAt: string;
   insumo: { nombre: string; categoria: string; unidadDefault: string };
-  color: { nombre: string } | null;
+  color: { id: string; nombre: string } | null;
   colorProveedor: string | null;
   compra: { id: string; fecha: string; proveedor: { nombre: string } };
 }
+
+const colorSelect = 'text-sm text-stone-700 bg-transparent border border-transparent hover:border-stone-200 rounded-lg px-1.5 py-1 -ml-1.5 focus:outline-none focus:border-amber-400 cursor-pointer max-w-[9rem]';
 
 const ESTADO_COLOR: Record<string, string> = {
   DISPONIBLE:      'bg-emerald-100 text-emerald-700',
@@ -37,6 +40,8 @@ export function RollosClient() {
   const [rollos, setRollos]   = useState<Rollo[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState('');
+  const [colores, setColores] = useState<{ id: string; nombre: string }[]>([]);
+  const [savingColor, setSavingColor] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const params = filtroEstado ? `?estado=${filtroEstado}` : '';
@@ -45,6 +50,27 @@ export function RollosClient() {
       .then(setRollos)
       .finally(() => setLoading(false));
   }, [filtroEstado]);
+
+  useEffect(() => {
+    fetch('/api/sku-catalogo?categoria=color').then((r) => r.ok ? r.json() : []).then(setColores).catch(() => {});
+  }, []);
+
+  // Cambiar (o asignar) el color interno de un rollo desde la misma lista.
+  const cambiarColor = async (rolloId: string, colorId: string) => {
+    setSavingColor((p) => ({ ...p, [rolloId]: true }));
+    const r = await fetch(`/api/insumos/rollos/${rolloId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ colorId: colorId || null }),
+    });
+    if (r.ok) {
+      const col = colores.find((c) => c.id === colorId) || null;
+      setRollos((prev) => prev.map((x) => x.id === rolloId ? { ...x, color: col } : x));
+    } else {
+      toast.error('No se pudo cambiar el color');
+    }
+    setSavingColor((p) => ({ ...p, [rolloId]: false }));
+  };
 
   const sinColor = rollos.filter((r) => !r.color && r.estado !== 'DESCARTADO').length;
   // "Activos" (filtro vacío) esconde los descartados (de compras revertidas).
@@ -96,9 +122,13 @@ export function RollosClient() {
                 <p className="text-sm text-stone-800 truncate">{r.insumo.nombre}</p>
                 <p className="text-xs text-stone-400">{r.insumo.categoria}</p>
               </div>
-              <span className="text-sm text-stone-700 whitespace-nowrap">
-                {r.color ? r.color.nombre : <span className="text-amber-500 italic text-xs">sin asignar</span>}
-              </span>
+              <select value={r.color?.id ?? ''} disabled={savingColor[r.id]}
+                onChange={(e) => cambiarColor(r.id, e.target.value)}
+                aria-label={`Color interno de ${r.codigo}`}
+                className={`${colorSelect} ${r.color ? '' : 'text-amber-500 italic'}`}>
+                <option value="">sin asignar</option>
+                {colores.map((c) => <option key={c.id} value={c.id} className="text-stone-700 not-italic">{c.nombre}</option>)}
+              </select>
               <span className="text-xs text-stone-500 whitespace-nowrap">{r.compra.proveedor.nombre}</span>
               <span className="text-sm tabular-nums text-right text-stone-700">
                 {fmt(r.pesoActual)} / {fmt(r.pesoInicial)}
