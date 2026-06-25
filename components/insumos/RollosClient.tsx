@@ -71,10 +71,12 @@ export function RollosClient() {
       )}
 
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-        <div className="overflow-x-auto"><div className="min-w-[760px]">
-        <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
+        <div className="overflow-x-auto"><div className="min-w-[920px]">
+        <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Codigo</span>
           <span>Insumo</span>
+          <span>Color</span>
+          <span>Color prov.</span>
           <span>Proveedor</span>
           <span className="text-right">Peso</span>
           <span className="text-right">$/u</span>
@@ -89,20 +91,19 @@ export function RollosClient() {
         ) : (
           visibles.map((r, i) => (
             <div key={r.id}
-              className={`px-5 py-3 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''}`}>
+              className={`px-5 py-3 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''}`}>
               <span className="font-mono font-semibold text-sm text-stone-700">{r.codigo}</span>
               <div className="min-w-0">
-                <p className="text-sm text-stone-800 truncate">
-                  {r.insumo.nombre}
-                  {r.color
-                    ? ` · ${r.color.nombre}`
-                    : r.colorProveedor
-                      ? <span className="text-stone-400 italic"> · {r.colorProveedor}</span>
-                      : ''}
-                </p>
+                <p className="text-sm text-stone-800 truncate">{r.insumo.nombre}</p>
                 <p className="text-xs text-stone-400">{r.insumo.categoria}</p>
               </div>
-              <span className="text-xs text-stone-500">{r.compra.proveedor.nombre}</span>
+              <span className="text-sm text-stone-700 whitespace-nowrap">
+                {r.color ? r.color.nombre : <span className="text-amber-500 italic text-xs">sin asignar</span>}
+              </span>
+              <span className="text-sm text-stone-600 whitespace-nowrap">
+                {r.colorProveedor ? r.colorProveedor : <span className="text-stone-300">—</span>}
+              </span>
+              <span className="text-xs text-stone-500 whitespace-nowrap">{r.compra.proveedor.nombre}</span>
               <span className="text-sm tabular-nums text-right text-stone-700">
                 {fmt(r.pesoActual)} / {fmt(r.pesoInicial)}
               </span>
