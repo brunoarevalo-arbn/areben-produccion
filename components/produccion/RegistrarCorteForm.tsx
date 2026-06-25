@@ -67,6 +67,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca }:
   const [aviosCatalogo, setAviosCatalogo] = useState<AvioOpt[]>([]);
   const [aviosSel, setAviosSel] = useState<AvioSel[]>([]);
   const [verOcasionales, setVerOcasionales] = useState(false);
+  const [filtroTela, setFiltroTela] = useState<Record<string, string>>({}); // por tizada → nombre de tela
   const [talles, setTalles] = useState<Record<string, string>>({});
   const [cortadorId, setCortadorId] = useState('');
   const [costoCorte, setCostoCorte] = useState('');
@@ -300,12 +301,23 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca }:
                 </div>
               )}
 
+              {/* Filtro por tela: elegís la tela y ves solo sus rollos (en vez de todos). */}
+              {(() => {
+                const telas = [...new Set(rollosDisp.map((r) => r.insumo.nombre))].sort();
+                return rollosDisp.length > 0 && telas.length > 1 ? (
+                  <select value={filtroTela[t.id] || ''} onChange={(e) => setFiltroTela((prev) => ({ ...prev, [t.id]: e.target.value }))}
+                    className={`${inpSm} w-full mb-2`}>
+                    <option value="">Todas las telas ({rollosDisp.length} rollos)</option>
+                    {telas.map((n) => <option key={n} value={n}>{n}</option>)}
+                  </select>
+                ) : null;
+              })()}
               {/* Rollos de esta tizada */}
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 {rollosDisp.length === 0 ? (
                   <p className="text-sm text-stone-400 py-2">No hay rollos con rinde disponibles. Cargá el rinde en configuración.</p>
                 ) : (
-                  rollosDisp.map((r) => {
+                  (filtroTela[t.id] ? rollosDisp.filter((r) => r.insumo.nombre === filtroTela[t.id]) : rollosDisp).map((r) => {
                     const selected = t.rollos.find((c) => c.rolloId === r.id);
                     const metrosDisp = Number(r.pesoActual) * Number(r.insumo.rinde);
                     const ef = efMap.get(r.id) ?? 0;

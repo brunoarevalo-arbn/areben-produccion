@@ -29,7 +29,7 @@ interface ProductoProd {
   tieneEscandallo: boolean;
   descartado: boolean;
 }
-interface EtiquetaOpt { id: string; nombre: string; tipo: string | null; precio: number; }
+interface EtiquetaOpt { id: string; nombre: string; tipo: string | null; precio: number; marca: string | null; frecuencia: string | null; }
 interface CostoCorteOpt { id: string; tipoPrenda: string; costo: number; }
 interface TelaOpt { id: string; nombre: string; rinde: number; precioKg: number; }
 
@@ -173,6 +173,12 @@ export function Escandallos() {
 
   // Avíos extras
   const addAvioExtra = () => setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: [...prev.avios.extras, { nombre: '', cantidad: 1, costoUnitario: 0 }] } }));
+  // Agrega un avío ocasional del catálogo (cierre, tacha…) como extra, con su nombre y precio.
+  const addAvioCatalogo = (etiquetaId: string) => {
+    const et = etiquetas.find(e => e.id === etiquetaId);
+    if (!et) return;
+    setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: [...prev.avios.extras, { nombre: et.nombre, cantidad: 1, costoUnitario: et.precio }] } }));
+  };
   const updAvioExtra = (i: number, field: string, val: string) =>
     setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: prev.avios.extras.map((e, idx) => idx !== i ? e : ({ ...e, [field]: field === 'nombre' ? val : pf(val) } as ItemExtra)) } }));
   const delAvioExtra = (i: number) => setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: prev.avios.extras.filter((_, idx) => idx !== i) } }));
@@ -751,7 +757,7 @@ export function Escandallos() {
                   <select value={datos.avios.etiquetaPrincipalId ?? ''} onChange={e => elegirEtiqueta('etiquetaPrincipal', e.target.value)}
                     className={`${inp} mb-1.5`}>
                     <option value="">— Precio manual —</option>
-                    {etiquetas.map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
+                    {etiquetas.filter(et => !et.marca || et.marca === marca).map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
                   </select>
                 )}
                 <NumInput value={datos.avios.etiquetaPrincipal} onChange={n => updAvios('etiquetaPrincipal', String(n))}
@@ -763,7 +769,7 @@ export function Escandallos() {
                   <select value={datos.avios.etiquetaComposicionId ?? ''} onChange={e => elegirEtiqueta('etiquetaComposicion', e.target.value)}
                     className={`${inp} mb-1.5`}>
                     <option value="">— Precio manual —</option>
-                    {etiquetas.map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
+                    {etiquetas.filter(et => !et.marca || et.marca === marca).map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
                   </select>
                 )}
                 <NumInput value={datos.avios.etiquetaComposicion} onChange={n => updAvios('etiquetaComposicion', String(n))}
@@ -784,12 +790,22 @@ export function Escandallos() {
               </div>
             </div>
             <div className="border-t border-stone-100 pt-4">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-stone-500 font-semibold">Extras avíos</p>
-                <button type="button" onClick={addAvioExtra}
-                  className="text-xs px-3 py-1 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition">
-                  + Agregar
-                </button>
+              <div className="flex items-center justify-between mb-2 gap-2">
+                <p className="text-xs text-stone-500 font-semibold shrink-0">Extras avíos <span className="font-normal text-stone-400">(ocasionales: cierres, tachas…)</span></p>
+                <div className="flex items-center gap-2">
+                  {etiquetas.some(et => (et.frecuencia ?? '') === 'ocasional' && (!et.marca || et.marca === marca)) && (
+                    <select value="" onChange={e => { if (e.target.value) addAvioCatalogo(e.target.value); }}
+                      className={`${inp} text-xs py-1`}>
+                      <option value="">+ Del catálogo</option>
+                      {etiquetas.filter(et => (et.frecuencia ?? '') === 'ocasional' && (!et.marca || et.marca === marca))
+                        .map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
+                    </select>
+                  )}
+                  <button type="button" onClick={addAvioExtra}
+                    className="text-xs px-3 py-1 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition shrink-0">
+                    + Manual
+                  </button>
+                </div>
               </div>
               {datos.avios.extras.length === 0 && <p className="text-xs text-stone-400 italic">Sin extras</p>}
               <div className="space-y-2">
