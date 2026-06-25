@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { RegistrarCorteForm } from '@/components/produccion/RegistrarCorteForm';
+import { RegistrarCorteConCopia } from '@/components/produccion/RegistrarCorteConCopia';
 import { CorteRevertir } from '@/components/produccion/CorteRevertir';
 import { PageHeader } from '@/components/ui/PageHeader';
 
@@ -18,6 +18,15 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
   });
 
   if (!orden) notFound();
+
+  // Hermanas del mismo lote que ya tienen ficha → se puede copiar la suya.
+  const hermanas = orden.loteId
+    ? await prisma.ordenProduccion.findMany({
+        where: { loteId: orden.loteId, fichaCorteCargada: true, id: { not: orden.id } },
+        select: { id: true, sku: true },
+        orderBy: { createdAt: 'asc' },
+      })
+    : [];
 
   if (orden.fichaCorteCargada) {
     return (
@@ -60,7 +69,7 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
         title={orden.sku ?? ''}
         subtitle={`${orden.descripcion || orden.marca} · Planificadas: ${orden.cantidad} unidades`}
       />
-      <RegistrarCorteForm ordenId={orden.id} sku={orden.sku ?? ''} cantidadPlanificada={orden.cantidad} marca={orden.marca} />
+      <RegistrarCorteConCopia ordenId={orden.id} sku={orden.sku ?? ''} cantidadPlanificada={orden.cantidad} marca={orden.marca} hermanas={hermanas} />
     </div>
   );
 }

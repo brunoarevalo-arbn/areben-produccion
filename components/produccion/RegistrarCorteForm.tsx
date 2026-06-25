@@ -34,7 +34,14 @@ const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus
 const inpSm = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
-export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca }: { ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null }) {
+export interface CortePrefill {
+  avios?: { etiquetaId: string; cantidad: number }[];
+  cortadorId?: string | null;
+  costoCorte?: number;
+  talles?: { talle: string; cantidad: number }[];
+}
+
+export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, prefill }: { ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; prefill?: CortePrefill }) {
   const router = useRouter();
   const [rollosDisp, setRollosDisp] = useState<RolloDisp[]>([]);
   const [cortadores, setCortadores] = useState<CortadorOpt[]>([]);
@@ -42,13 +49,18 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca }:
   const [error, setError] = useState('');
 
   const tizadaSeq = useRef(2);
+  // La tela (tizadas/rollos) NO se prellena: cada color usa la suya. El resto sí.
   const [tizadas, setTizadas] = useState<Tizada[]>([{ id: 't1', nombre: '', modo: 'tizada', metros: '', unidades: '1', rollos: [] }]);
   const [aviosCatalogo, setAviosCatalogo] = useState<AvioOpt[]>([]);
-  const [aviosSel, setAviosSel] = useState<AvioSel[]>([]);
+  const [aviosSel, setAviosSel] = useState<AvioSel[]>(
+    () => prefill?.avios?.map((a) => ({ etiquetaId: a.etiquetaId, cantidad: String(a.cantidad) })) ?? [],
+  );
   const [filtroTela, setFiltroTela] = useState<Record<string, string>>({}); // por tizada → nombre de tela
-  const [talles, setTalles] = useState<Record<string, string>>({});
-  const [cortadorId, setCortadorId] = useState('');
-  const [costoCorte, setCostoCorte] = useState('');
+  const [talles, setTalles] = useState<Record<string, string>>(
+    () => Object.fromEntries((prefill?.talles ?? []).map((t) => [t.talle, String(t.cantidad)])),
+  );
+  const [cortadorId, setCortadorId] = useState(prefill?.cortadorId ?? '');
+  const [costoCorte, setCostoCorte] = useState(prefill?.costoCorte ? String(prefill.costoCorte) : '');
   const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>('total');
 
   // Autocompletar tarifa al elegir cortador

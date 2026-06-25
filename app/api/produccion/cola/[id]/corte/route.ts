@@ -15,6 +15,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     where: { id },
     include: {
       cortesPorTalle: { orderBy: { talle: 'asc' } },
+      avios: { select: { etiquetaId: true, cantidad: true } },
       movimientosInsumo: {
         include: {
           rollo: { include: { insumo: { select: { nombre: true, rinde: true } }, color: { select: { nombre: true } } } },
