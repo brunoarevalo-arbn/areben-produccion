@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAlguno, requireInsumos } from '@/lib/auth';
 import { CompraSchema } from '@/lib/validators/insumos';
 import { nextCodigoRollo, nextCodigoLote } from '@/lib/insumos/codigos';
+import { retryOnUniqueConflict } from '@/lib/db/retry';
 import { Prisma } from '@prisma/client';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -93,6 +94,8 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     }
   }
 
+  // Códigos + transacción con retry ante choque del código único de rollo/lote.
+  await retryOnUniqueConflict(async () => {
   let nextRollo = await nextCodigoRollo();
   let nextLote  = await nextCodigoLote();
   const rolloCodigos: string[] = [];
@@ -150,6 +153,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
         await tx.movimientoInsumo.create({ data: { tipo: 'INGRESO', loteId: lote.id, cantidad: cant, motivo: `Compra ${id} (editada)`, usuarioId: session.id } });
       }
     }
+  });
   });
 
   // Invalidar la caché de las páginas que leen esta compra (si no, al reabrir

@@ -377,7 +377,7 @@ enum EstadoOP {
 
 model OrdenProduccion {
   id                      String    @id @default(cuid())
-  sku                     String?
+  sku                     String?   @unique
   descripcion             String?
   marca                   String    @default("Zattia")
   cantidad                Int       @default(1)

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { siguienteNumeroSku, formatSku } from '@/lib/produccion/sku';
+import { retryOnUniqueConflict } from '@/lib/db/retry';
 import { z } from 'zod';
 
 const BodySchema = z.object({
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
   });
   const marcaNombre = marcaEntry?.nombre || marca;
 
-  const result = await prisma.$transaction(async (tx) => {
+  const result = await retryOnUniqueConflict(() => prisma.$transaction(async (tx) => {
     const lote = await tx.loteProduccion.create({
       data: { marca: marcaNombre, prenda, descripcion, notas, creadoPor: session.nombre },
     });
@@ -75,7 +76,7 @@ export async function POST(req: NextRequest) {
       ordenes.push(op);
     }
     return { lote, ordenes };
-  });
+  }));
 
   return NextResponse.json(result, { status: 201 });
 }

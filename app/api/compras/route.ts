@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requireAlguno, requireInsumos } from '@/lib/auth';
 import { CompraSchema } from '@/lib/validators/insumos';
 import { nextCodigoRollo, nextCodigoLote } from '@/lib/insumos/codigos';
+import { retryOnUniqueConflict } from '@/lib/db/retry';
 import { Prisma } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
@@ -94,6 +95,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Códigos + transacción dentro de un retry: si dos compras chocan el código único
+  // de rollo/lote, se recalculan y se reintenta (los códigos se leen-máximo sin lock).
+  const compra = await retryOnUniqueConflict(async () => {
   let nextRollo = await nextCodigoRollo();
   let nextLote = await nextCodigoLote();
   const rolloCodigos: string[] = [];
@@ -110,7 +114,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Transacción atómica
-  const compra = await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     const c = await tx.compra.create({
       data: {
         proveedorId:   data.proveedorId,
@@ -220,6 +224,7 @@ export async function POST(req: NextRequest) {
         lotes:     true,
       },
     });
+  });
   });
 
   return NextResponse.json(compra, { status: 201 });
