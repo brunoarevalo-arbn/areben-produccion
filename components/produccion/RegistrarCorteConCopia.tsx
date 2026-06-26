@@ -11,6 +11,7 @@ interface FichaResp {
   costoCorte?: string | number | null;
   avios?: { etiquetaId: string; cantidad: number }[];
   cortesPorTalle?: { talle: string; cantidad: number }[];
+  movimientosInsumo?: { tipo: string; cantidad: string | number; rollo?: { insumo?: { rinde: string | number | null } } | null }[];
 }
 
 // Envuelve el form de corte y permite, en una OP de un lote, copiar la ficha de una
@@ -30,14 +31,21 @@ export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marc
     const r = await fetch(`/api/produccion/cola/${desde}/corte`);
     if (r.ok) {
       const d: FichaResp = await r.json();
+      const talles = (d.cortesPorTalle ?? []).map((c) => ({ talle: c.talle, cantidad: c.cantidad }));
+      const unidades = talles.reduce((s, t) => s + t.cantidad, 0);
+      // Metros totales que consumió la hermana = Σ |kg consumido| × rinde del insumo.
+      const metros = (d.movimientosInsumo ?? [])
+        .filter((m) => m.tipo === 'CONSUMO')
+        .reduce((s, m) => s + Math.abs(Number(m.cantidad)) * Number(m.rollo?.insumo?.rinde ?? 0), 0);
       setPrefill({
         avios: (d.avios ?? []).map((a) => ({ etiquetaId: a.etiquetaId, cantidad: a.cantidad })),
         cortadorId: d.cortadorId ?? null,
         costoCorte: d.costoCorte ? Number(d.costoCorte) : undefined,
-        talles: (d.cortesPorTalle ?? []).map((c) => ({ talle: c.talle, cantidad: c.cantidad })),
+        talles,
+        tizada: unidades > 0 && metros > 0 ? { metros: Math.round(metros * 100) / 100, unidades } : undefined,
       });
       setFormKey((k) => k + 1);
-      toast.success('Ficha copiada — ahora elegí la tela del color');
+      toast.success('Ficha copiada — solo elegí el rollo del color (el rinde ya viene)');
     } else {
       toast.error('No se pudo copiar la ficha');
     }
@@ -49,7 +57,7 @@ export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marc
       {hermanas.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
           <span className="text-sm text-blue-900">
-            Copiar ficha de una hermana <span className="text-blue-700/80">(avíos, cortador, costo y talles; la tela la elegís acá)</span>:
+            Copiar ficha de una hermana <span className="text-blue-700/80">(avíos, cortador, costo, talles y rinde; solo elegís el rollo del color)</span>:
           </span>
           <select value={desde} onChange={(e) => setDesde(e.target.value)}
             className="px-2 py-1.5 border border-stone-200 rounded-lg text-sm bg-white focus:outline-none focus:border-amber-400">

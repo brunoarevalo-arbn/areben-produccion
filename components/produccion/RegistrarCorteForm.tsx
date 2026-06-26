@@ -39,6 +39,9 @@ export interface CortePrefill {
   cortadorId?: string | null;
   costoCorte?: number;
   talles?: { talle: string; cantidad: number }[];
+  // Rinde del corte de la hermana (mismo molde): metros totales y unidades, para
+  // derivar m/u. La tela (rollos) NO se copia; se elige la del color.
+  tizada?: { metros: number; unidades: number };
 }
 
 export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, prefill }: { ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; prefill?: CortePrefill }) {
@@ -49,8 +52,14 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
   const [error, setError] = useState('');
 
   const tizadaSeq = useRef(2);
-  // La tela (tizadas/rollos) NO se prellena: cada color usa la suya. El resto sí.
-  const [tizadas, setTizadas] = useState<Tizada[]>([{ id: 't1', nombre: '', modo: 'tizada', metros: '', unidades: '1', rollos: [] }]);
+  // Los rollos NO se prellenan (cada color usa su tela). El rinde (metros/unidades) sí
+  // se puede copiar de la hermana, así los metros se calculan bien al elegir el rollo.
+  const [tizadas, setTizadas] = useState<Tizada[]>(() => [{
+    id: 't1', nombre: '', modo: 'tizada',
+    metros:   prefill?.tizada?.metros   ? String(prefill.tizada.metros)   : '',
+    unidades: prefill?.tizada?.unidades ? String(prefill.tizada.unidades) : '1',
+    rollos: [],
+  }]);
   const [aviosCatalogo, setAviosCatalogo] = useState<AvioOpt[]>([]);
   const [aviosSel, setAviosSel] = useState<AvioSel[]>(
     () => prefill?.avios?.map((a) => ({ etiquetaId: a.etiquetaId, cantidad: String(a.cantidad) })) ?? [],
