@@ -676,6 +676,8 @@ model Rollo {
   pesoInicial   Decimal
   pesoActual    Decimal
   costoUnitario Decimal
+  moneda        String             @default("ARS") // 'ARS' | 'USD' — moneda original de la compra
+  costoUnitarioUsd Decimal?         // costo unitario en USD (si moneda='USD'); para revaluar a un TC nuevo
   estado        EstadoRollo        @default(DISPONIBLE)
   ubicacion     String?
   fotoUrl       String?
@@ -706,6 +708,8 @@ model Lote {
   cantidadInicial Decimal
   cantidadActual  Decimal
   costoUnitario   Decimal
+  moneda          String             @default("ARS") // 'ARS' | 'USD'
+  costoUnitarioUsd Decimal?          // costo unitario en USD (si moneda='USD'); para revaluar a un TC nuevo
   estado          EstadoLote         @default(DISPONIBLE)
   movimientos     MovimientoInsumo[]
   createdAt       DateTime           @default(now())

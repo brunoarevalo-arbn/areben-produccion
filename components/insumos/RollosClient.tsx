@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
 
 interface Rollo {
@@ -17,6 +18,7 @@ interface Rollo {
   insumo: { nombre: string; categoria: string; unidadDefault: string };
   color: { id: string; nombre: string } | null;
   colorProveedor: string | null;
+  moneda: string;
   compra: { id: string; fecha: string; proveedor: { nombre: string } };
 }
 
@@ -42,6 +44,9 @@ export function RollosClient() {
   const [filtroEstado, setFiltroEstado] = useState('');
   const [colores, setColores] = useState<{ id: string; nombre: string }[]>([]);
   const [savingColor, setSavingColor] = useState<Record<string, boolean>>({});
+  const [revaluando, setRevaluando] = useState(false);
+  const [tc, setTc] = useState('');
+  const [revalSaving, setRevalSaving] = useState(false);
 
   useEffect(() => {
     const params = filtroEstado ? `?estado=${filtroEstado}` : '';
@@ -72,6 +77,28 @@ export function RollosClient() {
     setSavingColor((p) => ({ ...p, [rolloId]: false }));
   };
 
+  // Revaluar a un TC nuevo el costo en pesos de las telas en USD con stock.
+  const hayUsd = rollos.some((r) => r.moneda === 'USD');
+  const revaluar = async () => {
+    const n = parseFloat(tc);
+    if (!n || n <= 0) { toast.error('Ingresá un tipo de cambio válido'); return; }
+    setRevalSaving(true);
+    const r = await fetch('/api/insumos/rollos/revaluar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipoCambio: n }),
+    });
+    if (r.ok) {
+      const d = await r.json();
+      toast.success(`Revaluados ${d.rollos} rollo(s)${d.lotes ? ` y ${d.lotes} lote(s)` : ''} a TC ${n}`);
+      setRevaluando(false); setTc('');
+      const params = filtroEstado ? `?estado=${filtroEstado}` : '';
+      fetch(`/api/insumos/rollos${params}`).then((x) => x.ok ? x.json() : []).then(setRollos).catch(() => {});
+    } else {
+      const d = await r.json().catch(() => ({}));
+      toast.error(d.error || 'No se pudo revaluar');
+    }
+    setRevalSaving(false);
+  };
+
   const sinColor = rollos.filter((r) => !r.color && r.estado !== 'DESCARTADO').length;
   // "Activos" (filtro vacío) esconde los descartados (de compras revertidas).
   // Para verlos está el botón "Descartados".
@@ -79,13 +106,35 @@ export function RollosClient() {
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-2">
+      <div className="flex gap-2 items-center flex-wrap">
         {['', 'DISPONIBLE', 'EN_USO_PARCIAL', 'AGOTADO', 'DESCARTADO'].map((e) => (
           <button key={e} onClick={() => { setLoading(true); setFiltroEstado(e); }}
             className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${filtroEstado === e ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-400'}`}>
             {ESTADO_LABEL[e] ?? e.replace(/_/g, ' ')}
           </button>
         ))}
+        {hayUsd && (
+          <div className="ml-auto flex items-center gap-2">
+            {revaluando ? (
+              <>
+                <span className="text-xs text-stone-500">TC actual $</span>
+                <NumInput value={parseFloat(tc) || 0} onChange={(n) => setTc(n ? String(n) : '')}
+                  min="0" step="0.01" placeholder="1481.79"
+                  className="w-28 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
+                <button onClick={revaluar} disabled={revalSaving}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-stone-900 text-white hover:bg-stone-800 disabled:opacity-50 font-semibold transition">
+                  {revalSaving ? '...' : 'Aplicar'}
+                </button>
+                <button onClick={() => { setRevaluando(false); setTc(''); }} className="text-xs text-stone-400 hover:text-stone-600">Cancelar</button>
+              </>
+            ) : (
+              <button onClick={() => setRevaluando(true)}
+                className="text-xs px-3 py-1.5 rounded-xl border border-emerald-200 text-emerald-700 hover:bg-emerald-50 font-semibold transition">
+                💵 Revaluar dólar
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {sinColor > 0 && (
