@@ -13,10 +13,16 @@ export async function GET(req: NextRequest) {
   const mapeos = await prisma.reposicionMapeo.findMany({ where: { activo: true } });
   if (mapeos.length === 0) return NextResponse.json({ lisos: [], errores: [] });
 
-  // 1. Stock de cada producto GN (secuencial, su API es frágil).
+  // 1. Stock de cada producto GN (secuencial + throttle). La API limita a 100
+  // consultas/min y la cuota es compartida con otros sistemas, así que dejamos
+  // ~700ms entre llamadas (~85/min) para no agotarla.
+  const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const stockByCode: Record<string, Record<string, number>> = {};
   const errores: { gnCode: string; error: string }[] = [];
+  let primero = true;
   for (const m of mapeos) {
+    if (!primero) await sleep(700);
+    primero = false;
     try {
       stockByCode[m.gnCode] = await stockPorTalle(m.gnCode);
     } catch (e) {
