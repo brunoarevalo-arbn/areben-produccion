@@ -39,6 +39,9 @@ export const AjusteTerminadoSchema = z.object({
   talle:    z.string().min(1, 'Talle requerido'),
   tipo:     z.enum(['liso', 'estampado']).default('liso'),
   cantidad: z.number().int().refine((n) => n !== 0, 'La cantidad no puede ser 0'),
+  // origen: para etiquetar el movimiento. 'inicial' = artículo nuevo o de producción
+  // vieja que no entró por el sistema.
+  origen:   z.enum(['ajuste', 'inicial', 'merma', 'venta']).default('ajuste'),
   motivo:   z.string().optional(),
 });
 

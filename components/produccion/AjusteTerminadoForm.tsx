@@ -1,21 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { TALLES_DEFAULT } from '@/lib/validators/produccion';
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 
-// Ajuste manual del stock de producto terminado (carga inicial, merma, corrección).
+type Origen = 'inicial' | 'ajuste' | 'merma' | 'venta';
+const ORIGENES: { v: Origen; label: string }[] = [
+  { v: 'inicial', label: 'Carga inicial / artículo nuevo' },
+  { v: 'ajuste',  label: 'Ajuste / corrección' },
+  { v: 'merma',   label: 'Merma' },
+  { v: 'venta',   label: 'Venta' },
+];
+
+// Ajuste manual del stock de producto terminado: carga inicial / artículos nuevos o de
+// producciones viejas (no entraron por el sistema), correcciones, mermas, ventas.
 export function AjusteTerminadoForm() {
   const [sku, setSku]         = useState('');
   const [talle, setTalle]     = useState('');
   const [tipo, setTipo]       = useState<'liso' | 'estampado'>('liso');
+  const [origen, setOrigen]   = useState<Origen>('inicial');
   const [cantidad, setCantidad] = useState('');
   const [motivo, setMotivo]   = useState('');
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
+  const [skus, setSkus]       = useState<string[]>([]);
+
+  // SKUs ya conocidos (para autocompletar; igual podés tipear uno nuevo).
+  useEffect(() => {
+    fetch('/api/produccion/stock-terminado')
+      .then((r) => r.ok ? r.json() : [])
+      .then((rows: { sku: string }[]) => setSkus([...new Set(rows.map((x) => x.sku))]))
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,7 +48,7 @@ export function AjusteTerminadoForm() {
     const r = await fetch('/api/produccion/stock-terminado/ajuste', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sku, talle, tipo, cantidad: cant, motivo: motivo.trim() || undefined }),
+      body: JSON.stringify({ sku, talle, tipo, cantidad: cant, origen, motivo: motivo.trim() || undefined }),
     });
     if (r.ok) {
       setSuccess('Ajuste registrado. Actualizando...');
@@ -43,14 +62,15 @@ export function AjusteTerminadoForm() {
 
   return (
     <div className="bg-white rounded-2xl border border-stone-200 p-6 max-w-lg">
-      <h3 className="text-sm font-bold text-stone-800 mb-1">Ajuste manual</h3>
-      <p className="text-xs text-stone-400 mb-4">Cargá inventario inicial, corregí o descontá (mermas, ventas). Positivo suma, negativo descuenta.</p>
+      <h3 className="text-sm font-bold text-stone-800 mb-1">Cargar / ajustar stock a mano</h3>
+      <p className="text-xs text-stone-400 mb-4">Para artículos nuevos o de producciones viejas (que no entraron por el sistema), correcciones, mermas o ventas. Positivo suma, negativo descuenta.</p>
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">SKU *</label>
             <input type="text" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())}
-              placeholder="ZATT-TOP-001" className={`${inp} font-mono`} />
+              placeholder="ZAT-TOP-NG-001" list="skus-terminado" className={`${inp} font-mono`} />
+            <datalist id="skus-terminado">{skus.map((s) => <option key={s} value={s} />)}</datalist>
           </div>
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Talle *</label>
@@ -76,15 +96,22 @@ export function AjusteTerminadoForm() {
         </div>
 
         <div>
+          <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Motivo del movimiento</label>
+          <select value={origen} onChange={(e) => setOrigen(e.target.value as Origen)} className={inp}>
+            {ORIGENES.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+          </select>
+        </div>
+
+        <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cantidad (negativo para descontar) *</label>
           <NumInput value={parseFloat(cantidad) || 0} onChange={(n) => setCantidad(n ? String(n) : '')}
             placeholder="0" className={inp} />
         </div>
 
         <div>
-          <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Motivo</label>
+          <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nota (opcional)</label>
           <input type="text" value={motivo} onChange={(e) => setMotivo(e.target.value)}
-            placeholder="Ej: inventario inicial, merma, venta..." className={inp} />
+            placeholder="Detalle libre, ej: stock viejo depósito" className={inp} />
         </div>
 
         {error && <p className="text-red-500 text-xs">{error}</p>}

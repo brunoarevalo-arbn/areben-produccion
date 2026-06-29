@@ -12,7 +12,10 @@ export async function POST(req: NextRequest) {
   const parsed = AjusteTerminadoSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-  const { sku, talle, tipo, cantidad, motivo } = parsed.data;
+  const { sku, talle, tipo, cantidad, origen, motivo } = parsed.data;
+  const motivoDefault: Record<string, string> = {
+    ajuste: 'Ajuste manual', inicial: 'Carga inicial / artículo nuevo', merma: 'Merma', venta: 'Venta',
+  };
 
   const result = await prisma.$transaction(async (tx) => {
     const actual = await tx.stockTerminado.findUnique({
@@ -31,8 +34,8 @@ export async function POST(req: NextRequest) {
     await tx.movimientoTerminado.create({
       data: {
         sku, talle, tipo, cantidad,
-        origen: 'ajuste',
-        motivo: motivo?.trim() || 'Ajuste manual',
+        origen,
+        motivo: motivo?.trim() || motivoDefault[origen] || 'Ajuste manual',
         creadoPor: session.nombre,
       },
     });
