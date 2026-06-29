@@ -783,3 +783,28 @@ model MovimientoTerminado {
   @@index([sku])
   @@map("movimientos_terminado")
 }
+
+// Reposición: vincula un producto de Gestión Nube (código) con un liso de areben.
+// Muchos productos finales (estampados) pueden mapear a un mismo liso.
+model ReposicionMapeo {
+  id        String   @id @default(cuid())
+  gnCode    String   @unique          // código del producto en Gestión Nube
+  gnNombre  String?                   // nombre denormalizado (para mostrar)
+  skuLiso   String                    // SKU del liso en areben
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  @@index([skuLiso])
+  @@map("reposicion_mapeo")
+}
+
+// Stock mínimo deseado por liso + talle. Si el stock cae por debajo → reponer.
+model ReposicionMinimo {
+  id      String @id @default(cuid())
+  skuLiso String
+  talle   String
+  minimo  Int    @default(0)
+
+  @@unique([skuLiso, talle])
+  @@map("reposicion_minimo")
+}
