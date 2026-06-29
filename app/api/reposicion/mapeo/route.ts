@@ -10,14 +10,14 @@ const MapeoSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const session = await requirePermiso(req, 'produccion');
+  const session = await requirePermiso(req, 'reposicion');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const mapeos = await prisma.reposicionMapeo.findMany({ where: { activo: true }, orderBy: [{ skuLiso: 'asc' }, { gnCode: 'asc' }] });
   return NextResponse.json(mapeos);
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requirePermiso(req, 'produccion');
+  const session = await requirePermiso(req, 'reposicion');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const parsed = MapeoSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const session = await requirePermiso(req, 'produccion');
+  const session = await requirePermiso(req, 'reposicion');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const id = new URL(req.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 });

@@ -100,6 +100,13 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
       { label: 'Usuarios',          href: '/configuracion/usuarios', seccion: 'usuarios' },
     ],
   },
+  {
+    label: 'Reposición',
+    href: '/reposicion',
+    icon: '🔁',
+    seccion: 'reposicion',
+    sub: [],
+  },
 ];
 
 export function Sidebar({ permisos, nombre, rol }: SidebarProps) {

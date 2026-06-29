@@ -20,6 +20,7 @@ export const PERMISOS = [
   { key: 'motivos',       label: 'Motivos de descarte', desc: 'Catálogo de motivos de descarte/merma (en Producción)' },
   { key: 'configuracion', label: 'Configuración', desc: 'Ajustes generales y catálogos' },
   { key: 'usuarios',      label: 'Usuarios',      desc: 'Gestión de usuarios y permisos' },
+  { key: 'reposicion',    label: 'Reposición',    desc: 'Vínculos con Gestión Nube y reporte de qué producir' },
 ] as const;
 
 export type PermisoKey = typeof PERMISOS[number]['key'];

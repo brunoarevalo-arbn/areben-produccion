@@ -47,13 +47,6 @@ const ACCESOS = [
     icon: '💵',
     color: 'bg-blue-50 border-blue-200 hover:border-blue-400',
   },
-  {
-    label: 'Reposición',
-    desc: 'Qué producir según el stock de Gestión Nube + tus lisos.',
-    href: '/produccion/reposicion',
-    icon: '🔁',
-    color: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400',
-  },
 ];
 
 export default function ProduccionPage() {

@@ -7,7 +7,7 @@ import { stockPorTalle, GestionNubeError } from '@/lib/gestionnube/client';
 // (mapeados, Local+Depósito) + el stock de lisos en areben, lo compara con el mínimo
 // y calcula cuánto producir. Lee en vivo de la API de GN (con retry).
 export async function GET(req: NextRequest) {
-  const session = await requirePermiso(req, 'produccion');
+  const session = await requirePermiso(req, 'reposicion');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const mapeos = await prisma.reposicionMapeo.findMany({ where: { activo: true } });

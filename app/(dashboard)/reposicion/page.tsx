@@ -7,9 +7,9 @@ export default function ReposicionPage() {
   return (
     <div className="p-8 max-w-4xl">
       <PageHeader
-        eyebrow="Producción"
+        eyebrow="Reposición"
         title="Reposición"
-        subtitle="Qué producir según el stock de Gestión Nube (productos propios) + tus lisos en areben."
+        subtitle="Vínculos con Gestión Nube y qué producir según el stock (productos propios) + tus lisos."
       />
       <ReposicionClient />
     </div>

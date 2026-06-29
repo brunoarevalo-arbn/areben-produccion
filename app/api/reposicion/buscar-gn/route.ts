@@ -5,7 +5,7 @@ import { buscarProductosPropios, GestionNubeError } from '@/lib/gestionnube/clie
 // Busca productos de producción propia (Zattia/Areben) en Gestión Nube por nombre/código,
 // para vincularlos a un liso desde el administrador de mapeo.
 export async function GET(req: NextRequest) {
-  const session = await requirePermiso(req, 'produccion');
+  const session = await requirePermiso(req, 'reposicion');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const q = new URL(req.url).searchParams.get('q')?.trim();
