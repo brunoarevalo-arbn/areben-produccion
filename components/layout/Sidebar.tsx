@@ -105,7 +105,11 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     href: '/reposicion',
     icon: '🔁',
     seccion: 'reposicion',
-    sub: [],
+    sub: [
+      { label: 'Qué estampar',        href: '/reposicion' },
+      { label: 'Órdenes de estampa',  href: '/reposicion/ordenes' },
+      { label: 'Vinculación',         href: '/reposicion/vincular' },
+    ],
   },
 ];
 

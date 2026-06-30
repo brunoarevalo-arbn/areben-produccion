@@ -1,17 +1,13 @@
-import { ReposicionClient } from '@/components/produccion/ReposicionClient';
+import { QueEstamparClient } from '@/components/produccion/reposicion/QueEstamparClient';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
 
-export default function ReposicionPage() {
+export default function QueEstamparPage() {
   return (
     <div className="p-8 max-w-4xl">
-      <PageHeader
-        eyebrow="Reposición"
-        title="Reposición"
-        subtitle="Vínculos con Gestión Nube y qué producir según el stock (productos propios) + tus lisos."
-      />
-      <ReposicionClient />
+      <PageHeader eyebrow="Reposición" title="Qué estampar" subtitle="Stock de tus productos producidos vs el mínimo. Generá la orden de estampa desde acá." />
+      <QueEstamparClient />
     </div>
   );
 }
