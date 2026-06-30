@@ -160,13 +160,25 @@ export function ReposicionClient() {
     setGenerando(false);
   };
 
-  // Confirma lo estampado de un ítem (valor absoluto). Descuenta liso en el backend.
-  const confirmarItem = async (ordenId: string, itemId: string, confirmado: number) => {
-    const r = await fetch(`/api/reposicion/orden-estampa/${ordenId}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ id: itemId, confirmado }] }),
+  // Confirma lo estampado de una orden (valores absolutos editados). Recién acá descuenta
+  // el liso (no al tipear), para no mover stock por accidente.
+  const [confirmando, setConfirmando] = useState<string | null>(null);
+  const confirmarOrden = async (o: OrdenEstampa) => {
+    const items = o.items
+      .filter((it) => confirmEdit[it.id] != null && (parseInt(confirmEdit[it.id]) || 0) !== it.confirmado)
+      .map((it) => ({ id: it.id, confirmado: parseInt(confirmEdit[it.id]) || 0 }));
+    if (items.length === 0) { toast.error('No cambiaste ninguna cantidad'); return; }
+    setConfirmando(o.id);
+    const r = await fetch(`/api/reposicion/orden-estampa/${o.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }),
     });
-    if (r.ok) { const upd = await r.json(); setOrdenes((prev) => prev.map((o) => o.id === ordenId ? upd : o)); setConfirmEdit((p) => { const n = { ...p }; delete n[itemId]; return n; }); }
-    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo confirmar'); }
+    if (r.ok) {
+      const upd = await r.json();
+      setOrdenes((prev) => prev.map((x) => x.id === o.id ? upd : x));
+      setConfirmEdit((p) => { const n = { ...p }; for (const it of items) delete n[it.id]; return n; });
+      toast.success('Estampado confirmado · liso descontado');
+    } else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo confirmar'); }
+    setConfirmando(null);
   };
 
   const borrarOrden = async (id: string) => {
@@ -374,9 +386,9 @@ export function ReposicionClient() {
                               <span className="text-stone-700 flex-1 truncate">{it.gnNombre || `Producto ${it.gnId}`} · <strong>{it.talle}</strong></span>
                               <span className="text-xs text-stone-400">pedido {it.cantidad}</span>
                               <span className="text-xs text-stone-500">estampado</span>
-                              <NumInput value={it.confirmado} min="0"
+                              <NumInput value={confirmEdit[it.id] != null ? (parseFloat(confirmEdit[it.id]) || 0) : it.confirmado} min="0"
                                 onChange={(n) => setConfirmEdit((p) => ({ ...p, [it.id]: String(Math.min(n, it.cantidad)) }))}
-                                onBlur={() => { const v = confirmEdit[it.id]; if (v != null) confirmarItem(o.id, it.id, parseInt(v) || 0); }}
+                                disabled={o.estado === 'hecha'}
                                 className={`w-14 text-right ${inp}`} />
                               <span className="text-xs text-stone-300">/ {it.cantidad}</span>
                             </div>
@@ -385,6 +397,16 @@ export function ReposicionClient() {
                       </div>
                     ))}
                   </div>
+                  {o.estado !== 'hecha' && (() => {
+                    const hayCambios = o.items.some((it) => confirmEdit[it.id] != null && (parseInt(confirmEdit[it.id]) || 0) !== it.confirmado);
+                    return (
+                      <div className="mt-3 pt-2 border-t border-stone-100 flex justify-end">
+                        <Button variant="primary" size="sm" onClick={() => confirmarOrden(o)} isLoading={confirmando === o.id} disabled={!hayCambios}>
+                          Confirmar estampado
+                        </Button>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}
