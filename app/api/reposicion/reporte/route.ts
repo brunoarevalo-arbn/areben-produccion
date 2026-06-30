@@ -40,10 +40,13 @@ export async function GET(req: NextRequest) {
   }
 
   const lisos = [...porLiso.keys()].sort().map((skuLiso) => {
+    const tallesLiso = Object.keys(lisoDispBy[skuLiso] || {});
     const prints = porLiso.get(skuLiso)!.map((m) => {
       const stock = stockBy[m.gnId] || {};
       const mins = minBy[m.gnId] || {};
-      const talles = [...new Set([...Object.keys(stock), ...Object.keys(mins)])].sort();
+      // Talles: los del stock cacheado + overrides + los del liso (así siempre hay filas,
+      // aunque todavía no se haya actualizado el stock de ese producto).
+      const talles = [...new Set([...Object.keys(stock), ...Object.keys(mins), ...tallesLiso])].sort();
       const filas = talles.map((talle) => {
         const stockGN = stock[talle] || 0;
         const minimoEspecifico = mins[talle];
