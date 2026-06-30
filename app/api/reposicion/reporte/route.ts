@@ -17,11 +17,12 @@ export async function GET(req: NextRequest) {
   const gnIds = mapeos.map((m) => m.gnId);
   const skuLisos = [...new Set(mapeos.map((m) => m.skuLiso))];
 
-  const [stockRows, minRows, stAreben, cfg] = await Promise.all([
+  const [stockRows, minRows, stAreben, cfg, itemsAbiertos] = await Promise.all([
     prisma.gnStock.findMany({ where: { gnId: { in: gnIds } } }),
     prisma.reposicionMinimo.findMany({ where: { gnId: { in: gnIds } } }),
     prisma.stockTerminado.findMany({ where: { sku: { in: skuLisos }, tipo: 'liso' } }),
     prisma.reposicionConfig.upsert({ where: { id: 'main' }, create: { id: 'main' }, update: {} }),
+    prisma.ordenEstampaItem.findMany({ where: { orden: { estado: { not: 'hecha' } } } }),
   ]);
 
   const def = cfg.minimoDefault;
@@ -29,9 +30,25 @@ export async function GET(req: NextRequest) {
   for (const s of stockRows) (stockBy[s.gnId] ??= {})[s.talle] = s.cantidad;
   const minBy: Record<number, Record<string, number>> = {};
   for (const m of minRows) (minBy[m.gnId] ??= {})[m.talle] = m.minimo;
-  const lisoDispBy: Record<string, Record<string, number>> = {};
-  for (const s of stAreben) (lisoDispBy[s.sku] ??= {})[s.talle] = (lisoDispBy[s.sku]?.[s.talle] || 0) + s.cantidad;
+  const lisoStockBy: Record<string, Record<string, number>> = {};
+  for (const s of stAreben) (lisoStockBy[s.sku] ??= {})[s.talle] = (lisoStockBy[s.sku]?.[s.talle] || 0) + s.cantidad;
   const stockAt = stockRows.reduce<Date | null>((max, s) => (!max || s.syncedAt > max ? s.syncedAt : max), null);
+
+  // Pendiente en órdenes abiertas (cantidad − confirmado): reserva liso y resta del sugerido.
+  const pendByGnId: Record<number, Record<string, number>> = {};
+  const reservByLiso: Record<string, Record<string, number>> = {};
+  for (const it of itemsAbiertos) {
+    const pend = it.cantidad - it.confirmado;
+    if (pend <= 0) continue;
+    (pendByGnId[it.gnId] ??= {})[it.talle] = (pendByGnId[it.gnId]?.[it.talle] || 0) + pend;
+    (reservByLiso[it.skuLiso] ??= {})[it.talle] = (reservByLiso[it.skuLiso]?.[it.talle] || 0) + pend;
+  }
+  // Liso disponible = stock − reservado.
+  const lisoDispBy: Record<string, Record<string, number>> = {};
+  for (const sku of skuLisos) {
+    const talles = new Set([...Object.keys(lisoStockBy[sku] || {}), ...Object.keys(reservByLiso[sku] || {})]);
+    for (const t of talles) (lisoDispBy[sku] ??= {})[t] = Math.max(0, (lisoStockBy[sku]?.[t] || 0) - (reservByLiso[sku]?.[t] || 0));
+  }
 
   const porLiso = new Map<string, typeof mapeos>();
   for (const m of mapeos) {
@@ -51,7 +68,9 @@ export async function GET(req: NextRequest) {
         const stockGN = stock[talle] || 0;
         const minimoEspecifico = mins[talle];
         const minimo = minimoEspecifico ?? def;
-        return { talle, stockGN, minimo, esDefault: minimoEspecifico == null, aEstampar: Math.max(0, minimo - stockGN) };
+        const yaEnOrden = pendByGnId[m.gnId]?.[talle] || 0; // ya pedido en órdenes abiertas
+        // Sugerido = faltante para el mínimo, descontando lo ya en órdenes.
+        return { talle, stockGN, minimo, esDefault: minimoEspecifico == null, aEstampar: Math.max(0, minimo - stockGN - yaEnOrden) };
       });
       return { gnId: m.gnId, nombre: m.gnNombre, filas, aEstamparTotal: filas.reduce((s, f) => s + f.aEstampar, 0) };
     });

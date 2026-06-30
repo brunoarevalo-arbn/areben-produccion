@@ -10,7 +10,7 @@ interface Fila { talle: string; stockGN: number; minimo: number; esDefault: bool
 interface PrintRep { gnId: number; nombre: string | null; filas: Fila[]; aEstamparTotal: number; }
 interface LisoRep { skuLiso: string; lisoDisp: Record<string, number>; prints: PrintRep[]; aEstamparTotal: number; }
 interface Reporte { lisos: LisoRep[]; stockAt: string | null; minimoDefault: number; }
-interface OrdenItem { id: string; gnId: number; gnNombre: string | null; skuLiso: string; talle: string; cantidad: number; }
+interface OrdenItem { id: string; gnId: number; gnNombre: string | null; skuLiso: string; talle: string; cantidad: number; confirmado: number; }
 interface OrdenEstampa { id: string; creadoAt: string; creadoPor: string; estado: string; notas: string | null; items: OrdenItem[]; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
@@ -25,8 +25,10 @@ export function ReposicionClient() {
   const [minDefault, setMinDefault] = useState('1');
   const [actualizandoStock, setActualizandoStock] = useState(false);
   const [generando, setGenerando] = useState(false);
+  const [modoOrden, setModoOrden] = useState(false);
   const [ordenes, setOrdenes] = useState<OrdenEstampa[]>([]);
-  const [verOrdenes, setVerOrdenes] = useState(false);
+  const [verOrdenes, setVerOrdenes] = useState(true);
+  const [confirmEdit, setConfirmEdit] = useState<Record<string, string>>({});
 
   const [verMapeo, setVerMapeo] = useState(false);
   const [productos, setProductos] = useState<GnProd[]>([]);
@@ -66,15 +68,11 @@ export function ReposicionClient() {
       const d: Reporte = await r.json();
       setReporte(d);
       setMinDefault(String(d.minimoDefault));
-      // Mínimos: solo overrides (los default quedan con placeholder). "A estampar": sugerido = mín − stock (editable).
+      // Mínimos: solo overrides (los default quedan con placeholder). El "a estampar" del
+      // reporte es solo dato; las cantidades se cargan al generar la orden (modo orden).
       const me: Record<string, string> = {};
-      const ee: Record<string, string> = {};
-      for (const l of d.lisos) for (const p of l.prints) for (const f of p.filas) {
-        if (!f.esDefault) me[`${p.gnId}|${f.talle}`] = String(f.minimo);
-        ee[`${p.gnId}|${f.talle}`] = f.aEstampar > 0 ? String(f.aEstampar) : '';
-      }
+      for (const l of d.lisos) for (const p of l.prints) for (const f of p.filas) if (!f.esDefault) me[`${p.gnId}|${f.talle}`] = String(f.minimo);
       setMinimoEdit(me);
-      setEstamparEdit(ee);
     } else {
       const d = await r.json().catch(() => ({}));
       setRepError(d.error || 'No se pudo generar el reporte');
@@ -132,6 +130,15 @@ export function ReposicionClient() {
   }, []);
   useEffect(() => { cargarOrdenes(); }, [cargarOrdenes]);
 
+  // Entrar a "modo orden": precarga las cantidades con el sugerido (editable).
+  const iniciarOrden = () => {
+    if (!reporte) return;
+    const ee: Record<string, string> = {};
+    for (const l of reporte.lisos) for (const p of l.prints) for (const f of p.filas) ee[`${p.gnId}|${f.talle}`] = f.aEstampar > 0 ? String(f.aEstampar) : '';
+    setEstamparEdit(ee);
+    setModoOrden(true);
+  };
+
   const generarOrden = async () => {
     if (!reporte) return;
     const items: { gnId: number; gnNombre: string | null; skuLiso: string; talle: string; cantidad: number }[] = [];
@@ -144,15 +151,22 @@ export function ReposicionClient() {
     const r = await fetch('/api/reposicion/orden-estampa', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }),
     });
-    if (r.ok) { toast.success(`Orden de estampa generada (${items.reduce((s, i) => s + i.cantidad, 0)} prendas)`); await cargarOrdenes(); setVerOrdenes(true); }
-    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo generar la orden'); }
+    if (r.ok) {
+      toast.success(`Orden de estampa generada (${items.reduce((s, i) => s + i.cantidad, 0)} prendas)`);
+      setModoOrden(false); setEstamparEdit({});
+      await cargarOrdenes(); await generarReporte(); // recalcula liso disponible (reserva) y sugerido
+      setVerOrdenes(true);
+    } else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo generar la orden'); }
     setGenerando(false);
   };
 
-  const cambiarEstadoOrden = async (id: string, estado: string) => {
-    const r = await fetch(`/api/reposicion/orden-estampa/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado }) });
-    if (r.ok) setOrdenes((prev) => prev.map((o) => o.id === id ? { ...o, estado } : o));
-    else toast.error('No se pudo actualizar');
+  // Confirma lo estampado de un ítem (valor absoluto). Descuenta liso en el backend.
+  const confirmarItem = async (ordenId: string, itemId: string, confirmado: number) => {
+    const r = await fetch(`/api/reposicion/orden-estampa/${ordenId}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ id: itemId, confirmado }] }),
+    });
+    if (r.ok) { const upd = await r.json(); setOrdenes((prev) => prev.map((o) => o.id === ordenId ? upd : o)); setConfirmEdit((p) => { const n = { ...p }; delete n[itemId]; return n; }); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo confirmar'); }
   };
 
   const borrarOrden = async (id: string) => {
@@ -277,10 +291,14 @@ export function ReposicionClient() {
                                   className={`w-16 text-right ${inp} ${fi.esDefault ? 'text-stone-400' : ''}`} />
                               </td>
                               <td className="text-right">
-                                <NumInput value={parseFloat(estamparEdit[`${pr.gnId}|${fi.talle}`]) || 0}
-                                  onChange={(n) => setEstamparEdit((p) => ({ ...p, [`${pr.gnId}|${fi.talle}`]: n ? String(n) : '' }))}
-                                  min="0" placeholder="0"
-                                  className={`w-16 text-right font-bold ${inp} ${(parseInt(estamparEdit[`${pr.gnId}|${fi.talle}`]) || 0) > 0 ? 'text-amber-700' : 'text-stone-400'}`} />
+                                {modoOrden ? (
+                                  <NumInput value={parseFloat(estamparEdit[`${pr.gnId}|${fi.talle}`]) || 0}
+                                    onChange={(n) => setEstamparEdit((p) => ({ ...p, [`${pr.gnId}|${fi.talle}`]: n ? String(n) : '' }))}
+                                    min="0" placeholder="0"
+                                    className={`w-16 text-right font-bold ${inp} ${(parseInt(estamparEdit[`${pr.gnId}|${fi.talle}`]) || 0) > 0 ? 'text-amber-700' : 'text-stone-400'}`} />
+                                ) : (
+                                  <span className={`tabular-nums font-bold ${fi.aEstampar > 0 ? 'text-amber-700' : 'text-stone-300'}`}>{fi.aEstampar}</span>
+                                )}
                               </td>
                             </tr>
                           ))}
@@ -295,11 +313,21 @@ export function ReposicionClient() {
         </div>
 
         {reporte && reporte.lisos.length > 0 && (
-          <div className="mt-5 pt-4 border-t border-stone-100 flex items-center justify-between gap-3">
-            <span className="text-sm text-stone-500">Total a estampar: <strong className="text-stone-800">{totalAEstampar}</strong> prendas</span>
-            <Button variant="primary" size="sm" onClick={generarOrden} isLoading={generando} disabled={totalAEstampar === 0}>
-              ✂ Generar orden de estampa
-            </Button>
+          <div className="mt-5 pt-4 border-t border-stone-100 flex items-center justify-between gap-3 flex-wrap">
+            {modoOrden ? (
+              <>
+                <span className="text-sm text-stone-500">A estampar en esta orden: <strong className="text-stone-800">{totalAEstampar}</strong> prendas</span>
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="sm" onClick={() => { setModoOrden(false); setEstamparEdit({}); }}>Cancelar</Button>
+                  <Button variant="primary" size="sm" onClick={generarOrden} isLoading={generando} disabled={totalAEstampar === 0}>Confirmar orden</Button>
+                </div>
+              </>
+            ) : (
+              <>
+                <span className="text-xs text-stone-400">El reporte es informativo. Para ejecutar, generá una orden y cargá las cantidades.</span>
+                <Button variant="primary" size="sm" onClick={iniciarOrden}>✂ Generar orden de estampa</Button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -317,31 +345,40 @@ export function ReposicionClient() {
             ) : ordenes.map((o) => {
               const porLiso = new Map<string, OrdenItem[]>();
               for (const it of o.items) { if (!porLiso.has(it.skuLiso)) porLiso.set(it.skuLiso, []); porLiso.get(it.skuLiso)!.push(it); }
-              const totalU = o.items.reduce((s, i) => s + i.cantidad, 0);
+              const totalPed = o.items.reduce((s, i) => s + i.cantidad, 0);
+              const totalConf = o.items.reduce((s, i) => s + i.confirmado, 0);
+              const estadoColor = o.estado === 'hecha' ? 'bg-emerald-100 text-emerald-700' : o.estado === 'parcial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700';
               return (
-                <div key={o.id} className={`rounded-xl border p-4 ${o.estado === 'hecha' ? 'border-stone-200 bg-stone-50/60 opacity-70' : 'border-amber-200'}`}>
+                <div key={o.id} className={`rounded-xl border p-4 ${o.estado === 'hecha' ? 'border-stone-200 bg-stone-50/50' : 'border-amber-200'}`}>
                   <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                     <span className="text-sm font-semibold text-stone-800">
                       {new Date(o.creadoAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      <span className="text-stone-400 font-normal"> · {o.creadoPor} · {totalU} prendas</span>
+                      <span className="text-stone-400 font-normal"> · {o.creadoPor} · {totalConf}/{totalPed} estampadas</span>
                     </span>
                     <div className="flex items-center gap-2">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${o.estado === 'hecha' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{o.estado}</span>
-                      <button onClick={() => cambiarEstadoOrden(o.id, o.estado === 'hecha' ? 'pendiente' : 'hecha')}
-                        className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
-                        {o.estado === 'hecha' ? 'Reabrir' : 'Marcar hecha'}
-                      </button>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${estadoColor}`}>{o.estado}</span>
+                      {o.estado === 'hecha' && (
+                        <a href={`/reposicion/orden/${o.id}/remito`} target="_blank" rel="noopener noreferrer"
+                          className="text-xs px-2.5 py-1 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 transition font-semibold">📄 Remito</a>
+                      )}
                       <button onClick={() => borrarOrden(o.id)} aria-label="Borrar" className="text-stone-300 hover:text-red-500 px-1 leading-none text-lg">×</button>
                     </div>
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-2">
                     {[...porLiso.entries()].map(([liso, items]) => (
-                      <div key={liso} className="text-sm">
+                      <div key={liso}>
                         <span className="font-mono text-xs text-stone-500">{liso}</span>
-                        <div className="ml-3">
+                        <div className="ml-3 mt-1 space-y-1">
                           {items.map((it) => (
-                            <div key={it.id} className="text-stone-700">
-                              {it.gnNombre || `Producto ${it.gnId}`}: <strong>{it.talle} ×{it.cantidad}</strong>
+                            <div key={it.id} className="flex items-center gap-2 text-sm">
+                              <span className="text-stone-700 flex-1 truncate">{it.gnNombre || `Producto ${it.gnId}`} · <strong>{it.talle}</strong></span>
+                              <span className="text-xs text-stone-400">pedido {it.cantidad}</span>
+                              <span className="text-xs text-stone-500">estampado</span>
+                              <NumInput value={it.confirmado} min="0"
+                                onChange={(n) => setConfirmEdit((p) => ({ ...p, [it.id]: String(Math.min(n, it.cantidad)) }))}
+                                onBlur={() => { const v = confirmEdit[it.id]; if (v != null) confirmarItem(o.id, it.id, parseInt(v) || 0); }}
+                                className={`w-14 text-right ${inp}`} />
+                              <span className="text-xs text-stone-300">/ {it.cantidad}</span>
                             </div>
                           ))}
                         </div>

@@ -852,16 +852,18 @@ model OrdenEstampa {
 }
 
 model OrdenEstampaItem {
-  id       String       @id @default(cuid())
-  ordenId  String
-  orden    OrdenEstampa @relation(fields: [ordenId], references: [id], onDelete: Cascade)
-  gnId     Int
-  gnNombre String?      // nombre del estampado (print)
-  skuLiso  String       // liso base
-  talle    String
-  cantidad Int
+  id         String       @id @default(cuid())
+  ordenId    String
+  orden      OrdenEstampa @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  gnId       Int
+  gnNombre   String?      // nombre del estampado (print)
+  skuLiso    String       // liso base
+  talle      String
+  cantidad   Int          // pedido
+  confirmado Int          @default(0) // estampado/confirmado (descuenta liso); pendiente = cantidad - confirmado
 
   @@index([ordenId])
+  @@index([skuLiso])
   @@map("ordenes_estampa_items")
 }
 
