@@ -10,6 +10,8 @@ interface Fila { talle: string; stockGN: number; minimo: number; esDefault: bool
 interface PrintRep { gnId: number; nombre: string | null; filas: Fila[]; aEstamparTotal: number; }
 interface LisoRep { skuLiso: string; lisoDisp: Record<string, number>; prints: PrintRep[]; aEstamparTotal: number; }
 interface Reporte { lisos: LisoRep[]; stockAt: string | null; minimoDefault: number; }
+interface OrdenItem { id: string; gnId: number; gnNombre: string | null; skuLiso: string; talle: string; cantidad: number; }
+interface OrdenEstampa { id: string; creadoAt: string; creadoPor: string; estado: string; notas: string | null; items: OrdenItem[]; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
@@ -19,8 +21,12 @@ export function ReposicionClient() {
   const [loadingRep, setLoadingRep] = useState(false);
   const [repError, setRepError] = useState('');
   const [minimoEdit, setMinimoEdit] = useState<Record<string, string>>({});
+  const [estamparEdit, setEstamparEdit] = useState<Record<string, string>>({});
   const [minDefault, setMinDefault] = useState('1');
   const [actualizandoStock, setActualizandoStock] = useState(false);
+  const [generando, setGenerando] = useState(false);
+  const [ordenes, setOrdenes] = useState<OrdenEstampa[]>([]);
+  const [verOrdenes, setVerOrdenes] = useState(false);
 
   const [verMapeo, setVerMapeo] = useState(false);
   const [productos, setProductos] = useState<GnProd[]>([]);
@@ -60,10 +66,15 @@ export function ReposicionClient() {
       const d: Reporte = await r.json();
       setReporte(d);
       setMinDefault(String(d.minimoDefault));
-      // Solo precargo los mínimos específicos (overrides); los default quedan vacíos (placeholder).
+      // Mínimos: solo overrides (los default quedan con placeholder). "A estampar": sugerido = mín − stock (editable).
       const me: Record<string, string> = {};
-      for (const l of d.lisos) for (const p of l.prints) for (const f of p.filas) if (!f.esDefault) me[`${p.gnId}|${f.talle}`] = String(f.minimo);
+      const ee: Record<string, string> = {};
+      for (const l of d.lisos) for (const p of l.prints) for (const f of p.filas) {
+        if (!f.esDefault) me[`${p.gnId}|${f.talle}`] = String(f.minimo);
+        ee[`${p.gnId}|${f.talle}`] = f.aEstampar > 0 ? String(f.aEstampar) : '';
+      }
       setMinimoEdit(me);
+      setEstamparEdit(ee);
     } else {
       const d = await r.json().catch(() => ({}));
       setRepError(d.error || 'No se pudo generar el reporte');
@@ -107,8 +118,49 @@ export function ReposicionClient() {
           }),
         })).map((l) => ({ ...l, aEstamparTotal: l.prints.reduce((s, p) => s + p.aEstamparTotal, 0) })) };
       });
+      // El "a estampar" sugerido sigue al mínimo (hasta que lo edites a mano).
+      const fila = reporte?.lisos.flatMap((l) => l.prints).find((p) => p.gnId === gnId)?.filas.find((f) => f.talle === talle);
+      const nuevo = Math.max(0, minimo - (fila?.stockGN ?? 0));
+      setEstamparEdit((s) => ({ ...s, [`${gnId}|${talle}`]: nuevo > 0 ? String(nuevo) : '' }));
     } else toast.error('No se pudo guardar el mínimo');
   };
+
+  // --- Órdenes de estampa ---
+  const cargarOrdenes = useCallback(async () => {
+    const r = await fetch('/api/reposicion/orden-estampa');
+    if (r.ok) setOrdenes(await r.json());
+  }, []);
+  useEffect(() => { cargarOrdenes(); }, [cargarOrdenes]);
+
+  const generarOrden = async () => {
+    if (!reporte) return;
+    const items: { gnId: number; gnNombre: string | null; skuLiso: string; talle: string; cantidad: number }[] = [];
+    for (const l of reporte.lisos) for (const p of l.prints) for (const f of p.filas) {
+      const cantidad = parseInt(estamparEdit[`${p.gnId}|${f.talle}`]) || 0;
+      if (cantidad > 0) items.push({ gnId: p.gnId, gnNombre: p.nombre, skuLiso: l.skuLiso, talle: f.talle, cantidad });
+    }
+    if (items.length === 0) { toast.error('No hay nada para estampar (cargá cantidades)'); return; }
+    setGenerando(true);
+    const r = await fetch('/api/reposicion/orden-estampa', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }),
+    });
+    if (r.ok) { toast.success(`Orden de estampa generada (${items.reduce((s, i) => s + i.cantidad, 0)} prendas)`); await cargarOrdenes(); setVerOrdenes(true); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo generar la orden'); }
+    setGenerando(false);
+  };
+
+  const cambiarEstadoOrden = async (id: string, estado: string) => {
+    const r = await fetch(`/api/reposicion/orden-estampa/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado }) });
+    if (r.ok) setOrdenes((prev) => prev.map((o) => o.id === id ? { ...o, estado } : o));
+    else toast.error('No se pudo actualizar');
+  };
+
+  const borrarOrden = async (id: string) => {
+    const r = await fetch(`/api/reposicion/orden-estampa/${id}`, { method: 'DELETE' });
+    if (r.ok) setOrdenes((prev) => prev.filter((o) => o.id !== id));
+  };
+
+  const totalAEstampar = reporte ? reporte.lisos.reduce((s, l) => s + l.prints.reduce((ps, p) => ps + p.filas.reduce((fs, f) => fs + (parseInt(estamparEdit[`${p.gnId}|${f.talle}`]) || 0), 0), 0), 0) : 0;
 
   // --- Sincronizar catálogo desde Gestión Nube ---
   const sincronizar = async (reiniciar = false) => {
@@ -224,7 +276,12 @@ export function ReposicionClient() {
                                   title={fi.esDefault ? 'Usando el mínimo por defecto' : 'Mínimo específico'}
                                   className={`w-16 text-right ${inp} ${fi.esDefault ? 'text-stone-400' : ''}`} />
                               </td>
-                              <td className={`text-right tabular-nums font-bold ${fi.aEstampar > 0 ? 'text-amber-700' : 'text-stone-300'}`}>{fi.aEstampar}</td>
+                              <td className="text-right">
+                                <NumInput value={parseFloat(estamparEdit[`${pr.gnId}|${fi.talle}`]) || 0}
+                                  onChange={(n) => setEstamparEdit((p) => ({ ...p, [`${pr.gnId}|${fi.talle}`]: n ? String(n) : '' }))}
+                                  min="0" placeholder="0"
+                                  className={`w-16 text-right font-bold ${inp} ${(parseInt(estamparEdit[`${pr.gnId}|${fi.talle}`]) || 0) > 0 ? 'text-amber-700' : 'text-stone-400'}`} />
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -236,6 +293,66 @@ export function ReposicionClient() {
             );
           })}
         </div>
+
+        {reporte && reporte.lisos.length > 0 && (
+          <div className="mt-5 pt-4 border-t border-stone-100 flex items-center justify-between gap-3">
+            <span className="text-sm text-stone-500">Total a estampar: <strong className="text-stone-800">{totalAEstampar}</strong> prendas</span>
+            <Button variant="primary" size="sm" onClick={generarOrden} isLoading={generando} disabled={totalAEstampar === 0}>
+              ✂ Generar orden de estampa
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Órdenes de estampa (para la diseñadora) */}
+      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <button onClick={() => setVerOrdenes((o) => !o)} className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-stone-50 transition">
+          <span className="text-sm font-bold text-stone-800">Órdenes de estampa · {ordenes.length}</span>
+          <span className="text-stone-400 text-sm">{verOrdenes ? '▲' : '▼'}</span>
+        </button>
+        {verOrdenes && (
+          <div className="border-t border-stone-100 p-6 space-y-3">
+            {ordenes.length === 0 ? (
+              <p className="text-sm text-stone-400">Todavía no generaste ninguna orden. Cargá las cantidades en el reporte y apretá "Generar orden de estampa".</p>
+            ) : ordenes.map((o) => {
+              const porLiso = new Map<string, OrdenItem[]>();
+              for (const it of o.items) { if (!porLiso.has(it.skuLiso)) porLiso.set(it.skuLiso, []); porLiso.get(it.skuLiso)!.push(it); }
+              const totalU = o.items.reduce((s, i) => s + i.cantidad, 0);
+              return (
+                <div key={o.id} className={`rounded-xl border p-4 ${o.estado === 'hecha' ? 'border-stone-200 bg-stone-50/60 opacity-70' : 'border-amber-200'}`}>
+                  <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                    <span className="text-sm font-semibold text-stone-800">
+                      {new Date(o.creadoAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      <span className="text-stone-400 font-normal"> · {o.creadoPor} · {totalU} prendas</span>
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${o.estado === 'hecha' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{o.estado}</span>
+                      <button onClick={() => cambiarEstadoOrden(o.id, o.estado === 'hecha' ? 'pendiente' : 'hecha')}
+                        className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
+                        {o.estado === 'hecha' ? 'Reabrir' : 'Marcar hecha'}
+                      </button>
+                      <button onClick={() => borrarOrden(o.id)} aria-label="Borrar" className="text-stone-300 hover:text-red-500 px-1 leading-none text-lg">×</button>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    {[...porLiso.entries()].map(([liso, items]) => (
+                      <div key={liso} className="text-sm">
+                        <span className="font-mono text-xs text-stone-500">{liso}</span>
+                        <div className="ml-3">
+                          {items.map((it) => (
+                            <div key={it.id} className="text-stone-700">
+                              {it.gnNombre || `Producto ${it.gnId}`}: <strong>{it.talle} ×{it.cantidad}</strong>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Vincular (lista) */}

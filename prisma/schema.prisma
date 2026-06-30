@@ -838,6 +838,33 @@ model GnStock {
   @@map("gn_stock")
 }
 
+// Orden de estampa generada desde el reporte: qué estampar (por print/talle), para
+// que la diseñadora la ejecute.
+model OrdenEstampa {
+  id        String             @id @default(cuid())
+  creadoPor String
+  creadoAt  DateTime           @default(now())
+  estado    String             @default("pendiente") // 'pendiente' | 'hecha'
+  notas     String?
+  items     OrdenEstampaItem[]
+
+  @@map("ordenes_estampa")
+}
+
+model OrdenEstampaItem {
+  id       String       @id @default(cuid())
+  ordenId  String
+  orden    OrdenEstampa @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  gnId     Int
+  gnNombre String?      // nombre del estampado (print)
+  skuLiso  String       // liso base
+  talle    String
+  cantidad Int
+
+  @@index([ordenId])
+  @@map("ordenes_estampa_items")
+}
+
 // Config del módulo de reposición (singleton). minimoDefault aplica a todo lo que no
 // tenga un mínimo específico cargado.
 model ReposicionConfig {
