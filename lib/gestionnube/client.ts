@@ -45,6 +45,14 @@ export async function buscarProductosPropios(q: string): Promise<GnProducto[]> {
   return (d.data || []).filter(esPropio);
 }
 
+// Una página cruda de productos (para sincronizar el catálogo a la copia local).
+export async function paginaProductos(page: number): Promise<{ data: GnProducto[]; total: number; hayMas: boolean }> {
+  const d = await gnGet<ProductosResp & { meta?: { total?: number; has_more_pages?: boolean } }>(`/productos/obtener?per_page=50&page=${page}`);
+  return { data: d.data || [], total: d.meta?.total ?? 0, hayMas: !!d.meta?.has_more_pages };
+}
+
+export const esProductoPropio = esPropio;
+
 export interface GnInventarioRow { product_code: string; product_name: string; size_name: string; store_name: string; available_quantity: number; }
 interface InventarioResp { data: GnInventarioRow[]; meta?: { has_more_pages?: boolean } }
 

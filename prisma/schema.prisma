@@ -798,6 +798,18 @@ model ReposicionMapeo {
   @@map("reposicion_mapeo")
 }
 
+// Copia local de los productos de producción propia (Zattia/Areben) de Gestión Nube,
+// para listarlos al vincular sin pegarle a la API en cada uso. Se refresca con "Sincronizar".
+model GnProducto {
+  code     String   @id            // código del producto en Gestión Nube
+  name     String
+  provider String
+  category String?
+  syncedAt DateTime @default(now()) @updatedAt
+
+  @@map("gn_productos")
+}
+
 // Stock mínimo deseado por liso + talle. Si el stock cae por debajo → reponer.
 model ReposicionMinimo {
   id      String @id @default(cuid())
