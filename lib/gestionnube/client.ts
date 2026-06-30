@@ -3,7 +3,7 @@
 // páginas chicas (per_page <= 50), así que todo va con retry/backoff.
 
 const BASE = 'https://www.gestionnube.com/api/v1';
-const PROVEEDORES_PROPIOS = ['zattia', 'areben']; // producción propia
+const PROVEEDORES_PROPIOS = ['zattia', 'areben', 'stunned']; // producción propia
 
 export class GestionNubeError extends Error {}
 

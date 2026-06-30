@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requirePermiso } from '@/lib/auth';
 import { buscarProductosPropios, GestionNubeError } from '@/lib/gestionnube/client';
 
-// Busca productos de producción propia (Zattia/Areben) en Gestión Nube por nombre/código,
+// Busca productos de producción propia (Zattia/Areben/Stunned) en Gestión Nube por nombre/código,
 // para vincularlos a un liso desde el administrador de mapeo.
 export async function GET(req: NextRequest) {
   const session = await requirePermiso(req, 'reposicion');
