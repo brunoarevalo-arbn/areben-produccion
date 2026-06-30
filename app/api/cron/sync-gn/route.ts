@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { runSyncBatch, syncStock } from '@/lib/gestionnube/sync';
+import { runSyncBatch, syncStock, syncVentas } from '@/lib/gestionnube/sync';
 
-export const maxDuration = 60;
+export const maxDuration = 120;
 
-// Cron nocturno (cuota de GN libre): refresca el catálogo de productos propios y el
-// stock cacheado de los vinculados. Protegido con CRON_SECRET.
+// Cron nocturno (cuota de GN libre): refresca el catálogo de productos propios, el
+// stock cacheado y las ventas (90/30/7d) de los vinculados. Protegido con CRON_SECRET.
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (secret && req.headers.get('authorization') !== `Bearer ${secret}`) {
@@ -12,5 +12,6 @@ export async function GET(req: NextRequest) {
   }
   const productos = await runSyncBatch({ budgetMs: 30000, reiniciar: true });
   const stock = await syncStock({ budgetMs: 25000 });
-  return NextResponse.json({ productos, stock });
+  const ventas = await syncVentas({ budgetMs: 40000 });
+  return NextResponse.json({ productos, stock, ventas });
 }

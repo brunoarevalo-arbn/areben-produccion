@@ -72,3 +72,14 @@ export async function stockDeProducto(gnId: number, nombre: string): Promise<Rec
   }
   return acc;
 }
+
+// Ventas con detalle de líneas. Solo trae ventas activas (no archivadas, no presupuesto).
+export interface GnVentaLinea { product_id: number; quantity: number; }
+export interface GnVenta { date_sale: string; items?: GnVentaLinea[]; detalles?: GnVentaLinea[]; }
+interface VentasResp { data: GnVenta[]; meta?: { has_more_pages?: boolean; total?: number } }
+
+// Una página de ventas desde `from` (YYYY-MM-DD), con líneas de detalle (product_id + quantity).
+export async function paginaVentas(fromISO: string, page: number): Promise<{ data: GnVenta[]; hayMas: boolean }> {
+  const d = await gnGet<VentasResp>(`/ventas/obtener?from=${fromISO}&include_details=1&per_page=100&page=${page}`);
+  return { data: d.data || [], hayMas: !!d.meta?.has_more_pages };
+}

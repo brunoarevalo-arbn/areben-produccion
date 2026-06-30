@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/Button';
 import { toast } from '@/components/ui/Toaster';
 
 interface Fila { talle: string; stockGN: number; minimo: number; esDefault: boolean; aEstampar: number; }
-interface PrintRep { gnId: number; nombre: string | null; filas: Fila[]; aEstamparTotal: number; }
+interface Ventas { v7: number; v30: number; v90: number; }
+interface PrintRep { gnId: number; nombre: string | null; filas: Fila[]; ventas: Ventas | null; aEstamparTotal: number; }
 interface LisoRep { skuLiso: string; lisoDisp: Record<string, number>; prints: PrintRep[]; aEstamparTotal: number; }
-interface Reporte { lisos: LisoRep[]; stockAt: string | null; minimoDefault: number; }
+interface Reporte { lisos: LisoRep[]; stockAt: string | null; ventasAt: string | null; minimoDefault: number; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 
@@ -17,6 +18,7 @@ export function QueEstamparClient() {
   const [reporte, setReporte] = useState<Reporte | null>(null);
   const [cargando, setCargando] = useState(true);
   const [actualizandoStock, setActualizandoStock] = useState(false);
+  const [actualizandoVentas, setActualizandoVentas] = useState(false);
   const [minDefault, setMinDefault] = useState('1');
   const [minimoEdit, setMinimoEdit] = useState<Record<string, string>>({});
   const [modoOrden, setModoOrden] = useState(false);
@@ -44,6 +46,14 @@ export function QueEstamparClient() {
     if (r.ok) { const d = await r.json(); toast.success(`Stock actualizado (${d.productos} productos${d.errores ? `, ${d.errores} con error` : ''})`); await cargar(); }
     else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo actualizar el stock'); }
     setActualizandoStock(false);
+  };
+
+  const actualizarVentas = async () => {
+    setActualizandoVentas(true);
+    const r = await fetch('/api/reposicion/sync-ventas', { method: 'POST' });
+    if (r.ok) { const d = await r.json(); toast.success(`Ventas actualizadas (${d.ventas} ventas leídas)${d.error ? ' · la API se saturó, quedó parcial' : ''}`); await cargar(); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudieron actualizar las ventas'); }
+    setActualizandoVentas(false);
   };
 
   const guardarDefault = async () => {
@@ -108,9 +118,13 @@ export function QueEstamparClient() {
           <NumInput value={parseFloat(minDefault) || 0} onChange={(n) => setMinDefault(n ? String(n) : '')} onBlur={guardarDefault} min="0" className={`w-16 text-right ${inp}`} />
         </label>
         <Button variant="secondary" size="sm" onClick={actualizarStock} isLoading={actualizandoStock}>↻ Actualizar stock</Button>
-        {reporte?.stockAt
-          ? <span className="text-xs text-stone-400">Stock al {new Date(reporte.stockAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
-          : <span className="text-xs text-amber-600">Sin stock cargado — apretá Actualizar stock.</span>}
+        <Button variant="secondary" size="sm" onClick={actualizarVentas} isLoading={actualizandoVentas}>↻ Actualizar ventas</Button>
+        <span className="text-xs text-stone-400">
+          {reporte?.stockAt
+            ? `Stock al ${new Date(reporte.stockAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+            : 'Sin stock cargado'}
+          {reporte?.ventasAt && ` · Ventas al ${new Date(reporte.ventasAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+        </span>
         <label className="ml-auto flex items-center gap-1.5 text-xs text-stone-500">
           <input type="checkbox" checked={soloFaltantes} onChange={(e) => setSoloFaltantes(e.target.checked)} className="rounded border-stone-300 accent-amber-500" />
           Solo lo que falta estampar
@@ -141,7 +155,12 @@ export function QueEstamparClient() {
                     <div key={pr.gnId} className="border border-stone-100 rounded-lg p-3">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-sm font-medium text-stone-700 truncate">{pr.nombre || `Producto ${pr.gnId}`}</span>
-                        {pr.aEstamparTotal > 0 && <span className="text-xs font-semibold text-amber-700 whitespace-nowrap">estampar {pr.aEstamparTotal}</span>}
+                        <div className="flex items-center gap-2 whitespace-nowrap">
+                          {pr.ventas
+                            ? <span className="text-xs text-stone-400" title="Unidades vendidas (acumulado)">ventas: <strong className="text-stone-600">{pr.ventas.v7}</strong> 7d · <strong className="text-stone-600">{pr.ventas.v30}</strong> 30d · <strong className="text-stone-600">{pr.ventas.v90}</strong> 90d</span>
+                            : <span className="text-xs text-stone-300">sin ventas</span>}
+                          {pr.aEstamparTotal > 0 && <span className="text-xs font-semibold text-amber-700">estampar {pr.aEstamparTotal}</span>}
+                        </div>
                       </div>
                       <div className="overflow-x-auto"><table className="w-full text-sm">
                         <thead><tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">

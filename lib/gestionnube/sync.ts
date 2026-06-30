@@ -1,8 +1,60 @@
 import { prisma } from '@/lib/prisma';
-import { paginaProductos, esProductoPropio, stockDeProducto, GestionNubeError } from './client';
+import { paginaProductos, esProductoPropio, stockDeProducto, paginaVentas, GestionNubeError } from './client';
 
 const SYNC_ID = 'main';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+type Acc = Record<number, { v7: number; v30: number; v90: number }>;
+
+// Refresca el caché de ventas (GnVentas) de los productos vinculados: unidades vendidas
+// en los últimos 90/30/7 días, leyendo /ventas con detalle. Para entender el ritmo de
+// venta y cuánto recomprar/estampar. Si la API se satura, guarda lo acumulado.
+export async function syncVentas({ budgetMs = 40000 }: { budgetMs?: number } = {}): Promise<{ ventas: number; productos: number; error?: string }> {
+  const mapeos = await prisma.reposicionMapeo.findMany({ where: { activo: true }, select: { gnId: true } });
+  const relevantes = new Set(mapeos.map((m) => m.gnId));
+  if (relevantes.size === 0) return { ventas: 0, productos: 0 };
+
+  const hoy = Date.now();
+  const dias = (n: number) => hoy - n * 86400000;
+  const d7 = dias(7), d30 = dias(30), d90 = dias(90);
+  const fromISO = new Date(d90).toISOString().slice(0, 10);
+
+  const acc: Acc = {};
+  const t0 = Date.now();
+  let page = 1, ventas = 0, completo = false, error: string | undefined;
+  try {
+    for (;;) {
+      const { data, hayMas } = await paginaVentas(fromISO, page);
+      for (const v of data) {
+        ventas++;
+        const fecha = new Date(v.date_sale).getTime();
+        for (const l of v.items || v.detalles || []) {
+          if (!relevantes.has(l.product_id)) continue;
+          const a = (acc[l.product_id] ??= { v7: 0, v30: 0, v90: 0 });
+          const q = Number(l.quantity) || 0;
+          if (fecha >= d90) a.v90 += q;
+          if (fecha >= d30) a.v30 += q;
+          if (fecha >= d7) a.v7 += q;
+        }
+      }
+      if (!hayMas) { completo = true; break; }
+      page++;
+      if (Date.now() - t0 > budgetMs) break;
+      await sleep(700);
+    }
+  } catch (e) {
+    error = e instanceof GestionNubeError ? e.message : (e as Error).message;
+  }
+
+  // Si terminó completo, escribe también ceros para los vinculados sin ventas (limpia stale).
+  // Si quedó a medias, solo escribe lo acumulado (no pisar con ceros lo que no se leyó).
+  const aGuardar = completo ? [...relevantes] : Object.keys(acc).map(Number);
+  for (const gnId of aGuardar) {
+    const a = acc[gnId] || { v7: 0, v30: 0, v90: 0 };
+    await prisma.gnVentas.upsert({ where: { gnId }, create: { gnId, ...a }, update: a });
+  }
+  return { ventas, productos: aGuardar.length, error };
+}
 
 // Refresca el stock cacheado (GnStock) de los productos vinculados, consultando la API
 // por id (throttle ~700ms por el límite 100/min). Es la "reconsulta de stock" ~diaria.

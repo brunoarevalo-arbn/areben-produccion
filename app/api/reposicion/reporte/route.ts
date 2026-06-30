@@ -17,15 +17,19 @@ export async function GET(req: NextRequest) {
   const gnIds = mapeos.map((m) => m.gnId);
   const skuLisos = [...new Set(mapeos.map((m) => m.skuLiso))];
 
-  const [stockRows, minRows, stAreben, cfg, itemsAbiertos] = await Promise.all([
+  const [stockRows, minRows, stAreben, cfg, itemsAbiertos, ventasRows] = await Promise.all([
     prisma.gnStock.findMany({ where: { gnId: { in: gnIds } } }),
     prisma.reposicionMinimo.findMany({ where: { gnId: { in: gnIds } } }),
     prisma.stockTerminado.findMany({ where: { sku: { in: skuLisos }, tipo: 'liso' } }),
     prisma.reposicionConfig.upsert({ where: { id: 'main' }, create: { id: 'main' }, update: {} }),
     prisma.ordenEstampaItem.findMany({ where: { orden: { estado: { not: 'hecha' } } } }),
+    prisma.gnVentas.findMany({ where: { gnId: { in: gnIds } } }),
   ]);
 
   const def = cfg.minimoDefault;
+  const ventasBy: Record<number, { v7: number; v30: number; v90: number }> = {};
+  for (const v of ventasRows) ventasBy[v.gnId] = { v7: v.v7, v30: v.v30, v90: v.v90 };
+  const ventasAt = ventasRows.reduce<Date | null>((max, v) => (!max || v.syncedAt > max ? v.syncedAt : max), null);
   const stockBy: Record<number, Record<string, number>> = {};
   for (const s of stockRows) (stockBy[s.gnId] ??= {})[s.talle] = s.cantidad;
   const minBy: Record<number, Record<string, number>> = {};
@@ -72,10 +76,10 @@ export async function GET(req: NextRequest) {
         // Sugerido = faltante para el mínimo, descontando lo ya en órdenes.
         return { talle, stockGN, minimo, esDefault: minimoEspecifico == null, aEstampar: Math.max(0, minimo - stockGN - yaEnOrden) };
       });
-      return { gnId: m.gnId, nombre: m.gnNombre, filas, aEstamparTotal: filas.reduce((s, f) => s + f.aEstampar, 0) };
+      return { gnId: m.gnId, nombre: m.gnNombre, filas, ventas: ventasBy[m.gnId] || null, aEstamparTotal: filas.reduce((s, f) => s + f.aEstampar, 0) };
     });
     return { skuLiso, lisoDisp: lisoDispBy[skuLiso] || {}, prints, aEstamparTotal: prints.reduce((s, p) => s + p.aEstamparTotal, 0) };
   });
 
-  return NextResponse.json({ lisos, stockAt, minimoDefault: def });
+  return NextResponse.json({ lisos, stockAt, ventasAt, minimoDefault: def });
 }

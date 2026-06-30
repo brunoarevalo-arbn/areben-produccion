@@ -838,6 +838,19 @@ model GnStock {
   @@map("gn_stock")
 }
 
+// Caché de ventas por producto GN (unidades vendidas en ventanas móviles). Se refresca
+// 1×día (cron) leyendo /ventas con detalle. Sirve para entender el ritmo de venta y
+// cuánto recomprar/estampar. v90 incluye v30 incluye v7 (acumulado).
+model GnVentas {
+  gnId     Int      @id
+  v7       Int      @default(0)
+  v30      Int      @default(0)
+  v90      Int      @default(0)
+  syncedAt DateTime @updatedAt @default(now())
+
+  @@map("gn_ventas")
+}
+
 // Orden de estampa generada desde el reporte: qué estampar (por print/talle), para
 // que la diseñadora la ejecute.
 model OrdenEstampa {
