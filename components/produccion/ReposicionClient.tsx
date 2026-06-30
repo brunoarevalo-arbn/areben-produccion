@@ -6,10 +6,10 @@ import { Button } from '@/components/ui/Button';
 import { toast } from '@/components/ui/Toaster';
 
 interface GnProd { gnId: number; code: string | null; name: string; provider: string; category: string | null; skuLiso: string | null; }
-interface Fila { talle: string; stockGN: number; minimo: number; aEstampar: number; }
+interface Fila { talle: string; stockGN: number; minimo: number; esDefault: boolean; aEstampar: number; }
 interface PrintRep { gnId: number; nombre: string | null; filas: Fila[]; aEstamparTotal: number; }
 interface LisoRep { skuLiso: string; lisoDisp: Record<string, number>; prints: PrintRep[]; aEstamparTotal: number; }
-interface Reporte { lisos: LisoRep[]; errores: { gnId: number; error: string }[]; }
+interface Reporte { lisos: LisoRep[]; stockAt: string | null; minimoDefault: number; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
@@ -19,6 +19,8 @@ export function ReposicionClient() {
   const [loadingRep, setLoadingRep] = useState(false);
   const [repError, setRepError] = useState('');
   const [minimoEdit, setMinimoEdit] = useState<Record<string, string>>({});
+  const [minDefault, setMinDefault] = useState('1');
+  const [actualizandoStock, setActualizandoStock] = useState(false);
 
   const [verMapeo, setVerMapeo] = useState(false);
   const [productos, setProductos] = useState<GnProd[]>([]);
@@ -57,10 +59,11 @@ export function ReposicionClient() {
     if (r.ok) {
       const d: Reporte = await r.json();
       setReporte(d);
+      setMinDefault(String(d.minimoDefault));
+      // Solo precargo los mínimos específicos (overrides); los default quedan vacíos (placeholder).
       const me: Record<string, string> = {};
-      for (const l of d.lisos) for (const p of l.prints) for (const f of p.filas) me[`${p.gnId}|${f.talle}`] = String(f.minimo);
+      for (const l of d.lisos) for (const p of l.prints) for (const f of p.filas) if (!f.esDefault) me[`${p.gnId}|${f.talle}`] = String(f.minimo);
       setMinimoEdit(me);
-      if (d.errores.length) toast.error(`${d.errores.length} producto(s) no se pudieron leer de Gestión Nube`);
     } else {
       const d = await r.json().catch(() => ({}));
       setRepError(d.error || 'No se pudo generar el reporte');
@@ -68,12 +71,30 @@ export function ReposicionClient() {
     setLoadingRep(false);
   };
 
+  // Refresca el stock cacheado desde GN (reconsulta), luego regenera el reporte.
+  const actualizarStock = async () => {
+    setActualizandoStock(true);
+    const r = await fetch('/api/reposicion/sync-stock', { method: 'POST' });
+    if (r.ok) { const d = await r.json(); toast.success(`Stock actualizado (${d.productos} productos${d.errores ? `, ${d.errores} con error` : ''})`); await generarReporte(); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo actualizar el stock'); }
+    setActualizandoStock(false);
+  };
+
+  const guardarDefault = async () => {
+    const n = parseInt(minDefault) || 0;
+    const r = await fetch('/api/reposicion/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ minimoDefault: n }) });
+    if (r.ok && reporte) generarReporte(); // recalcular con el nuevo default
+    else if (!r.ok) toast.error('No se pudo guardar el mínimo por defecto');
+  };
+
   const guardarMinimo = async (gnId: number, talle: string) => {
-    const minimo = parseInt(minimoEdit[`${gnId}|${talle}`]) || 0;
-    const r = await fetch('/api/reposicion/minimo', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gnId, talle, minimo }),
-    });
+    const raw = minimoEdit[`${gnId}|${talle}`];
+    const def = parseInt(minDefault) || 0;
+    const esVacio = raw == null || raw.trim() === '';
+    const minimo = esVacio ? def : (parseInt(raw) || 0);
+    const r = esVacio
+      ? await fetch(`/api/reposicion/minimo?gnId=${gnId}&talle=${encodeURIComponent(talle)}`, { method: 'DELETE' })
+      : await fetch('/api/reposicion/minimo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gnId, talle, minimo }) });
     if (r.ok) {
       setReporte((prev) => {
         if (!prev) return prev;
@@ -81,7 +102,7 @@ export function ReposicionClient() {
           ...l,
           prints: l.prints.map((p) => p.gnId !== gnId ? p : {
             ...p,
-            filas: p.filas.map((f) => f.talle !== talle ? f : { ...f, minimo, aEstampar: Math.max(0, minimo - f.stockGN) }),
+            filas: p.filas.map((f) => f.talle !== talle ? f : { ...f, minimo, esDefault: esVacio, aEstampar: Math.max(0, minimo - f.stockGN) }),
             aEstamparTotal: p.filas.reduce((s, f) => s + (f.talle === talle ? Math.max(0, minimo - f.stockGN) : f.aEstampar), 0),
           }),
         })).map((l) => ({ ...l, aEstamparTotal: l.prints.reduce((s, p) => s + p.aEstamparTotal, 0) })) };
@@ -142,22 +163,28 @@ export function ReposicionClient() {
       {/* Reporte */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6">
         <div className="flex items-center justify-between gap-3 mb-1">
-          <h3 className="text-sm font-bold text-stone-800">Reporte de reposición</h3>
+          <h3 className="text-sm font-bold text-stone-800">Orden de estampa</h3>
           <Button variant="primary" size="sm" onClick={generarReporte} isLoading={loadingRep} disabled={vinculados === 0}>
-            {reporte ? 'Actualizar' : 'Generar reporte'}
+            {reporte ? 'Recalcular' : 'Generar reporte'}
           </Button>
         </div>
-        <p className="text-xs text-stone-400 mb-4">
-          Cruza el stock de Gestión Nube (productos propios vinculados, Local + Depósito) + tus lisos en areben contra el mínimo.
+        <p className="text-xs text-stone-400 mb-3">
+          Por cada estampado: stock de venta vs mínimo → cuánto estampar. El stock sale de una copia (no consulta a cada rato); refrescalo con "Actualizar stock".
           {vinculados === 0 && ' Primero vinculá productos abajo.'}
         </p>
+
+        {/* Controles: mínimo por defecto + actualizar stock */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4 text-sm">
+          <label className="flex items-center gap-2 text-stone-600">
+            Mínimo por defecto
+            <NumInput value={parseFloat(minDefault) || 0} onChange={(n) => setMinDefault(n ? String(n) : '')} onBlur={guardarDefault} min="0" className={`w-16 text-right ${inp}`} />
+          </label>
+          <Button variant="secondary" size="sm" onClick={actualizarStock} isLoading={actualizandoStock}>↻ Actualizar stock</Button>
+          {reporte?.stockAt && <span className="text-xs text-stone-400">Stock al {new Date(reporte.stockAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>}
+          {reporte && !reporte.stockAt && <span className="text-xs text-amber-600">Sin stock cargado — apretá "Actualizar stock".</span>}
+        </div>
+
         {repError && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700 mb-3">{repError}</div>}
-        {loadingRep && <p className="text-xs text-amber-600 mb-3">Consultando Gestión Nube… puede tardar (su API es lenta).</p>}
-        {reporte && reporte.errores.length > 0 && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-xs text-amber-800 mb-3">
-            {reporte.errores.length} producto(s) no se pudieron leer de Gestión Nube. El total puede estar incompleto.
-          </div>
-        )}
         {reporte && reporte.lisos.length === 0 && !loadingRep && <p className="text-sm text-stone-400">Sin productos vinculados todavía.</p>}
         <div className="space-y-5">
           {reporte?.lisos.map((l) => {
@@ -193,7 +220,9 @@ export function ReposicionClient() {
                               <td className="text-right">
                                 <NumInput value={parseFloat(minimoEdit[`${pr.gnId}|${fi.talle}`]) || 0}
                                   onChange={(n) => setMinimoEdit((p) => ({ ...p, [`${pr.gnId}|${fi.talle}`]: n ? String(n) : '' }))}
-                                  onBlur={() => guardarMinimo(pr.gnId, fi.talle)} min="0" className={`w-16 text-right ${inp}`} />
+                                  onBlur={() => guardarMinimo(pr.gnId, fi.talle)} min="0" placeholder={minDefault}
+                                  title={fi.esDefault ? 'Usando el mínimo por defecto' : 'Mínimo específico'}
+                                  className={`w-16 text-right ${inp} ${fi.esDefault ? 'text-stone-400' : ''}`} />
                               </td>
                               <td className={`text-right tabular-nums font-bold ${fi.aEstampar > 0 ? 'text-amber-700' : 'text-stone-300'}`}>{fi.aEstampar}</td>
                             </tr>

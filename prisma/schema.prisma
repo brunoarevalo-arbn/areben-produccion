@@ -824,8 +824,32 @@ model GnSyncEstado {
   @@map("gn_sync_estado")
 }
 
+// Caché del stock de venta (Gestión Nube) por producto+talle. El reporte lee de acá
+// (no pega a la API en cada uso); se refresca ~1 vez por día (cron) o a mano.
+model GnStock {
+  id       String   @id @default(cuid())
+  gnId     Int
+  talle    String
+  cantidad Int      @default(0)
+  syncedAt DateTime @updatedAt @default(now())
+
+  @@unique([gnId, talle])
+  @@index([gnId])
+  @@map("gn_stock")
+}
+
+// Config del módulo de reposición (singleton). minimoDefault aplica a todo lo que no
+// tenga un mínimo específico cargado.
+model ReposicionConfig {
+  id            String @id @default("main")
+  minimoDefault Int    @default(1)
+
+  @@map("reposicion_config")
+}
+
 // Stock mínimo deseado de un ESTAMPADO (producto GN) por talle. Si el stock de venta
 // cae por debajo → estampar la diferencia. Es la base de la orden de estampa.
+// Solo se cargan EXCEPCIONES; el resto usa ReposicionConfig.minimoDefault.
 model ReposicionMinimo {
   id     String @id @default(cuid())
   gnId   Int

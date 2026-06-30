@@ -23,3 +23,15 @@ export async function POST(req: NextRequest) {
   });
   return NextResponse.json(row, { status: 201 });
 }
+
+// Quita el mínimo específico → ese producto+talle vuelve a usar el default.
+export async function DELETE(req: NextRequest) {
+  const session = await requirePermiso(req, 'reposicion');
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  const url = new URL(req.url);
+  const gnId = Number(url.searchParams.get('gnId'));
+  const talle = url.searchParams.get('talle');
+  if (!gnId || !talle) return NextResponse.json({ error: 'Falta gnId o talle' }, { status: 400 });
+  await prisma.reposicionMinimo.deleteMany({ where: { gnId, talle } });
+  return NextResponse.json({ deleted: true });
+}
