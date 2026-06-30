@@ -27,8 +27,8 @@ export async function GET(req: NextRequest) {
   ]);
 
   const def = cfg.minimoDefault;
-  const ventasBy: Record<number, { v7: number; v30: number; v90: number }> = {};
-  for (const v of ventasRows) ventasBy[v.gnId] = { v7: v.v7, v30: v.v30, v90: v.v90 };
+  const ventasBy: Record<number, Record<string, { v7: number; v30: number; v90: number }>> = {};
+  for (const v of ventasRows) (ventasBy[v.gnId] ??= {})[v.talle] = { v7: v.v7, v30: v.v30, v90: v.v90 };
   const ventasAt = ventasRows.reduce<Date | null>((max, v) => (!max || v.syncedAt > max ? v.syncedAt : max), null);
   const stockBy: Record<number, Record<string, number>> = {};
   for (const s of stockRows) (stockBy[s.gnId] ??= {})[s.talle] = s.cantidad;
@@ -65,18 +65,20 @@ export async function GET(req: NextRequest) {
     const prints = porLiso.get(skuLiso)!.map((m) => {
       const stock = stockBy[m.gnId] || {};
       const mins = minBy[m.gnId] || {};
-      // Talles: los del stock cacheado + overrides + los del liso (así siempre hay filas,
-      // aunque todavía no se haya actualizado el stock de ese producto).
-      const talles = [...new Set([...Object.keys(stock), ...Object.keys(mins), ...tallesLiso])].sort();
+      const vts = ventasBy[m.gnId] || {};
+      // Talles: stock cacheado + overrides + ventas + liso (así siempre hay filas, aunque
+      // todavía no se haya actualizado el stock de ese producto).
+      const talles = [...new Set([...Object.keys(stock), ...Object.keys(mins), ...Object.keys(vts), ...tallesLiso])].sort();
       const filas = talles.map((talle) => {
         const stockGN = stock[talle] || 0;
         const minimoEspecifico = mins[talle];
         const minimo = minimoEspecifico ?? def;
         const yaEnOrden = pendByGnId[m.gnId]?.[talle] || 0; // ya pedido en órdenes abiertas
+        const ventas = vts[talle] || { v7: 0, v30: 0, v90: 0 };
         // Sugerido = faltante para el mínimo, descontando lo ya en órdenes.
-        return { talle, stockGN, minimo, esDefault: minimoEspecifico == null, aEstampar: Math.max(0, minimo - stockGN - yaEnOrden) };
+        return { talle, stockGN, minimo, esDefault: minimoEspecifico == null, ventas, aEstampar: Math.max(0, minimo - stockGN - yaEnOrden) };
       });
-      return { gnId: m.gnId, nombre: m.gnNombre, filas, ventas: ventasBy[m.gnId] || null, aEstamparTotal: filas.reduce((s, f) => s + f.aEstampar, 0) };
+      return { gnId: m.gnId, nombre: m.gnNombre, filas, aEstamparTotal: filas.reduce((s, f) => s + f.aEstampar, 0) };
     });
     return { skuLiso, lisoDisp: lisoDispBy[skuLiso] || {}, prints, aEstamparTotal: prints.reduce((s, p) => s + p.aEstamparTotal, 0) };
   });

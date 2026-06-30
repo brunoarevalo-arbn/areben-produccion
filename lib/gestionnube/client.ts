@@ -74,7 +74,7 @@ export async function stockDeProducto(gnId: number, nombre: string): Promise<Rec
 }
 
 // Ventas con detalle de líneas. Solo trae ventas activas (no archivadas, no presupuesto).
-export interface GnVentaLinea { product_id: number; quantity: number; }
+export interface GnVentaLinea { product_id: number; quantity: number; size?: string; size_info?: { name?: string }; }
 export interface GnVenta { date_sale: string; items?: GnVentaLinea[]; detalles?: GnVentaLinea[]; }
 interface VentasResp { data: GnVenta[]; meta?: { has_more_pages?: boolean; total?: number } }
 

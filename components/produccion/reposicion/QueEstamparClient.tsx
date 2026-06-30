@@ -6,9 +6,9 @@ import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { toast } from '@/components/ui/Toaster';
 
-interface Fila { talle: string; stockGN: number; minimo: number; esDefault: boolean; aEstampar: number; }
 interface Ventas { v7: number; v30: number; v90: number; }
-interface PrintRep { gnId: number; nombre: string | null; filas: Fila[]; ventas: Ventas | null; aEstamparTotal: number; }
+interface Fila { talle: string; stockGN: number; minimo: number; esDefault: boolean; ventas: Ventas; aEstampar: number; }
+interface PrintRep { gnId: number; nombre: string | null; filas: Fila[]; aEstamparTotal: number; }
 interface LisoRep { skuLiso: string; lisoDisp: Record<string, number>; prints: PrintRep[]; aEstamparTotal: number; }
 interface Reporte { lisos: LisoRep[]; stockAt: string | null; ventasAt: string | null; minimoDefault: number; }
 
@@ -114,9 +114,6 @@ export function QueEstamparClient() {
     <div className="space-y-4">
       {/* Barra de control */}
       <div className="bg-white rounded-2xl border border-stone-200 p-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        <label className="flex items-center gap-2 text-stone-600">Mínimo por defecto
-          <NumInput value={parseFloat(minDefault) || 0} onChange={(n) => setMinDefault(n ? String(n) : '')} onBlur={guardarDefault} min="0" className={`w-16 text-right ${inp}`} />
-        </label>
         <Button variant="secondary" size="sm" onClick={actualizarStock} isLoading={actualizandoStock}>↻ Actualizar stock</Button>
         <Button variant="secondary" size="sm" onClick={actualizarVentas} isLoading={actualizandoVentas}>↻ Actualizar ventas</Button>
         <span className="text-xs text-stone-400">
@@ -145,9 +142,11 @@ export function QueEstamparClient() {
               <div key={l.skuLiso} className={`bg-white rounded-2xl border p-4 ${l.aEstamparTotal > 0 ? 'border-amber-300' : 'border-stone-200'}`}>
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="font-mono font-bold text-sm text-stone-800">{l.skuLiso}</span>
-                  {l.aEstamparTotal > 0
-                    ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">A estampar: {l.aEstamparTotal}</span>
-                    : <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">OK</span>}
+                  {modoOrden
+                    ? (l.aEstamparTotal > 0
+                        ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">A estampar: {l.aEstamparTotal}</span>
+                        : <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">OK</span>)
+                    : (l.aEstamparTotal > 0 && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700" title="Está por debajo del mínimo en algún talle">⚠ reponer</span>)}
                 </div>
                 <p className="text-xs text-stone-400 mb-3">Liso disponible: {tallesLiso.length ? tallesLiso.map((t) => `${t} ${l.lisoDisp[t]}`).join(' · ') : 'sin stock de liso'}</p>
                 <div className="space-y-3">
@@ -155,37 +154,41 @@ export function QueEstamparClient() {
                     <div key={pr.gnId} className="border border-stone-100 rounded-lg p-3">
                       <div className="flex items-center justify-between gap-2 mb-1.5">
                         <span className="text-sm font-medium text-stone-700 truncate">{pr.nombre || `Producto ${pr.gnId}`}</span>
-                        <div className="flex items-center gap-2 whitespace-nowrap">
-                          {pr.ventas
-                            ? <span className="text-xs text-stone-400" title="Unidades vendidas (acumulado)">ventas: <strong className="text-stone-600">{pr.ventas.v7}</strong> 7d · <strong className="text-stone-600">{pr.ventas.v30}</strong> 30d · <strong className="text-stone-600">{pr.ventas.v90}</strong> 90d</span>
-                            : <span className="text-xs text-stone-300">sin ventas</span>}
-                          {pr.aEstamparTotal > 0 && <span className="text-xs font-semibold text-amber-700">estampar {pr.aEstamparTotal}</span>}
-                        </div>
+                        {modoOrden && pr.aEstamparTotal > 0 && <span className="text-xs font-semibold text-amber-700 whitespace-nowrap">estampar {pr.aEstamparTotal}</span>}
                       </div>
                       <div className="overflow-x-auto"><table className="w-full text-sm">
                         <thead><tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
-                          <th className="text-left py-1">Talle</th><th className="text-right py-1">Stock venta</th><th className="text-right py-1">Mínimo</th><th className="text-right py-1">A estampar</th>
+                          <th className="text-left py-1">Talle</th>
+                          <th className="text-right py-1">7d</th>
+                          <th className="text-right py-1">30d</th>
+                          <th className="text-right py-1">90d</th>
+                          <th className="text-right py-1">Stock</th>
+                          {modoOrden && <th className="text-right py-1">Mínimo</th>}
+                          {modoOrden && <th className="text-right py-1">A estampar</th>}
                         </tr></thead>
                         <tbody>
                           {pr.filas.map((fi) => (
                             <tr key={fi.talle} className="border-b border-stone-50">
                               <td className="py-1 font-semibold text-stone-700">{fi.talle}</td>
-                              <td className="text-right tabular-nums text-stone-600">{fi.stockGN}</td>
-                              <td className="text-right">
-                                <NumInput value={parseFloat(minimoEdit[`${pr.gnId}|${fi.talle}`]) || 0}
-                                  onChange={(n) => setMinimoEdit((p) => ({ ...p, [`${pr.gnId}|${fi.talle}`]: n ? String(n) : '' }))}
-                                  onBlur={() => guardarMinimo(pr.gnId, fi.talle)} min="0" placeholder={minDefault}
-                                  className={`w-16 text-right ${inp} ${fi.esDefault ? 'text-stone-400' : ''}`} />
-                              </td>
-                              <td className="text-right">
-                                {modoOrden ? (
+                              <td className="text-right tabular-nums text-stone-500">{fi.ventas.v7}</td>
+                              <td className="text-right tabular-nums text-stone-500">{fi.ventas.v30}</td>
+                              <td className="text-right tabular-nums text-stone-500">{fi.ventas.v90}</td>
+                              <td className="text-right tabular-nums font-semibold text-stone-700">{fi.stockGN}</td>
+                              {modoOrden && (
+                                <td className="text-right">
+                                  <NumInput value={parseFloat(minimoEdit[`${pr.gnId}|${fi.talle}`]) || 0}
+                                    onChange={(n) => setMinimoEdit((p) => ({ ...p, [`${pr.gnId}|${fi.talle}`]: n ? String(n) : '' }))}
+                                    onBlur={() => guardarMinimo(pr.gnId, fi.talle)} min="0" placeholder={minDefault}
+                                    className={`w-16 text-right ${inp} ${fi.esDefault ? 'text-stone-400' : ''}`} />
+                                </td>
+                              )}
+                              {modoOrden && (
+                                <td className="text-right">
                                   <NumInput value={parseFloat(estamparEdit[`${pr.gnId}|${fi.talle}`]) || 0}
                                     onChange={(n) => setEstamparEdit((p) => ({ ...p, [`${pr.gnId}|${fi.talle}`]: n ? String(n) : '' }))}
                                     min="0" placeholder="0" className={`w-16 text-right font-bold ${inp} ${(parseInt(estamparEdit[`${pr.gnId}|${fi.talle}`]) || 0) > 0 ? 'text-amber-700' : 'text-stone-400'}`} />
-                                ) : (
-                                  <span className={`tabular-nums font-bold ${fi.aEstampar > 0 ? 'text-amber-700' : 'text-stone-300'}`}>{fi.aEstampar}</span>
-                                )}
-                              </td>
+                                </td>
+                              )}
                             </tr>
                           ))}
                         </tbody>
@@ -200,7 +203,12 @@ export function QueEstamparClient() {
           <div className="flex items-center justify-between gap-3 flex-wrap sticky bottom-0 bg-stone-50/95 border border-stone-200 rounded-2xl p-4">
             {modoOrden ? (
               <>
-                <span className="text-sm text-stone-500">A estampar en esta orden: <strong className="text-stone-800">{totalAEstampar}</strong></span>
+                <div className="flex items-center gap-4 text-sm">
+                  <span className="text-stone-500">A estampar: <strong className="text-stone-800">{totalAEstampar}</strong></span>
+                  <label className="flex items-center gap-2 text-stone-500 text-xs">Mínimo por defecto
+                    <NumInput value={parseFloat(minDefault) || 0} onChange={(n) => setMinDefault(n ? String(n) : '')} onBlur={guardarDefault} min="0" className={`w-14 text-right ${inp}`} />
+                  </label>
+                </div>
                 <div className="flex gap-2">
                   <Button variant="secondary" size="sm" onClick={() => { setModoOrden(false); setEstamparEdit({}); }}>Cancelar</Button>
                   <Button variant="primary" size="sm" onClick={generarOrden} isLoading={generando} disabled={totalAEstampar === 0}>Confirmar orden</Button>

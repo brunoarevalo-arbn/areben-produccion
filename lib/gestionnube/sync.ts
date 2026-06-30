@@ -4,11 +4,12 @@ import { paginaProductos, esProductoPropio, stockDeProducto, paginaVentas, Gesti
 const SYNC_ID = 'main';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-type Acc = Record<number, { v7: number; v30: number; v90: number }>;
+type Win = { v7: number; v30: number; v90: number };
+type Acc = Record<number, Record<string, Win>>; // gnId -> talle -> ventas
 
-// Refresca el caché de ventas (GnVentas) de los productos vinculados: unidades vendidas
-// en los últimos 90/30/7 días, leyendo /ventas con detalle. Para entender el ritmo de
-// venta y cuánto recomprar/estampar. Si la API se satura, guarda lo acumulado.
+// Refresca el caché de ventas (GnVentas) de los productos vinculados por TALLE: unidades
+// vendidas en los últimos 90/30/7 días, leyendo /ventas con detalle. Para entender el
+// ritmo de venta y cuánto recomprar/estampar. Si la API se satura, guarda lo acumulado.
 export async function syncVentas({ budgetMs = 40000 }: { budgetMs?: number } = {}): Promise<{ ventas: number; productos: number; error?: string }> {
   const mapeos = await prisma.reposicionMapeo.findMany({ where: { activo: true }, select: { gnId: true } });
   const relevantes = new Set(mapeos.map((m) => m.gnId));
@@ -30,7 +31,8 @@ export async function syncVentas({ budgetMs = 40000 }: { budgetMs?: number } = {
         const fecha = new Date(v.date_sale).getTime();
         for (const l of v.items || v.detalles || []) {
           if (!relevantes.has(l.product_id)) continue;
-          const a = (acc[l.product_id] ??= { v7: 0, v30: 0, v90: 0 });
+          const talle = (l.size_info?.name || l.size || '').trim() || 'UNICO';
+          const a = ((acc[l.product_id] ??= {})[talle] ??= { v7: 0, v30: 0, v90: 0 });
           const q = Number(l.quantity) || 0;
           if (fecha >= d90) a.v90 += q;
           if (fecha >= d30) a.v30 += q;
@@ -46,14 +48,23 @@ export async function syncVentas({ budgetMs = 40000 }: { budgetMs?: number } = {
     error = e instanceof GestionNubeError ? e.message : (e as Error).message;
   }
 
-  // Si terminó completo, escribe también ceros para los vinculados sin ventas (limpia stale).
-  // Si quedó a medias, solo escribe lo acumulado (no pisar con ceros lo que no se leyó).
-  const aGuardar = completo ? [...relevantes] : Object.keys(acc).map(Number);
-  for (const gnId of aGuardar) {
-    const a = acc[gnId] || { v7: 0, v30: 0, v90: 0 };
-    await prisma.gnVentas.upsert({ where: { gnId }, create: { gnId, ...a }, update: a });
+  // Si terminó completo, reemplaza el cache de cada vinculado (borra talles viejos y
+  // escribe los actuales; si no vendió nada, queda sin filas → limpia stale). Si quedó a
+  // medias, solo upsertea lo acumulado (no borra lo que no se alcanzó a leer).
+  const gnIds = completo ? [...relevantes] : Object.keys(acc).map(Number);
+  for (const gnId of gnIds) {
+    const porTalle = acc[gnId] || {};
+    if (completo) {
+      await prisma.gnVentas.deleteMany({ where: { gnId } });
+      const talles = Object.keys(porTalle);
+      if (talles.length) await prisma.gnVentas.createMany({ data: talles.map((t) => ({ gnId, talle: t, ...porTalle[t] })) });
+    } else {
+      for (const t of Object.keys(porTalle)) {
+        await prisma.gnVentas.upsert({ where: { gnId_talle: { gnId, talle: t } }, create: { gnId, talle: t, ...porTalle[t] }, update: porTalle[t] });
+      }
+    }
   }
-  return { ventas, productos: aGuardar.length, error };
+  return { ventas, productos: gnIds.length, error };
 }
 
 // Refresca el stock cacheado (GnStock) de los productos vinculados, consultando la API
