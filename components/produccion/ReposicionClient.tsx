@@ -83,23 +83,20 @@ export function ReposicionClient() {
   };
 
   // --- Sincronizar catálogo desde Gestión Nube ---
-  const sincronizar = async () => {
-    setSyncing(true); setSyncMsg('Conectando con Gestión Nube…');
-    let page = 1;
-    for (let i = 0; i < 120; i++) {
+  const sincronizar = async (reiniciar = false) => {
+    setSyncing(true); setSyncMsg('Sincronizando con Gestión Nube…');
+    for (let i = 0; i < 80; i++) {
       const r = await fetch('/api/reposicion/sync-productos', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ desdePagina: page }),
+        body: JSON.stringify(i === 0 ? { reiniciar } : {}),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        if (d.reintentarDesde) { page = d.reintentarDesde; setSyncMsg('Reintentando (la API de GN está saturada)…'); await new Promise((s) => setTimeout(s, 1500)); continue; }
-        toast.error(d.error || 'Error al sincronizar'); break;
-      }
+      if (!r.ok) { toast.error(d.error || 'Error al sincronizar'); break; }
+      await cargarProductos();
+      if (d.done) { setSyncMsg(''); toast.success('Catálogo sincronizado'); break; }
       const totalPag = d.total ? Math.ceil(d.total / 50) : '?';
-      if (d.done) { setSyncMsg(''); toast.success('Catálogo sincronizado'); await cargarProductos(); break; }
-      setSyncMsg(`Sincronizando… página ${d.siguientePagina - 1} de ~${totalPag}`);
-      page = d.siguientePagina;
+      setSyncMsg(`Sincronizando… página ${d.lastPage}/${totalPag}${d.error ? ' · la API de GN se saturó, reintentando' : ''}`);
+      if (d.error) await new Promise((s) => setTimeout(s, 2500)); // backoff si saturó
     }
     setSyncing(false);
   };
@@ -203,7 +200,7 @@ export function ReposicionClient() {
             <datalist id="lisos-sug">{lisosSugeridos.map((s) => <option key={s} value={s} />)}</datalist>
 
             <div className="flex flex-wrap items-center gap-3">
-              <Button variant="secondary" size="sm" onClick={sincronizar} isLoading={syncing}>
+              <Button variant="secondary" size="sm" onClick={() => sincronizar()} isLoading={syncing}>
                 {productos.length === 0 ? 'Sincronizar productos' : 'Actualizar lista'}
               </Button>
               <span className="text-xs text-stone-400">

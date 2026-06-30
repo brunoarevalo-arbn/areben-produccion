@@ -810,6 +810,18 @@ model GnProducto {
   @@map("gn_productos")
 }
 
+// Cursor de la sincronización del catálogo GN (resumible): permite continuar donde
+// quedó si la API se satura a mitad, y que el cron nocturno la complete.
+model GnSyncEstado {
+  id        String   @id @default("main")
+  lastPage  Int      @default(0)
+  total     Int      @default(0)
+  completo  Boolean  @default(false)
+  updatedAt DateTime @updatedAt @default(now())
+
+  @@map("gn_sync_estado")
+}
+
 // Stock mínimo deseado por liso + talle. Si el stock cae por debajo → reponer.
 model ReposicionMinimo {
   id      String @id @default(cuid())
