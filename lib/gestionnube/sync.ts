@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { paginaProductos, esProductoPropio, stockPorId, GestionNubeError } from './client';
+import { paginaProductos, esProductoPropio, stockDeProducto, GestionNubeError } from './client';
 
 const SYNC_ID = 'main';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -7,7 +7,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 // Refresca el stock cacheado (GnStock) de los productos vinculados, consultando la API
 // por id (throttle ~700ms por el límite 100/min). Es la "reconsulta de stock" ~diaria.
 export async function syncStock({ budgetMs = 50000 }: { budgetMs?: number } = {}): Promise<{ productos: number; errores: number }> {
-  const mapeos = await prisma.reposicionMapeo.findMany({ where: { activo: true }, select: { gnId: true } });
+  const mapeos = await prisma.reposicionMapeo.findMany({ where: { activo: true }, select: { gnId: true, gnNombre: true } });
   const t0 = Date.now();
   let okCount = 0, errores = 0, primero = true;
   for (const m of mapeos) {
@@ -15,7 +15,7 @@ export async function syncStock({ budgetMs = 50000 }: { budgetMs?: number } = {}
     if (!primero) await sleep(700);
     primero = false;
     try {
-      const stock = await stockPorId(m.gnId);
+      const stock = await stockDeProducto(m.gnId, m.gnNombre || '');
       // Reemplaza el stock de ese producto (borra talles viejos, escribe los actuales).
       await prisma.gnStock.deleteMany({ where: { gnId: m.gnId } });
       const talles = Object.keys(stock);

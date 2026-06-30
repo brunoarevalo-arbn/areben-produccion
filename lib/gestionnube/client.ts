@@ -56,12 +56,17 @@ export const esProductoPropio = esPropio;
 export interface GnInventarioRow { product_code: string; product_name: string; size_name: string; store_name: string; available_quantity: number; }
 interface InventarioResp { data: GnInventarioRow[]; meta?: { has_more_pages?: boolean } }
 
-// Stock de un producto (por su id numérico) → { talle -> cantidad } sumando todas las
-// tiendas (Local + Depósito). Usa /inventario/{id}: confiable, porque `code` no es único.
-export async function stockPorId(gnId: number): Promise<Record<string, number>> {
+// Stock de un producto → { talle -> cantidad } sumando todas las tiendas (Local +
+// Depósito). NOTA: /inventario/{id} viene roto (devuelve 0), así que buscamos por
+// nombre con /inventario/obtener?q= y filtramos por product_id (el id sí es confiable).
+export async function stockDeProducto(gnId: number, nombre: string): Promise<Record<string, number>> {
   const acc: Record<string, number> = {};
-  const d = await gnGet<InventarioResp>(`/inventario/${gnId}`);
+  if (!nombre?.trim()) return acc;
+  const d = await gnGet<InventarioResp & { data?: (GnInventarioRow & { product_id?: number })[] }>(
+    `/inventario/obtener?q=${encodeURIComponent(nombre.trim())}&per_page=50`,
+  );
   for (const row of d.data || []) {
+    if ((row as { product_id?: number }).product_id !== gnId) continue;
     const t = (row.size_name || '').trim() || 'UNICO';
     acc[t] = (acc[t] || 0) + (Number(row.available_quantity) || 0);
   }
