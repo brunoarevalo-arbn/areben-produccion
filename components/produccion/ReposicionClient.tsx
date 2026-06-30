@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/Button';
 import { toast } from '@/components/ui/Toaster';
 
 interface GnProd { gnId: number; code: string | null; name: string; provider: string; category: string | null; skuLiso: string | null; }
-interface Fila { talle: string; stockGN: number; stockAreben: number; total: number; minimo: number; aProducir: number; }
-interface LisoRep { skuLiso: string; codigos: { gnId: number; gnNombre: string | null }[]; filas: Fila[]; aProducirTotal: number; }
-interface Reporte { lisos: LisoRep[]; errores: { gnCode: string; error: string }[]; }
+interface Fila { talle: string; stockGN: number; minimo: number; aEstampar: number; }
+interface PrintRep { gnId: number; nombre: string | null; filas: Fila[]; aEstamparTotal: number; }
+interface LisoRep { skuLiso: string; lisoDisp: Record<string, number>; prints: PrintRep[]; aEstamparTotal: number; }
+interface Reporte { lisos: LisoRep[]; errores: { gnId: number; error: string }[]; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
@@ -57,7 +58,7 @@ export function ReposicionClient() {
       const d: Reporte = await r.json();
       setReporte(d);
       const me: Record<string, string> = {};
-      for (const l of d.lisos) for (const f of l.filas) me[`${l.skuLiso}|${f.talle}`] = String(f.minimo);
+      for (const l of d.lisos) for (const p of l.prints) for (const f of p.filas) me[`${p.gnId}|${f.talle}`] = String(f.minimo);
       setMinimoEdit(me);
       if (d.errores.length) toast.error(`${d.errores.length} producto(s) no se pudieron leer de Gestión Nube`);
     } else {
@@ -67,18 +68,24 @@ export function ReposicionClient() {
     setLoadingRep(false);
   };
 
-  const guardarMinimo = async (skuLiso: string, talle: string) => {
-    const minimo = parseInt(minimoEdit[`${skuLiso}|${talle}`]) || 0;
+  const guardarMinimo = async (gnId: number, talle: string) => {
+    const minimo = parseInt(minimoEdit[`${gnId}|${talle}`]) || 0;
     const r = await fetch('/api/reposicion/minimo', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ skuLiso, talle, minimo }),
+      body: JSON.stringify({ gnId, talle, minimo }),
     });
     if (r.ok) {
-      setReporte((prev) => prev && ({ ...prev, lisos: prev.lisos.map((l) => l.skuLiso !== skuLiso ? l : {
-        ...l,
-        filas: l.filas.map((f) => f.talle !== talle ? f : { ...f, minimo, aProducir: Math.max(0, minimo - f.total) }),
-        aProducirTotal: l.filas.reduce((s, f) => s + (f.talle === talle ? Math.max(0, minimo - f.total) : f.aProducir), 0),
-      }) }));
+      setReporte((prev) => {
+        if (!prev) return prev;
+        return { ...prev, lisos: prev.lisos.map((l) => ({
+          ...l,
+          prints: l.prints.map((p) => p.gnId !== gnId ? p : {
+            ...p,
+            filas: p.filas.map((f) => f.talle !== talle ? f : { ...f, minimo, aEstampar: Math.max(0, minimo - f.stockGN) }),
+            aEstamparTotal: p.filas.reduce((s, f) => s + (f.talle === talle ? Math.max(0, minimo - f.stockGN) : f.aEstampar), 0),
+          }),
+        })).map((l) => ({ ...l, aEstamparTotal: l.prints.reduce((s, p) => s + p.aEstamparTotal, 0) })) };
+      });
     } else toast.error('No se pudo guardar el mínimo');
   };
 
@@ -151,41 +158,54 @@ export function ReposicionClient() {
             {reporte.errores.length} producto(s) no se pudieron leer de Gestión Nube. El total puede estar incompleto.
           </div>
         )}
-        {reporte && reporte.lisos.length === 0 && !loadingRep && <p className="text-sm text-stone-400">Sin lisos vinculados todavía.</p>}
-        <div className="space-y-4">
-          {reporte?.lisos.map((l) => (
-            <div key={l.skuLiso} className={`rounded-xl border p-4 ${l.aProducirTotal > 0 ? 'border-amber-300 bg-amber-50/40' : 'border-stone-200'}`}>
-              <div className="flex items-center justify-between gap-2 mb-2">
-                <span className="font-mono font-bold text-sm text-stone-800">{l.skuLiso}</span>
-                {l.aProducirTotal > 0
-                  ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">A producir: {l.aProducirTotal}</span>
-                  : <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">OK</span>}
-              </div>
-              <p className="text-xs text-stone-400 mb-2 truncate">{l.codigos.length} producto(s) GN: {l.codigos.map((c) => c.gnNombre).filter(Boolean).join(', ') || '—'}</p>
-              <div className="overflow-x-auto"><table className="w-full text-sm">
-                <thead><tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
-                  <th className="text-left py-1.5">Talle</th><th className="text-right py-1.5">Stock GN</th><th className="text-right py-1.5">Lisos areben</th>
-                  <th className="text-right py-1.5">Total</th><th className="text-right py-1.5">Mínimo</th><th className="text-right py-1.5">A producir</th>
-                </tr></thead>
-                <tbody>
-                  {l.filas.map((fi) => (
-                    <tr key={fi.talle} className="border-b border-stone-50">
-                      <td className="py-1.5 font-semibold text-stone-700">{fi.talle}</td>
-                      <td className="text-right tabular-nums text-stone-600">{fi.stockGN}</td>
-                      <td className="text-right tabular-nums text-stone-600">{fi.stockAreben}</td>
-                      <td className="text-right tabular-nums font-semibold text-stone-800">{fi.total}</td>
-                      <td className="text-right">
-                        <NumInput value={parseFloat(minimoEdit[`${l.skuLiso}|${fi.talle}`]) || 0}
-                          onChange={(n) => setMinimoEdit((p) => ({ ...p, [`${l.skuLiso}|${fi.talle}`]: n ? String(n) : '' }))}
-                          onBlur={() => guardarMinimo(l.skuLiso, fi.talle)} min="0" className={`w-20 text-right ${inp}`} />
-                      </td>
-                      <td className={`text-right tabular-nums font-bold ${fi.aProducir > 0 ? 'text-amber-700' : 'text-stone-300'}`}>{fi.aProducir}</td>
-                    </tr>
+        {reporte && reporte.lisos.length === 0 && !loadingRep && <p className="text-sm text-stone-400">Sin productos vinculados todavía.</p>}
+        <div className="space-y-5">
+          {reporte?.lisos.map((l) => {
+            const tallesLiso = Object.keys(l.lisoDisp).sort();
+            return (
+              <div key={l.skuLiso} className={`rounded-xl border p-4 ${l.aEstamparTotal > 0 ? 'border-amber-300 bg-amber-50/30' : 'border-stone-200'}`}>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <span className="font-mono font-bold text-sm text-stone-800">{l.skuLiso}</span>
+                  {l.aEstamparTotal > 0
+                    ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">A estampar: {l.aEstamparTotal}</span>
+                    : <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">OK</span>}
+                </div>
+                <p className="text-xs text-stone-400 mb-3">
+                  Liso disponible: {tallesLiso.length ? tallesLiso.map((t) => `${t} ${l.lisoDisp[t]}`).join(' · ') : 'sin stock de liso'}
+                </p>
+
+                <div className="space-y-3">
+                  {l.prints.map((pr) => (
+                    <div key={pr.gnId} className="border border-stone-100 rounded-lg p-3">
+                      <div className="flex items-center justify-between gap-2 mb-1.5">
+                        <span className="text-sm font-medium text-stone-700 truncate">{pr.nombre || `Producto ${pr.gnId}`}</span>
+                        {pr.aEstamparTotal > 0 && <span className="text-xs font-semibold text-amber-700 whitespace-nowrap">estampar {pr.aEstamparTotal}</span>}
+                      </div>
+                      <div className="overflow-x-auto"><table className="w-full text-sm">
+                        <thead><tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
+                          <th className="text-left py-1">Talle</th><th className="text-right py-1">Stock venta</th><th className="text-right py-1">Mínimo</th><th className="text-right py-1">A estampar</th>
+                        </tr></thead>
+                        <tbody>
+                          {pr.filas.map((fi) => (
+                            <tr key={fi.talle} className="border-b border-stone-50">
+                              <td className="py-1 font-semibold text-stone-700">{fi.talle}</td>
+                              <td className="text-right tabular-nums text-stone-600">{fi.stockGN}</td>
+                              <td className="text-right">
+                                <NumInput value={parseFloat(minimoEdit[`${pr.gnId}|${fi.talle}`]) || 0}
+                                  onChange={(n) => setMinimoEdit((p) => ({ ...p, [`${pr.gnId}|${fi.talle}`]: n ? String(n) : '' }))}
+                                  onBlur={() => guardarMinimo(pr.gnId, fi.talle)} min="0" className={`w-16 text-right ${inp}`} />
+                              </td>
+                              <td className={`text-right tabular-nums font-bold ${fi.aEstampar > 0 ? 'text-amber-700' : 'text-stone-300'}`}>{fi.aEstampar}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table></div>
+                    </div>
                   ))}
-                </tbody>
-              </table></div>
-            </div>
-          ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

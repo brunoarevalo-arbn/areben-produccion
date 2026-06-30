@@ -824,13 +824,14 @@ model GnSyncEstado {
   @@map("gn_sync_estado")
 }
 
-// Stock mínimo deseado por liso + talle. Si el stock cae por debajo → reponer.
+// Stock mínimo deseado de un ESTAMPADO (producto GN) por talle. Si el stock de venta
+// cae por debajo → estampar la diferencia. Es la base de la orden de estampa.
 model ReposicionMinimo {
-  id      String @id @default(cuid())
-  skuLiso String
-  talle   String
-  minimo  Int    @default(0)
+  id     String @id @default(cuid())
+  gnId   Int
+  talle  String
+  minimo Int    @default(0)
 
-  @@unique([skuLiso, talle])
+  @@unique([gnId, talle])
   @@map("reposicion_minimo")
 }
