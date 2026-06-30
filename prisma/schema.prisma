@@ -788,7 +788,8 @@ model MovimientoTerminado {
 // Muchos productos finales (estampados) pueden mapear a un mismo liso.
 model ReposicionMapeo {
   id        String   @id @default(cuid())
-  gnCode    String   @unique          // código del producto en Gestión Nube
+  gnId      Int      @unique          // id del producto en Gestión Nube (clave real)
+  gnCode    String?                   // código de GN, solo display
   gnNombre  String?                   // nombre denormalizado (para mostrar)
   skuLiso   String                    // SKU del liso en areben
   activo    Boolean  @default(true)
@@ -801,7 +802,8 @@ model ReposicionMapeo {
 // Copia local de los productos de producción propia (Zattia/Areben) de Gestión Nube,
 // para listarlos al vincular sin pegarle a la API en cada uso. Se refresca con "Sincronizar".
 model GnProducto {
-  code     String   @id            // código del producto en Gestión Nube
+  gnId     Int      @id            // id numérico del producto en Gestión Nube (único de verdad)
+  code     String?                 // "código" de GN (NO es único: suele venir vacío/repetido), solo display
   name     String
   provider String
   category String?

@@ -56,19 +56,14 @@ export const esProductoPropio = esPropio;
 export interface GnInventarioRow { product_code: string; product_name: string; size_name: string; store_name: string; available_quantity: number; }
 interface InventarioResp { data: GnInventarioRow[]; meta?: { has_more_pages?: boolean } }
 
-// Stock de un código: { talle -> cantidad } sumando todas las tiendas (Local + Depósito).
-export async function stockPorTalle(code: string): Promise<Record<string, number>> {
+// Stock de un producto (por su id numérico) → { talle -> cantidad } sumando todas las
+// tiendas (Local + Depósito). Usa /inventario/{id}: confiable, porque `code` no es único.
+export async function stockPorId(gnId: number): Promise<Record<string, number>> {
   const acc: Record<string, number> = {};
-  let page = 1;
-  for (;;) {
-    const d = await gnGet<InventarioResp>(`/inventario/obtener?code=${encodeURIComponent(code)}&per_page=50&page=${page}`);
-    for (const row of d.data || []) {
-      const t = (row.size_name || '').trim() || 'UNICO';
-      acc[t] = (acc[t] || 0) + (Number(row.available_quantity) || 0);
-    }
-    if (!d.meta?.has_more_pages || page >= 10) break;
-    page++;
-    await sleep(120);
+  const d = await gnGet<InventarioResp>(`/inventario/${gnId}`);
+  for (const row of d.data || []) {
+    const t = (row.size_name || '').trim() || 'UNICO';
+    acc[t] = (acc[t] || 0) + (Number(row.available_quantity) || 0);
   }
   return acc;
 }

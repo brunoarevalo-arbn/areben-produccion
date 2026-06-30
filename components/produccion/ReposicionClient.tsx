@@ -5,9 +5,9 @@ import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { toast } from '@/components/ui/Toaster';
 
-interface GnProd { code: string; name: string; provider: string; category: string | null; skuLiso: string | null; }
+interface GnProd { gnId: number; code: string | null; name: string; provider: string; category: string | null; skuLiso: string | null; }
 interface Fila { talle: string; stockGN: number; stockAreben: number; total: number; minimo: number; aProducir: number; }
-interface LisoRep { skuLiso: string; codigos: { gnCode: string; gnNombre: string | null }[]; filas: Fila[]; aProducirTotal: number; }
+interface LisoRep { skuLiso: string; codigos: { gnId: number; gnNombre: string | null }[]; filas: Fila[]; aProducirTotal: number; }
 interface Reporte { lisos: LisoRep[]; errores: { gnCode: string; error: string }[]; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
@@ -35,7 +35,7 @@ export function ReposicionClient() {
       const d = await r.json();
       setProductos(d.productos);
       setUltimaSync(d.ultimaSync);
-      setAsignSku(Object.fromEntries(d.productos.filter((p: GnProd) => p.skuLiso).map((p: GnProd) => [p.code, p.skuLiso])));
+      setAsignSku(Object.fromEntries(d.productos.filter((p: GnProd) => p.skuLiso).map((p: GnProd) => [p.gnId, p.skuLiso])));
     }
   }, []);
 
@@ -102,23 +102,23 @@ export function ReposicionClient() {
   };
 
   const vincular = async (p: GnProd) => {
-    const skuLiso = (asignSku[p.code] || '').trim();
+    const skuLiso = (asignSku[p.gnId] || '').trim();
     if (!skuLiso) { toast.error('Elegí el SKU del liso'); return; }
     const r = await fetch('/api/reposicion/mapeo', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ gnCode: p.code, gnNombre: p.name, skuLiso }),
+      body: JSON.stringify({ gnId: p.gnId, gnCode: p.code, gnNombre: p.name, skuLiso }),
     });
     if (r.ok) {
-      setProductos((prev) => prev.map((x) => x.code === p.code ? { ...x, skuLiso: skuLiso.toUpperCase() } : x));
-      toast.success(`${p.code} → ${skuLiso.toUpperCase()}`);
+      setProductos((prev) => prev.map((x) => x.gnId === p.gnId ? { ...x, skuLiso: skuLiso.toUpperCase() } : x));
+      toast.success(`${p.name} → ${skuLiso.toUpperCase()}`);
     } else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'Error al vincular'); }
   };
 
   const desvincular = async (p: GnProd) => {
-    const r = await fetch(`/api/reposicion/mapeo?gnCode=${encodeURIComponent(p.code)}`, { method: 'DELETE' });
+    const r = await fetch(`/api/reposicion/mapeo?gnId=${p.gnId}`, { method: 'DELETE' });
     if (r.ok) {
-      setProductos((prev) => prev.map((x) => x.code === p.code ? { ...x, skuLiso: null } : x));
-      setAsignSku((s) => ({ ...s, [p.code]: '' }));
+      setProductos((prev) => prev.map((x) => x.gnId === p.gnId ? { ...x, skuLiso: null } : x));
+      setAsignSku((s) => ({ ...s, [p.gnId]: '' }));
     } else toast.error('No se pudo desvincular');
   };
 
@@ -127,7 +127,7 @@ export function ReposicionClient() {
   const lista = productos.filter((p) => {
     if (soloSinVincular && p.skuLiso) return false;
     if (!f) return true;
-    return norm(`${p.code} ${p.name} ${p.provider}`).includes(f);
+    return norm(`${p.code ?? ''} ${p.name} ${p.provider}`).includes(f);
   });
 
   return (
@@ -161,7 +161,7 @@ export function ReposicionClient() {
                   ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-200 text-amber-800">A producir: {l.aProducirTotal}</span>
                   : <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">OK</span>}
               </div>
-              <p className="text-xs text-stone-400 mb-2">{l.codigos.length} producto(s) GN: {l.codigos.map((c) => c.gnCode).join(', ')}</p>
+              <p className="text-xs text-stone-400 mb-2 truncate">{l.codigos.length} producto(s) GN: {l.codigos.map((c) => c.gnNombre).filter(Boolean).join(', ') || '—'}</p>
               <div className="overflow-x-auto"><table className="w-full text-sm">
                 <thead><tr className="text-xs text-stone-400 uppercase tracking-widest border-b border-stone-100">
                   <th className="text-left py-1.5">Talle</th><th className="text-right py-1.5">Stock GN</th><th className="text-right py-1.5">Lisos areben</th>
@@ -223,13 +223,13 @@ export function ReposicionClient() {
 
                 <div className="space-y-1.5 max-h-[28rem] overflow-y-auto">
                   {lista.length === 0 ? <p className="text-xs text-stone-400 py-2">Sin resultados.</p> : lista.map((p) => (
-                    <div key={p.code} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${p.skuLiso ? 'border-emerald-200 bg-emerald-50/40' : 'border-stone-100'}`}>
+                    <div key={p.gnId} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${p.skuLiso ? 'border-emerald-200 bg-emerald-50/40' : 'border-stone-100'}`}>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-stone-800 truncate"><span className="font-mono text-xs text-stone-500">{p.code}</span> · {p.name}</p>
+                        <p className="text-sm text-stone-800 truncate">{p.name}</p>
                         <p className="text-xs text-stone-400">{p.provider}{p.category ? ` · ${p.category}` : ''}</p>
                       </div>
-                      <input type="text" list="lisos-sug" value={asignSku[p.code] || ''} placeholder="SKU liso"
-                        onChange={(e) => setAsignSku((s) => ({ ...s, [p.code]: e.target.value.toUpperCase() }))}
+                      <input type="text" list="lisos-sug" value={asignSku[p.gnId] || ''} placeholder="SKU liso"
+                        onChange={(e) => setAsignSku((s) => ({ ...s, [p.gnId]: e.target.value.toUpperCase() }))}
                         className={`${inp} font-mono w-44`} />
                       <button onClick={() => vincular(p)} className="text-xs px-3 py-1.5 rounded-lg bg-stone-900 text-white hover:bg-stone-800 font-semibold transition">
                         {p.skuLiso ? 'Guardar' : 'Vincular'}

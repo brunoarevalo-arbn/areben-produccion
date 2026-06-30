@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
-import { stockPorTalle, GestionNubeError } from '@/lib/gestionnube/client';
+import { stockPorId, GestionNubeError } from '@/lib/gestionnube/client';
+
+export const maxDuration = 60;
 
 // Reporte de reposición: por cada liso, suma el stock de sus productos de Gestión Nube
-// (mapeados, Local+Depósito) + el stock de lisos en areben, lo compara con el mínimo
-// y calcula cuánto producir. Lee en vivo de la API de GN (con retry).
+// (mapeados por id, Local+Depósito) + el stock de lisos en areben, lo compara con el
+// mínimo y calcula cuánto producir. Lee en vivo de la API de GN (con retry/throttle).
 export async function GET(req: NextRequest) {
   const session = await requirePermiso(req, 'reposicion');
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
@@ -13,34 +15,32 @@ export async function GET(req: NextRequest) {
   const mapeos = await prisma.reposicionMapeo.findMany({ where: { activo: true } });
   if (mapeos.length === 0) return NextResponse.json({ lisos: [], errores: [] });
 
-  // 1. Stock de cada producto GN (secuencial + throttle). La API limita a 100
-  // consultas/min y la cuota es compartida con otros sistemas, así que dejamos
-  // ~700ms entre llamadas (~85/min) para no agotarla.
+  // 1. Stock de cada producto GN por id (secuencial + throttle ~700ms: límite 100/min compartido).
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-  const stockByCode: Record<string, Record<string, number>> = {};
-  const errores: { gnCode: string; error: string }[] = [];
+  const stockByGnId: Record<number, Record<string, number>> = {};
+  const errores: { gnId: number; gnCode: string | null; error: string }[] = [];
   let primero = true;
   for (const m of mapeos) {
     if (!primero) await sleep(700);
     primero = false;
     try {
-      stockByCode[m.gnCode] = await stockPorTalle(m.gnCode);
+      stockByGnId[m.gnId] = await stockPorId(m.gnId);
     } catch (e) {
-      errores.push({ gnCode: m.gnCode, error: e instanceof GestionNubeError ? e.message : 'error' });
-      stockByCode[m.gnCode] = {};
+      errores.push({ gnId: m.gnId, gnCode: m.gnCode, error: e instanceof GestionNubeError ? e.message : 'error' });
+      stockByGnId[m.gnId] = {};
     }
   }
   if (errores.length === mapeos.length) {
     return NextResponse.json({ error: 'No se pudo leer ningún stock de Gestión Nube (su API está inestable). Probá de nuevo en un rato.' }, { status: 502 });
   }
 
-  // 2. Agrupar por liso → códigos GN, y acumular stock GN por talle.
-  const lisosMap = new Map<string, { codigos: { gnCode: string; gnNombre: string | null }[]; gn: Record<string, number> }>();
+  // 2. Agrupar por liso.
+  const lisosMap = new Map<string, { codigos: { gnId: number; gnNombre: string | null }[]; gn: Record<string, number> }>();
   for (const m of mapeos) {
     if (!lisosMap.has(m.skuLiso)) lisosMap.set(m.skuLiso, { codigos: [], gn: {} });
     const e = lisosMap.get(m.skuLiso)!;
-    e.codigos.push({ gnCode: m.gnCode, gnNombre: m.gnNombre });
-    for (const [talle, q] of Object.entries(stockByCode[m.gnCode] || {})) e.gn[talle] = (e.gn[talle] || 0) + q;
+    e.codigos.push({ gnId: m.gnId, gnNombre: m.gnNombre });
+    for (const [talle, q] of Object.entries(stockByGnId[m.gnId] || {})) e.gn[talle] = (e.gn[talle] || 0) + q;
   }
 
   const skuLisos = [...lisosMap.keys()];
@@ -48,16 +48,14 @@ export async function GET(req: NextRequest) {
   // 3. Stock de lisos en areben (StockTerminado tipo liso).
   const stAreben = await prisma.stockTerminado.findMany({ where: { sku: { in: skuLisos }, tipo: 'liso' } });
   const arebenByLiso: Record<string, Record<string, number>> = {};
-  for (const s of stAreben) {
-    (arebenByLiso[s.sku] ??= {})[s.talle] = (arebenByLiso[s.sku]?.[s.talle] || 0) + s.cantidad;
-  }
+  for (const s of stAreben) (arebenByLiso[s.sku] ??= {})[s.talle] = (arebenByLiso[s.sku]?.[s.talle] || 0) + s.cantidad;
 
   // 4. Mínimos.
   const minimos = await prisma.reposicionMinimo.findMany({ where: { skuLiso: { in: skuLisos } } });
   const minByLiso: Record<string, Record<string, number>> = {};
   for (const m of minimos) (minByLiso[m.skuLiso] ??= {})[m.talle] = m.minimo;
 
-  // 5. Armar el reporte por liso/talle.
+  // 5. Armar el reporte.
   const lisos = skuLisos.sort().map((skuLiso) => {
     const e = lisosMap.get(skuLiso)!;
     const talles = [...new Set([
@@ -70,12 +68,7 @@ export async function GET(req: NextRequest) {
       const minimo = minByLiso[skuLiso]?.[talle] || 0;
       return { talle, stockGN, stockAreben, total, minimo, aProducir: Math.max(0, minimo - total) };
     });
-    return {
-      skuLiso,
-      codigos: e.codigos,
-      filas,
-      aProducirTotal: filas.reduce((s, f) => s + f.aProducir, 0),
-    };
+    return { skuLiso, codigos: e.codigos, filas, aProducirTotal: filas.reduce((s, f) => s + f.aProducir, 0) };
   });
 
   return NextResponse.json({ lisos, errores });

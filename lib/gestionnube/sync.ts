@@ -29,9 +29,9 @@ export async function runSyncBatch({ budgetMs = 45000, reiniciar = false }: { bu
       for (const p of data) {
         if (!esProductoPropio(p)) continue;
         await prisma.gnProducto.upsert({
-          where:  { code: p.code },
-          create: { code: p.code, name: p.name, provider: p.provider, category: p.category || null },
-          update: { name: p.name, provider: p.provider, category: p.category || null },
+          where:  { gnId: p.id },
+          create: { gnId: p.id, code: p.code || null, name: p.name, provider: p.provider, category: p.category || null },
+          update: { code: p.code || null, name: p.name, provider: p.provider, category: p.category || null },
         });
         propios++;
       }
