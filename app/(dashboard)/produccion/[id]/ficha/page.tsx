@@ -17,7 +17,7 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
       pagoCorte: { select: { fecha: true, beneficiario: true } },
       movimientosInsumo: {
         where: { rolloId: { not: null } },
-        include: { rollo: { select: { codigo: true, insumo: { select: { nombre: true, unidadDefault: true } }, color: { select: { nombre: true } } } } },
+        include: { rollo: { select: { codigo: true, insumo: { select: { nombre: true, unidadDefault: true, rinde: true } }, color: { select: { nombre: true } } } } },
         orderBy: { fecha: 'asc' },
       },
     },
@@ -27,6 +27,19 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
   const totalCortado = orden.cortesPorTalle.reduce((s, c) => s + c.cantidad, 0);
   const costoCorte = Number(orden.costoCorte);
   const costoTela = Number(orden.costoTela);
+
+  // Consumo de tela: cada movimiento viene en la unidad del insumo (kg o metros) y el
+  // insumo tiene rinde (m por unidad → m/kg para telas en kg). Con eso saco kg y metros.
+  let kgTotal = 0, metrosTotal = 0;
+  for (const m of orden.movimientosInsumo) {
+    const consumo = Math.abs(Number(m.cantidad));
+    const unidad = (m.rollo?.insumo.unidadDefault || '').toLowerCase();
+    const rinde = m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : 0;
+    if (unidad.includes('kg')) { kgTotal += consumo; metrosTotal += consumo * rinde; }
+    else { metrosTotal += consumo; if (rinde > 0) kgTotal += consumo / rinde; }
+  }
+  const metrosPorU = totalCortado > 0 ? metrosTotal / totalCortado : 0;
+  const kgPorU = totalCortado > 0 ? kgTotal / totalCortado : 0;
   const fecha = new Date(orden.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
   if (!orden.fichaCorteCargada) {
@@ -98,6 +111,27 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
                 ))}
               </tbody>
             </table>
+          )}
+          {/* Resumen de consumo */}
+          {orden.movimientosInsumo.length > 0 && (
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div className="bg-stone-50 border border-stone-200 rounded-lg px-3 py-2">
+                <p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Consumo total</p>
+                <p className="text-stone-800 font-semibold tabular-nums">
+                  {kgTotal > 0 && <>{fmt(kgTotal)} kg</>}
+                  {kgTotal > 0 && metrosTotal > 0 && <span className="text-stone-400"> · </span>}
+                  {metrosTotal > 0 && <>{fmt(metrosTotal)} m</>}
+                  {kgTotal === 0 && metrosTotal === 0 && '--'}
+                </p>
+              </div>
+              <div className="bg-stone-50 border border-stone-200 rounded-lg px-3 py-2">
+                <p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Por unidad ({totalCortado} u)</p>
+                <p className="text-stone-800 font-semibold tabular-nums">
+                  {metrosPorU > 0 ? <>{fmt(metrosPorU)} m/u</> : '--'}
+                  {kgPorU > 0 && <span className="text-stone-500 font-normal"> · {fmt(kgPorU)} kg/u</span>}
+                </p>
+              </div>
+            </div>
           )}
         </div>
 
