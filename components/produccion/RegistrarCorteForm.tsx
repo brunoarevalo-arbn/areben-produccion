@@ -42,6 +42,8 @@ export interface CortePrefill {
   // Rinde del corte de la hermana (mismo molde): metros totales y unidades, para
   // derivar m/u. La tela (rollos) NO se copia; se elige la del color.
   tizada?: { metros: number; unidades: number };
+  // Editar la propia ficha: pre-carga los rollos con sus metros (modo manual).
+  rollos?: { rolloId: string; metros: number }[];
 }
 
 export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, prefill }: { ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; prefill?: CortePrefill }) {
@@ -52,6 +54,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
   const [error, setError] = useState('');
 
   const tizadaSeq = useRef(2);
+  const rollosPrefillApplied = useRef(false);
   // Los rollos NO se prellenan (cada color usa su tela). El rinde (metros/unidades) sí
   // se puede copiar de la hermana, así los metros se calculan bien al elegir el rollo.
   const [tizadas, setTizadas] = useState<Tizada[]>(() => [{
@@ -90,8 +93,24 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
       fetch('/api/cortadores').then((r) => r.ok ? r.json() : []),
     ]).then(([r1, r2, ct]) => {
       const allRollos = [...r1, ...r2] as RolloDisp[];
-      setRollosDisp(allRollos.filter((r) => r.insumo.rinde && Number(r.insumo.rinde) > 0).sort((a, b) => a.codigo.localeCompare(b.codigo)));
+      const disp = allRollos.filter((r) => r.insumo.rinde && Number(r.insumo.rinde) > 0).sort((a, b) => a.codigo.localeCompare(b.codigo));
+      setRollosDisp(disp);
       setCortadores((ct as CortadorOpt[]).filter((c) => c.activo));
+
+      // Editar ficha propia: pre-cargar los rollos con sus metros en una tizada manual.
+      if (prefill?.rollos?.length && !rollosPrefillApplied.current) {
+        const rollos = prefill.rollos
+          .map((pr) => {
+            const r = disp.find((x) => x.id === pr.rolloId);
+            if (!r) return null;
+            return { rolloId: r.id, metros: String(pr.metros), codigo: r.codigo, pesoActual: Number(r.pesoActual), costoUnitario: Number(r.costoUnitario), rinde: Number(r.insumo.rinde), nombre: `${r.insumo.nombre}${r.color ? ` · ${r.color.nombre}` : ''}` };
+          })
+          .filter((x): x is ConsumoRollo => x !== null);
+        if (rollos.length) {
+          setTizadas([{ id: 't1', nombre: '', modo: 'manual', metros: '', unidades: '', rollos }]);
+          rollosPrefillApplied.current = true;
+        }
+      }
     });
 
     fetch('/api/costos/etiquetas')
