@@ -124,6 +124,7 @@ export function Escandallos() {
   const [loadingTiempo,      setLoadingTiempo]      = useState(false);
   const [tiempoProduccion,   setTiempoProduccion]   = useState<{ minutos: number; registros: number; cantidadTotal: number } | null>(null);
   const [sinDatosProduccion, setSinDatosProduccion] = useState(false);
+  const [fichaResumen,       setFichaResumen]       = useState<{ costoTelaUnit: number | null; costoCorteUnit: number | null; kgUnit: number; metrosUnit: number; avios: { nombre: string; cantidad: number }[] } | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -133,7 +134,17 @@ export function Escandallos() {
   }, []);
 
   useEffect(() => { cargar(); }, [cargar]);
-  useEffect(() => { setTiempoProduccion(null); setSinDatosProduccion(false); }, [sku]);
+  useEffect(() => {
+    setTiempoProduccion(null); setSinDatosProduccion(false); setFichaResumen(null);
+    const s = sku.trim();
+    if (!s) return;
+    let cancel = false;
+    fetch(`/api/costos/ficha-resumen?sku=${encodeURIComponent(s)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => { if (!cancel && d?.encontrado) setFichaResumen(d); })
+      .catch(() => {});
+    return () => { cancel = true; };
+  }, [sku]);
 
   const resetForm = () => {
     setNombre(''); setSku(''); setMarca(''); setTipoPrenda(''); setNotas('');
@@ -533,6 +544,38 @@ export function Escandallos() {
                   {fmt$(datos.costoTelaFicha)} <span className="text-xs font-normal text-stone-400">/ prenda</span>
                 </span>
               </div>
+
+              {fichaResumen && (fichaResumen.kgUnit > 0 || fichaResumen.metrosUnit > 0) && (
+                <div className="flex items-center justify-between text-sm pt-2 border-t border-violet-100">
+                  <span className="text-stone-500">Consumo de tela por prenda</span>
+                  <span className="font-semibold tabular-nums text-stone-700">
+                    {fichaResumen.kgUnit > 0 ? `${fichaResumen.kgUnit.toLocaleString('es-AR', { maximumFractionDigits: 3 })} kg` : ''}
+                    {fichaResumen.kgUnit > 0 && fichaResumen.metrosUnit > 0 ? ' · ' : ''}
+                    {fichaResumen.metrosUnit > 0 ? `${fichaResumen.metrosUnit.toLocaleString('es-AR', { maximumFractionDigits: 2 })} m` : ''}
+                  </span>
+                </div>
+              )}
+
+              {datos.costoCorteFicha != null && (
+                <div className="flex items-center justify-between text-sm pt-2 border-t border-violet-100">
+                  <span className="text-stone-500">Costo de corte por prenda</span>
+                  <span className="font-semibold font-mono tabular-nums text-stone-700">{fmt$(datos.costoCorteFicha)}</span>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-violet-100">
+                <span className="text-sm text-stone-500">Avíos considerados en la ficha</span>
+                {fichaResumen && fichaResumen.avios.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5 mt-1.5">
+                    {fichaResumen.avios.map((a, i) => (
+                      <span key={i} className="text-xs bg-white border border-violet-200 rounded-lg px-2 py-1 text-stone-700">{a.nombre} <span className="text-stone-400">×{a.cantidad}</span></span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-stone-400 mt-1">La ficha no dejó avíos anotados — cargalos abajo en Terminación y avíos.</p>
+                )}
+              </div>
+
               <p className="text-xs text-stone-400 pt-2 border-t border-violet-100">
                 Sale de la ficha de corte del SKU {sku ? <span className="font-mono">{sku}</span> : 'producido'}. No se edita acá: para cambiarlo, corregí la ficha en producción.
               </p>
