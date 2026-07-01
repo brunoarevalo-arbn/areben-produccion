@@ -18,7 +18,10 @@ export interface EdicionRapidaInicial {
   modoCosto: 'total' | 'unidad';
   talles: { talle: string; cantidad: number }[];
   avios: { etiquetaId: string; cantidad: number }[];
+  fechaCorte?: string | null;
 }
+
+const hoyISO = () => new Date().toLocaleDateString('en-CA');
 
 // Edición rápida de la ficha: campos que NO mueven stock (cortador, costo de corte,
 // talles, avíos, notas). Guarda directo sin revertir.
@@ -34,6 +37,7 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
   const [talles, setTalles] = useState<Record<string, string>>(() => Object.fromEntries(inicial.talles.map((t) => [t.talle, String(t.cantidad)])));
   const [aviosSel, setAviosSel] = useState<AvioSel[]>(() => inicial.avios.map((a) => ({ etiquetaId: a.etiquetaId, cantidad: String(a.cantidad) })));
   const [notas, setNotas] = useState('');
+  const [fechaCorte, setFechaCorte] = useState<string>(inicial.fechaCorte || hoyISO());
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -63,6 +67,7 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
         talles: tallesArr,
         avios: aviosSel.map((a) => ({ etiquetaId: a.etiquetaId, cantidad: parseInt(a.cantidad) || 1 })),
         notas: notas.trim() || undefined,
+        fechaCorte: fechaCorte || undefined,
       }),
     });
     if (r.ok) { toast.success('Ficha actualizada'); router.push(`/produccion/${ordenId}`); }
@@ -76,14 +81,18 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
         Edición rápida: no toca la tela ni los rollos. Para cambiar tela/rollos/tizadas usá <strong>Editar ficha (tela)</strong>.
       </div>
 
-      {/* Cortador + costo */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Cortador + fecha + costo */}
+      <div className="bg-white rounded-2xl border border-stone-200 p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cortador</label>
           <select value={cortadorId} onChange={(e) => onCortador(e.target.value)} className={inp}>
             <option value="">— Sin cortador —</option>
             {cortadores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Fecha de corte</label>
+          <input type="date" value={fechaCorte} onChange={(e) => setFechaCorte(e.target.value)} className={inp} />
         </div>
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Costo de corte</label>

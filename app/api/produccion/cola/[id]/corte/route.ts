@@ -17,6 +17,7 @@ const EdicionRapidaSchema = z.object({
   talles:     z.array(z.object({ talle: z.string().min(1), cantidad: z.number().int().min(0) })).min(1),
   avios:      z.array(z.object({ etiquetaId: z.string().min(1), cantidad: z.number().int().positive() })).default([]),
   notas:      z.string().optional(),
+  fechaCorte: z.string().optional(),
 });
 
 export async function GET(req: NextRequest, { params }: Ctx) {
@@ -75,7 +76,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
   const parsed = EdicionRapidaSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  const { cortadorId, costoCorte, modoCosto, talles, avios, notas } = parsed.data;
+  const { cortadorId, costoCorte, modoCosto, talles, avios, notas, fechaCorte } = parsed.data;
 
   const orden = await prisma.ordenProduccion.findUnique({ where: { id } });
   if (!orden) return NextResponse.json({ error: 'OP no encontrada' }, { status: 404 });
@@ -101,6 +102,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     cortadorId: cortadorId ?? null,
     costoCorte: costoCorte ?? 0,
     modoCosto,
+    ...(fechaCorte ? { fechaCorte } : {}),
   } : Prisma.JsonNull;
 
   await prisma.$transaction(async (tx) => {
@@ -117,6 +119,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         costoTotal: new Prisma.Decimal(costoTotal),
         cantidad,
         fichaCorteData: fichaData,
+        ...(fechaCorte ? { fechaCorte: new Date(`${fechaCorte}T12:00:00Z`) } : {}),
         ...(notas?.trim() ? { notas: (orden.notas ? orden.notas + '\n' : '') + `[Corte] ${notas.trim()}` } : {}),
       },
     });

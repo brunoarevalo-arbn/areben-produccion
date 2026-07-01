@@ -42,7 +42,10 @@ export interface FichaData {
   cortadorId?: string | null;
   costoCorte?: number | string;
   modoCosto?: 'total' | 'unidad';
+  fechaCorte?: string; // YYYY-MM-DD
 }
+
+const hoyISO = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD en hora local
 
 export interface CortePrefill {
   avios?: { etiquetaId: string; cantidad: number }[];
@@ -84,6 +87,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
   const [cortadorId, setCortadorId] = useState(fd?.cortadorId ?? prefill?.cortadorId ?? '');
   const [costoCorte, setCostoCorte] = useState(fd?.costoCorte != null ? String(fd.costoCorte) : (prefill?.costoCorte ? String(prefill.costoCorte) : ''));
   const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>(fd?.modoCosto ?? 'total');
+  const [fechaCorte, setFechaCorte] = useState<string>(fd?.fechaCorte ?? hoyISO());
 
   // Autocompletar tarifa al elegir cortador
   const onCortadorChange = (id: string) => {
@@ -216,6 +220,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
         cortadorId: cortadorId || undefined,
         costoCorte: costoCorteNum > 0 ? costoCorteNum : undefined,
         notas: notas || undefined,
+        fechaCorte: fechaCorte || undefined,
         // Estado del form tal cual, para ver/editar la ficha idéntica después.
         fichaData: {
           tizadas,
@@ -224,6 +229,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
           cortadorId: cortadorId || null,
           costoCorte,
           modoCosto,
+          fechaCorte,
         },
       }),
     });
@@ -428,6 +434,10 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
               <option value="">-- Seleccionar --</option>
               {cortadores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Fecha de corte</label>
+            <input type="date" value={fechaCorte} onChange={(e) => setFechaCorte(e.target.value)} className={inp} />
           </div>
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Modo de pago</label>

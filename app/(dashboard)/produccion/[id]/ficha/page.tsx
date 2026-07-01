@@ -40,7 +40,7 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
   const filasTela = [...porRollo.entries()].map(([rolloId, v]) => ({ rolloId, consumo: v.consumo, ...rolloInfo.get(rolloId)! }));
   const metrosPorU = totalCortado > 0 ? metrosTotal / totalCortado : 0;
   const kgPorU = totalCortado > 0 ? kgTotal / totalCortado : 0;
-  const fecha = new Date(orden.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const fecha = new Date(orden.fechaCorte ?? orden.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
 
   if (!orden.fichaCorteCargada) {
     return (

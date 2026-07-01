@@ -55,6 +55,7 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
           resumen={{
             cantidad: orden.cantidad, kgTotal, metrosTotal, metrosPorU, kgPorU,
             cortador: orden.cortador,
+            fechaCorte: orden.fechaCorte ? orden.fechaCorte.toISOString().slice(0, 10) : null,
             talles: orden.cortesPorTalle.map((c) => ({ talle: c.talle, cantidad: c.cantidad })),
           }}
           fichaData={fichaData}

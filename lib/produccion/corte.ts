@@ -36,7 +36,7 @@ export async function registrarCorteOrden(
     throw new CorteError('La ficha ya fue cargada. Para corregirla, revertí el corte y volvé a cargarla.');
   }
 
-  const { consumoRollos, cortesPorTalle, avios, cortadorId, costoCorte, fichaFotoUrl, notas, fichaData } = data;
+  const { consumoRollos, cortesPorTalle, avios, cortadorId, costoCorte, fichaFotoUrl, notas, fichaData, fechaCorte } = data;
 
   // Buscar cortador para guardar denormalizado
   let cortadorNombre: string | null = null;
@@ -143,6 +143,8 @@ export async function registrarCorteOrden(
     costoTotal,
     cantidad: cantidadTotal,
     fichaCorteData: fichaData ?? Prisma.JsonNull, // para ver/editar la ficha idéntica
+    // Fecha del corte (mediodía UTC para que no se corra de día por zona horaria).
+    fechaCorte: fechaCorte ? new Date(`${fechaCorte}T12:00:00Z`) : (orden.fechaCorte ?? new Date()),
     // La ficha ya NO cambia el estado: el avance del flujo se maneja aparte.
   };
 

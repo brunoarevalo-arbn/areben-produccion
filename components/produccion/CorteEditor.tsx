@@ -15,8 +15,11 @@ interface Resumen {
   metrosPorU: number;
   kgPorU: number;
   cortador: string | null;
+  fechaCorte: string | null; // YYYY-MM-DD
   talles: { talle: string; cantidad: number }[];
 }
+
+const fmtFecha = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
 // Ficha ya cargada: muestra una vista IDÉNTICA a lo que se cargó (solo lectura) y permite
 // editarla en el lugar. "Editar" abre el mismo formulario pre-cargado; al Guardar, el
@@ -52,6 +55,7 @@ export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen,
           modoCosto: fichaData?.modoCosto ?? 'total',
           talles: resumen.talles,
           avios: (fichaData?.avios ?? prefill.avios ?? []).map((a) => ({ etiquetaId: a.etiquetaId, cantidad: a.cantidad })),
+          fechaCorte: fichaData?.fechaCorte ?? resumen.fechaCorte,
         }}
       />
     );
@@ -65,6 +69,7 @@ export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen,
         {/* Resumen de consumo */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
           <div><p className="text-xs text-emerald-600 uppercase tracking-widest font-bold">Cortadas</p><p className="font-bold text-stone-800 tabular-nums">{resumen.cantidad} u</p></div>
+          {resumen.fechaCorte && <div><p className="text-xs text-emerald-600 uppercase tracking-widest font-bold">Fecha corte</p><p className="font-semibold text-stone-800 tabular-nums">{fmtFecha(resumen.fechaCorte)}</p></div>}
           <div><p className="text-xs text-emerald-600 uppercase tracking-widest font-bold">Total kg</p><p className="font-bold text-stone-800 tabular-nums">{resumen.kgTotal > 0 ? `${fmt(resumen.kgTotal)} kg` : '--'}</p></div>
           <div><p className="text-xs text-emerald-600 uppercase tracking-widest font-bold">Metros/u</p><p className="font-semibold text-stone-800 tabular-nums">{resumen.metrosPorU > 0 ? `${fmt(resumen.metrosPorU)} m` : '--'}</p></div>
           <div><p className="text-xs text-emerald-600 uppercase tracking-widest font-bold">Kg/u</p><p className="text-stone-800 tabular-nums">{resumen.kgPorU > 0 ? `${fmt(resumen.kgPorU)} kg` : '--'}</p></div>

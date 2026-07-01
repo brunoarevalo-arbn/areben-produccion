@@ -389,6 +389,7 @@ model OrdenProduccion {
   fichaCorteCargada       Boolean   @default(false)
   fichaFotoUrl            String?
   fichaCorteData          Json?     // estado del form de corte tal cual se cargó (para ver/editar idéntico)
+  fechaCorte              DateTime? // fecha en que se hizo el corte (para coordinar pagos al cortador)
 
   avios                   OrdenAvio[]
   aviosDescontados        Boolean   @default(false) // guard: el stock de avíos se descuenta una sola vez
