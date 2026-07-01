@@ -10,13 +10,16 @@ export async function GET(req: NextRequest) {
 
   const [productos, mapeos] = await Promise.all([
     prisma.gnProducto.findMany({ orderBy: [{ provider: 'asc' }, { name: 'asc' }] }),
-    prisma.reposicionMapeo.findMany({ where: { activo: true }, select: { gnId: true, skuLiso: true } }),
+    prisma.reposicionMapeo.findMany({ where: { activo: true }, select: { gnId: true, skuLiso: true, tipo: true } }),
   ]);
-  const mapByGnId = new Map(mapeos.map((m) => [m.gnId, m.skuLiso]));
+  const mapByGnId = new Map(mapeos.map((m) => [m.gnId, m]));
   const ultimaSync = productos.reduce<Date | null>((max, p) => (!max || p.syncedAt > max ? p.syncedAt : max), null);
 
   return NextResponse.json({
-    productos: productos.map((p) => ({ gnId: p.gnId, code: p.code, name: p.name, provider: p.provider, category: p.category, skuLiso: mapByGnId.get(p.gnId) || null })),
+    productos: productos.map((p) => {
+      const m = mapByGnId.get(p.gnId);
+      return { gnId: p.gnId, code: p.code, name: p.name, provider: p.provider, category: p.category, skuLiso: m?.skuLiso || null, tipo: m?.tipo || null };
+    }),
     ultimaSync,
   });
 }

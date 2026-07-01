@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
 import { toast } from '@/components/ui/Toaster';
 
-interface GnProd { gnId: number; code: string | null; name: string; provider: string; category: string | null; skuLiso: string | null; }
+interface GnProd { gnId: number; code: string | null; name: string; provider: string; category: string | null; skuLiso: string | null; tipo: string | null; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -16,6 +16,7 @@ export function VincularClient() {
   const [filtro, setFiltro] = useState('');
   const [soloSinVincular, setSoloSinVincular] = useState(false);
   const [asignSku, setAsignSku] = useState<Record<string, string>>({});
+  const [tipoEdit, setTipoEdit] = useState<Record<string, string>>({});
   const [syncing, setSyncing] = useState(false);
   const [syncMsg, setSyncMsg] = useState('');
 
@@ -26,6 +27,7 @@ export function VincularClient() {
       setProductos(d.productos);
       setUltimaSync(d.ultimaSync);
       setAsignSku(Object.fromEntries(d.productos.filter((p: GnProd) => p.skuLiso).map((p: GnProd) => [p.gnId, p.skuLiso])));
+      setTipoEdit(Object.fromEntries(d.productos.filter((p: GnProd) => p.tipo).map((p: GnProd) => [p.gnId, p.tipo])));
     }
   }, []);
   useEffect(() => { cargar(); }, [cargar]);
@@ -55,9 +57,10 @@ export function VincularClient() {
 
   const vincular = async (p: GnProd) => {
     const skuLiso = (asignSku[p.gnId] || '').trim();
-    if (!skuLiso) { toast.error('Elegí el SKU del liso'); return; }
-    const r = await fetch('/api/reposicion/mapeo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gnId: p.gnId, gnCode: p.code, gnNombre: p.name, skuLiso }) });
-    if (r.ok) { setProductos((prev) => prev.map((x) => x.gnId === p.gnId ? { ...x, skuLiso: skuLiso.toUpperCase() } : x)); toast.success(`${p.name} → ${skuLiso.toUpperCase()}`); }
+    const tipo = tipoEdit[p.gnId] || 'estampa';
+    if (!skuLiso) { toast.error(tipo === 'estampa' ? 'Elegí el SKU del liso' : 'Elegí el SKU a producir'); return; }
+    const r = await fetch('/api/reposicion/mapeo', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gnId: p.gnId, gnCode: p.code, gnNombre: p.name, skuLiso, tipo }) });
+    if (r.ok) { setProductos((prev) => prev.map((x) => x.gnId === p.gnId ? { ...x, skuLiso: skuLiso.toUpperCase(), tipo } : x)); toast.success(`${p.name} → ${skuLiso.toUpperCase()} (${tipo})`); }
     else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'Error al vincular'); }
   };
 
@@ -107,8 +110,12 @@ export function VincularClient() {
                   <p className="text-sm text-stone-800 truncate">{p.name}</p>
                   <p className="text-xs text-stone-400">{p.provider}{p.category ? ` · ${p.category}` : ''}</p>
                 </div>
-                <input type="text" list="lisos-sug" value={asignSku[p.gnId] || ''} placeholder="SKU liso"
-                  onChange={(e) => setAsignSku((s) => ({ ...s, [p.gnId]: e.target.value.toUpperCase() }))} className={`${inp} font-mono w-44`} />
+                <select value={tipoEdit[p.gnId] || 'estampa'} onChange={(e) => setTipoEdit((s) => ({ ...s, [p.gnId]: e.target.value }))} className={`${inp} text-xs`}>
+                  <option value="estampa">Estampa (liso)</option>
+                  <option value="produccion">Producción directa</option>
+                </select>
+                <input type="text" list="lisos-sug" value={asignSku[p.gnId] || ''} placeholder={(tipoEdit[p.gnId] || 'estampa') === 'estampa' ? 'SKU liso' : 'SKU a producir'}
+                  onChange={(e) => setAsignSku((s) => ({ ...s, [p.gnId]: e.target.value.toUpperCase() }))} className={`${inp} font-mono w-40`} />
                 <button onClick={() => vincular(p)} className="text-xs px-3 py-1.5 rounded-lg bg-stone-900 text-white hover:bg-stone-800 font-semibold transition">{p.skuLiso ? 'Guardar' : 'Vincular'}</button>
                 {p.skuLiso && <button onClick={() => desvincular(p)} title="Desvincular" className="text-stone-300 hover:text-red-500 px-1 leading-none text-lg">×</button>}
               </div>

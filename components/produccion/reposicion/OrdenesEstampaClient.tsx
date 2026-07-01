@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { toast } from '@/components/ui/Toaster';
 
 interface OrdenItem { id: string; gnId: number; gnNombre: string | null; skuLiso: string; talle: string; cantidad: number; confirmado: number; }
-interface OrdenEstampa { id: string; creadoAt: string; creadoPor: string; estado: string; notas: string | null; items: OrdenItem[]; }
+interface OrdenEstampa { id: string; creadoAt: string; creadoPor: string; estado: string; tipo: string; notas: string | null; items: OrdenItem[]; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 
@@ -55,12 +55,15 @@ export function OrdenesEstampaClient() {
     const totalConf = o.items.reduce((s, i) => s + i.confirmado, 0);
     const estadoColor = o.estado === 'hecha' ? 'bg-emerald-100 text-emerald-700' : o.estado === 'parcial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700';
     const hayCambios = o.items.some((it) => confirmEdit[it.id] != null && (parseInt(confirmEdit[it.id]) || 0) !== it.confirmado);
+    const esProd = o.tipo === 'produccion';
+    const hechas = esProd ? 'producidas' : 'estampadas';
     return (
       <div key={o.id} className={`rounded-xl border p-4 ${o.estado === 'hecha' ? 'border-stone-200 bg-stone-50/50' : 'border-amber-200'}`}>
         <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
           <span className="text-sm font-semibold text-stone-800">
+            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded mr-2 ${esProd ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'}`}>{esProd ? 'producción' : 'estampa'}</span>
             {new Date(o.creadoAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-            <span className="text-stone-400 font-normal"> · {o.creadoPor} · {totalConf}/{totalPed} estampadas</span>
+            <span className="text-stone-400 font-normal"> · {o.creadoPor} · {totalConf}/{totalPed} {hechas}</span>
           </span>
           <div className="flex items-center gap-2">
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${estadoColor}`}>{o.estado}</span>
@@ -79,7 +82,7 @@ export function OrdenesEstampaClient() {
                   <div key={it.id} className="flex items-center gap-2 text-sm">
                     <span className="text-stone-700 flex-1 truncate">{it.gnNombre || `Producto ${it.gnId}`} · <strong>{it.talle}</strong></span>
                     <span className="text-xs text-stone-400">pedido {it.cantidad}</span>
-                    <span className="text-xs text-stone-500">estampado</span>
+                    <span className="text-xs text-stone-500">{esProd ? 'producido' : 'estampado'}</span>
                     <NumInput value={confirmEdit[it.id] != null ? (parseFloat(confirmEdit[it.id]) || 0) : it.confirmado} min="0"
                       onChange={(n) => setConfirmEdit((p) => ({ ...p, [it.id]: String(Math.min(n, it.cantidad)) }))}
                       disabled={o.estado === 'hecha'} className={`w-14 text-right ${inp}`} />
@@ -92,7 +95,7 @@ export function OrdenesEstampaClient() {
         </div>
         {o.estado !== 'hecha' && (
           <div className="mt-3 pt-2 border-t border-stone-100 flex justify-end">
-            <Button variant="primary" size="sm" onClick={() => confirmarOrden(o)} isLoading={confirmando === o.id} disabled={!hayCambios}>Confirmar estampado</Button>
+            <Button variant="primary" size="sm" onClick={() => confirmarOrden(o)} isLoading={confirmando === o.id} disabled={!hayCambios}>Confirmar {esProd ? 'producido' : 'estampado'}</Button>
           </div>
         )}
       </div>

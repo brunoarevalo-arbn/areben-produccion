@@ -5,6 +5,7 @@ import { z } from 'zod';
 
 const BodySchema = z.object({
   notas: z.string().optional(),
+  tipo: z.enum(['estampa', 'produccion']).default('estampa'),
   items: z.array(z.object({
     gnId:     z.number().int(),
     gnNombre: z.string().optional(),
@@ -34,6 +35,7 @@ export async function POST(req: NextRequest) {
   const orden = await prisma.ordenEstampa.create({
     data: {
       creadoPor: session.nombre,
+      tipo: parsed.data.tipo,
       notas: parsed.data.notas?.trim() || null,
       items: { create: parsed.data.items.map((i) => ({ gnId: i.gnId, gnNombre: i.gnNombre || null, skuLiso: i.skuLiso, talle: i.talle, cantidad: i.cantidad })) },
     },

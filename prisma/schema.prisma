@@ -791,7 +791,8 @@ model ReposicionMapeo {
   gnId      Int      @unique          // id del producto en Gestión Nube (clave real)
   gnCode    String?                   // código de GN, solo display
   gnNombre  String?                   // nombre denormalizado (para mostrar)
-  skuLiso   String                    // SKU del liso en areben
+  skuLiso   String                    // estampa: SKU del liso base · produccion: SKU/molde a producir
+  tipo      String   @default("estampa") // 'estampa' (desde liso) | 'produccion' (directa)
   activo    Boolean  @default(true)
   createdAt DateTime @default(now())
 
@@ -861,7 +862,8 @@ model OrdenEstampa {
   id        String             @id @default(cuid())
   creadoPor String
   creadoAt  DateTime           @default(now())
-  estado    String             @default("pendiente") // 'pendiente' | 'hecha'
+  estado    String             @default("pendiente") // 'pendiente' | 'parcial' | 'hecha'
+  tipo      String             @default("estampa")   // 'estampa' (descuenta liso) | 'produccion' (informativa)
   notas     String?
   items     OrdenEstampaItem[]
 

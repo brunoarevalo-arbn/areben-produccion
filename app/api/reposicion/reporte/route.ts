@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const mapeos = await prisma.reposicionMapeo.findMany({ where: { activo: true } });
-  if (mapeos.length === 0) return NextResponse.json({ lisos: [], stockAt: null });
+  if (mapeos.length === 0) return NextResponse.json({ lisos: [], produccion: [], stockAt: null, ventasAt: null, minimoDefault: 1 });
 
   const gnIds = mapeos.map((m) => m.gnId);
   const skuLisos = [...new Set(mapeos.map((m) => m.skuLiso))];
@@ -54,34 +54,40 @@ export async function GET(req: NextRequest) {
     for (const t of talles) (lisoDispBy[sku] ??= {})[t] = Math.max(0, (lisoStockBy[sku]?.[t] || 0) - (reservByLiso[sku]?.[t] || 0));
   }
 
-  const porLiso = new Map<string, typeof mapeos>();
-  for (const m of mapeos) {
-    if (!porLiso.has(m.skuLiso)) porLiso.set(m.skuLiso, []);
-    porLiso.get(m.skuLiso)!.push(m);
-  }
-
-  const lisos = [...porLiso.keys()].sort().map((skuLiso) => {
-    const tallesLiso = Object.keys(lisoDispBy[skuLiso] || {});
-    const prints = porLiso.get(skuLiso)!.map((m) => {
-      const stock = stockBy[m.gnId] || {};
-      const mins = minBy[m.gnId] || {};
-      const vts = ventasBy[m.gnId] || {};
-      // Talles: stock cacheado + overrides + ventas + liso (así siempre hay filas, aunque
-      // todavía no se haya actualizado el stock de ese producto).
-      const talles = [...new Set([...Object.keys(stock), ...Object.keys(mins), ...Object.keys(vts), ...tallesLiso])].sort();
-      const filas = talles.map((talle) => {
-        const stockGN = stock[talle] || 0;
-        const minimoEspecifico = mins[talle];
-        const minimo = minimoEspecifico ?? def;
-        const yaEnOrden = pendByGnId[m.gnId]?.[talle] || 0; // ya pedido en órdenes abiertas
-        const ventas = vts[talle] || { v7: 0, v30: 0, v90: 0 };
-        // Sugerido = faltante para el mínimo, descontando lo ya en órdenes.
-        return { talle, stockGN, minimo, esDefault: minimoEspecifico == null, ventas, aEstampar: Math.max(0, minimo - stockGN - yaEnOrden) };
+  // Arma los grupos (por SKU) de un conjunto de mapeos. `conLiso`=true muestra el liso
+  // disponible (modalidad estampa); false lo omite (producción directa).
+  const construirGrupos = (ms: typeof mapeos, conLiso: boolean) => {
+    const porSku = new Map<string, typeof mapeos>();
+    for (const m of ms) {
+      if (!porSku.has(m.skuLiso)) porSku.set(m.skuLiso, []);
+      porSku.get(m.skuLiso)!.push(m);
+    }
+    return [...porSku.keys()].sort().map((skuLiso) => {
+      const lisoDisp = conLiso ? (lisoDispBy[skuLiso] || {}) : {};
+      const tallesLiso = Object.keys(lisoDisp);
+      const prints = porSku.get(skuLiso)!.map((m) => {
+        const stock = stockBy[m.gnId] || {};
+        const mins = minBy[m.gnId] || {};
+        const vts = ventasBy[m.gnId] || {};
+        // Talles: stock cacheado + overrides + ventas + liso (así siempre hay filas).
+        const talles = [...new Set([...Object.keys(stock), ...Object.keys(mins), ...Object.keys(vts), ...tallesLiso])].sort();
+        const filas = talles.map((talle) => {
+          const stockGN = stock[talle] || 0;
+          const minimoEspecifico = mins[talle];
+          const minimo = minimoEspecifico ?? def;
+          const yaEnOrden = pendByGnId[m.gnId]?.[talle] || 0; // ya pedido en órdenes abiertas
+          const ventas = vts[talle] || { v7: 0, v30: 0, v90: 0 };
+          // Sugerido = faltante para el mínimo, descontando lo ya en órdenes.
+          return { talle, stockGN, minimo, esDefault: minimoEspecifico == null, ventas, aEstampar: Math.max(0, minimo - stockGN - yaEnOrden) };
+        });
+        return { gnId: m.gnId, nombre: m.gnNombre, filas, aEstamparTotal: filas.reduce((s, f) => s + f.aEstampar, 0) };
       });
-      return { gnId: m.gnId, nombre: m.gnNombre, filas, aEstamparTotal: filas.reduce((s, f) => s + f.aEstampar, 0) };
+      return { skuLiso, lisoDisp, prints, aEstamparTotal: prints.reduce((s, p) => s + p.aEstamparTotal, 0) };
     });
-    return { skuLiso, lisoDisp: lisoDispBy[skuLiso] || {}, prints, aEstamparTotal: prints.reduce((s, p) => s + p.aEstamparTotal, 0) };
-  });
+  };
 
-  return NextResponse.json({ lisos, stockAt, ventasAt, minimoDefault: def });
+  const lisos = construirGrupos(mapeos.filter((m) => m.tipo !== 'produccion'), true);
+  const produccion = construirGrupos(mapeos.filter((m) => m.tipo === 'produccion'), false);
+
+  return NextResponse.json({ lisos, produccion, stockAt, ventasAt, minimoDefault: def });
 }

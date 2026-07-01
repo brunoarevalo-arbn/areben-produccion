@@ -27,11 +27,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       const it = byId.get(c.id);
       if (!it) continue;
       const nuevo = Math.min(Math.max(0, c.confirmado), it.cantidad);
-      const delta = nuevo - it.confirmado; // >0 confirma (descuenta liso), <0 repone
-      if (delta !== 0) {
+      const delta = nuevo - it.confirmado; // >0 confirma, <0 repone
+      if (delta === 0) continue;
+      // Solo estampa descuenta liso (se consume al estampar). Producción directa es
+      // informativa: se registra cuánto se produjo, sin tocar stock de liso.
+      if (orden.tipo === 'estampa') {
         const st = await tx.stockTerminado.findUnique({ where: { sku_talle_tipo: { sku: it.skuLiso, talle: it.talle, tipo: 'liso' } } });
-        const actual = st?.cantidad ?? 0;
-        const nuevoStock = Math.max(0, actual - delta);
+        const nuevoStock = Math.max(0, (st?.cantidad ?? 0) - delta);
         await tx.stockTerminado.upsert({
           where:  { sku_talle_tipo: { sku: it.skuLiso, talle: it.talle, tipo: 'liso' } },
           create: { sku: it.skuLiso, talle: it.talle, tipo: 'liso', cantidad: nuevoStock },
@@ -40,9 +42,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         await tx.movimientoTerminado.create({
           data: { sku: it.skuLiso, talle: it.talle, tipo: 'liso', cantidad: -delta, origen: 'estampa', ordenId: id, motivo: `Estampa ${it.gnNombre ?? it.gnId}`, creadoPor: session.nombre },
         });
-        await tx.ordenEstampaItem.update({ where: { id: it.id }, data: { confirmado: nuevo } });
-        it.confirmado = nuevo;
       }
+      await tx.ordenEstampaItem.update({ where: { id: it.id }, data: { confirmado: nuevo } });
+      it.confirmado = nuevo;
     }
     // Derivar estado de la orden.
     const items = await tx.ordenEstampaItem.findMany({ where: { ordenId: id } });

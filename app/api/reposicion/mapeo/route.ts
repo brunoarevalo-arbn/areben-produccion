@@ -7,7 +7,8 @@ const MapeoSchema = z.object({
   gnId:     z.number().int(),
   gnCode:   z.string().optional(),
   gnNombre: z.string().optional(),
-  skuLiso:  z.string().min(1, 'Falta el SKU del liso').transform((s) => s.trim().toUpperCase()),
+  skuLiso:  z.string().min(1, 'Falta el SKU').transform((s) => s.trim().toUpperCase()),
+  tipo:     z.enum(['estampa', 'produccion']).default('estampa'),
 });
 
 export async function GET(req: NextRequest) {
@@ -22,11 +23,11 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const parsed = MapeoSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  const { gnId, gnCode, gnNombre, skuLiso } = parsed.data;
+  const { gnId, gnCode, gnNombre, skuLiso, tipo } = parsed.data;
   const mapeo = await prisma.reposicionMapeo.upsert({
     where:  { gnId },
-    create: { gnId, gnCode: gnCode || null, gnNombre: gnNombre || null, skuLiso, activo: true },
-    update: { gnCode: gnCode || null, gnNombre: gnNombre || null, skuLiso, activo: true },
+    create: { gnId, gnCode: gnCode || null, gnNombre: gnNombre || null, skuLiso, tipo, activo: true },
+    update: { gnCode: gnCode || null, gnNombre: gnNombre || null, skuLiso, tipo, activo: true },
   });
   return NextResponse.json(mapeo, { status: 201 });
 }
