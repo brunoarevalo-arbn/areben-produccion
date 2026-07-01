@@ -34,6 +34,16 @@ const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus
 const inpSm = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
+// Estado del form serializado, para ver/editar una ficha idéntica a como se cargó.
+export interface FichaData {
+  tizadas: Tizada[];
+  talles: Record<string, string>;
+  avios: { etiquetaId: string; cantidad: number; nombre?: string }[];
+  cortadorId?: string | null;
+  costoCorte?: number | string;
+  modoCosto?: 'total' | 'unidad';
+}
+
 export interface CortePrefill {
   avios?: { etiquetaId: string; cantidad: number }[];
   cortadorId?: string | null;
@@ -42,22 +52,22 @@ export interface CortePrefill {
   // Rinde del corte de la hermana (mismo molde): metros totales y unidades, para
   // derivar m/u. La tela (rollos) NO se copia; se elige la del color.
   tizada?: { metros: number; unidades: number };
-  // Editar la propia ficha: pre-carga los rollos con sus metros (modo manual).
-  rollos?: { rolloId: string; metros: number }[];
+  // Editar la propia ficha: estado completo guardado (tizadas, rollos, etc.) → idéntico.
+  fichaData?: FichaData;
 }
 
 export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, prefill }: { ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; prefill?: CortePrefill }) {
   const router = useRouter();
+  const fd = prefill?.fichaData;
   const [rollosDisp, setRollosDisp] = useState<RolloDisp[]>([]);
   const [cortadores, setCortadores] = useState<CortadorOpt[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const tizadaSeq = useRef(2);
-  const rollosPrefillApplied = useRef(false);
-  // Los rollos NO se prellenan (cada color usa su tela). El rinde (metros/unidades) sí
-  // se puede copiar de la hermana, así los metros se calculan bien al elegir el rollo.
-  const [tizadas, setTizadas] = useState<Tizada[]>(() => [{
+  // Editar: arranca de las tizadas guardadas (idénticas). Si no, una tizada vacía (con el
+  // rinde de la hermana si se copió).
+  const [tizadas, setTizadas] = useState<Tizada[]>(() => fd?.tizadas?.length ? fd.tizadas : [{
     id: 't1', nombre: '', modo: 'tizada',
     metros:   prefill?.tizada?.metros   ? String(prefill.tizada.metros)   : '',
     unidades: prefill?.tizada?.unidades ? String(prefill.tizada.unidades) : '1',
@@ -65,15 +75,15 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
   }]);
   const [aviosCatalogo, setAviosCatalogo] = useState<AvioOpt[]>([]);
   const [aviosSel, setAviosSel] = useState<AvioSel[]>(
-    () => prefill?.avios?.map((a) => ({ etiquetaId: a.etiquetaId, cantidad: String(a.cantidad) })) ?? [],
+    () => (fd?.avios ?? prefill?.avios ?? []).map((a) => ({ etiquetaId: a.etiquetaId, cantidad: String(a.cantidad) })),
   );
   const [filtroTela, setFiltroTela] = useState<Record<string, string>>({}); // por tizada → nombre de tela
   const [talles, setTalles] = useState<Record<string, string>>(
-    () => Object.fromEntries((prefill?.talles ?? []).map((t) => [t.talle, String(t.cantidad)])),
+    () => fd?.talles ?? Object.fromEntries((prefill?.talles ?? []).map((t) => [t.talle, String(t.cantidad)])),
   );
-  const [cortadorId, setCortadorId] = useState(prefill?.cortadorId ?? '');
-  const [costoCorte, setCostoCorte] = useState(prefill?.costoCorte ? String(prefill.costoCorte) : '');
-  const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>('total');
+  const [cortadorId, setCortadorId] = useState(fd?.cortadorId ?? prefill?.cortadorId ?? '');
+  const [costoCorte, setCostoCorte] = useState(fd?.costoCorte != null ? String(fd.costoCorte) : (prefill?.costoCorte ? String(prefill.costoCorte) : ''));
+  const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>(fd?.modoCosto ?? 'total');
 
   // Autocompletar tarifa al elegir cortador
   const onCortadorChange = (id: string) => {
@@ -93,24 +103,21 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
       fetch('/api/cortadores').then((r) => r.ok ? r.json() : []),
     ]).then(([r1, r2, ct]) => {
       const allRollos = [...r1, ...r2] as RolloDisp[];
-      const disp = allRollos.filter((r) => r.insumo.rinde && Number(r.insumo.rinde) > 0).sort((a, b) => a.codigo.localeCompare(b.codigo));
-      setRollosDisp(disp);
-      setCortadores((ct as CortadorOpt[]).filter((c) => c.activo));
-
-      // Editar ficha propia: pre-cargar los rollos con sus metros en una tizada manual.
-      if (prefill?.rollos?.length && !rollosPrefillApplied.current) {
-        const rollos = prefill.rollos
-          .map((pr) => {
-            const r = disp.find((x) => x.id === pr.rolloId);
-            if (!r) return null;
-            return { rolloId: r.id, metros: String(pr.metros), codigo: r.codigo, pesoActual: Number(r.pesoActual), costoUnitario: Number(r.costoUnitario), rinde: Number(r.insumo.rinde), nombre: `${r.insumo.nombre}${r.color ? ` · ${r.color.nombre}` : ''}` };
-          })
-          .filter((x): x is ConsumoRollo => x !== null);
-        if (rollos.length) {
-          setTizadas([{ id: 't1', nombre: '', modo: 'manual', metros: '', unidades: '', rollos }]);
-          rollosPrefillApplied.current = true;
+      const disp = allRollos.filter((r) => r.insumo.rinde && Number(r.insumo.rinde) > 0);
+      // Editar: los rollos ya consumidos por esta ficha se muestran con su peso REPUESTO
+      // (el guardado, previo al consumo), porque al guardar el backend repone y re-registra
+      // atómico. Tienen prioridad sobre el peso vivo; los demás rollos vivos se agregan.
+      if (fd?.tizadas?.length) {
+        const fichaRollos = new Map<string, RolloDisp>();
+        for (const t of fd.tizadas) for (const c of t.rollos) {
+          fichaRollos.set(c.rolloId, { id: c.rolloId, codigo: c.codigo, pesoActual: String(c.pesoActual), costoUnitario: String(c.costoUnitario), insumo: { nombre: c.nombre, rinde: String(c.rinde) }, color: null });
         }
+        const merged = [...fichaRollos.values(), ...disp.filter((r) => !fichaRollos.has(r.id))];
+        setRollosDisp(merged.sort((a, b) => a.codigo.localeCompare(b.codigo)));
+      } else {
+        setRollosDisp(disp.sort((a, b) => a.codigo.localeCompare(b.codigo)));
       }
+      setCortadores((ct as CortadorOpt[]).filter((c) => c.activo));
     });
 
     fetch('/api/costos/etiquetas')
@@ -209,6 +216,15 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
         cortadorId: cortadorId || undefined,
         costoCorte: costoCorteNum > 0 ? costoCorteNum : undefined,
         notas: notas || undefined,
+        // Estado del form tal cual, para ver/editar la ficha idéntica después.
+        fichaData: {
+          tizadas,
+          talles,
+          avios: aviosSel.map((a) => ({ etiquetaId: a.etiquetaId, cantidad: parseInt(a.cantidad) || 1, nombre: aviosCatalogo.find((x) => x.id === a.etiquetaId)?.nombre })),
+          cortadorId: cortadorId || null,
+          costoCorte,
+          modoCosto,
+        },
       }),
     });
 

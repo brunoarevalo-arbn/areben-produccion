@@ -36,7 +36,7 @@ export async function registrarCorteOrden(
     throw new CorteError('La ficha ya fue cargada. Para corregirla, revertí el corte y volvé a cargarla.');
   }
 
-  const { consumoRollos, cortesPorTalle, avios, cortadorId, costoCorte, fichaFotoUrl, notas } = data;
+  const { consumoRollos, cortesPorTalle, avios, cortadorId, costoCorte, fichaFotoUrl, notas, fichaData } = data;
 
   // Buscar cortador para guardar denormalizado
   let cortadorNombre: string | null = null;
@@ -142,6 +142,7 @@ export async function registrarCorteOrden(
     costoInsumosSecundarios: new Prisma.Decimal(0),
     costoTotal,
     cantidad: cantidadTotal,
+    fichaCorteData: fichaData ?? Prisma.JsonNull, // para ver/editar la ficha idéntica
     // La ficha ya NO cambia el estado: el avance del flujo se maneja aparte.
   };
 
@@ -150,4 +151,47 @@ export async function registrarCorteOrden(
   }
 
   return tx.ordenProduccion.update({ where: { id: ordenId }, data: updateData });
+}
+
+/**
+ * Revierte la ficha de corte de una orden dentro de una transacción: repone la tela a
+ * los rollos/lotes (movimientos REVERSION), borra cortes por talle y avíos, y resetea la
+ * OP (ficha sin cargar, costos en 0). No cambia el estado del flujo. Se usa en el endpoint
+ * /revertir y en la edición (revert + re-registro atómico). No-op si no había ficha.
+ */
+export async function revertirCorteOrden(
+  tx: Prisma.TransactionClient,
+  ordenId: string,
+  session: SessionPayload,
+) {
+  const orden = await tx.ordenProduccion.findUnique({
+    where: { id: ordenId },
+    include: { movimientosInsumo: { where: { tipo: 'CONSUMO' } } },
+  });
+  if (!orden) throw new CorteError('OP no encontrada');
+  if (!orden.fichaCorteCargada) return;
+  if (orden.terminadoAt) throw new CorteError('La orden ya está terminada. Retrocedela a Costura antes de editar o revertir la ficha.');
+
+  for (const mov of orden.movimientosInsumo) {
+    const inv = mov.cantidad.neg();
+    if (mov.rolloId) {
+      await tx.rollo.update({ where: { id: mov.rolloId }, data: { pesoActual: { increment: inv }, estado: 'DISPONIBLE' } });
+    }
+    if (mov.loteId) {
+      await tx.lote.update({ where: { id: mov.loteId }, data: { cantidadActual: { increment: inv }, estado: 'DISPONIBLE' } });
+    }
+    await tx.movimientoInsumo.create({
+      data: { tipo: 'REVERSION', rolloId: mov.rolloId, loteId: mov.loteId, ordenId, cantidad: inv, motivo: `Reversion corte OP ${orden.sku ?? ordenId}`, usuarioId: session.id, reversionNota: `Revertido por ${session.nombre}` },
+    });
+  }
+  await tx.cortePorTalle.deleteMany({ where: { ordenId } });
+  await tx.ordenAvio.deleteMany({ where: { ordenId } });
+  await tx.ordenProduccion.update({
+    where: { id: ordenId },
+    data: {
+      fichaCorteCargada: false, fichaFotoUrl: null, cortador: null, cortadorId: null,
+      costoCorte: new Prisma.Decimal(0), costoTela: new Prisma.Decimal(0),
+      costoInsumosSecundarios: new Prisma.Decimal(0), costoTotal: new Prisma.Decimal(0),
+    },
+  });
 }

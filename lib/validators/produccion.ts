@@ -78,6 +78,7 @@ export const RegistrarCorteSchema = z.object({
   costoCorte:     z.number().min(0).optional(),
   fichaFotoUrl:   z.string().optional(),
   notas:          z.string().optional(),
+  fichaData:      z.any().optional(), // estado del form (tizadas/talles/avíos/…) para ver-editar idéntico
 });
 
 // Corte por lote: una receta/avíos/cortador compartidos + rollos y talles por color.

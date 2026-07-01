@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, requirePermiso } from '@/lib/auth';
 import { RegistrarCorteSchema } from '@/lib/validators/produccion';
-import { registrarCorteOrden, CorteError } from '@/lib/produccion/corte';
+import { registrarCorteOrden, revertirCorteOrden, CorteError } from '@/lib/produccion/corte';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -41,7 +41,12 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   }
 
   try {
-    const result = await prisma.$transaction((tx) => registrarCorteOrden(tx, id, parsed.data, session));
+    // Si la ficha ya estaba cargada, es una EDICIÓN: revierte y re-registra en la misma
+    // transacción (el impacto neto en rollos es la diferencia). Nada se toca si algo falla.
+    const result = await prisma.$transaction(async (tx) => {
+      await revertirCorteOrden(tx, id, session);
+      return registrarCorteOrden(tx, id, parsed.data, session);
+    }, { timeout: 30000, maxWait: 15000 });
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
     if (e instanceof CorteError) return NextResponse.json({ error: e.message }, { status: 400 });

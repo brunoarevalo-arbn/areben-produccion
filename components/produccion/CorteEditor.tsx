@@ -2,10 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { RegistrarCorteForm, type CortePrefill } from './RegistrarCorteForm';
+import { RegistrarCorteForm, type CortePrefill, type FichaData } from './RegistrarCorteForm';
 import { CorteRevertir } from './CorteRevertir';
-import { confirmAsync } from '@/components/ui/ConfirmProvider';
-import { toast } from '@/components/ui/Toaster';
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
@@ -19,33 +17,22 @@ interface Resumen {
   talles: { talle: string; cantidad: number }[];
 }
 
-// Ficha ya cargada: muestra el resumen del corte y permite EDITARLO sin re-hacer todo.
-// "Editar" revierte (repone el stock) y abre el formulario pre-cargado con lo que había;
-// ajustás y guardás como un registro normal. El impacto neto en rollos es la diferencia.
-export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen, prefill }: {
-  ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; resumen: Resumen; prefill: CortePrefill;
+// Ficha ya cargada: muestra una vista IDÉNTICA a lo que se cargó (solo lectura) y permite
+// editarla en el lugar. "Editar" abre el mismo formulario pre-cargado; al Guardar, el
+// backend repone y re-registra en una sola transacción (impacto neto = la diferencia).
+// Nada se toca hasta guardar.
+export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen, fichaData, prefill }: {
+  ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null;
+  resumen: Resumen; fichaData: FichaData | null; prefill: CortePrefill;
 }) {
   const [editando, setEditando] = useState(false);
-  const [revirtiendo, setRevirtiendo] = useState(false);
-
-  const editar = async () => {
-    const ok = await confirmAsync({
-      message: 'Se va a reponer el stock consumido y abrir la ficha para ajustar. Al guardar, los rollos se descuentan de nuevo con los valores nuevos (el impacto neto es la diferencia). Si salís sin guardar, la ficha queda sin cargar.',
-      confirmLabel: 'Editar',
-    });
-    if (!ok) return;
-    setRevirtiendo(true);
-    const r = await fetch(`/api/produccion/cola/${ordenId}/corte/revertir`, { method: 'POST' });
-    if (r.ok) { setEditando(true); toast.success('Ficha lista para ajustar'); }
-    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo abrir para editar'); }
-    setRevirtiendo(false);
-  };
 
   if (editando) {
     return (
       <div className="space-y-3">
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-sm text-amber-800">
-          Editando la ficha. Ajustá lo que necesites y guardá. <button onClick={() => window.location.reload()} className="underline font-semibold">Cancelar</button>
+          Editando la ficha. Ajustá lo que necesites y <strong>Guardá</strong> — recién ahí se aplican los cambios a los rollos.
+          <button onClick={() => setEditando(false)} className="underline font-semibold ml-2">Cancelar</button>
         </div>
         <RegistrarCorteForm ordenId={ordenId} sku={sku} cantidadPlanificada={cantidadPlanificada} marca={marca} prefill={prefill} />
       </div>
@@ -54,29 +41,77 @@ export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen,
 
   return (
     <>
-      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-6">
-        <h3 className="text-sm font-bold text-emerald-800 mb-3">Corte ya registrado</h3>
-        <div className="space-y-2 text-sm">
-          <p><span className="text-emerald-600">Total cortadas:</span> <strong>{resumen.cantidad} unidades</strong></p>
-          <p><span className="text-emerald-600">Consumo total:</span> <strong>{resumen.kgTotal > 0 ? `${fmt(resumen.kgTotal)} kg` : ''}{resumen.kgTotal > 0 && resumen.metrosTotal > 0 ? ' · ' : ''}{resumen.metrosTotal > 0 ? `${fmt(resumen.metrosTotal)} m` : ''}{resumen.kgTotal === 0 && resumen.metrosTotal === 0 ? '--' : ''}</strong></p>
-          <p><span className="text-emerald-600">Por unidad:</span> <strong>{resumen.metrosPorU > 0 ? `${fmt(resumen.metrosPorU)} m/u` : '--'}{resumen.kgPorU > 0 ? ` · ${fmt(resumen.kgPorU)} kg/u` : ''}</strong></p>
-          {resumen.cortador && <p><span className="text-emerald-600">Cortador:</span> <strong>{resumen.cortador}</strong></p>}
+      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-6 space-y-4">
+        <h3 className="text-sm font-bold text-emerald-800">Corte registrado</h3>
+
+        {/* Resumen de consumo */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+          <div><p className="text-xs text-emerald-600 uppercase tracking-widest font-bold">Cortadas</p><p className="font-bold text-stone-800 tabular-nums">{resumen.cantidad} u</p></div>
+          <div><p className="text-xs text-emerald-600 uppercase tracking-widest font-bold">Total kg</p><p className="font-bold text-stone-800 tabular-nums">{resumen.kgTotal > 0 ? `${fmt(resumen.kgTotal)} kg` : '--'}</p></div>
+          <div><p className="text-xs text-emerald-600 uppercase tracking-widest font-bold">Metros/u</p><p className="font-semibold text-stone-800 tabular-nums">{resumen.metrosPorU > 0 ? `${fmt(resumen.metrosPorU)} m` : '--'}</p></div>
+          <div><p className="text-xs text-emerald-600 uppercase tracking-widest font-bold">Kg/u</p><p className="text-stone-800 tabular-nums">{resumen.kgPorU > 0 ? `${fmt(resumen.kgPorU)} kg` : '--'}</p></div>
         </div>
-        <div className="mt-4 pt-4 border-t border-emerald-200">
-          <p className="text-xs text-emerald-700 uppercase tracking-widest font-bold mb-2">Desglose por talle</p>
-          <div className="flex flex-wrap gap-3">
+
+        {/* Talles */}
+        <div>
+          <p className="text-xs text-emerald-700 uppercase tracking-widest font-bold mb-2">Talles cortados</p>
+          <div className="flex flex-wrap gap-2">
             {resumen.talles.map((c) => (
-              <div key={c.talle} className="bg-white rounded-lg px-3 py-1.5 text-sm border border-emerald-200">
-                <span className="text-emerald-600">{c.talle}:</span> <strong>{c.cantidad}</strong>
-              </div>
+              <div key={c.talle} className="bg-white rounded-lg px-3 py-1.5 text-sm border border-emerald-200"><span className="text-emerald-600">{c.talle}:</span> <strong>{c.cantidad}</strong></div>
             ))}
           </div>
         </div>
+
+        {/* Detalle idéntico a lo cargado (tizadas + rollos + metros) */}
+        {fichaData?.tizadas?.length ? (
+          <div>
+            <p className="text-xs text-emerald-700 uppercase tracking-widest font-bold mb-2">Tela por tizada</p>
+            <div className="space-y-2">
+              {fichaData.tizadas.map((t, i) => (
+                <div key={t.id ?? i} className="bg-white rounded-lg border border-emerald-200 p-3 text-sm">
+                  <p className="font-semibold text-stone-700 mb-1">{t.nombre?.trim() || `Tizada ${i + 1}`}{t.modo === 'tizada' && t.metros ? <span className="text-stone-400 font-normal"> · {t.metros}m / {t.unidades}u</span> : null}</p>
+                  {t.rollos.length === 0 ? <p className="text-xs text-stone-400">Sin rollos</p> : (
+                    <div className="space-y-0.5">
+                      {t.rollos.map((r) => (
+                        <div key={r.rolloId} className="flex justify-between text-stone-600">
+                          <span className="font-mono text-xs">{r.codigo} · {r.nombre}</span>
+                          {r.metros ? <span className="tabular-nums">{r.metros} m</span> : null}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* Avíos */}
+        {fichaData?.avios?.length ? (
+          <div>
+            <p className="text-xs text-emerald-700 uppercase tracking-widest font-bold mb-2">Avíos</p>
+            <div className="flex flex-wrap gap-2">
+              {fichaData.avios.map((a) => (
+                <div key={a.etiquetaId} className="bg-white rounded-lg px-3 py-1.5 text-sm border border-emerald-200">{a.nombre || a.etiquetaId} <span className="text-stone-400">×{a.cantidad}</span></div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {(resumen.cortador || fichaData?.costoCorte) && (
+          <div className="flex gap-6 text-sm pt-2 border-t border-emerald-200">
+            {resumen.cortador && <div><span className="text-emerald-600">Cortador:</span> <strong className="text-stone-800">{resumen.cortador}</strong></div>}
+            {fichaData?.costoCorte ? <div><span className="text-emerald-600">Costo corte:</span> <strong className="text-stone-800">${fmt(Number(fichaData.costoCorte))}{fichaData.modoCosto === 'unidad' ? ' /u' : ''}</strong></div> : null}
+          </div>
+        )}
+
+        {!fichaData && <p className="text-xs text-stone-400">Esta ficha se cargó antes de guardar el detalle editable; al editarla se reconstruye lo mejor posible.</p>}
       </div>
+
       <div className="flex gap-3">
-        <button onClick={editar} disabled={revirtiendo}
-          className="bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-          {revirtiendo ? 'Abriendo…' : '✎ Editar ficha'}
+        <button onClick={() => setEditando(true)}
+          className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
+          ✎ Editar ficha
         </button>
         <CorteRevertir ordenId={ordenId} />
         <Link href={`/produccion/${ordenId}`} className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
