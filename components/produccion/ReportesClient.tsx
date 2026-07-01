@@ -96,6 +96,10 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
         title="Reportes diarios"
         actions={
           <>
+            <Link href="/produccion/reportes/tiempo-sku"
+              className="border border-stone-200 hover:border-stone-400 text-stone-600 text-sm font-semibold px-4 py-2.5 rounded-xl transition">
+              Tiempo por SKU (en prod.) →
+            </Link>
             <Link href="/produccion/reportes/sku"
               className="border border-stone-200 hover:border-stone-400 text-stone-600 text-sm font-semibold px-4 py-2.5 rounded-xl transition">
               Costos por SKU →
