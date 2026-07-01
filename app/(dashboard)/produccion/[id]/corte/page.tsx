@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { RegistrarCorteConCopia } from '@/components/produccion/RegistrarCorteConCopia';
 import { CorteRevertir } from '@/components/produccion/CorteRevertir';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { resumenConsumoTela } from '@/lib/produccion/consumo';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,10 +15,22 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
 
   const orden = await prisma.ordenProduccion.findUnique({
     where: { id },
-    include: { cortesPorTalle: { orderBy: { talle: 'asc' } } },
+    include: {
+      cortesPorTalle: { orderBy: { talle: 'asc' } },
+      movimientosInsumo: {
+        where: { rolloId: { not: null } },
+        include: { rollo: { select: { insumo: { select: { unidadDefault: true, rinde: true } } } } },
+      },
+    },
   });
 
   if (!orden) notFound();
+
+  const { kg: kgTotal, metros: metrosTotal } = resumenConsumoTela(
+    orden.movimientosInsumo.map((m) => ({ cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
+  );
+  const metrosPorU = orden.cantidad > 0 ? metrosTotal / orden.cantidad : 0;
+  const kgPorU = orden.cantidad > 0 ? kgTotal / orden.cantidad : 0;
 
   // Hermanas del mismo lote que ya tienen ficha → se puede copiar la suya.
   const hermanas = orden.loteId
@@ -36,9 +49,8 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
           <h3 className="text-sm font-bold text-emerald-800 mb-3">Corte ya registrado</h3>
           <div className="space-y-2 text-sm">
             <p><span className="text-emerald-600">Total cortadas:</span> <strong>{orden.cantidad} unidades</strong></p>
-            <p><span className="text-emerald-600">Costo tela:</span> <strong>${fmt(orden.costoTela)}</strong></p>
-            <p><span className="text-emerald-600">Insumos sec.:</span> <strong>${fmt(orden.costoInsumosSecundarios)}</strong></p>
-            <p><span className="text-emerald-600">Costo total:</span> <strong>${fmt(orden.costoTotal)}</strong></p>
+            <p><span className="text-emerald-600">Consumo total:</span> <strong>{kgTotal > 0 ? `${fmt(kgTotal)} kg` : ''}{kgTotal > 0 && metrosTotal > 0 ? ' · ' : ''}{metrosTotal > 0 ? `${fmt(metrosTotal)} m` : ''}{kgTotal === 0 && metrosTotal === 0 ? '--' : ''}</strong></p>
+            <p><span className="text-emerald-600">Por unidad:</span> <strong>{metrosPorU > 0 ? `${fmt(metrosPorU)} m/u` : '--'}{kgPorU > 0 ? ` · ${fmt(kgPorU)} kg/u` : ''}</strong></p>
           </div>
           <div className="mt-4 pt-4 border-t border-emerald-200">
             <p className="text-xs text-emerald-700 uppercase tracking-widest font-bold mb-2">Desglose por talle</p>

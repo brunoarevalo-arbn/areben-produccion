@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PrintButton } from '@/components/costos/PrintButton';
+import { resumenConsumoTela } from '@/lib/produccion/consumo';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,7 +15,6 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
     include: {
       cortesPorTalle: { orderBy: { talle: 'asc' } },
       avios: { include: { etiqueta: { select: { nombre: true, unidad: true } } } },
-      pagoCorte: { select: { fecha: true, beneficiario: true } },
       movimientosInsumo: {
         where: { rolloId: { not: null } },
         include: { rollo: { select: { codigo: true, insumo: { select: { nombre: true, unidadDefault: true, rinde: true } }, color: { select: { nombre: true } } } } },
@@ -25,19 +25,12 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
   if (!orden) notFound();
 
   const totalCortado = orden.cortesPorTalle.reduce((s, c) => s + c.cantidad, 0);
-  const costoCorte = Number(orden.costoCorte);
-  const costoTela = Number(orden.costoTela);
 
-  // Consumo de tela: cada movimiento viene en la unidad del insumo (kg o metros) y el
-  // insumo tiene rinde (m por unidad → m/kg para telas en kg). Con eso saco kg y metros.
-  let kgTotal = 0, metrosTotal = 0;
-  for (const m of orden.movimientosInsumo) {
-    const consumo = Math.abs(Number(m.cantidad));
-    const unidad = (m.rollo?.insumo.unidadDefault || '').toLowerCase();
-    const rinde = m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : 0;
-    if (unidad.includes('kg')) { kgTotal += consumo; metrosTotal += consumo * rinde; }
-    else { metrosTotal += consumo; if (rinde > 0) kgTotal += consumo / rinde; }
-  }
+  // Consumo de tela (kg y metros) desde los movimientos de rollo. No mostramos costos:
+  // van en el resumen de costos, no en la ficha de corte.
+  const { kg: kgTotal, metros: metrosTotal } = resumenConsumoTela(
+    orden.movimientosInsumo.map((m) => ({ cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
+  );
   const metrosPorU = totalCortado > 0 ? metrosTotal / totalCortado : 0;
   const kgPorU = totalCortado > 0 ? kgTotal / totalCortado : 0;
   const fecha = new Date(orden.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -149,20 +142,6 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
           </div>
         )}
 
-        {/* Costos del corte */}
-        <div className="flex gap-6 border-t border-stone-200 pt-4 text-sm">
-          <div>
-            <p className="text-xs uppercase tracking-widest text-stone-400 font-bold">Costo tela</p>
-            <p className="text-stone-800 tabular-nums font-semibold">{costoTela > 0 ? `$${fmt(costoTela)}` : '--'}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-widest text-stone-400 font-bold">Costo corte</p>
-            <p className="text-stone-800 tabular-nums font-semibold">
-              {costoCorte > 0 ? `$${fmt(costoCorte)}` : '--'}
-              {costoCorte > 0 && <span className={`ml-1.5 text-xs font-semibold px-1.5 py-0.5 rounded-full print:hidden ${orden.pagoCorteId ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{orden.pagoCorteId ? 'Pagado' : 'Pte.'}</span>}
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   );

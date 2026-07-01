@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
+import { resumenConsumoTela } from '@/lib/produccion/consumo';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +30,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
       pagoCorte: { select: { id: true, fecha: true, beneficiario: true, montoTotal: true } },
       movimientosInsumo: {
         include: {
-          rollo: { select: { codigo: true, insumo: { select: { nombre: true } }, color: { select: { nombre: true } } } },
+          rollo: { select: { codigo: true, insumo: { select: { nombre: true, unidadDefault: true, rinde: true } }, color: { select: { nombre: true } } } },
           lote: { select: { codigo: true, insumo: { select: { nombre: true } }, color: { select: { nombre: true } } } },
         },
         orderBy: { fecha: 'desc' },
@@ -39,12 +40,14 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
 
   if (!orden) notFound();
 
-  const costoTela = Number(orden.costoTela);
-  const costoInsSec = Number(orden.costoInsumosSecundarios);
-  const costoCorte = Number(orden.costoCorte);
-  const costoMO = Number(orden.costoManoObra);
-  const costoEstampa = Number(orden.costoEstampa);
-  const costoTotal = Number(orden.costoTotal);
+  // Consumo de tela (kg y metros) para la ficha. Los costos NO van acá: van en el
+  // módulo de Costos.
+  const totalCortado = orden.cortesPorTalle.reduce((s, c) => s + c.cantidad, 0) || orden.cantidad;
+  const { kg: kgTotal, metros: metrosTotal } = resumenConsumoTela(
+    orden.movimientosInsumo.filter((m) => m.rollo).map((m) => ({ cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
+  );
+  const metrosPorU = totalCortado > 0 ? metrosTotal / totalCortado : 0;
+  const kgPorU = totalCortado > 0 ? kgTotal / totalCortado : 0;
 
   return (
     <div className="p-8 max-w-4xl">
@@ -55,41 +58,28 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
         actions={<Badge variant={ESTADO_BADGE[orden.estado] ?? 'default'} size="md">{ESTADO_LABEL[orden.estado]}</Badge>}
       />
 
-      {/* Costos */}
+      {/* Consumo de tela (los costos van en el módulo de Costos) */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
-        <h3 className="text-sm font-bold text-stone-800 mb-3">Costos acumulados</h3>
-        <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-stone-800">Consumo de tela</h3>
+          {orden.cortador && <span className="text-xs text-stone-400">Cortador: {orden.cortador}</span>}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
           <div>
-            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Tela</p>
-            <p className="text-stone-800 tabular-nums font-semibold">{costoTela > 0 ? `$${fmt(costoTela)}` : '--'}</p>
+            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Total kg</p>
+            <p className="text-stone-800 tabular-nums font-bold text-lg">{kgTotal > 0 ? `${fmt(kgTotal)} kg` : '--'}</p>
           </div>
           <div>
-            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Insumos sec.</p>
-            <p className="text-stone-800 tabular-nums">{costoInsSec > 0 ? `$${fmt(costoInsSec)}` : '--'}</p>
+            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Total metros</p>
+            <p className="text-stone-800 tabular-nums font-semibold">{metrosTotal > 0 ? `${fmt(metrosTotal)} m` : '--'}</p>
           </div>
           <div>
-            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Corte</p>
-            <p className="text-stone-800 tabular-nums">
-              {costoCorte > 0 ? `$${fmt(costoCorte)}` : '--'}
-              {costoCorte > 0 && (
-                <span className={`ml-1 text-xs font-semibold px-1.5 py-0.5 rounded-full ${orden.pagoCorteId ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                  {orden.pagoCorteId ? 'Pagado' : 'Pte.'}
-                </span>
-              )}
-            </p>
-            {orden.cortador && <p className="text-xs text-stone-400 mt-0.5">{orden.cortador}</p>}
+            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Metros / unidad</p>
+            <p className="text-stone-800 tabular-nums font-semibold">{metrosPorU > 0 ? `${fmt(metrosPorU)} m` : '--'}</p>
           </div>
           <div>
-            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Mano de obra</p>
-            <p className="text-stone-800 tabular-nums">{costoMO > 0 ? `$${fmt(costoMO)}` : '--'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Estampa</p>
-            <p className="text-stone-800 tabular-nums">{costoEstampa > 0 ? `$${fmt(costoEstampa)}` : '--'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Total</p>
-            <p className="text-stone-800 tabular-nums font-bold text-lg">{costoTotal > 0 ? `$${fmt(costoTotal)}` : '--'}</p>
+            <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Kg / unidad</p>
+            <p className="text-stone-800 tabular-nums">{kgPorU > 0 ? `${fmt(kgPorU)} kg` : '--'}</p>
           </div>
         </div>
       </div>
