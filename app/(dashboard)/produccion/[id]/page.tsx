@@ -44,7 +44,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
   // módulo de Costos.
   const totalCortado = orden.cortesPorTalle.reduce((s, c) => s + c.cantidad, 0) || orden.cantidad;
   const { kg: kgTotal, metros: metrosTotal } = resumenConsumoTela(
-    orden.movimientosInsumo.filter((m) => m.rollo).map((m) => ({ cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
+    orden.movimientosInsumo.filter((m) => m.rollo).map((m) => ({ rolloId: m.rolloId, cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
   );
   const metrosPorU = totalCortado > 0 ? metrosTotal / totalCortado : 0;
   const kgPorU = totalCortado > 0 ? kgTotal / totalCortado : 0;

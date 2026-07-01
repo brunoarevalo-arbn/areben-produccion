@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PrintButton } from '@/components/costos/PrintButton';
-import { resumenConsumoTela } from '@/lib/produccion/consumo';
+import { consumoNetoPorRollo } from '@/lib/produccion/consumo';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,11 +26,18 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
 
   const totalCortado = orden.cortesPorTalle.reduce((s, c) => s + c.cantidad, 0);
 
-  // Consumo de tela (kg y metros) desde los movimientos de rollo. No mostramos costos:
-  // van en el resumen de costos, no en la ficha de corte.
-  const { kg: kgTotal, metros: metrosTotal } = resumenConsumoTela(
-    orden.movimientosInsumo.map((m) => ({ cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
+  // Consumo NETO por rollo (una ficha editada tiene CONSUMO + REVERSION + CONSUMO…).
+  const { kg: kgTotal, metros: metrosTotal, porRollo } = consumoNetoPorRollo(
+    orden.movimientosInsumo.map((m) => ({ rolloId: m.rolloId, cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
   );
+  // Info de display por rollo (código, tela, color) — primer movimiento de cada rollo.
+  const rolloInfo = new Map<string, { codigo: string; nombre: string; color: string | null; unidad: string }>();
+  for (const m of orden.movimientosInsumo) {
+    if (m.rolloId && m.rollo && !rolloInfo.has(m.rolloId)) {
+      rolloInfo.set(m.rolloId, { codigo: m.rollo.codigo, nombre: m.rollo.insumo.nombre, color: m.rollo.color?.nombre ?? null, unidad: m.rollo.insumo.unidadDefault });
+    }
+  }
+  const filasTela = [...porRollo.entries()].map(([rolloId, v]) => ({ rolloId, consumo: v.consumo, ...rolloInfo.get(rolloId)! }));
   const metrosPorU = totalCortado > 0 ? metrosTotal / totalCortado : 0;
   const kgPorU = totalCortado > 0 ? kgTotal / totalCortado : 0;
   const fecha = new Date(orden.createdAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -82,10 +89,10 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* Tela consumida */}
+        {/* Tela consumida (neto por rollo) */}
         <div>
           <p className="text-xs uppercase tracking-widest text-stone-400 font-bold mb-2">Tela consumida</p>
-          {orden.movimientosInsumo.length === 0 ? (
+          {filasTela.length === 0 ? (
             <p className="text-sm text-stone-400">Sin consumos registrados.</p>
           ) : (
             <table className="w-full text-sm border border-stone-200">
@@ -95,11 +102,11 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
                 <th className="text-right py-1.5 px-3 border-b border-stone-200">Consumo</th>
               </tr></thead>
               <tbody>
-                {orden.movimientosInsumo.map((m) => (
-                  <tr key={m.id} className="border-b border-stone-100">
-                    <td className="py-1.5 px-3 font-mono text-xs">{m.rollo?.codigo}</td>
-                    <td className="py-1.5 px-3">{m.rollo?.insumo.nombre}{m.rollo?.color ? ` · ${m.rollo.color.nombre}` : ''}</td>
-                    <td className="py-1.5 px-3 text-right tabular-nums">{fmt(Math.abs(Number(m.cantidad)))} {m.rollo?.insumo.unidadDefault}</td>
+                {filasTela.map((f) => (
+                  <tr key={f.rolloId} className="border-b border-stone-100">
+                    <td className="py-1.5 px-3 font-mono text-xs">{f.codigo}</td>
+                    <td className="py-1.5 px-3">{f.nombre}{f.color ? ` · ${f.color}` : ''}</td>
+                    <td className="py-1.5 px-3 text-right tabular-nums">{fmt(f.consumo)} {f.unidad}</td>
                   </tr>
                 ))}
               </tbody>

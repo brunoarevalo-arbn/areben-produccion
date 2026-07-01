@@ -17,7 +17,7 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
       cortesPorTalle: { orderBy: { talle: 'asc' } },
       avios: { select: { etiquetaId: true, cantidad: true } },
       movimientosInsumo: {
-        where: { tipo: 'CONSUMO', rolloId: { not: null } },
+        where: { rolloId: { not: null } },
         include: { rollo: { select: { insumo: { select: { unidadDefault: true, rinde: true } } } } },
       },
     },
@@ -26,7 +26,7 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
   if (!orden) notFound();
 
   const { kg: kgTotal, metros: metrosTotal } = resumenConsumoTela(
-    orden.movimientosInsumo.map((m) => ({ cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
+    orden.movimientosInsumo.map((m) => ({ rolloId: m.rolloId, cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
   );
   const metrosPorU = orden.cantidad > 0 ? metrosTotal / orden.cantidad : 0;
   const kgPorU = orden.cantidad > 0 ? kgTotal / orden.cantidad : 0;
