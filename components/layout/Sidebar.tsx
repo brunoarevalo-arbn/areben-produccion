@@ -67,6 +67,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     seccion: ['produccion', 'cortadores', 'motivos'],
     sub: [
       { label: 'Órdenes',          href: '/produccion', seccion: 'produccion' },
+      { label: 'Fichas de corte',  href: '/produccion/fichas', seccion: 'produccion' },
       { label: 'Tiempos',          href: '/tiempos', seccion: 'produccion' },
       { label: 'Muestras',         href: '/produccion/muestras', seccion: 'produccion' },
       { label: 'Reportes',         href: '/produccion/reportes', seccion: 'produccion' },

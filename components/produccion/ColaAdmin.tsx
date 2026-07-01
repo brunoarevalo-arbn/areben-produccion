@@ -90,6 +90,7 @@ export function ColaAdmin() {
   const [ordenes, setOrdenes]   = useState<Orden[]>([]);
   const [loading, setLoading]   = useState(true);
   const [filtro, setFiltro]     = useState<string>('activos');
+  const [busqueda, setBusqueda] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<Orden | null>(null);
   const [editDescripcion, setEditDescripcion] = useState('');
@@ -391,9 +392,15 @@ export function ColaAdmin() {
     }
   };
 
-  const filtradas = filtro === 'activos'
+  const q = busqueda.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  const filtradas = (filtro === 'activos'
     ? ordenes.filter((o) => o.estado !== 'CERRADA')
-    : ordenes.filter((o) => o.estado === filtro);
+    : ordenes.filter((o) => o.estado === filtro)
+  ).filter((o) => {
+    if (!q) return true;
+    const hay = `${o.sku ?? ''} ${o.descripcion ?? ''} ${o.marca} ${o.lote?.descripcion ?? ''}`.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    return hay.includes(q);
+  });
 
   // Agrupa las órdenes hermanas (mismo lote) para mostrarlas juntas bajo el molde,
   // preservando el orden de aparición. Un lote con una sola orden visible se muestra plano.
@@ -501,6 +508,11 @@ export function ColaAdmin() {
 
   return (
     <div className="space-y-5">
+      {/* Buscador */}
+      <input type="text" value={busqueda} onChange={(e) => setBusqueda(e.target.value)}
+        placeholder="Buscar por SKU, descripción, marca…"
+        className="w-full px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400" />
+
       {/* Filtros */}
       <div className="flex flex-wrap gap-2">
         {[['activos', 'Activos', counts.activos] as const, ...ESTADOS.map((e) => [e, ESTADO_LABEL[e], counts[e]] as const)].map(([k, label, n]) => (
