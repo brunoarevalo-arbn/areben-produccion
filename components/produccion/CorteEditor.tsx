@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { RegistrarCorteForm, type CortePrefill, type FichaData } from './RegistrarCorteForm';
+import { CorteEditRapido } from './CorteEditRapido';
 import { CorteRevertir } from './CorteRevertir';
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
@@ -25,17 +26,34 @@ export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen,
   ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null;
   resumen: Resumen; fichaData: FichaData | null; prefill: CortePrefill;
 }) {
-  const [editando, setEditando] = useState(false);
+  const [modo, setModo] = useState<'ver' | 'rapido' | 'completo'>('ver');
 
-  if (editando) {
+  if (modo === 'completo') {
     return (
       <div className="space-y-3">
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-sm text-amber-800">
-          Editando la ficha. Ajustá lo que necesites y <strong>Guardá</strong> — recién ahí se aplican los cambios a los rollos.
-          <button onClick={() => setEditando(false)} className="underline font-semibold ml-2">Cancelar</button>
+          Editando la <strong>tela</strong> de la ficha. Ajustá y <strong>Guardá</strong> — recién ahí se aplican los cambios a los rollos.
+          <button onClick={() => setModo('ver')} className="underline font-semibold ml-2">Cancelar</button>
         </div>
         <RegistrarCorteForm ordenId={ordenId} sku={sku} cantidadPlanificada={cantidadPlanificada} marca={marca} prefill={prefill} />
       </div>
+    );
+  }
+
+  if (modo === 'rapido') {
+    return (
+      <CorteEditRapido
+        ordenId={ordenId}
+        marca={marca}
+        onCancel={() => setModo('ver')}
+        inicial={{
+          cortadorId: fichaData?.cortadorId ?? prefill.cortadorId ?? null,
+          costoCorte: fichaData?.costoCorte ?? prefill.costoCorte ?? 0,
+          modoCosto: fichaData?.modoCosto ?? 'total',
+          talles: resumen.talles,
+          avios: (fichaData?.avios ?? prefill.avios ?? []).map((a) => ({ etiquetaId: a.etiquetaId, cantidad: a.cantidad })),
+        }}
+      />
     );
   }
 
@@ -108,10 +126,14 @@ export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen,
         {!fichaData && <p className="text-xs text-stone-400">Esta ficha se cargó antes de guardar el detalle editable; al editarla se reconstruye lo mejor posible.</p>}
       </div>
 
-      <div className="flex gap-3">
-        <button onClick={() => setEditando(true)}
+      <div className="flex gap-3 flex-wrap">
+        <button onClick={() => setModo('rapido')}
           className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-          ✎ Editar ficha
+          ✎ Editar datos
+        </button>
+        <button onClick={() => setModo('completo')}
+          className="px-4 py-2.5 rounded-xl text-sm border border-stone-300 text-stone-700 hover:border-stone-400 transition font-semibold">
+          Editar ficha (tela)
         </button>
         <CorteRevertir ordenId={ordenId} />
         <Link href={`/produccion/${ordenId}`} className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
