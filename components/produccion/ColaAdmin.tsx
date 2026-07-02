@@ -666,12 +666,9 @@ export function ColaAdmin() {
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Descripcion</label>
-              <input type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Opcional (se aplica a todos los colores)" className={inputClass} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Notas internas</label>
-              <textarea value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Observaciones..." rows={2} className={`${inputClass} resize-none`} />
+              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Descripción <span className="font-normal text-stone-400">(es lo que ve la costurera en la tablet)</span></label>
+              <textarea value={descripcion} onChange={(e) => setDescripcion(e.target.value)} rows={2}
+                placeholder="Ej: Remera boxy manga corta · se aplica a todos los colores" className={`${inputClass} resize-none`} />
             </div>
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2 pt-1">

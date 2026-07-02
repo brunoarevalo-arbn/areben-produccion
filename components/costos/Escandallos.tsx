@@ -525,10 +525,10 @@ export function Escandallos() {
                 <input type="text" value={tipoPrenda} onChange={e => setTipoPrenda(e.target.value)}
                   placeholder="Ej: Remera, Pantalón, Campera" className={inp} />
               </div>
-              <div>
-                <label className={lbl}>Notas</label>
-                <input type="text" value={notas} onChange={e => setNotas(e.target.value)}
-                  placeholder="Observaciones o referencias" className={inp} />
+              <div className="col-span-2">
+                <label className={lbl}>Descripción <span className="font-normal text-stone-400">(se copia/envía a administración para la tienda)</span></label>
+                <textarea value={notas} onChange={e => setNotas(e.target.value)} rows={3}
+                  placeholder="Descripción del producto para la tienda (composición, detalles, etc.)" className={`${inp} resize-none`} />
               </div>
             </div>
           </div>

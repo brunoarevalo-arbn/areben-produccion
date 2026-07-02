@@ -2,11 +2,13 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { PrintButton } from '@/components/costos/PrintButton';
+import { CopiarResumen } from '@/components/costos/CopiarResumen';
 import { parseDatos, telaCosto, itemCosto, calcular } from '@/lib/costos/escandallo';
 
 export const dynamic = 'force-dynamic';
 
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
+function fmtC(n: number) { return `$${Math.round(n).toLocaleString('es-AR')}`; } // compacto para el mensaje
 
 export default async function EscandalloPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -40,12 +42,23 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
 
   const fecha = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
 
+  // Texto para copiar y mandar por WhatsApp a administración (costo + descripción).
+  const resumenTexto = [
+    `*${escandallo.sku || escandallo.nombre}*${escandallo.sku ? ` — ${escandallo.nombre}` : ''}`,
+    escandallo.marca ? `Marca: ${escandallo.marca}` : null,
+    escandallo.notas ? `\n${escandallo.notas}` : null,
+    ``,
+    `💵 Costo unitario: ${fmtC(costoTotal)}`,
+    `_Telas ${fmtC(costoTelas)} · Servicios ${fmtC(costoServicios)} · MO ${fmtC(costoMO)}${costoVarios > 0 ? ` · Varios ${fmtC(costoVarios)}` : ''} · Avíos ${fmtC(costoAvios)}_`,
+  ].filter((l) => l !== null).join('\n');
+
   return (
     <div>
       {/* Barra de acción */}
       <div className="print:hidden sticky top-0 z-10 bg-white border-b border-stone-200 px-6 py-3 flex items-center gap-4">
         <Link href="/costos" className="text-sm text-stone-500 hover:text-stone-800 transition">← Volver</Link>
         <div className="flex-1" />
+        <CopiarResumen texto={resumenTexto} />
         <PrintButton />
       </div>
 
@@ -209,25 +222,6 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
           </div>
         </div>
 
-        {/* Parámetros del taller */}
-        <div className="mb-8">
-          <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Parámetros del taller</h2>
-          <div className="bg-stone-50 rounded-xl p-4 grid grid-cols-3 gap-4 text-center">
-            <div>
-              <p className="text-xs text-stone-400 mb-1">Gastos fijos / mes</p>
-              <p className="font-bold text-stone-800">{fmt$(totalGastos)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-400 mb-1">Costo costureras / mes</p>
-              <p className="font-bold text-stone-800">{fmt$(totalCosturas)}</p>
-            </div>
-            <div>
-              <p className="text-xs text-stone-400 mb-1">Valor hora taller</p>
-              <p className="font-bold text-violet-700">{fmt$(Math.round(valorHora))}/h</p>
-            </div>
-          </div>
-        </div>
-
         {/* Resumen de costos */}
         <div className="mb-8 border-t-2 border-stone-900 pt-6">
           <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">Resumen de costos</h2>
@@ -267,8 +261,8 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
 
         {escandallo.notas && (
           <div className="mb-6">
-            <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Notas</h2>
-            <p className="text-sm text-stone-600">{escandallo.notas}</p>
+            <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Descripción</h2>
+            <p className="text-sm text-stone-600 whitespace-pre-line">{escandallo.notas}</p>
           </div>
         )}
 
