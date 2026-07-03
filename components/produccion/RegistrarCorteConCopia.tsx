@@ -6,12 +6,14 @@ import { toast } from '@/components/ui/Toaster';
 
 interface Hermana { id: string; sku: string | null; }
 
+interface TizadaGuardada { nombre?: string; modo?: 'tizada' | 'manual'; metros?: string; unidades?: string }
 interface FichaResp {
   cortadorId?: string | null;
   costoCorte?: string | number | null;
   avios?: { etiquetaId: string; cantidad: number }[];
   cortesPorTalle?: { talle: string; cantidad: number }[];
   movimientosInsumo?: { tipo: string; cantidad: string | number; rollo?: { insumo?: { rinde: string | number | null } } | null }[];
+  fichaCorteData?: { tizadas?: TizadaGuardada[] } | null;
 }
 
 // Envuelve el form de corte y permite, en una OP de un lote, copiar la ficha de una
@@ -33,7 +35,13 @@ export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marc
       const d: FichaResp = await r.json();
       const talles = (d.cortesPorTalle ?? []).map((c) => ({ talle: c.talle, cantidad: c.cantidad }));
       const unidades = talles.reduce((s, t) => s + t.cantidad, 0);
-      // Metros totales que consumió la hermana = Σ |kg consumido| × rinde del insumo.
+      // Receta de tizadas SEPARADAS desde la ficha guardada (cuerpo, puño, manga…), sin
+      // rollos (cada color usa su tela). Si la hermana es vieja (sin fichaCorteData), se
+      // cae al modo anterior: una sola tizada con el total de metros consumidos.
+      const tizadasGuardadas = (d.fichaCorteData?.tizadas ?? []).filter((t) => t && (t.metros || t.unidades || t.nombre));
+      const tizadasReceta = tizadasGuardadas.length
+        ? tizadasGuardadas.map((t) => ({ nombre: t.nombre ?? '', modo: (t.modo ?? 'tizada'), metros: t.metros ?? '', unidades: t.unidades ?? '1' }))
+        : undefined;
       const metros = (d.movimientosInsumo ?? [])
         .filter((m) => m.tipo === 'CONSUMO')
         .reduce((s, m) => s + Math.abs(Number(m.cantidad)) * Number(m.rollo?.insumo?.rinde ?? 0), 0);
@@ -42,7 +50,8 @@ export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marc
         cortadorId: d.cortadorId ?? null,
         costoCorte: d.costoCorte ? Number(d.costoCorte) : undefined,
         talles,
-        tizada: unidades > 0 && metros > 0 ? { metros: Math.round(metros * 100) / 100, unidades } : undefined,
+        tizadasReceta,
+        tizada: !tizadasReceta && unidades > 0 && metros > 0 ? { metros: Math.round(metros * 100) / 100, unidades } : undefined,
       });
       setFormKey((k) => k + 1);
       toast.success('Ficha copiada — solo elegí el rollo del color (el rinde ya viene)');

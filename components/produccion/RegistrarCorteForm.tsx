@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/Button';
 interface RolloDisp {
   id: string; codigo: string; pesoActual: string; costoUnitario: string;
   insumo: { nombre: string; rinde: string | null }; color: { nombre: string } | null;
+  colorProveedor?: string | null;
+  compra?: { proveedor: { nombre: string } | null } | null;
 }
 interface CortadorOpt {
   id: string; nombre: string; tarifaDefault: string | null; tarifaModo: string | null; activo: boolean;
@@ -55,6 +57,9 @@ export interface CortePrefill {
   // Rinde del corte de la hermana (mismo molde): metros totales y unidades, para
   // derivar m/u. La tela (rollos) NO se copia; se elige la del color.
   tizada?: { metros: number; unidades: number };
+  // Copiar de la hermana la RECETA de tizadas por separado (cada una con su rinde),
+  // sin rollos. Reemplaza a `tizada` cuando la hermana tiene fichaCorteData.
+  tizadasReceta?: { nombre: string; modo: 'tizada' | 'manual'; metros: string; unidades: string }[];
   // Editar la propia ficha: estado completo guardado (tizadas, rollos, etc.) → idéntico.
   fichaData?: FichaData;
 }
@@ -67,15 +72,20 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const tizadaSeq = useRef(2);
-  // Editar: arranca de las tizadas guardadas (idénticas). Si no, una tizada vacía (con el
-  // rinde de la hermana si se copió).
-  const [tizadas, setTizadas] = useState<Tizada[]>(() => fd?.tizadas?.length ? fd.tizadas : [{
-    id: 't1', nombre: '', modo: 'tizada',
-    metros:   prefill?.tizada?.metros   ? String(prefill.tizada.metros)   : '',
-    unidades: prefill?.tizada?.unidades ? String(prefill.tizada.unidades) : '1',
-    rollos: [],
-  }]);
+  // Editar: arranca de las tizadas guardadas (idénticas). Copiar hermana: la receta de
+  // tizadas por separado (sin rollos). Si no, una tizada vacía (con el rinde si se copió).
+  const initialTizadas: Tizada[] = fd?.tizadas?.length
+    ? fd.tizadas
+    : prefill?.tizadasReceta?.length
+      ? prefill.tizadasReceta.map((t, i) => ({ id: `t${i + 1}`, nombre: t.nombre, modo: t.modo, metros: t.metros, unidades: t.unidades, rollos: [] }))
+      : [{
+          id: 't1', nombre: '', modo: 'tizada',
+          metros:   prefill?.tizada?.metros   ? String(prefill.tizada.metros)   : '',
+          unidades: prefill?.tizada?.unidades ? String(prefill.tizada.unidades) : '1',
+          rollos: [],
+        }];
+  const tizadaSeq = useRef(initialTizadas.length + 1);
+  const [tizadas, setTizadas] = useState<Tizada[]>(initialTizadas);
   const [aviosCatalogo, setAviosCatalogo] = useState<AvioOpt[]>([]);
   const [aviosSel, setAviosSel] = useState<AvioSel[]>(
     () => (fd?.avios ?? prefill?.avios ?? []).map((a) => ({ etiquetaId: a.etiquetaId, cantidad: String(a.cantidad) })),
@@ -145,7 +155,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
       return { ...t, rollos: [...t.rollos, {
         rolloId: r.id, metros: '', codigo: r.codigo,
         pesoActual: Number(r.pesoActual), costoUnitario: Number(r.costoUnitario),
-        rinde: Number(r.insumo.rinde), nombre: `${r.insumo.nombre}${r.color ? ` · ${r.color.nombre}` : ''}`,
+        rinde: Number(r.insumo.rinde), nombre: `${r.insumo.nombre} · ${r.color?.nombre ?? 's/color'}${r.compra?.proveedor ? ` · ${r.compra.proveedor.nombre}` : ''}`,
       }] };
     }));
   const updRolloMetrosTizada = (tizadaId: string, rolloId: string, val: string) =>
@@ -333,7 +343,11 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
                       <div key={r.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border ${selected ? 'border-blue-300 bg-blue-50' : 'border-stone-100'}`}>
                         <input type="checkbox" checked={!!selected} onChange={() => toggleRolloTizada(t.id, r)} className="rounded border-stone-300 accent-amber-500" />
                         <span className="font-mono text-xs text-stone-700 w-16">{r.codigo}</span>
-                        <span className="text-xs text-stone-600 flex-1 truncate">{r.insumo.nombre}{r.color ? ` · ${r.color.nombre}` : ''}</span>
+                        <span className="text-xs text-stone-600 flex-1 truncate">
+                          {r.insumo.nombre} · {r.color?.nombre ?? <span className="text-stone-400">s/color</span>}
+                          {r.compra?.proveedor && <span className="text-stone-500"> · {r.compra.proveedor.nombre}</span>}
+                          {r.colorProveedor && <span className="text-stone-300"> · {r.colorProveedor}</span>}
+                        </span>
                         <span className="text-xs text-stone-400 tabular-nums">{Number(r.pesoActual).toFixed(1)}kg · ~{metrosDisp.toFixed(0)}m</span>
                         {selected && (
                           t.modo === 'manual' ? (
