@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
   const exists = await prisma.usuario.findUnique({ where: { username: username.toLowerCase().trim() } });
   if (exists) return NextResponse.json({ error: 'El usuario ya existe' }, { status: 409 });
 
-  const rolValido = ROLES_VALIDOS.includes(rol) ? rol : 'costurera';
+  const rolValido = ROLES_VALIDOS.includes(rol) ? rol : 'diseñadora'; // default: por permisos
   const passwordHash = await hashPassword(password);
 
   const usuario = await prisma.usuario.create({

@@ -18,10 +18,13 @@ interface Usuario {
   createdAt: string | Date;
 }
 
+// El acceso se define por PERMISOS. Solo hay 3 "modos": por permisos (el general, tildás
+// las secciones — acá entra el cortador), Administrador (acceso total) y Costurera (tablet).
+// El valor interno 'diseñadora' se mantiene por compatibilidad = "por permisos".
 const ROLES = [
-  { value: 'costurera',  label: 'Costurera',   color: 'bg-amber-100 text-amber-700' },
-  { value: 'diseñadora', label: 'Diseñadora',   color: 'bg-violet-100 text-violet-700' },
+  { value: 'diseñadora', label: 'Por permisos',  color: 'bg-violet-100 text-violet-700' },
   { value: 'admin',      label: 'Administrador', color: 'bg-stone-100 text-stone-700' },
+  { value: 'costurera',  label: 'Costurera (tablet)', color: 'bg-amber-100 text-amber-700' },
 ] as const;
 
 function rolColor(rol: string) {
@@ -103,7 +106,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
   const [nombre,   setNombre]   = useState('');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [rol,      setRol]      = useState<string>('costurera');
+  const [rol,      setRol]      = useState<string>('diseñadora');
   const [permisos, setPermisos] = useState<string[]>([]);
   const [saving,   setSaving]   = useState(false);
   const [error,    setError]    = useState('');
@@ -134,7 +137,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
         setError(data.error || 'Error al crear usuario');
       } else {
         setUsuarios((prev) => [...prev, data]);
-        setNombre(''); setUsername(''); setPassword(''); setRol('costurera'); setPermisos([]);
+        setNombre(''); setUsername(''); setPassword(''); setRol('diseñadora'); setPermisos([]);
         setShowForm(false);
         router.refresh();
       }
@@ -308,7 +311,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
                 placeholder="Mínimo 6 caracteres" className={inputClass} />
             </Field>
 
-            <Field label="Rol">
+            <Field label="Acceso">
               <div className="flex gap-2 flex-wrap">
                 {ROLES.map((r) => (
                   <button key={r.value} type="button" onClick={() => { setRol(r.value); setPermisos([]); }}
@@ -363,7 +366,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
                 placeholder="••••••••" className={inputClass} />
             </Field>
 
-            <Field label="Rol">
+            <Field label="Acceso">
               <div className="flex gap-2 flex-wrap">
                 {ROLES.map((r) => (
                   <button key={r.value} type="button" onClick={() => { setEditRol(r.value); setEditPermisos([]); }}
