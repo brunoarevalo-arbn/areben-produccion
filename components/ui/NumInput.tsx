@@ -18,7 +18,7 @@ type NumInputProps = Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onCh
  * un valor que no caiga justo en el paso (ej. 11.8 traído de producción) dispara
  * la validación nativa de HTML y bloquea el submit del formulario.
  */
-export function NumInput({ value, onChange, onFocus, step: _step, ...rest }: NumInputProps) {
+export function NumInput({ value, onChange, onFocus, onWheel, step: _step, ...rest }: NumInputProps) {
   const [buf, setBuf] = useState(value ? String(value) : '');
 
   // Sincroniza si el valor externo cambia por fuera de lo que se está tipeando
@@ -37,6 +37,9 @@ export function NumInput({ value, onChange, onFocus, step: _step, ...rest }: Num
       value={buf}
       onChange={(e) => { setBuf(e.target.value); onChange(parseFloat(e.target.value) || 0); }}
       onFocus={(e) => { e.currentTarget.select(); onFocus?.(e); }}
+      // Evita que girar la ruedita del mouse cambie el número: al hacer scroll, se
+      // quita el foco y la página scrollea normal (no se modifica el valor).
+      onWheel={(e) => { e.currentTarget.blur(); onWheel?.(e); }}
     />
   );
 }
