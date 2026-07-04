@@ -24,10 +24,14 @@ interface Orden {
   creadoPor: string;
   terminadoAt: string | null;
   createdAt: string;
+  cortador: string | null;
+  cortadorId: string | null;
+  corteEstado: string | null;
   transiciones: Transicion[];
   loteId: string | null;
   lote: { id: string; prenda: string | null; descripcion: string | null; marca: string } | null;
 }
+interface CortadorLite { id: string; nombre: string; activo: boolean; usuarioId: string | null }
 
 interface CatalogoEntry {
   id: string;
@@ -100,6 +104,7 @@ export function ColaAdmin() {
   const [editError, setEditError]             = useState('');
 
   const [catalogo, setCatalogo]       = useState<CatalogoEntry[]>([]);
+  const [cortadores, setCortadores]   = useState<CortadorLite[]>([]);
   const [marcaAbrev, setMarcaAbrev]   = useState('');
   const [prendaAbrev, setPrendaAbrev] = useState('');
   const [descripcion, setDescripcion] = useState('');
@@ -140,6 +145,7 @@ export function ColaAdmin() {
 
   useEffect(() => {
     fetch('/api/sku-catalogo').then((r) => r.ok ? r.json() : []).then(setCatalogo).catch(() => {});
+    fetch('/api/cortadores').then((r) => r.ok ? r.json() : []).then((c: CortadorLite[]) => setCortadores(c.filter((x) => x.activo))).catch(() => {});
   }, []);
 
   const cargar = useCallback(async () => {
@@ -148,6 +154,18 @@ export function ColaAdmin() {
     if (r.ok) setOrdenes(await r.json());
     setLoading(false);
   }, []);
+
+  // Asignar cortador a una OP (desde la cola) o a todo un lote.
+  const asignarCortador = async (ordenId: string, cortadorId: string) => {
+    const r = await fetch(`/api/produccion/cola/${ordenId}/asignar-cortador`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cortadorId: cortadorId || null }) });
+    if (r.ok) { const d = await r.json(); setOrdenes((prev) => prev.map((o) => o.id === ordenId ? { ...o, cortadorId: d.cortadorId, cortador: d.cortador, corteEstado: d.corteEstado } : o)); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo asignar'); }
+  };
+  const asignarCortadorLote = async (loteId: string, cortadorId: string) => {
+    const r = await fetch(`/api/produccion/lote/${loteId}/asignar-cortador`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cortadorId: cortadorId || null }) });
+    if (r.ok) { toast.success('Cortador asignado al lote'); cargar(); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo asignar'); }
+  };
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -465,7 +483,17 @@ export function ColaAdmin() {
         <span className="text-xs tabular-nums text-right text-stone-500">
           {Number(orden.costoTotal) > 0 ? `$${fmt(orden.costoTotal)}` : '--'}
         </span>
-        <div className="flex gap-1.5 shrink-0">
+        <div className="flex gap-1.5 shrink-0 items-center">
+          {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && cortadores.length > 0 && (
+            <div className="flex items-center gap-1">
+              <select value={orden.cortadorId ?? ''} onChange={(e) => asignarCortador(orden.id, e.target.value)} title="Asignar cortador"
+                className="text-xs px-1.5 py-1 rounded-lg border border-stone-200 text-stone-600 bg-white cursor-pointer focus:outline-none focus:border-amber-400 max-w-[7.5rem]">
+                <option value="">✂ cortador</option>
+                {cortadores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+              </select>
+              {orden.corteEstado === 'cargado' && <span className="text-[11px] text-blue-600 font-bold" title="El cortador ya cargó su corte">✓</span>}
+            </div>
+          )}
           {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
             <Link href={`/produccion/${orden.id}/corte`}
               className="text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition">
@@ -564,6 +592,9 @@ export function ColaAdmin() {
               const hayParaCostura   = fila.ordenes.some((o) => (ESTADO_SIGUIENTE[o.estado] || []).includes('COSTURA') && o.sku);
               const hayParaTerminar  = fila.ordenes.some((o) => o.estado === 'COSTURA');
               const hayParaCerrar    = fila.ordenes.some((o) => o.estado === 'TERMINADO_SIN_ESTAMPA');
+              const asignables       = fila.ordenes.filter((o) => !o.fichaCorteCargada && o.estado !== 'CERRADA');
+              const idsCortador      = [...new Set(asignables.map((o) => o.cortadorId))];
+              const loteCortadorId   = idsCortador.length === 1 ? (idsCortador[0] ?? '') : '';
               return (
                 <div key={fila.loteId} className="border-t border-stone-100">
                   <div className="px-6 py-2.5 bg-amber-50/60 flex items-center gap-2 text-xs">
@@ -575,6 +606,13 @@ export function ColaAdmin() {
                       <span className="text-stone-400 truncate">· {lote.descripcion}</span>
                     )}
                     <span className="ml-auto text-stone-500 font-semibold tabular-nums">{totalU} u</span>
+                    {asignables.length > 0 && cortadores.length > 0 && (
+                      <select value={loteCortadorId} onChange={(e) => asignarCortadorLote(fila.loteId, e.target.value)} title="Asignar cortador a todo el lote"
+                        className="px-1.5 py-1 rounded-lg border border-stone-200 text-stone-600 bg-white cursor-pointer focus:outline-none focus:border-amber-400 max-w-[9rem]">
+                        <option value="">✂ cortador (lote)</option>
+                        {cortadores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                      </select>
+                    )}
                     {hayParaCortar && (
                       <Link href={`/produccion/lote/${fila.loteId}/corte`}
                         className="px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition font-semibold">
