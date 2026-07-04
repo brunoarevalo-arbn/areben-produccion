@@ -49,8 +49,11 @@ export default function LoginPage() {
       if (!res.ok) {
         setError(data.error || 'Error al ingresar');
       } else {
+        const permisos: string[] = data.permisos ?? [];
         if (data.rol === 'costurera') {
           router.push('/tiempos');
+        } else if (data.rol !== 'admin' && permisos.includes('cortador') && !permisos.includes('dashboard')) {
+          router.push('/cortador'); // cortador → directo a su panel
         } else {
           router.push('/dashboard');
         }

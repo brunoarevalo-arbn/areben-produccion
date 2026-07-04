@@ -390,6 +390,7 @@ model OrdenProduccion {
   fichaFotoUrl            String?
   fichaCorteData          Json?     // estado del form de corte tal cual se cargó (para ver/editar idéntico)
   fechaCorte              DateTime? // fecha en que se hizo el corte (para coordinar pagos al cortador)
+  corteEstado             String?   // panel cortador: null | 'asignado' | 'cargado' (falta que la diseñadora asigne rollo y valide)
 
   avios                   OrdenAvio[]
   aviosDescontados        Boolean   @default(false) // guard: el stock de avíos se descuenta una sola vez
@@ -470,12 +471,31 @@ model Cortador {
   tarifaDefault Decimal?
   tarifaModo    String?           // 'total' | 'unidad'
   notas         String?
+  usuarioId     String?           @unique // usuario de login del cortador (panel propio)
   activo        Boolean           @default(true)
   ordenes       OrdenProduccion[]
+  muestras      CorteMuestra[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
   @@map("cortadores")
+}
+
+// Corte de muestra cargado por el cortador (aparte de la producción): consumo y valor.
+model CorteMuestra {
+  id         String   @id @default(cuid())
+  cortadorId String
+  cortador   Cortador @relation(fields: [cortadorId], references: [id])
+  descripcion String
+  consumo    Decimal  @default(0) // metros/kg de la tizada de muestra
+  unidad     String   @default("m")
+  valor      Decimal  @default(0) // valor del corte de muestra (cobro)
+  estado     String   @default("pendiente") // 'pendiente' | 'validado'
+  fecha      DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@index([cortadorId])
+  @@map("cortes_muestra")
 }
 
 model MotivoDescarte {

@@ -27,6 +27,7 @@ export async function POST(req: NextRequest) {
       tarifaDefault: data.tarifaDefault !== undefined ? new Prisma.Decimal(data.tarifaDefault) : null,
       tarifaModo: data.tarifaModo || null,
       notas: data.notas || null,
+      usuarioId: data.usuarioId || null,
     },
   });
   return NextResponse.json(cortador, { status: 201 });

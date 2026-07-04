@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -15,7 +15,9 @@ interface Cortador {
   tarifaModo: string | null;
   notas: string | null;
   activo: boolean;
+  usuarioId: string | null;
 }
+interface UsuarioOpt { id: string; nombre: string; username: string; permisos: string[]; activo: boolean }
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 
@@ -31,9 +33,15 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
   const [tarifaDefault, setTarifaDefault] = useState('');
   const [tarifaModo, setTarifaModo]       = useState<'total' | 'unidad' | ''>('');
   const [notas, setNotas]                 = useState('');
+  const [usuarioId, setUsuarioId]         = useState('');
+  const [usuarios, setUsuarios]           = useState<UsuarioOpt[]>([]);
+
+  useEffect(() => {
+    fetch('/api/usuarios').then((r) => r.ok ? r.json() : []).then((us: UsuarioOpt[]) => setUsuarios(us.filter((u) => u.activo))).catch(() => {});
+  }, []);
 
   const resetForm = () => {
-    setNombre(''); setContacto(''); setTarifaDefault(''); setTarifaModo(''); setNotas(''); setError('');
+    setNombre(''); setContacto(''); setTarifaDefault(''); setTarifaModo(''); setNotas(''); setUsuarioId(''); setError('');
   };
 
   const abrirNuevo = () => { resetForm(); setEditando(null); setShowForm(true); };
@@ -41,7 +49,7 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
     setNombre(c.nombre); setContacto(c.contacto || '');
     setTarifaDefault(c.tarifaDefault ? String(Number(c.tarifaDefault)) : '');
     setTarifaModo((c.tarifaModo as 'total' | 'unidad' | null) || '');
-    setNotas(c.notas || '');
+    setNotas(c.notas || ''); setUsuarioId(c.usuarioId || '');
     setEditando(c); setShowForm(true); setError('');
   };
 
@@ -56,6 +64,7 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
       tarifaDefault: tarifaDefault ? Number(tarifaDefault) : undefined,
       tarifaModo: tarifaModo || undefined,
       notas: notas.trim() || undefined,
+      usuarioId: usuarioId || null,
     };
 
     const url = editando ? `/api/cortadores/${editando.id}` : '/api/cortadores';
@@ -112,7 +121,13 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
                 <option value="unidad">Por unidad</option>
               </Select>
             </div>
-            <Textarea label="Notas" fullWidth value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} className="resize-none" />
+            <Select label="Usuario del panel (login del cortador)" fullWidth value={usuarioId} onChange={(e) => setUsuarioId(e.target.value)}>
+              <option value="">— Sin usuario (no accede al panel) —</option>
+              {usuarios.filter((u) => u.permisos?.includes('cortador') || u.id === usuarioId).map((u) => (
+                <option key={u.id} value={u.id}>{u.nombre} · {u.username}</option>
+              ))}
+            </Select>
+            <p className="text-xs text-stone-400 -mt-2">Creá antes el usuario con permiso “Cortador (panel)” en Configuración → Usuarios, y pasale el link de acceso.</p>
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2">
               <Button type="submit" disabled={saving} isLoading={saving}>

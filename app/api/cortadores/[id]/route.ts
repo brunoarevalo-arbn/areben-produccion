@@ -22,6 +22,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (d.tarifaModo !== undefined) data.tarifaModo = d.tarifaModo || null;
   if (d.notas !== undefined) data.notas = d.notas || null;
   if (d.activo !== undefined) data.activo = d.activo;
+  if (d.usuarioId !== undefined) data.usuarioId = d.usuarioId || null;
 
   const cortador = await prisma.cortador.update({ where: { id }, data });
   return NextResponse.json(cortador);

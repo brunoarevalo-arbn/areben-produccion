@@ -124,6 +124,7 @@ export const CortadorSchema = z.object({
   tarifaModo:    z.enum(['total', 'unidad']).optional(),
   notas:         z.string().optional(),
   activo:        z.boolean().optional(),
+  usuarioId:     z.string().nullable().optional(), // usuario de login del cortador (panel)
 });
 
 export const MotivoDescarteSchema = z.object({

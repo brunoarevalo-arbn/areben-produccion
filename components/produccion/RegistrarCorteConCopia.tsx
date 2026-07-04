@@ -19,10 +19,10 @@ interface FichaResp {
 // Envuelve el form de corte y permite, en una OP de un lote, copiar la ficha de una
 // hermana que ya la tiene: prellena avíos, cortador, costo y talles (la tela se elige
 // aparte porque cada color usa la suya).
-export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marca, hermanas, volverA }: {
-  ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; hermanas: Hermana[]; volverA?: string;
+export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marca, hermanas, volverA, initialPrefill }: {
+  ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; hermanas: Hermana[]; volverA?: string; initialPrefill?: CortePrefill;
 }) {
-  const [prefill, setPrefill] = useState<CortePrefill | undefined>();
+  const [prefill, setPrefill] = useState<CortePrefill | undefined>(initialPrefill);
   const [formKey, setFormKey] = useState(0);
   const [copiando, setCopiando] = useState(false);
   const [desde, setDesde] = useState(hermanas[0]?.id ?? '');
@@ -70,6 +70,11 @@ export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marc
 
   return (
     <div className="space-y-4">
+      {initialPrefill?.fichaData && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-sm text-blue-900">
+          El cortador ya cargó las tizadas, talles y precio. <strong>Asigná la tela (rollo)</strong> de cada tizada y guardá.
+        </div>
+      )}
       {hermanas.length > 0 && (
         <div className="flex flex-wrap items-center gap-3 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5">
           <span className="text-sm text-blue-900">

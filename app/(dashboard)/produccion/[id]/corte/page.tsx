@@ -34,6 +34,8 @@ export default async function CortePage({ params, searchParams }: { params: Prom
 
   // Detalle guardado del form (para ver/editar idéntico). Puede faltar en fichas viejas.
   const fichaData = (orden.fichaCorteData ?? null) as FichaData | null;
+  // Pre-carga del cortador (tizadas/talles/precio sin rollo) → la diseñadora asigna la tela.
+  const preCargaCortador = orden.corteEstado === 'cargado' && fichaData ? { fichaData } : undefined;
 
   // Hermanas del mismo lote que ya tienen ficha → se puede copiar la suya.
   const hermanas = orden.loteId
@@ -80,7 +82,7 @@ export default async function CortePage({ params, searchParams }: { params: Prom
         title={orden.sku ?? ''}
         subtitle={`${orden.descripcion || orden.marca} · Planificadas: ${orden.cantidad} unidades`}
       />
-      <RegistrarCorteConCopia ordenId={orden.id} sku={orden.sku ?? ''} cantidadPlanificada={orden.cantidad} marca={orden.marca} hermanas={hermanas} volverA={volverA} />
+      <RegistrarCorteConCopia ordenId={orden.id} sku={orden.sku ?? ''} cantidadPlanificada={orden.cantidad} marca={orden.marca} hermanas={hermanas} volverA={volverA} initialPrefill={preCargaCortador} />
     </div>
   );
 }

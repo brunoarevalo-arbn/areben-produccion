@@ -102,6 +102,13 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     ],
   },
   {
+    label: 'Mis cortes',
+    href: '/cortador',
+    icon: '✂',
+    seccion: 'cortador',
+    sub: [],
+  },
+  {
     label: 'Reposición',
     href: '/reposicion',
     icon: '🔁',

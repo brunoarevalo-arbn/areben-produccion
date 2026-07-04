@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
 import { resumenConsumoTela } from '@/lib/produccion/consumo';
+import { AsignarCortador } from '@/components/produccion/AsignarCortador';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,12 +85,19 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
         </div>
       </div>
 
+      {/* Asignar cortador (para que cargue desde su panel) */}
+      {!orden.fichaCorteCargada && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-4 mb-6">
+          <AsignarCortador ordenId={orden.id} cortadorId={orden.cortadorId} corteEstado={orden.corteEstado} />
+        </div>
+      )}
+
       {/* Acciones de ficha */}
       <div className="flex gap-3 mb-6">
         {!orden.fichaCorteCargada ? (
           <Link href={`/produccion/${orden.id}/corte`}
             className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-            Cargar ficha de corte{orden.estado === 'CERRADA' ? ' (orden cerrada)' : ''}
+            {orden.corteEstado === 'cargado' ? 'Asignar tela y validar corte' : 'Cargar ficha de corte'}{orden.estado === 'CERRADA' ? ' (orden cerrada)' : ''}
           </Link>
         ) : (
           <>
