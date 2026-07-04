@@ -136,7 +136,8 @@ export const MotivoDescarteSchema = z.object({
 export const PagoCorteSchema = z.object({
   fecha:          z.string().min(1, 'Fecha obligatoria'),
   beneficiario:   z.string().min(1, 'Beneficiario obligatorio'),
-  ordenIds:       z.array(z.string().min(1)).min(1, 'Selecciona al menos una OP'),
+  ordenIds:       z.array(z.string().min(1)).default([]),
+  muestraIds:     z.array(z.string().min(1)).default([]),
   notas:          z.string().optional(),
   comprobanteUrl: z.string().optional(),
-});
+}).refine((d) => d.ordenIds.length + d.muestraIds.length > 0, { message: 'Selecciona al menos un corte o muestra' });

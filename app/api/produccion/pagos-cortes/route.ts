@@ -56,28 +56,34 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
-  const { fecha, beneficiario, ordenIds, notas, comprobanteUrl } = parsed.data;
+  const { fecha, beneficiario, ordenIds, muestraIds, notas, comprobanteUrl } = parsed.data;
 
   // Validar que las OPs existen, tienen costoCorte > 0 y no estan ya pagadas
   const ordenes = await prisma.ordenProduccion.findMany({
     where: { id: { in: ordenIds } },
     select: { id: true, sku: true, costoCorte: true, pagoCorteId: true },
   });
-
   if (ordenes.length !== ordenIds.length) {
     return NextResponse.json({ error: 'Alguna OP no existe' }, { status: 400 });
   }
-
   for (const o of ordenes) {
-    if (o.pagoCorteId) {
-      return NextResponse.json({ error: `OP ${o.sku} ya tiene pago registrado` }, { status: 400 });
-    }
-    if (Number(o.costoCorte) <= 0) {
-      return NextResponse.json({ error: `OP ${o.sku} no tiene costo de corte` }, { status: 400 });
-    }
+    if (o.pagoCorteId) return NextResponse.json({ error: `OP ${o.sku} ya tiene pago registrado` }, { status: 400 });
+    if (Number(o.costoCorte) <= 0) return NextResponse.json({ error: `OP ${o.sku} no tiene costo de corte` }, { status: 400 });
   }
 
-  const montoTotal = ordenes.reduce((s, o) => s.add(o.costoCorte), new Prisma.Decimal(0));
+  // Muestras: deben estar validadas y sin pago
+  const muestras = await prisma.corteMuestra.findMany({
+    where: { id: { in: muestraIds } },
+    select: { id: true, descripcion: true, valor: true, estado: true, pagoCorteId: true },
+  });
+  if (muestras.length !== muestraIds.length) return NextResponse.json({ error: 'Alguna muestra no existe' }, { status: 400 });
+  for (const m of muestras) {
+    if (m.pagoCorteId) return NextResponse.json({ error: `La muestra "${m.descripcion}" ya está pagada` }, { status: 400 });
+    if (m.estado !== 'validado') return NextResponse.json({ error: `La muestra "${m.descripcion}" no está validada` }, { status: 400 });
+  }
+
+  const montoTotal = [...ordenes.map((o) => o.costoCorte), ...muestras.map((m) => m.valor)]
+    .reduce((s, v) => s.add(v), new Prisma.Decimal(0));
 
   const pago = await prisma.$transaction(async (tx) => {
     const p = await tx.pagoCorte.create({
@@ -90,12 +96,8 @@ export async function POST(req: NextRequest) {
         creadoPor: session.nombre,
       },
     });
-
-    await tx.ordenProduccion.updateMany({
-      where: { id: { in: ordenIds } },
-      data: { pagoCorteId: p.id },
-    });
-
+    if (ordenIds.length) await tx.ordenProduccion.updateMany({ where: { id: { in: ordenIds } }, data: { pagoCorteId: p.id } });
+    if (muestraIds.length) await tx.corteMuestra.updateMany({ where: { id: { in: muestraIds } }, data: { pagoCorteId: p.id } });
     return p;
   });
 

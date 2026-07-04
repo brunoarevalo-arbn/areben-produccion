@@ -19,6 +19,11 @@ interface OrdenCorte {
   transiciones: { fecha: string }[];
 }
 
+interface Muestra {
+  id: string; descripcion: string; valor: string; estado: string; pagoCorteId: string | null;
+  fecha: string; cortador: { nombre: string } | null; consumo: string; unidad: string;
+}
+
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 const fmt = (n: string | number) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
@@ -32,6 +37,8 @@ export function PagosCortesClient() {
   const [filtro, setFiltro]     = useState<'pendiente' | 'pagado' | 'todos'>('pendiente');
   const [filtroCortador, setFiltroCortador] = useState('');
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
+  const [muestras, setMuestras]   = useState<Muestra[]>([]);
+  const [selMuestras, setSelMuestras] = useState<Set<string>>(new Set());
 
   // Form de pago
   const [showForm, setShowForm] = useState(false);
@@ -46,10 +53,24 @@ export function PagosCortesClient() {
     const params = new URLSearchParams();
     if (filtro !== 'todos') params.set('pago', filtro);
     if (filtroCortador) params.set('cortador', filtroCortador);
-    const r = await fetch(`/api/produccion/pagos-cortes?${params}`);
+    const mp = new URLSearchParams();
+    if (filtro !== 'todos') mp.set('pago', filtro);
+    const [r, rm] = await Promise.all([
+      fetch(`/api/produccion/pagos-cortes?${params}`),
+      fetch(`/api/produccion/cortes-muestra?${mp}`),
+    ]);
     if (r.ok) setOrdenes(await r.json());
+    if (rm.ok) setMuestras(await rm.json());
     setLoading(false);
   }, [filtro, filtroCortador]);
+
+  // Solo se pueden pagar muestras validadas y sin pago; filtradas por cortador si aplica.
+  const muestrasVista = muestras.filter((m) => !filtroCortador || m.cortador?.nombre === filtroCortador);
+  const validar = async (id: string, estado: 'validado' | 'pendiente') => {
+    const r = await fetch(`/api/produccion/cortes-muestra/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado }) });
+    if (r.ok) setMuestras((prev) => prev.map((m) => m.id === id ? { ...m, estado } : m));
+  };
+  const toggleMuestra = (id: string) => setSelMuestras((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   useEffect(() => { cargar(); }, [cargar]);
 
@@ -74,13 +95,14 @@ export function PagosCortesClient() {
   };
 
   const seleccionadas = ordenes.filter((o) => seleccion.has(o.id));
-  const totalSeleccionado = seleccionadas.reduce((s, o) => s + Number(o.costoCorte), 0);
+  const muestrasSel = muestrasVista.filter((m) => selMuestras.has(m.id));
+  const totalSeleccionado = seleccionadas.reduce((s, o) => s + Number(o.costoCorte), 0) + muestrasSel.reduce((s, m) => s + Number(m.valor), 0);
 
-  // Sugerir beneficiario del cortador de las seleccionadas si todas tienen el mismo
-  const cortadoresUnicos = [...new Set(seleccionadas.map((o) => o.cortador).filter(Boolean))];
+  // Sugerir beneficiario del cortador de lo seleccionado si es un solo cortador.
+  const cortadoresUnicos = [...new Set([...seleccionadas.map((o) => o.cortador), ...muestrasSel.map((m) => m.cortador?.nombre ?? null)].filter(Boolean))];
 
   const abrirPago = () => {
-    if (seleccion.size === 0) return;
+    if (seleccion.size + selMuestras.size === 0) return;
     if (cortadoresUnicos.length === 1) setBeneficiario(cortadoresUnicos[0]!);
     setShowForm(true);
     setError('');
@@ -100,6 +122,7 @@ export function PagosCortesClient() {
         fecha,
         beneficiario: beneficiario.trim(),
         ordenIds: [...seleccion],
+        muestraIds: [...selMuestras],
         notas: notas || undefined,
       }),
     });
@@ -107,6 +130,7 @@ export function PagosCortesClient() {
     if (r.ok) {
       setShowForm(false);
       setSeleccion(new Set());
+      setSelMuestras(new Set());
       setBeneficiario('');
       setNotas('');
       cargar();
@@ -159,10 +183,10 @@ export function PagosCortesClient() {
           {cortadores.map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
 
-        {seleccion.size > 0 && (
+        {seleccion.size + selMuestras.size > 0 && (
           <div className="ml-auto flex items-center gap-3">
             <span className="text-sm text-stone-600">
-              {seleccion.size} seleccionadas · <strong>${fmt(totalSeleccionado)}</strong>
+              {seleccion.size + selMuestras.size} seleccionado(s) · <strong>${fmt(totalSeleccionado)}</strong>
             </span>
             <Button variant="primary" size="md" onClick={abrirPago}>Registrar pago</Button>
           </div>
@@ -226,13 +250,41 @@ export function PagosCortesClient() {
         </div></div>
       </div>
 
+      {/* Muestras del cortador */}
+      {muestrasVista.length > 0 && (
+        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+          <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 text-xs font-bold uppercase tracking-widest text-stone-400">Muestras de cortadores</div>
+          {muestrasVista.map((m, i) => {
+            const pagada = !!m.pagoCorteId;
+            const validada = m.estado === 'validado';
+            return (
+              <div key={m.id} className={`px-5 py-3 flex items-center gap-3 text-sm ${i > 0 ? 'border-t border-stone-100' : ''} ${pagada ? 'opacity-60' : ''}`}>
+                {!pagada && validada
+                  ? <input type="checkbox" checked={selMuestras.has(m.id)} onChange={() => toggleMuestra(m.id)} className="rounded border-stone-300" />
+                  : <span className="w-4" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-stone-800 truncate">{m.descripcion}</p>
+                  <p className="text-xs text-stone-400">{m.cortador?.nombre ?? '--'} · {Number(m.consumo)} {m.unidad} · {fechaCorta(m.fecha)}</p>
+                </div>
+                {pagada
+                  ? <Badge variant="success" size="sm">Pagada</Badge>
+                  : validada
+                    ? <button onClick={() => validar(m.id, 'pendiente')} className="text-xs text-stone-400 hover:text-stone-600">✓ validada</button>
+                    : <Button variant="secondary" size="sm" onClick={() => validar(m.id, 'validado')}>Validar</Button>}
+                <span className="text-stone-900 font-bold tabular-nums w-24 text-right">${fmt(m.valor)}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* Modal de pago */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={() => setShowForm(false)}>
           <div className="bg-white rounded-2xl border border-stone-200 p-6 w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-sm font-bold text-stone-800 mb-1">Registrar pago de cortes</h3>
             <p className="text-xs text-stone-500 mb-4">
-              {seleccion.size} cortes · Total <strong>${fmt(totalSeleccionado)}</strong>
+              {seleccion.size} corte(s){selMuestras.size > 0 ? ` + ${selMuestras.size} muestra(s)` : ''} · Total <strong>${fmt(totalSeleccionado)}</strong>
             </p>
             <form onSubmit={registrarPago} className="space-y-4">
               <div className="grid grid-cols-2 gap-3">

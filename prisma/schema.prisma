@@ -460,6 +460,7 @@ model PagoCorte {
   creadoPor      String
   createdAt      DateTime          @default(now())
   ordenes        OrdenProduccion[]
+  muestras       CorteMuestra[]
 
   @@map("pagos_cortes")
 }
@@ -491,6 +492,8 @@ model CorteMuestra {
   unidad     String   @default("m")
   valor      Decimal  @default(0) // valor del corte de muestra (cobro)
   estado     String   @default("pendiente") // 'pendiente' | 'validado'
+  pagoCorteId String?
+  pagoCorte  PagoCorte? @relation(fields: [pagoCorteId], references: [id])
   fecha      DateTime @default(now())
   createdAt  DateTime @default(now())
 
