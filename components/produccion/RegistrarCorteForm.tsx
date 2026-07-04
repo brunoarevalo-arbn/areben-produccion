@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { TALLES_DEFAULT } from '@/lib/validators/produccion';
+import { TALLES_DEFAULT, TALLES_COMUNES } from '@/lib/validators/produccion';
 import { calcTizada, type TizadaRollo } from '@/lib/produccion/tizada';
 import { AviosSelector, type AvioOpt, type AvioSel } from '@/components/produccion/AviosSelector';
 import { NumInput } from '@/components/ui/NumInput';
@@ -53,6 +53,7 @@ export interface CortePrefill {
   avios?: { etiquetaId: string; cantidad: number }[];
   cortadorId?: string | null;
   costoCorte?: number;
+  modoCosto?: 'total' | 'unidad';
   talles?: { talle: string; cantidad: number }[];
   // Rinde del corte de la hermana (mismo molde): metros totales y unidades, para
   // derivar m/u. La tela (rollos) NO se copia; se elige la del color.
@@ -64,7 +65,7 @@ export interface CortePrefill {
   fichaData?: FichaData;
 }
 
-export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, prefill }: { ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; prefill?: CortePrefill }) {
+export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, prefill, volverA }: { ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; prefill?: CortePrefill; volverA?: string }) {
   const router = useRouter();
   const fd = prefill?.fichaData;
   const [rollosDisp, setRollosDisp] = useState<RolloDisp[]>([]);
@@ -94,9 +95,10 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
   const [talles, setTalles] = useState<Record<string, string>>(
     () => fd?.talles ?? Object.fromEntries((prefill?.talles ?? []).map((t) => [t.talle, String(t.cantidad)])),
   );
+  const [tallesExtra, setTallesExtra] = useState<string[]>([]); // talles opcionales agregados a mano
   const [cortadorId, setCortadorId] = useState(fd?.cortadorId ?? prefill?.cortadorId ?? '');
   const [costoCorte, setCostoCorte] = useState(fd?.costoCorte != null ? String(fd.costoCorte) : (prefill?.costoCorte ? String(prefill.costoCorte) : ''));
-  const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>(fd?.modoCosto ?? 'total');
+  const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>(fd?.modoCosto ?? prefill?.modoCosto ?? 'total');
   const [fechaCorte, setFechaCorte] = useState<string>(fd?.fechaCorte ?? hoyISO());
 
   // Autocompletar tarifa al elegir cortador
@@ -245,7 +247,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
     });
 
     if (r.ok) {
-      router.push(`/produccion/${ordenId}`);
+      router.push(volverA || `/produccion/${ordenId}`);
     } else {
       const d = await r.json();
       setError(d.error || 'Error al guardar');
@@ -412,15 +414,29 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
           Cuantas prendas se cortaron de cada talle. El total reemplaza la cantidad planificada ({cantidadPlanificada}).
         </p>
 
-        <div className="grid grid-cols-7 gap-2">
-          {TALLES_DEFAULT.map((t) => (
-            <div key={t}>
-              <label className="text-xs font-semibold text-stone-600 mb-1 block text-center">{t}</label>
-              <NumInput value={parseFloat(talles[t]) || 0} onChange={(n) => updateTalle(t, n ? String(n) : '')}
-                min="0" placeholder="0" className={`w-full text-center ${inpSm}`} />
+        {(() => {
+          const visibles = [...new Set([...TALLES_COMUNES, ...tallesExtra, ...Object.keys(talles).filter((t) => (parseInt(talles[t]) || 0) > 0)])]
+            .sort((a, b) => (TALLES_DEFAULT as readonly string[]).indexOf(a) - (TALLES_DEFAULT as readonly string[]).indexOf(b));
+          const agregables = [...TALLES_DEFAULT].filter((t) => !visibles.includes(t));
+          return (
+            <div className="flex flex-wrap gap-2 items-end">
+              {visibles.map((t) => (
+                <div key={t} className="w-16">
+                  <label className="text-xs font-semibold text-stone-600 mb-1 block text-center">{t}</label>
+                  <NumInput value={parseFloat(talles[t]) || 0} onChange={(n) => updateTalle(t, n ? String(n) : '')}
+                    min="0" placeholder="0" className={`w-full text-center ${inpSm}`} />
+                </div>
+              ))}
+              {agregables.length > 0 && (
+                <select value="" onChange={(e) => { if (e.target.value) setTallesExtra((p) => [...p, e.target.value]); }}
+                  className={`${inpSm} self-end`} title="Agregar talle">
+                  <option value="">+ talle</option>
+                  {agregables.map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              )}
             </div>
-          ))}
-        </div>
+          );
+        })()}
 
         <div className="mt-4 pt-4 border-t border-stone-100 flex items-center justify-between text-sm">
           <span className="text-stone-500">

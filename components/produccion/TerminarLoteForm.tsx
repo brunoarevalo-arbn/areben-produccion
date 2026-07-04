@@ -63,7 +63,7 @@ export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes:
       body: JSON.stringify({ colores: payload }),
     });
     if (r.ok) {
-      router.push('/produccion');
+      router.back(); // volver al contexto anterior (no saltar a la portada)
     } else {
       const d = await r.json().catch(() => ({}));
       setError(d.error || 'Error al terminar');

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { AviosSelector, type AvioOpt, type AvioSel } from '@/components/produccion/AviosSelector';
-import { TALLES_DEFAULT } from '@/lib/validators/produccion';
+import { TALLES_DEFAULT, TALLES_COMUNES } from '@/lib/validators/produccion';
 import { toast } from '@/components/ui/Toaster';
 
 interface CortadorOpt { id: string; nombre: string; tarifaDefault: string | null; tarifaModo: string | null; activo: boolean; }
@@ -51,7 +51,11 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
     if (c?.tarifaDefault) { setCostoCorte(String(Number(c.tarifaDefault))); if (c.tarifaModo === 'total' || c.tarifaModo === 'unidad') setModoCosto(c.tarifaModo); }
   };
 
-  const tallesUnion = [...new Set([...TALLES_DEFAULT, ...Object.keys(talles)])];
+  const [tallesExtra, setTallesExtra] = useState<string[]>([]);
+  // Muestra comunes + los que ya tienen cantidad + los agregados a mano; el resto bajo demanda.
+  const tallesUnion = [...new Set([...TALLES_COMUNES, ...tallesExtra, ...Object.keys(talles).filter((t) => (parseInt(talles[t]) || 0) > 0)])]
+    .sort((a, b) => (TALLES_DEFAULT as readonly string[]).indexOf(a) - (TALLES_DEFAULT as readonly string[]).indexOf(b));
+  const tallesAgregables = [...TALLES_DEFAULT].filter((t) => !tallesUnion.includes(t));
   const totalUnidades = Object.values(talles).reduce((s, v) => s + (parseInt(v) || 0), 0);
 
   const guardar = async () => {
@@ -113,13 +117,20 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
           <label className="text-xs font-semibold text-stone-600">Talles cortados</label>
           <span className="text-xs text-stone-400">Total: <strong className="text-stone-700">{totalUnidades}</strong> u</span>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-3 items-center">
           {tallesUnion.map((t) => (
             <div key={t} className="flex items-center gap-1.5">
               <span className="text-xs font-semibold text-stone-500 w-10 text-right">{t}</span>
               <NumInput value={parseFloat(talles[t]) || 0} onChange={(n) => setTalles((p) => ({ ...p, [t]: n ? String(n) : '' }))} min="0" className="w-16 px-2 py-1.5 border border-stone-200 rounded-lg text-sm text-right focus:outline-none focus:border-amber-400" />
             </div>
           ))}
+          {tallesAgregables.length > 0 && (
+            <select value="" onChange={(e) => { if (e.target.value) setTallesExtra((p) => [...p, e.target.value]); }}
+              className="px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" title="Agregar talle">
+              <option value="">+ talle</option>
+              {tallesAgregables.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
+          )}
         </div>
       </div>
 

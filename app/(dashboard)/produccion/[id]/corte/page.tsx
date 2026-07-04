@@ -8,8 +8,9 @@ import { resumenConsumoTela } from '@/lib/produccion/consumo';
 
 export const dynamic = 'force-dynamic';
 
-export default async function CortePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function CortePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ volverA?: string }> }) {
   const { id } = await params;
+  const { volverA } = await searchParams;
 
   const orden = await prisma.ordenProduccion.findUnique({
     where: { id },
@@ -79,7 +80,7 @@ export default async function CortePage({ params }: { params: Promise<{ id: stri
         title={orden.sku ?? ''}
         subtitle={`${orden.descripcion || orden.marca} · Planificadas: ${orden.cantidad} unidades`}
       />
-      <RegistrarCorteConCopia ordenId={orden.id} sku={orden.sku ?? ''} cantidadPlanificada={orden.cantidad} marca={orden.marca} hermanas={hermanas} />
+      <RegistrarCorteConCopia ordenId={orden.id} sku={orden.sku ?? ''} cantidadPlanificada={orden.cantidad} marca={orden.marca} hermanas={hermanas} volverA={volverA} />
     </div>
   );
 }

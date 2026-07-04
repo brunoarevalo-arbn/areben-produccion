@@ -96,7 +96,7 @@ export function AviosSelector({
           {otros.length > 0 && (
             <select value="" onChange={(e) => { if (e.target.value) addOtroAvio(e.target.value); }} className={`${inpSm} max-w-[16rem]`}>
               <option value="">+ Del catálogo</option>
-              {otros.map((a) => <option key={a.id} value={a.id}>{a.nombre}{a.stock != null ? ` (${a.stock})` : ''}</option>)}
+              {otros.filter((a) => !otrosSel.some((s) => s.etiquetaId === a.id)).map((a) => <option key={a.id} value={a.id}>{a.nombre}{a.stock != null ? ` (${a.stock})` : ''}</option>)}
             </select>
           )}
         </div>

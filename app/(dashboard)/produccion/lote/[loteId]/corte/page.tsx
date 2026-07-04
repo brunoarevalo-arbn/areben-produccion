@@ -58,7 +58,7 @@ export default async function CortarLotePage({ params }: { params: Promise<{ lot
             {o.fichaCorteCargada ? (
               <Link href={`/produccion/${o.id}/ficha`} className="shrink-0 text-xs px-3 py-1.5 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 font-semibold transition">Ver ficha</Link>
             ) : (
-              <Link href={`/produccion/${o.id}/corte`} className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">Cargar ficha</Link>
+              <Link href={`/produccion/${o.id}/corte?volverA=${encodeURIComponent(`/produccion/lote/${loteId}/corte`)}`} className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">Cargar ficha</Link>
             )}
           </div>
         ))}

@@ -53,6 +53,7 @@ export function Escandallos() {
   const [modoProducido, setModoProducido] = useState(false);
   const [subTab, setSubTab] = useState<'pendientes' | 'listos'>('pendientes');
   const [verDescartados, setVerDescartados] = useState(false);
+  const [soloSinDesc, setSoloSinDesc] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -185,10 +186,13 @@ export function Escandallos() {
   // Avíos extras
   const addAvioExtra = () => setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: [...prev.avios.extras, { nombre: '', cantidad: 1, costoUnitario: 0 }] } }));
   // Agrega un avío ocasional del catálogo (cierre, tacha…) como extra, con su nombre y precio.
+  // No permite duplicar: si ya está cargado (por nombre), lo ignora.
   const addAvioCatalogo = (etiquetaId: string) => {
     const et = etiquetas.find(e => e.id === etiquetaId);
     if (!et) return;
-    setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: [...prev.avios.extras, { nombre: et.nombre, cantidad: 1, costoUnitario: et.precio }] } }));
+    setDatos(prev => prev.avios.extras.some(x => x.nombre === et.nombre)
+      ? prev
+      : ({ ...prev, avios: { ...prev.avios, extras: [...prev.avios.extras, { nombre: et.nombre, cantidad: 1, costoUnitario: et.precio }] } }));
   };
   const updAvioExtra = (i: number, field: string, val: string) =>
     setDatos(prev => ({ ...prev, avios: { ...prev.avios, extras: prev.avios.extras.map((e, idx) => idx !== i ? e : ({ ...e, [field]: field === 'nombre' ? val : pf(val) } as ItemExtra)) } }));
@@ -410,13 +414,31 @@ export function Escandallos() {
             )}
 
             {/* Costos listos */}
-            {subTab === 'listos' && (
+            {subTab === 'listos' && (() => {
+              const sinDescCount = lista.filter(e => !e.notas?.trim()).length;
+              const listaVista = soloSinDesc ? lista.filter(e => !e.notas?.trim()) : lista;
+              return (
               <>
+                {lista.length > 0 && (
+                  <div className="flex items-center justify-between gap-3 flex-wrap mb-3 bg-white rounded-2xl border border-stone-200 px-4 py-2.5">
+                    <span className="text-sm text-stone-600">
+                      Descripción para la tienda: {sinDescCount === 0
+                        ? <span className="text-emerald-600 font-semibold">todas cargadas ✓</span>
+                        : <><span className="font-bold text-amber-600">{sinDescCount}</span> sin descripción</>}
+                    </span>
+                    {sinDescCount > 0 && (
+                      <label className="flex items-center gap-1.5 text-xs text-stone-500">
+                        <input type="checkbox" checked={soloSinDesc} onChange={(e) => setSoloSinDesc(e.target.checked)} className="rounded border-stone-300 accent-amber-500" />
+                        Solo sin descripción
+                      </label>
+                    )}
+                  </div>
+                )}
                 <div className="space-y-3">
                   {lista.length === 0 && (
                     <EmptyState message="No hay escandallos creados todavía." />
                   )}
-                  {lista.map(e => {
+                  {listaVista.map(e => {
                     // Usa los márgenes congelados en el escandallo (snapshot), igual
                     // que el PDF — no los globales del config, que pueden haber cambiado.
                     const d = parseDatos(e.datos);
@@ -429,6 +451,9 @@ export function Escandallos() {
                             {e.sku        && <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-600">{e.sku}</span>}
                             {e.marca      && <span className="text-xs text-stone-400">{e.marca}</span>}
                             {e.tipoPrenda && <span className="text-xs text-stone-400 italic">{e.tipoPrenda}</span>}
+                            {e.notas?.trim()
+                              ? <span className="text-xs text-emerald-600 font-semibold">✓ descripción</span>
+                              : <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-semibold">falta descripción</span>}
                           </div>
                           {c && (
                             <p className="text-xs text-stone-400 mt-1">
@@ -459,7 +484,8 @@ export function Escandallos() {
                   + Nuevo escandallo
                 </Button>
               </>
-            )}
+              );
+            })()}
           </>
         );
       })()}
@@ -840,7 +866,7 @@ export function Escandallos() {
                     <select value="" onChange={e => { if (e.target.value) addAvioCatalogo(e.target.value); }}
                       className={`${inp} text-xs py-1`}>
                       <option value="">+ Del catálogo</option>
-                      {etiquetas.filter(et => (et.frecuencia ?? '') === 'ocasional' && (!et.marca || et.marca === marca))
+                      {etiquetas.filter(et => (et.frecuencia ?? '') === 'ocasional' && (!et.marca || et.marca === marca) && !datos.avios.extras.some(x => x.nombre === et.nombre))
                         .map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
                     </select>
                   )}

@@ -13,14 +13,14 @@ interface FichaResp {
   avios?: { etiquetaId: string; cantidad: number }[];
   cortesPorTalle?: { talle: string; cantidad: number }[];
   movimientosInsumo?: { tipo: string; cantidad: string | number; rollo?: { insumo?: { rinde: string | number | null } } | null }[];
-  fichaCorteData?: { tizadas?: TizadaGuardada[] } | null;
+  fichaCorteData?: { tizadas?: TizadaGuardada[]; costoCorte?: number | string; modoCosto?: 'total' | 'unidad' } | null;
 }
 
 // Envuelve el form de corte y permite, en una OP de un lote, copiar la ficha de una
 // hermana que ya la tiene: prellena avíos, cortador, costo y talles (la tela se elige
 // aparte porque cada color usa la suya).
-export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marca, hermanas }: {
-  ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; hermanas: Hermana[];
+export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marca, hermanas, volverA }: {
+  ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; hermanas: Hermana[]; volverA?: string;
 }) {
   const [prefill, setPrefill] = useState<CortePrefill | undefined>();
   const [formKey, setFormKey] = useState(0);
@@ -45,10 +45,17 @@ export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marc
       const metros = (d.movimientosInsumo ?? [])
         .filter((m) => m.tipo === 'CONSUMO')
         .reduce((s, m) => s + Math.abs(Number(m.cantidad)) * Number(m.rollo?.insumo?.rinde ?? 0), 0);
+      // Costo de corte: replicar la lógica del SKU copiado. Si la hermana tiene
+      // fichaCorteData, usar el valor CRUDO ingresado + su modo (total/unidad). Si no
+      // (ficha vieja), caer al total guardado en la OP como "total".
+      const fd = d.fichaCorteData;
+      const costoCorte = fd?.costoCorte != null ? Number(fd.costoCorte) : (d.costoCorte ? Number(d.costoCorte) : undefined);
+      const modoCosto = fd?.modoCosto ?? 'total';
       setPrefill({
         avios: (d.avios ?? []).map((a) => ({ etiquetaId: a.etiquetaId, cantidad: a.cantidad })),
         cortadorId: d.cortadorId ?? null,
-        costoCorte: d.costoCorte ? Number(d.costoCorte) : undefined,
+        costoCorte,
+        modoCosto,
         talles,
         tizadasReceta,
         tizada: !tizadasReceta && unidades > 0 && metros > 0 ? { metros: Math.round(metros * 100) / 100, unidades } : undefined,
@@ -78,7 +85,7 @@ export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marc
           </button>
         </div>
       )}
-      <RegistrarCorteForm key={formKey} ordenId={ordenId} sku={sku} cantidadPlanificada={cantidadPlanificada} marca={marca} prefill={prefill} />
+      <RegistrarCorteForm key={formKey} ordenId={ordenId} sku={sku} cantidadPlanificada={cantidadPlanificada} marca={marca} prefill={prefill} volverA={volverA} />
     </div>
   );
 }
