@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { MuestrasCortador } from '@/components/produccion/cortador/MuestrasCortador';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,6 +33,9 @@ export default async function CortadorPanelPage() {
     orderBy: [{ createdAt: 'desc' }],
     select: { id: true, sku: true, descripcion: true, marca: true, cantidad: true, fichaCorteCargada: true, corteEstado: true, costoCorte: true, fechaCorte: true },
   });
+
+  const muestras = await prisma.corteMuestra.findMany({ where: { cortadorId: cortador.id }, orderBy: { fecha: 'desc' } });
+  const muestrasVista = muestras.map((m) => ({ id: m.id, descripcion: m.descripcion, consumo: Number(m.consumo), unidad: m.unidad, valor: Number(m.valor), estado: m.estado, fecha: m.fecha.toISOString() }));
 
   const pendientes = ordenes.filter((o) => !o.fichaCorteCargada);
   const historicos = ordenes.filter((o) => o.fichaCorteCargada);
@@ -95,6 +99,8 @@ export default async function CortadorPanelPage() {
           </div>
         )}
       </section>
+
+      <MuestrasCortador inicial={muestrasVista} />
     </div>
   );
 }
