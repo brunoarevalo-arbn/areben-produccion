@@ -21,8 +21,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   }
 
   // Solo las que están sin ficha; no piso las que el cortador ya cargó.
+  // Ojo: `{ not: 'cargado' }` en SQL no matchea NULL, así que incluyo el null explícito.
   const res = await prisma.ordenProduccion.updateMany({
-    where: { loteId, fichaCorteCargada: false, corteEstado: cortadorId ? { not: 'cargado' } : undefined },
+    where: {
+      loteId,
+      fichaCorteCargada: false,
+      ...(cortadorId ? { OR: [{ corteEstado: null }, { corteEstado: { not: 'cargado' } }] } : {}),
+    },
     data: { cortadorId, corteEstado: cortadorId ? 'asignado' : null },
   });
   return NextResponse.json({ ok: true, actualizadas: res.count });
