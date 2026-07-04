@@ -72,6 +72,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
       { label: 'Muestras',         href: '/produccion/muestras', seccion: 'produccion' },
       { label: 'Reportes',         href: '/produccion/reportes', seccion: 'produccion' },
       { label: 'Pagos de cortes', href: '/produccion/pagos-cortes', seccion: 'produccion' },
+      { label: 'Cuenta de cortadores', href: '/produccion/cuenta-cortadores', seccion: 'produccion' },
       { label: 'Cortadores',       href: '/configuracion/cortadores', seccion: 'cortadores' },
       { label: 'Motivos de descarte', href: '/configuracion/motivos-descarte', seccion: 'motivos' },
     ],

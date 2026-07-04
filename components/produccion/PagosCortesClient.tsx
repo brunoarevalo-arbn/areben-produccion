@@ -74,7 +74,8 @@ export function PagosCortesClient() {
 
   useEffect(() => { cargar(); }, [cargar]);
 
-  const cortadores = [...new Set(ordenes.map((o) => o.cortador).filter(Boolean) as string[])].sort();
+  const cortadores = [...new Set([...ordenes.map((o) => o.cortador), ...muestras.map((m) => m.cortador?.nombre ?? null)].filter(Boolean) as string[])].sort();
+  const muestraPend = (c: string) => muestras.filter((m) => m.cortador?.nombre === c && m.estado === 'validado' && !m.pagoCorteId);
 
   const toggleSel = (id: string) => {
     setSeleccion((prev) => {
@@ -141,7 +142,8 @@ export function PagosCortesClient() {
     setSaving(false);
   };
 
-  const totalPendiente = ordenes.filter((o) => !o.pagoCorteId).reduce((s, o) => s + Number(o.costoCorte), 0);
+  const totalPendiente = ordenes.filter((o) => !o.pagoCorteId).reduce((s, o) => s + Number(o.costoCorte), 0)
+    + muestras.filter((m) => m.estado === 'validado' && !m.pagoCorteId).reduce((s, m) => s + Number(m.valor), 0);
 
   return (
     <div className="space-y-5">
@@ -151,13 +153,14 @@ export function PagosCortesClient() {
           <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Pendiente por cortador</p>
           <div className="flex flex-wrap gap-3">
             {cortadores.map((c) => {
-              const total = ordenes.filter((o) => o.cortador === c && !o.pagoCorteId).reduce((s, o) => s + Number(o.costoCorte), 0);
-              const count = ordenes.filter((o) => o.cortador === c && !o.pagoCorteId).length;
+              const cortes = ordenes.filter((o) => o.cortador === c && !o.pagoCorteId);
+              const ms = muestraPend(c);
+              const total = cortes.reduce((s, o) => s + Number(o.costoCorte), 0) + ms.reduce((s, m) => s + Number(m.valor), 0);
               return (
                 <div key={c} className="bg-stone-50 rounded-xl px-3 py-2 text-sm border border-stone-100">
                   <p className="text-xs text-stone-500">{c}</p>
                   <p className="text-stone-900 font-bold tabular-nums">${fmt(total)}</p>
-                  <p className="text-xs text-stone-400">{count} corte(s)</p>
+                  <p className="text-xs text-stone-400">{cortes.length} corte(s){ms.length > 0 ? ` · ${ms.length} muestra(s)` : ''}</p>
                 </div>
               );
             })}
