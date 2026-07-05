@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { CortadorSchema } from '@/lib/validators/produccion';
-import { Prisma } from '@prisma/client';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -18,8 +17,6 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   const d = parsed.data;
   if (d.nombre !== undefined) data.nombre = d.nombre.trim();
   if (d.contacto !== undefined) data.contacto = d.contacto || null;
-  if (d.tarifaDefault !== undefined) data.tarifaDefault = d.tarifaDefault !== null ? new Prisma.Decimal(d.tarifaDefault) : null;
-  if (d.tarifaModo !== undefined) data.tarifaModo = d.tarifaModo || null;
   if (d.notas !== undefined) data.notas = d.notas || null;
   if (d.activo !== undefined) data.activo = d.activo;
   if (d.usuarioId !== undefined) data.usuarioId = d.usuarioId || null;

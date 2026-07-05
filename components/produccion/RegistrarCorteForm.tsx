@@ -15,7 +15,7 @@ interface RolloDisp {
   compra?: { proveedor: { nombre: string } | null } | null;
 }
 interface CortadorOpt {
-  id: string; nombre: string; tarifaDefault: string | null; tarifaModo: string | null; activo: boolean;
+  id: string; nombre: string; activo: boolean;
 }
 
 type ConsumoRollo = TizadaRollo;
@@ -101,15 +101,9 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
   const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>(fd?.modoCosto ?? prefill?.modoCosto ?? 'total');
   const [fechaCorte, setFechaCorte] = useState<string>(fd?.fechaCorte ?? hoyISO());
 
-  // Autocompletar tarifa al elegir cortador
-  const onCortadorChange = (id: string) => {
-    setCortadorId(id);
-    const c = cortadores.find((x) => x.id === id);
-    if (c && c.tarifaDefault) {
-      setCostoCorte(String(Number(c.tarifaDefault)));
-      if (c.tarifaModo === 'total' || c.tarifaModo === 'unidad') setModoCosto(c.tarifaModo);
-    }
-  };
+  // La tarifa la define quien carga el corte (el cortador en su panel, o la diseñadora
+  // a mano); no se autocompleta desde el cortador.
+  const onCortadorChange = (id: string) => setCortadorId(id);
   const [notas, setNotas] = useState('');
 
   useEffect(() => {

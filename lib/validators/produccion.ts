@@ -120,8 +120,6 @@ export const CambioEstadoLoteSchema = z.object({
 export const CortadorSchema = z.object({
   nombre:        z.string().min(1, 'Nombre obligatorio'),
   contacto:      z.string().optional(),
-  tarifaDefault: z.number().min(0).optional(),
-  tarifaModo:    z.enum(['total', 'unidad']).optional(),
   notas:         z.string().optional(),
   activo:        z.boolean().optional(),
   usuarioId:     z.string().nullable().optional(), // usuario de login del cortador (panel)

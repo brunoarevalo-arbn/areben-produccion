@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, requirePermiso } from '@/lib/auth';
 import { CortadorSchema } from '@/lib/validators/produccion';
-import { Prisma } from '@prisma/client';
 
 export async function GET(req: NextRequest) {
   const session = await getSession(req);
@@ -24,8 +23,6 @@ export async function POST(req: NextRequest) {
     data: {
       nombre: data.nombre.trim(),
       contacto: data.contacto || null,
-      tarifaDefault: data.tarifaDefault !== undefined ? new Prisma.Decimal(data.tarifaDefault) : null,
-      tarifaModo: data.tarifaModo || null,
       notas: data.notas || null,
       usuarioId: data.usuarioId || null,
     },

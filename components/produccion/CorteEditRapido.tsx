@@ -8,7 +8,7 @@ import { AviosSelector, type AvioOpt, type AvioSel } from '@/components/producci
 import { TALLES_DEFAULT, TALLES_COMUNES } from '@/lib/validators/produccion';
 import { toast } from '@/components/ui/Toaster';
 
-interface CortadorOpt { id: string; nombre: string; tarifaDefault: string | null; tarifaModo: string | null; activo: boolean; }
+interface CortadorOpt { id: string; nombre: string; activo: boolean; }
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 
@@ -45,11 +45,7 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
     fetch('/api/costos/etiquetas').then((r) => r.ok ? r.json() : []).then((a) => { if (Array.isArray(a)) setAviosCatalogo(a.map((x) => ({ ...x, precio: Number(x.precio) }))); }).catch(() => {});
   }, []);
 
-  const onCortador = (id: string) => {
-    setCortadorId(id);
-    const c = cortadores.find((x) => x.id === id);
-    if (c?.tarifaDefault) { setCostoCorte(String(Number(c.tarifaDefault))); if (c.tarifaModo === 'total' || c.tarifaModo === 'unidad') setModoCosto(c.tarifaModo); }
-  };
+  const onCortador = (id: string) => setCortadorId(id);
 
   const [tallesExtra, setTallesExtra] = useState<string[]>([]);
   // Muestra comunes + los que ya tienen cantidad + los agregados a mano; el resto bajo demanda.
