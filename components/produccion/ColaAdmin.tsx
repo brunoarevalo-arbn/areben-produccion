@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { PopoverMenu } from '@/components/ui/PopoverMenu';
 
 interface Transicion { fecha: string; estadoNuevo: string; }
 
@@ -88,7 +89,9 @@ function diasEnEstado(transiciones: Transicion[]): number {
 
 const fmt = (n: string | number) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 0 });
 
-const GRID = 'grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-4';
+// Mobile: SKU · Descripción · Cant · Estado · Acciones (Días/Costo ocultos).
+// Desktop (md+): se agregan Días y Costo.
+const GRID = 'grid grid-cols-[auto_1fr_auto_auto_auto] md:grid-cols-[auto_1fr_auto_auto_auto_auto_auto] gap-2 md:gap-3';
 
 export function ColaAdmin() {
   const [ordenes, setOrdenes]   = useState<Orden[]>([]);
@@ -453,7 +456,7 @@ export function ColaAdmin() {
     const siguientes = ESTADO_SIGUIENTE[orden.estado] || [];
     return (
       <div key={orden.id}
-        className={`px-6 py-4 ${GRID} items-center hover:bg-stone-50 transition border-t border-stone-100 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
+        className={`px-4 md:px-5 py-3 ${GRID} items-center hover:bg-stone-50 transition border-t border-stone-100 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
         <div className="flex items-center gap-2">
           {agrupando && !dentroDeGrupo && !orden.loteId && orden.estado !== 'CERRADA' && (
             <input type="checkbox" checked={seleccionadas.has(orden.id)} onChange={() => toggleSel(orden.id)}
@@ -477,13 +480,13 @@ export function ColaAdmin() {
         <Badge variant={ESTADO_BADGE[orden.estado] ?? 'default'} size="sm" className="whitespace-nowrap justify-self-start">
           {ESTADO_LABEL[orden.estado] ?? orden.estado}
         </Badge>
-        <span className={`text-xs tabular-nums text-right ${dias > 3 ? 'text-red-500 font-semibold' : 'text-stone-400'}`}>
+        <span className={`hidden md:block text-xs tabular-nums text-right ${dias > 3 ? 'text-red-500 font-semibold' : 'text-stone-400'}`}>
           {dias}d
         </span>
-        <span className="text-xs tabular-nums text-right text-stone-500">
+        <span className="hidden md:block text-xs tabular-nums text-right text-stone-500">
           {Number(orden.costoTotal) > 0 ? `$${fmt(orden.costoTotal)}` : '--'}
         </span>
-        <div className="flex gap-1.5 shrink-0 items-center">
+        <div className="flex gap-1.5 shrink-0 items-center flex-wrap justify-end">
           {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && cortadores.length > 0 && (
             <div className="flex items-center gap-1">
               <select value={orden.cortadorId ?? ''} onChange={(e) => asignarCortador(orden.id, e.target.value)} title="Asignar cortador"
@@ -519,16 +522,10 @@ export function ColaAdmin() {
               ))}
             </select>
           )}
-          <button onClick={() => abrirEdicion(orden)}
-            title="Editar"
-            className="text-xs px-2 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
-            ✎
-          </button>
-          <button onClick={() => eliminar(orden.id, orden.sku)}
-            aria-label="Eliminar"
-            className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition">
-            x
-          </button>
+          <PopoverMenu items={[
+            { label: 'Editar orden', onClick: () => abrirEdicion(orden) },
+            { label: 'Eliminar', onClick: () => eliminar(orden.id, orden.sku), danger: true },
+          ]} />
         </div>
       </div>
     );
@@ -569,13 +566,13 @@ export function ColaAdmin() {
 
       {/* Tabla */}
       <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
-        <div className={`px-6 py-4 bg-stone-50 border-b border-stone-100 ${GRID} text-xs font-bold uppercase tracking-widest text-stone-500`}>
+        <div className={`px-4 md:px-5 py-2.5 bg-stone-50 border-b border-stone-100 ${GRID} text-xs font-bold uppercase tracking-widest text-stone-500`}>
           <span>SKU</span>
           <span>Descripcion</span>
           <span className="text-center">Cant.</span>
           <span>Estado</span>
-          <span className="text-right">Dias</span>
-          <span className="text-right">Costo</span>
+          <span className="hidden md:block text-right">Dias</span>
+          <span className="hidden md:block text-right">Costo</span>
           <span />
         </div>
 
@@ -597,7 +594,7 @@ export function ColaAdmin() {
               const loteCortadorId   = idsCortador.length === 1 ? (idsCortador[0] ?? '') : '';
               return (
                 <div key={fila.loteId} className="border-t border-stone-100">
-                  <div className="px-6 py-2.5 bg-amber-50/60 flex items-center gap-2 text-xs">
+                  <div className="px-4 md:px-5 py-2.5 bg-amber-50/60 flex items-center gap-2 text-xs flex-wrap">
                     <span className="text-base">🧵</span>
                     <span className="font-bold text-stone-700">{prendaNombre(lote?.prenda) || lote?.descripcion || 'Molde'}</span>
                     <span className="text-stone-400">{lote?.marca}</span>
