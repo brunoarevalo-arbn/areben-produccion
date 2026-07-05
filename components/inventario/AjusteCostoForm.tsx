@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
 import { Select } from '@/components/ui/Select';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { fmtMoney } from '@/lib/format';
 
 interface Opt { id: string; codigo: string; costoUnitario: string; insumo: { nombre: string } }
@@ -51,7 +52,7 @@ export function AjusteCostoForm() {
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-6 max-w-lg">
+    <Card padding="none" className="p-6 max-w-lg">
       <h3 className="text-sm font-bold text-stone-800 mb-1">Ajustar costo (sin compra)</h3>
       <p className="text-xs text-stone-500 mb-4">Cambiá el costo unitario de un rollo, ej. por aumento del proveedor.</p>
       <form onSubmit={guardar} className="space-y-4">
@@ -77,6 +78,6 @@ export function AjusteCostoForm() {
 
         <Button type="submit" isLoading={saving} disabled={saving}>Actualizar costo</Button>
       </form>
-    </div>
+    </Card>
   );
 }

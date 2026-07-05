@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Card } from '@/components/ui/Card';
 
 interface Fila {
   origen: 'compra' | 'gasto';
@@ -55,8 +57,8 @@ export function ComprasUnificadasClient() {
         ))}
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
-        {visibles.length === 0 && <p className="px-4 py-10 text-center text-stone-400 text-sm">Sin compras todavía</p>}
+      <Card padding="none" className="divide-y divide-stone-100">
+        {visibles.length === 0 && <EmptyState message="Sin compras todavía" />}
         {visibles.map((f) => (
           <Link key={`${f.origen}-${f.id}`} href={f.href} className={`flex items-center gap-3 px-4 py-3 hover:bg-stone-50 transition ${f.revertida ? 'opacity-60' : ''}`}>
             <div className="flex-1 min-w-0">
@@ -74,7 +76,7 @@ export function ComprasUnificadasClient() {
             <span className={`font-bold tabular-nums shrink-0 ${f.revertida ? 'text-stone-400 line-through' : 'text-stone-900'}`}>{fmt$(f.monto)}</span>
           </Link>
         ))}
-      </div>
+      </Card>
     </div>
   );
 }

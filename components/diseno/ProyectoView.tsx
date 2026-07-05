@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ESTADO_LABEL, ESTADO_COLOR, type EstadoProyecto } from '@/lib/diseno/estado';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Textarea } from '@/components/ui/Textarea';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
@@ -323,7 +324,7 @@ function SeccionInspiracion({ proyecto, onChange }: { proyecto: Proyecto; onChan
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-5">
+    <Card padding="none" className="p-5">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Inspiración / base</p>
         {!editing && (
@@ -372,7 +373,7 @@ function SeccionInspiracion({ proyecto, onChange }: { proyecto: Proyecto; onChan
           </div>
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -393,7 +394,7 @@ function SeccionMuestras({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-5">
+    <Card padding="none" className="p-5">
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Muestras</p>
         {iteraciones.length > 0 && (
@@ -411,7 +412,7 @@ function SeccionMuestras({
           ))}
         </div>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -570,7 +571,7 @@ function SeccionFases({
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-5">
+    <Card padding="none" className="p-5">
       <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Producción — Fases</p>
       <div className="space-y-2">
         {catalogoFases.map((c) => {
@@ -589,7 +590,7 @@ function SeccionFases({
           );
         })}
       </div>
-    </div>
+    </Card>
   );
 }
 

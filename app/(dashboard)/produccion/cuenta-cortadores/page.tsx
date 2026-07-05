@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
 
 export const dynamic = 'force-dynamic';
 const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
@@ -25,9 +26,9 @@ export default async function CuentaCortadoresPage() {
     <div className="p-8 max-w-3xl">
       <PageHeader eyebrow="Producción" title="Cuenta de cortadores" subtitle="Saldo pendiente de cada cortador (cortes + muestras sin pagar). Entrá para pagar." />
 
-      <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+      <Card padding="none" className="divide-y divide-stone-100">
         {filas.map((f) => (
-          <Link key={f.id} href={`/produccion/cuenta-cortadores/${f.id}`} className="flex items-center gap-3 px-5 py-4 hover:bg-stone-50 transition">
+          <Link key={f.id} href={`/produccion/cuenta-cortadores/${f.id}`} className="flex items-center gap-3 px-5 py-3 hover:bg-stone-50 transition">
             <div className="w-9 h-9 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 font-bold shrink-0">{f.nombre.charAt(0).toUpperCase()}</div>
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-stone-900">{f.nombre}</p>
@@ -40,7 +41,7 @@ export default async function CuentaCortadoresPage() {
           </Link>
         ))}
         {filas.length === 0 && <div className="px-5 py-10 text-center text-sm text-stone-400">No hay cortadores activos.</div>}
-      </div>
+      </Card>
 
       <div className="mt-4 flex justify-end text-sm text-stone-500">Total pendiente: <strong className="text-stone-800 ml-2 tabular-nums">{fmt$(totalGeneral)}</strong></div>
     </div>

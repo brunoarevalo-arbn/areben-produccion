@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 
@@ -78,7 +80,7 @@ export function MotivosDescarteManager({ initial }: { initial: Motivo[] }) {
       )}
 
       {showForm && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <Card padding="none" className="p-6">
           <h3 className="text-sm font-bold text-stone-800 mb-4">{editando ? 'Editar motivo' : 'Nuevo motivo'}</h3>
           <form onSubmit={guardar} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -97,19 +99,19 @@ export function MotivosDescarteManager({ initial }: { initial: Motivo[] }) {
               </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[1fr_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Nombre</span><span>Categoria</span><span>Estado</span><span />
         </div>
         {motivos.length === 0 ? (
-          <p className="text-sm text-stone-400 text-center py-10">Sin motivos</p>
+          <EmptyState message="Sin motivos" />
         ) : (
           motivos.map((m, i) => (
             <div key={m.id}
-              className={`px-5 py-3.5 grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!m.activo ? 'opacity-50' : ''}`}>
+              className={`px-5 py-3 grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!m.activo ? 'opacity-50' : ''}`}>
               <p className="text-sm font-medium text-stone-800">{m.nombre}</p>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${CAT_COLOR[m.categoria] || ''}`}>{m.categoria}</span>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${m.activo ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
@@ -122,7 +124,7 @@ export function MotivosDescarteManager({ initial }: { initial: Motivo[] }) {
             </div>
           ))
         )}
-      </div>
+      </Card>
     </div>
   );
 }

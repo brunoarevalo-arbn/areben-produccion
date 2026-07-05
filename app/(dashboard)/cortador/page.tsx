@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { SkuChip } from '@/components/ui/SkuChip';
 import { MuestrasCortador } from '@/components/produccion/cortador/MuestrasCortador';
 
 export const dynamic = 'force-dynamic';
@@ -50,14 +52,14 @@ export default async function CortadorPanelPage() {
       <section>
         <h2 className="text-sm font-bold text-stone-800 mb-3">Cortes por cargar {pendientes.length > 0 && <span className="text-amber-600">({pendientes.length})</span>}</h2>
         {pendientes.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-sm text-stone-400">No tenés cortes asignados pendientes.</div>
+          <Card padding="none" className="p-6 text-center text-sm text-stone-400">No tenés cortes asignados pendientes.</Card>
         ) : (
-          <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+          <Card padding="none" className="divide-y divide-stone-100">
             {pendientes.map((o) => (
-              <div key={o.id} className="flex items-center gap-3 px-5 py-3.5">
+              <div key={o.id} className="flex items-center gap-3 px-5 py-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-700">{o.sku ?? 'S/SKU'}</span>
+                    <SkuChip sku={o.sku ?? 'S/SKU'} className="text-stone-700" />
                     <span className="text-xs text-stone-400">{o.marca}</span>
                     {o.corteEstado === 'cargado' && <span className="text-xs font-semibold text-blue-600">✓ cargado (esperando al taller)</span>}
                   </div>
@@ -69,7 +71,7 @@ export default async function CortadorPanelPage() {
                 </Link>
               </div>
             ))}
-          </div>
+          </Card>
         )}
       </section>
 
@@ -77,18 +79,18 @@ export default async function CortadorPanelPage() {
       <section>
         <h2 className="text-sm font-bold text-stone-800 mb-3">Cortes hechos</h2>
         <div className="grid grid-cols-3 gap-3 mb-3">
-          <div className="bg-white rounded-2xl border border-stone-200 p-4"><p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Cortes</p><p className="text-lg font-bold text-stone-800">{historicos.length}</p></div>
-          <div className="bg-white rounded-2xl border border-stone-200 p-4"><p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Unidades</p><p className="text-lg font-bold text-stone-800 tabular-nums">{totalUnidHist}</p></div>
-          <div className="bg-white rounded-2xl border border-stone-200 p-4"><p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Cobrado</p><p className="text-lg font-bold text-stone-800 tabular-nums">{fmt$(totalCobrado)}</p></div>
+          <Card padding="none" className="p-4"><p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Cortes</p><p className="text-lg font-bold text-stone-800">{historicos.length}</p></Card>
+          <Card padding="none" className="p-4"><p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Unidades</p><p className="text-lg font-bold text-stone-800 tabular-nums">{totalUnidHist}</p></Card>
+          <Card padding="none" className="p-4"><p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Cobrado</p><p className="text-lg font-bold text-stone-800 tabular-nums">{fmt$(totalCobrado)}</p></Card>
         </div>
         {historicos.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-sm text-stone-400">Todavía no hay cortes procesados.</div>
+          <Card padding="none" className="p-6 text-center text-sm text-stone-400">Todavía no hay cortes procesados.</Card>
         ) : (
-          <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+          <Card padding="none" className="divide-y divide-stone-100">
             {historicos.map((o) => (
               <div key={o.id} className="flex items-center gap-3 px-5 py-3">
                 <div className="flex-1 min-w-0">
-                  <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-700">{o.sku ?? 'S/SKU'}</span>
+                  <SkuChip sku={o.sku ?? 'S/SKU'} className="text-stone-700" />
                   {o.descripcion && <span className="text-sm text-stone-500 ml-2 truncate">{o.descripcion}</span>}
                 </div>
                 {o.fechaCorte && <span className="text-xs text-stone-400 shrink-0">{new Date(o.fechaCorte).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'UTC' })}</span>}
@@ -96,7 +98,7 @@ export default async function CortadorPanelPage() {
                 <span className="text-xs font-semibold text-stone-700 tabular-nums shrink-0 w-20 text-right">{fmt$(Number(o.costoCorte))}</span>
               </div>
             ))}
-          </div>
+          </Card>
         )}
       </section>
 

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { Card } from '@/components/ui/Card';
 
 interface Mov {
   id: string;
@@ -43,7 +44,7 @@ export function MovimientosTerminadoClient() {
   useEffect(() => { if (abierto) cargar(); }, [abierto, cargar]);
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+    <Card padding="none" className="overflow-hidden">
       <button onClick={() => setAbierto((o) => !o)}
         className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-stone-50 transition">
         <span className="text-sm font-bold text-stone-800">Historial de movimientos</span>
@@ -69,7 +70,7 @@ export function MovimientosTerminadoClient() {
                 <span>Fecha</span><span>SKU</span><span>Talle</span><span className="text-right">Cant.</span><span>Origen</span><span>Motivo</span><span>Usuario</span>
               </div>
               {movs.map((m) => (
-                <div key={m.id} className={`px-3 py-2 ${GRID} items-center text-sm border-b border-stone-50`}>
+                <div key={m.id} className={`px-3 py-3 ${GRID} items-center text-sm border-b border-stone-50`}>
                   <span className="text-xs text-stone-400 whitespace-nowrap">{fecha(m.fecha)}</span>
                   <span className="font-mono text-xs text-stone-700">{m.sku}<span className="text-stone-300"> · {m.tipo}</span></span>
                   <span className="text-stone-600">{m.talle}</span>
@@ -87,6 +88,6 @@ export function MovimientosTerminadoClient() {
           )}
         </div>
       )}
-    </div>
+    </Card>
   );
 }

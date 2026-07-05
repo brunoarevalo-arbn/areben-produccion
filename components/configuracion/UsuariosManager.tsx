@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PERMISOS } from '@/lib/permisos';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
@@ -215,7 +217,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
     <div className="max-w-2xl space-y-6">
 
       {/* User list */}
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[1fr_1fr_auto] gap-4">
           <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Nombre</span>
           <span className="text-xs font-bold uppercase tracking-widest text-stone-400">Usuario</span>
@@ -225,7 +227,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
         {usuarios.map((u, i) => (
           <div
             key={u.id}
-            className={`px-5 py-4 grid grid-cols-[1fr_1fr_auto] gap-4 items-center ${i !== 0 ? 'border-t border-stone-100' : ''} ${!u.activo ? 'opacity-50' : ''}`}
+            className={`px-5 py-3 grid grid-cols-[1fr_1fr_auto] gap-4 items-center ${i !== 0 ? 'border-t border-stone-100' : ''} ${!u.activo ? 'opacity-50' : ''}`}
           >
             <div className="flex items-center gap-3 min-w-0">
               <div className="w-8 h-8 rounded-full bg-stone-100 flex items-center justify-center text-stone-600 font-bold text-sm shrink-0">
@@ -276,9 +278,9 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
         ))}
 
         {usuarios.length === 0 && (
-          <div className="px-5 py-10 text-center text-stone-400 text-sm">Sin usuarios</div>
+          <EmptyState message="Sin usuarios" />
         )}
-      </div>
+      </Card>
 
       {/* Add user button */}
       {!showForm && !editId && (
@@ -289,7 +291,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
 
       {/* New user form */}
       {showForm && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-5">
+        <Card padding="none" className="p-5">
           <h3 className="text-sm font-bold text-stone-800 mb-5">Nuevo usuario</h3>
           <form onSubmit={handleCreate} className="space-y-4">
             <Field label="Nombre completo">
@@ -338,7 +340,7 @@ export function UsuariosManager({ usuarios: inicial, sesionId }: { usuarios: Usu
               </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
       {/* Edit user form */}

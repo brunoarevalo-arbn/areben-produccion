@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { SkuChip } from '@/components/ui/SkuChip';
 import { Select } from '@/components/ui/Select';
 import {
   type DatosEscandallo, type Margenes, type Tela, type ItemExtra,
@@ -371,7 +373,7 @@ export function Escandallos() {
                 {pendientes.map(p => (
                   <div key={p.sku} className="flex items-center gap-3 bg-white rounded-2xl border border-amber-200 px-4 py-3">
                     <div className="flex-1 min-w-0">
-                      <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-600">{p.sku}</span>
+                      <SkuChip sku={p.sku} />
                       {p.marca && <span className="text-xs text-stone-400 ml-2">{p.marca}</span>}
                       {p.descripcion && <span className="text-sm text-stone-600 ml-2">{p.descripcion}</span>}
                     </div>
@@ -444,11 +446,11 @@ export function Escandallos() {
                     const d = parseDatos(e.datos);
                     const c = calcular(d, costoMinuto, { margenDesarrollo: d.margenDesarrollo, margenFallas: d.margenFallas });
                     return (
-                      <div key={e.id} className="bg-white rounded-2xl border border-stone-200 p-5 flex items-center gap-4">
+                      <Card key={e.id} padding="none" className="p-5 flex items-center gap-4">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 flex-wrap">
                             <p className="font-bold text-stone-900">{e.nombre}</p>
-                            {e.sku        && <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-600">{e.sku}</span>}
+                            {e.sku        && <SkuChip sku={e.sku} />}
                             {e.marca      && <span className="text-xs text-stone-400">{e.marca}</span>}
                             {e.tipoPrenda && <span className="text-xs text-stone-400 italic">{e.tipoPrenda}</span>}
                             {e.notas?.trim()
@@ -476,7 +478,7 @@ export function Escandallos() {
                           <button onClick={() => eliminar(e.id, e.nombre)} aria-label="Eliminar"
                             className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>
                         </div>
-                      </div>
+                      </Card>
                     );
                   })}
                 </div>
@@ -499,7 +501,7 @@ export function Escandallos() {
           </div>
 
           {/* Selector de producto */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-5 space-y-4">
+          <Card padding="none" className="p-5 space-y-4">
             <p className={sec}>¿Qué producto querés costear?</p>
             <div className="flex gap-2">
               <button type="button"
@@ -523,10 +525,10 @@ export function Escandallos() {
                 ))}
               </Select>
             )}
-          </div>
+          </Card>
 
           {/* Identificación */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-5 space-y-4">
+          <Card padding="none" className="p-5 space-y-4">
             <p className={sec}>Identificación</p>
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
@@ -557,11 +559,11 @@ export function Escandallos() {
                   placeholder="Descripción del producto para la tienda (composición, detalles, etc.)" className={`${inp} resize-none`} />
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Telas */}
           {datos.costoTelaFicha != null ? (
-          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+          <Card padding="none" className="p-5">
             <p className={`${sec} mb-3`}>Telas — resumen de la ficha de corte</p>
             <div className="rounded-xl bg-violet-50 border border-violet-100 p-4 space-y-2">
               <div className="flex items-center justify-between">
@@ -606,9 +608,9 @@ export function Escandallos() {
                 Sale de la ficha de corte del SKU {sku ? <span className="font-mono">{sku}</span> : 'producido'}. No se edita acá: para cambiarlo, corregí la ficha en producción.
               </p>
             </div>
-          </div>
+          </Card>
           ) : (
-          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+          <Card padding="none" className="p-5">
             <div className="flex items-center justify-between mb-4">
               <p className={sec}>Telas</p>
               <button type="button" onClick={addTela}
@@ -684,11 +686,11 @@ export function Escandallos() {
                 );
               })}
             </div>
-          </div>
+          </Card>
           )}
 
           {/* Servicios fijos */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+          <Card padding="none" className="p-5">
             <p className={`${sec} mb-3`}>Servicios fijos</p>
             {!datos.costoCorteFicha && costoCorteSugerido && costoCorteSugerido.costo !== datos.costoCorte && (
               <div className="flex items-center justify-between gap-3 bg-violet-50 border border-violet-100 rounded-xl px-4 py-2.5 mb-3">
@@ -722,10 +724,10 @@ export function Escandallos() {
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
 
           {/* MO Confección */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+          <Card padding="none" className="p-5">
             <p className={`${sec} mb-3`}>MO Confección</p>
             <div className="flex items-end gap-4">
               <div className="flex-1">
@@ -787,10 +789,10 @@ export function Escandallos() {
                 )}
               </div>
             )}
-          </div>
+          </Card>
 
           {/* Varios */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+          <Card padding="none" className="p-5">
             <div className="flex items-center justify-between mb-3">
               <p className={sec}>Varios</p>
               <button type="button" onClick={addVario}
@@ -814,10 +816,10 @@ export function Escandallos() {
                 </div>
               ))}
             </div>
-          </div>
+          </Card>
 
           {/* Terminación y Avíos */}
-          <div className="bg-white rounded-2xl border border-stone-200 p-5">
+          <Card padding="none" className="p-5">
             <p className={`${sec} mb-4`}>Terminación y Avíos</p>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
@@ -893,7 +895,7 @@ export function Escandallos() {
                 ))}
               </div>
             </div>
-          </div>
+          </Card>
 
           {/* Resumen */}
           <div className="bg-stone-900 rounded-2xl p-5 text-white">

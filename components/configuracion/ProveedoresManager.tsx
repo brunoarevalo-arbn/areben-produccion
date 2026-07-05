@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
@@ -130,7 +132,7 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
       )}
 
       {showForm && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <Card padding="none" className="p-6">
           <h3 className="text-sm font-bold text-stone-800 mb-4">
             {editando ? 'Editar proveedor' : 'Nuevo proveedor'}
           </h3>
@@ -157,10 +159,10 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
               </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Nombre</span>
           <span>CUIT</span>
@@ -169,11 +171,11 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
           <span />
         </div>
         {proveedores.length === 0 ? (
-          <p className="text-sm text-stone-400 text-center py-10">Sin proveedores</p>
+          <EmptyState message="Sin proveedores" />
         ) : (
           proveedores.map((p, i) => (
             <div key={p.id}
-              className={`px-5 py-3.5 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!p.activo ? 'opacity-50' : ''}`}>
+              className={`px-5 py-3 grid grid-cols-[1fr_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!p.activo ? 'opacity-50' : ''}`}>
               <div>
                 <p className="text-sm font-medium text-stone-800">{p.nombre}</p>
                 {p.contacto && <p className="text-xs text-stone-400">{p.contacto}</p>}
@@ -192,7 +194,7 @@ export function ProveedoresManager({ initial }: { initial: Proveedor[] }) {
             </div>
           ))
         )}
-      </div>
+      </Card>
     </div>
   );
 }

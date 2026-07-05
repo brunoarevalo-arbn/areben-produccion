@@ -1,5 +1,7 @@
 'use client';
 
+import { Card } from '@/components/ui/Card';
+
 interface Movimiento {
   id: string;
   tipo: string;
@@ -42,7 +44,7 @@ export function RolloDetalle({ rollo }: { rollo: RolloFull }) {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+      <Card padding="none" className="p-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-8 text-sm">
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Codigo</p>
@@ -92,9 +94,9 @@ export function RolloDetalle({ rollo }: { rollo: RolloFull }) {
             <p className="text-sm text-stone-600">{rollo.ubicacion}</p>
           </div>
         )}
-      </div>
+      </Card>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+      <Card padding="none" className="p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-3">Historial de movimientos</h3>
         {rollo.movimientos.length === 0 ? (
           <p className="text-sm text-stone-400">Sin movimientos</p>
@@ -111,22 +113,22 @@ export function RolloDetalle({ rollo }: { rollo: RolloFull }) {
             <tbody>
               {rollo.movimientos.map((m) => (
                 <tr key={m.id} className="border-b border-stone-50">
-                  <td className="py-2 text-xs text-stone-500 whitespace-nowrap">{fechaFmt(m.fecha)}</td>
-                  <td className="py-2">
+                  <td className="py-3 text-xs text-stone-500 whitespace-nowrap">{fechaFmt(m.fecha)}</td>
+                  <td className="py-3">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${TIPO_COLOR[m.tipo] || ''}`}>
                       {m.tipo}
                     </span>
                   </td>
-                  <td className={`py-2 text-right tabular-nums font-semibold ${Number(m.cantidad) >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
+                  <td className={`py-3 text-right tabular-nums font-semibold ${Number(m.cantidad) >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>
                     {Number(m.cantidad) >= 0 ? '+' : ''}{fmt(m.cantidad)}
                   </td>
-                  <td className="py-2 text-xs text-stone-600">{m.motivo || m.reversionNota || '--'}</td>
+                  <td className="py-3 text-xs text-stone-600">{m.motivo || m.reversionNota || '--'}</td>
                 </tr>
               ))}
             </tbody>
           </table></div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

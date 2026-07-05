@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 
@@ -92,7 +94,7 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
       )}
 
       {showForm && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <Card padding="none" className="p-6">
           <h3 className="text-sm font-bold text-stone-800 mb-4">{editando ? 'Editar cortador' : 'Nuevo cortador'}</h3>
           <form onSubmit={guardar} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
@@ -116,19 +118,19 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
               </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[1fr_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Nombre</span><span>Contacto</span><span>Estado</span><span />
         </div>
         {cortadores.length === 0 ? (
-          <p className="text-sm text-stone-400 text-center py-10">Sin cortadores</p>
+          <EmptyState message="Sin cortadores" />
         ) : (
           cortadores.map((c, i) => (
             <div key={c.id}
-              className={`px-5 py-3.5 grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!c.activo ? 'opacity-50' : ''}`}>
+              className={`px-5 py-3 grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!c.activo ? 'opacity-50' : ''}`}>
               <p className="text-sm font-medium text-stone-800">{c.nombre}</p>
               <span className="text-xs text-stone-500">{c.contacto || '--'}</span>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${c.activo ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
@@ -141,7 +143,7 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
             </div>
           ))
         )}
-      </div>
+      </Card>
     </div>
   );
 }

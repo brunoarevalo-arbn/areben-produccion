@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/components/ui/Toaster';
 
 interface GnProd { gnId: number; code: string | null; name: string; provider: string; category: string | null; skuLiso: string | null; tipo: string | null; }
@@ -79,7 +81,7 @@ export function VincularClient() {
   });
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
+    <Card padding="none" className="p-6 space-y-4">
       <datalist id="lisos-sug">{lisosSugeridos.map((s) => <option key={s} value={s} />)}</datalist>
 
       <div className="flex flex-wrap items-center gap-3">
@@ -104,8 +106,8 @@ export function VincularClient() {
             </label>
           </div>
           <div className="space-y-1.5 max-h-[32rem] overflow-y-auto">
-            {lista.length === 0 ? <p className="text-xs text-stone-400 py-2">Sin resultados.</p> : lista.map((p) => (
-              <div key={p.gnId} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${p.skuLiso ? 'border-emerald-200 bg-emerald-50/40' : 'border-stone-100'}`}>
+            {lista.length === 0 ? <EmptyState message="Sin resultados." /> : lista.map((p) => (
+              <div key={p.gnId} className={`flex items-center gap-2 px-3 py-3 rounded-lg border ${p.skuLiso ? 'border-emerald-200 bg-emerald-50/40' : 'border-stone-100'}`}>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-stone-800 truncate">{p.name}</p>
                   <p className="text-xs text-stone-400">{p.provider}{p.category ? ` · ${p.category}` : ''}</p>
@@ -123,6 +125,6 @@ export function VincularClient() {
           </div>
         </>
       )}
-    </div>
+    </Card>
   );
 }

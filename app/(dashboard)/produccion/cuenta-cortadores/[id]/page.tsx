@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
 import { RegistrarPagoCortador } from '@/components/produccion/cortador/RegistrarPagoCortador';
 
 export const dynamic = 'force-dynamic';
@@ -46,9 +47,9 @@ export default async function CuentaCortadorPage({ params }: { params: Promise<{
       <section>
         <h2 className="text-sm font-bold text-stone-800 mb-3">Historial de pagos</h2>
         {pagos.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-sm text-stone-400">Sin pagos registrados.</div>
+          <Card padding="none" className="p-6 text-center text-sm text-stone-400">Sin pagos registrados.</Card>
         ) : (
-          <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+          <Card padding="none" className="divide-y divide-stone-100">
             {pagos.map((p) => (
               <div key={p.id} className="flex items-center gap-3 px-5 py-3 text-sm">
                 <span className="text-stone-500 shrink-0">{fechaCorta(p.fecha)}</span>
@@ -56,7 +57,7 @@ export default async function CuentaCortadorPage({ params }: { params: Promise<{
                 <span className="font-semibold text-stone-800 tabular-nums shrink-0">{fmt$(Number(p.montoTotal))}</span>
               </div>
             ))}
-          </div>
+          </Card>
         )}
       </section>
     </div>

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/components/ui/Toaster';
 
 interface Muestra { id: string; descripcion: string; consumo: number; unidad: string; valor: number; estado: string; fecha: string }
@@ -50,7 +52,7 @@ export function MuestrasCortador({ inicial }: { inicial: Muestra[] }) {
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-5 mb-3 space-y-3">
+        <Card padding="none" className="p-5 mb-3 space-y-3">
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1 block">Descripción</label>
             <input type="text" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} placeholder="Ej: Muestra remera boxy" className={`${inp} w-full`} />
@@ -77,13 +79,13 @@ export function MuestrasCortador({ inicial }: { inicial: Muestra[] }) {
             <Button variant="primary" size="sm" onClick={guardar} isLoading={saving}>Guardar muestra</Button>
             <Button variant="secondary" size="sm" onClick={() => setShowForm(false)}>Cancelar</Button>
           </div>
-        </div>
+        </Card>
       )}
 
       {muestras.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6 text-center text-sm text-stone-400">Sin muestras cargadas.</div>
+        <EmptyState message="Sin muestras cargadas." />
       ) : (
-        <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+        <Card padding="none" className="divide-y divide-stone-100">
           {muestras.map((m) => (
             <div key={m.id} className="flex items-center gap-3 px-5 py-3 text-sm">
               <div className="flex-1 min-w-0">
@@ -97,7 +99,7 @@ export function MuestrasCortador({ inicial }: { inicial: Muestra[] }) {
               {m.estado === 'pendiente' && <button onClick={() => borrar(m.id)} aria-label="Borrar" className="text-stone-300 hover:text-red-500 px-1 leading-none text-lg shrink-0">×</button>}
             </div>
           ))}
-        </div>
+        </Card>
       )}
     </section>
   );

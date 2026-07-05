@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface RolloOpt {
   id: string;
@@ -130,7 +132,7 @@ export function MuestrasClient() {
       </form>
 
       {/* Lista (sin costo) */}
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_1fr_auto_1fr_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Fecha</span>
           <span>Insumo / color</span>
@@ -139,7 +141,7 @@ export function MuestrasClient() {
           <span>Rollo</span>
         </div>
         {muestras.length === 0 ? (
-          <div className="px-5 py-10 text-center text-stone-400 text-sm">Sin muestras registradas todavía.</div>
+          <EmptyState message="Sin muestras registradas todavía." />
         ) : (
           muestras.map((m, i) => (
             <div key={m.id} className={`px-5 py-3 grid grid-cols-[auto_1fr_auto_1fr_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''}`}>
@@ -154,7 +156,7 @@ export function MuestrasClient() {
             </div>
           ))
         )}
-      </div>
+      </Card>
     </div>
   );
 }

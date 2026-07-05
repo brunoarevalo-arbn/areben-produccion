@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface Item { id: string; nombre: string; }
@@ -78,7 +80,7 @@ export function CatalogoManager({ items: initial, apiBase, label, placeholder }:
   return (
     <div className="max-w-lg space-y-5">
       {/* Agregar nuevo */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <Card padding="none" className="p-5">
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Agregar {label}</p>
         <div className="flex gap-2">
           <input
@@ -97,12 +99,12 @@ export function CatalogoManager({ items: initial, apiBase, label, placeholder }:
           </Button>
         </div>
         {error && <p className="text-xs text-red-500 mt-2">{error}</p>}
-      </div>
+      </Card>
 
       {/* Lista */}
-      <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+      <Card padding="none" className="divide-y divide-stone-100">
         {items.length === 0 && (
-          <p className="text-sm text-stone-400 text-center py-10 italic">Sin {label}s todavía</p>
+          <EmptyState message={`Sin ${label}s todavía`} />
         )}
         {items.map((item) => (
           <div key={item.id} className="flex items-center gap-3 px-5 py-3">
@@ -136,7 +138,7 @@ export function CatalogoManager({ items: initial, apiBase, label, placeholder }:
             )}
           </div>
         ))}
-      </div>
+      </Card>
     </div>
   );
 }

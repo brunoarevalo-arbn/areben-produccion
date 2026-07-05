@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
+import { Card } from '@/components/ui/Card';
 
 interface InsumoItem {
   id: string;
@@ -167,7 +168,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
       </div>
 
       {showForm && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <Card padding="none" className="p-6">
           <h3 className="text-sm font-bold text-stone-800 mb-4">
             {editando ? 'Editar insumo' : 'Nuevo insumo'}
           </h3>
@@ -223,10 +224,10 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
               </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Nombre</span>
           <span>Categoria</span>
@@ -241,7 +242,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
         ) : (
           filtrados.map((ins, i) => (
             <div key={ins.id}
-              className={`px-5 py-3.5 grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!ins.activo ? 'opacity-50' : ''}`}>
+              className={`px-5 py-3 grid grid-cols-[1fr_auto_auto_auto_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!ins.activo ? 'opacity-50' : ''}`}>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-stone-800 truncate">{ins.nombre}</p>
                 {ins.nombreInterno && <p className="text-xs text-stone-400 truncate">interno: {ins.nombreInterno}</p>}
@@ -272,7 +273,7 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
             </div>
           ))
         )}
-      </div>
+      </Card>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { AviosCatalogoManager } from '@/components/inventario/AviosCatalogoManager';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface CostoCorte { id: string; tipoPrenda: string; costo: number; }
@@ -11,7 +12,6 @@ interface CostoCorte { id: string; tipoPrenda: string; costo: number; }
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
 const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
-const card = 'bg-white rounded-2xl border border-stone-200';
 
 export function CatalogosCosto() {
   return (
@@ -67,7 +67,7 @@ function CostosCorteManager() {
       <h3 className="text-sm font-bold text-stone-800 mb-1">Costos de corte por tipo de prenda</h3>
       <p className="text-xs text-stone-400 mb-4">Costo de referencia por prenda. En el escandallo se sugiere según el tipo de prenda cargado.</p>
 
-      <div className={`${card} divide-y divide-stone-100 mb-3`}>
+      <Card padding="none" className="divide-y divide-stone-100 mb-3">
         {items.length === 0 && <p className="text-sm text-stone-400 text-center py-8 italic">Sin costos cargados</p>}
         {items.map(it => (
           <div key={it.id} className="flex items-center gap-3 px-5 py-3">
@@ -89,7 +89,7 @@ function CostosCorteManager() {
             )}
           </div>
         ))}
-      </div>
+      </Card>
 
       <div className="flex gap-2">
         <input type="text" value={tipoPrenda} onChange={e => { setTipoPrenda(e.target.value); setError(''); }}

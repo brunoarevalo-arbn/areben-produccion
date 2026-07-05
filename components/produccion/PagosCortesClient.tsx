@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface OrdenCorte {
   id: string;
@@ -149,7 +151,7 @@ export function PagosCortesClient() {
     <div className="space-y-5">
       {/* Stats por cortador */}
       {filtro === 'pendiente' && cortadores.length > 0 && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-4">
+        <Card padding="none" className="p-4">
           <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Pendiente por cortador</p>
           <div className="flex flex-wrap gap-3">
             {cortadores.map((c) => {
@@ -169,7 +171,7 @@ export function PagosCortesClient() {
               <p className="font-bold tabular-nums text-lg">${fmt(totalPendiente)}</p>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Filtros */}
@@ -197,7 +199,7 @@ export function PagosCortesClient() {
       </div>
 
       {/* Tabla */}
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="overflow-x-auto"><div className="min-w-[760px]">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_auto_1fr_1fr_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400 items-center">
           <input type="checkbox"
@@ -217,7 +219,7 @@ export function PagosCortesClient() {
         {loading ? (
           <LoadingState />
         ) : ordenes.length === 0 ? (
-          <p className="text-sm text-stone-400 text-center py-10">Sin cortes</p>
+          <EmptyState message="Sin cortes" />
         ) : (
           ordenes.map((o, i) => {
             const fechaCorte = o.transiciones[0]?.fecha;
@@ -251,11 +253,11 @@ export function PagosCortesClient() {
           })
         )}
         </div></div>
-      </div>
+      </Card>
 
       {/* Muestras del cortador */}
       {muestrasVista.length > 0 && (
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <Card padding="none" className="overflow-hidden">
           <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 text-xs font-bold uppercase tracking-widest text-stone-400">Muestras de cortadores</div>
           {muestrasVista.map((m, i) => {
             const pagada = !!m.pagoCorteId;
@@ -278,7 +280,7 @@ export function PagosCortesClient() {
               </div>
             );
           })}
-        </div>
+        </Card>
       )}
 
       {/* Modal de pago */}

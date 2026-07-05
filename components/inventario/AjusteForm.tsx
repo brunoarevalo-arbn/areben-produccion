@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
+import { Card } from '@/components/ui/Card';
 
 interface RolloOpt { id: string; codigo: string; pesoActual: string; insumo: { nombre: string } }
 interface MotivoOpt { id: string; nombre: string; categoria: string; activo: boolean; }
@@ -67,7 +68,7 @@ export function AjusteForm() {
   const fmt = (n: string | number) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-6 max-w-lg">
+    <Card padding="none" className="p-6 max-w-lg">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Rollo *</label>
@@ -111,6 +112,6 @@ export function AjusteForm() {
           {saving ? 'Registrando...' : 'Registrar ajuste'}
         </button>
       </form>
-    </div>
+    </Card>
   );
 }

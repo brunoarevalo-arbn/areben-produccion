@@ -7,6 +7,7 @@ import { calcTizada, type TizadaRollo } from '@/lib/produccion/tizada';
 import { AviosSelector, type AvioOpt, type AvioSel } from '@/components/produccion/AviosSelector';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 
 interface RolloDisp {
   id: string; codigo: string; pesoActual: string; costoUnitario: string;
@@ -252,7 +253,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Consumo de tela — una o más tizadas */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+      <Card padding="none" className="p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-1">1. Consumo de tela</h3>
         <p className="text-xs text-stone-400 mb-4">
           Una ficha puede tener varias tizadas (cuerpo, puño, manga, complementos). Cada una con su tela y su rinde.
@@ -390,19 +391,19 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
             <div className="text-right"><span className="text-stone-500">Costo tela: </span><strong>${fmt(costoTela)}</strong></div>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Avíos de la prenda (catálogo) */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+      <Card padding="none" className="p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-1">2. Avíos de la prenda</h3>
         <p className="text-xs text-stone-400 mb-4">
           Qué etiquetas/avíos del catálogo lleva cada prenda. El stock se descuenta solo al terminar la producción.
         </p>
         <AviosSelector aviosCatalogo={aviosCatalogo} marca={marca} aviosSel={aviosSel} setAviosSel={setAviosSel} totalUnidades={totalUnidades} />
-      </div>
+      </Card>
 
       {/* Desglose por talles */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+      <Card padding="none" className="p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-1">3. Desglose por talle</h3>
         <p className="text-xs text-stone-400 mb-4">
           Cuantas prendas se cortaron de cada talle. El total reemplaza la cantidad planificada ({cantidadPlanificada}).
@@ -445,10 +446,10 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
             </span>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Cortador + Costo */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+      <Card padding="none" className="p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-1">4. Servicio de corte</h3>
         <p className="text-xs text-stone-400 mb-4">Quien corto la tela y cuanto se le paga. El estado de pago arranca como PENDIENTE.</p>
         <div className="grid grid-cols-3 gap-4">
@@ -492,14 +493,14 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
             )}
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Notas */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+      <Card padding="none" className="p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-3">Notas</h3>
         <textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2}
           placeholder="Observaciones, merma esperada, etc." className={`${inp} resize-none`} />
-      </div>
+      </Card>
 
       {/* Resumen total */}
       <div className="bg-stone-50 rounded-2xl border border-stone-200 p-6">

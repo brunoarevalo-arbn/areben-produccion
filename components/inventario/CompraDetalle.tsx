@@ -7,6 +7,7 @@ import { NumInput } from '@/components/ui/NumInput';
 import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
+import { Card } from '@/components/ui/Card';
 
 interface CompraFull {
   id: string;
@@ -112,7 +113,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
       )}
 
       {/* Cabecera */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+      <Card padding="none" className="p-6">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-y-4 gap-x-8 text-sm">
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Proveedor</p>
@@ -197,10 +198,10 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
             </button>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Lineas */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6">
+      <Card padding="none" className="p-6">
         <h3 className="text-sm font-bold text-stone-800 mb-3">Lineas</h3>
         <div className="overflow-x-auto"><table className="w-full text-sm">
           <thead>
@@ -214,7 +215,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
           <tbody>
             {compra.lineas.map((l) => (
               <tr key={l.id} className="border-b border-stone-50">
-                <td className="py-2.5">
+                <td className="py-3">
                   <p className="text-stone-800 font-medium">{l.insumo.nombre}</p>
                   <p className="text-xs text-stone-400">{l.insumo.categoria} · {l.insumo.tipoTrazabilidad}</p>
                 </td>
@@ -225,11 +226,11 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
             ))}
           </tbody>
         </table></div>
-      </div>
+      </Card>
 
       {/* Rollos */}
       {compra.rollos.length > 0 && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <Card padding="none" className="p-6">
           <h3 className="text-sm font-bold text-stone-800 mb-3">Rollos creados</h3>
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
@@ -246,7 +247,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
             <tbody>
               {compra.rollos.map((r) => (
                 <tr key={r.id} className="border-b border-stone-50">
-                  <td className="py-2">
+                  <td className="py-3">
                     <Link href={`/inventario/rollos/${r.id}`} className="font-mono text-stone-700 hover:text-amber-600 transition">
                       {r.codigo}
                     </Link>
@@ -261,12 +262,12 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
               ))}
             </tbody>
           </table></div>
-        </div>
+        </Card>
       )}
 
       {/* Lotes */}
       {compra.lotes.length > 0 && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <Card padding="none" className="p-6">
           <h3 className="text-sm font-bold text-stone-800 mb-3">Lotes creados</h3>
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
@@ -282,7 +283,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
             <tbody>
               {compra.lotes.map((l) => (
                 <tr key={l.id} className="border-b border-stone-50">
-                  <td className="py-2 font-mono text-stone-700">{l.codigo}</td>
+                  <td className="py-3 font-mono text-stone-700">{l.codigo}</td>
                   <td className="text-stone-600">{l.insumo.nombre}</td>
                   <td className="text-stone-600">{l.color?.nombre ?? l.colorProveedor ?? <span className="text-stone-300">—</span>}</td>
                   <td className="text-right tabular-nums">{fmt(l.cantidadActual)} / {fmt(l.cantidadInicial)}</td>
@@ -292,7 +293,7 @@ export function CompraDetalle({ compra: initial }: { compra: CompraFull }) {
               ))}
             </tbody>
           </table></div>
-        </div>
+        </Card>
       )}
     </div>
   );

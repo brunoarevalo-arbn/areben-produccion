@@ -2,6 +2,7 @@ import { prisma } from '@/lib/prisma';
 import { minutosAHorasMin } from '@/lib/utils/calculos';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Card } from '@/components/ui/Card';
 import Link from 'next/link';
 
 export const dynamic = 'force-dynamic';
@@ -70,7 +71,7 @@ export default async function TiempoSkuPage() {
       ) : (
         <div className="space-y-3">
           {filas.map((f) => (
-            <div key={f.sku} className="bg-white rounded-2xl border border-stone-200 p-4">
+            <Card key={f.sku} padding="none" className="p-4">
               <div className="flex items-center justify-between gap-3 flex-wrap mb-2">
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono font-bold text-sm bg-stone-100 px-2 py-1 rounded-lg text-stone-800">{f.sku}</span>
@@ -93,7 +94,7 @@ export default async function TiempoSkuPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </Card>
           ))}
         </div>
       )}

@@ -2,6 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
+import { Card } from '@/components/ui/Card';
+import { SkuChip } from '@/components/ui/SkuChip';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface Orden { id: string; sku: string | null; descripcion: string | null; marca: string; cantidad: number; estado: string; fichaCorteCargada: boolean; }
 
@@ -40,7 +43,7 @@ export function FichasCorteClient({ ordenes }: { ordenes: Orden[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="bg-white rounded-2xl border border-stone-200 p-3 flex flex-wrap items-center gap-3">
+      <Card padding="none" className="p-3 flex flex-wrap items-center gap-3">
         <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar por SKU, descripción o marca…" className={`${inp} flex-1 min-w-[14rem]`} />
         <div className="flex gap-1 bg-stone-100 rounded-xl p-1">
           {FILTROS.map((f) => (
@@ -49,18 +52,18 @@ export function FichasCorteClient({ ordenes }: { ordenes: Orden[] }) {
           ))}
         </div>
         <span className="text-xs text-stone-400 ml-auto whitespace-nowrap">{lista.length} órdenes</span>
-      </div>
+      </Card>
 
       {lista.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center text-sm text-stone-400">Sin resultados.</div>
+        <EmptyState message="Sin resultados." />
       ) : (
-        <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+        <Card padding="none" className="divide-y divide-stone-100">
           {lista.map((o) => (
-            <div key={o.id} className="flex items-center gap-3 px-5 py-3.5">
+            <div key={o.id} className="flex items-center gap-3 px-5 py-3">
               <Link href={`/produccion/${o.id}`} className="flex-1 min-w-0 group">
                 <div className="flex items-center gap-2 flex-wrap">
                   {o.sku
-                    ? <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-700 group-hover:bg-stone-200">{o.sku}</span>
+                    ? <SkuChip sku={o.sku} className="text-stone-700 group-hover:bg-stone-200" />
                     : <span className="text-xs text-stone-400 italic">sin SKU</span>}
                   <span className="text-xs text-stone-400">{o.marca}</span>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ESTADO_COLOR[o.estado] ?? 'bg-stone-100 text-stone-600'}`}>{ESTADO_LABEL[o.estado] ?? o.estado}</span>
@@ -75,7 +78,7 @@ export function FichasCorteClient({ ordenes }: { ordenes: Orden[] }) {
               )}
             </div>
           ))}
-        </div>
+        </Card>
       )}
     </div>
   );

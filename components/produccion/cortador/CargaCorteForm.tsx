@@ -4,6 +4,7 @@ import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { TALLES_DEFAULT, TALLES_COMUNES } from '@/lib/validators/produccion';
 import { toast } from '@/components/ui/Toaster';
 
@@ -49,7 +50,7 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada }: { ordenId: stri
   return (
     <div className="space-y-4">
       {/* Tizadas */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <Card padding="none" className="p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-stone-800">Tizadas</h3>
           <button type="button" onClick={() => setTizadas((p) => [...p, { id: `t${seq.current++}`, nombre: '', metros: '', unidades: '1' }])}
@@ -74,10 +75,10 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada }: { ordenId: stri
             );
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Talles */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <Card padding="none" className="p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-stone-800">Talles cortados</h3>
           <span className="text-xs text-stone-400">Total: <strong className="text-stone-700">{totalU}</strong> u{cantidadPlanificada ? ` · plan ${cantidadPlanificada}` : ''}</span>
@@ -96,10 +97,10 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada }: { ordenId: stri
             </select>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Precio + fecha */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Card padding="none" className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Precio del corte</label>
           <div className="flex gap-2">
@@ -118,7 +119,7 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada }: { ordenId: stri
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Fecha del corte</label>
           <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={`${inp} w-full`} />
         </div>
-      </div>
+      </Card>
 
       <div className="flex gap-2">
         <Button variant="primary" onClick={guardar} isLoading={saving}>Guardar corte</Button>

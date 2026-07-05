@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
+import { Card } from '@/components/ui/Card';
 
 interface Rollo {
   id: string;
@@ -145,7 +146,7 @@ export function RollosClient() {
         </Link>
       )}
 
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="overflow-x-auto"><div className="min-w-[840px]">
         <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 grid grid-cols-[auto_1fr_auto_auto_auto_auto_auto_auto] gap-4 text-xs font-bold uppercase tracking-widest text-stone-400">
           <span>Codigo</span>
@@ -194,7 +195,7 @@ export function RollosClient() {
           ))
         )}
         </div></div>
-      </div>
+      </Card>
     </div>
   );
 }

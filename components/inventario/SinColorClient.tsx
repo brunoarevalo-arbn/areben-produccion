@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Button } from '@/components/ui/Button';
 import { toast } from '@/components/ui/Toaster';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface Huerfano {
   id: string;
@@ -135,9 +137,7 @@ export function SinColorClient() {
   if (loading) return <LoadingState />;
   if (items.length === 0) {
     return (
-      <div className="bg-white rounded-2xl border border-stone-200 p-10 text-center">
-        <p className="text-stone-400 text-sm">No hay rollos ni lotes sin color asignado.</p>
-      </div>
+      <EmptyState message="No hay rollos ni lotes sin color asignado." />
     );
   }
 
@@ -158,7 +158,7 @@ export function SinColorClient() {
         </Button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className="overflow-x-auto"><div className="min-w-[820px]">
         <div className={`px-5 py-3 bg-stone-50 border-b border-stone-100 ${GRID} text-xs font-bold uppercase tracking-widest text-stone-400`}>
           <input type="checkbox" checked={todosMarcados} onChange={toggleTodos} aria-label="Seleccionar todos"
@@ -199,7 +199,7 @@ export function SinColorClient() {
           </div>
         ))}
         </div></div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
 
 export const dynamic = 'force-dynamic';
 
@@ -68,11 +69,11 @@ export default async function DashboardPage() {
 
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Equipo</p>
-        <div className="bg-white rounded-2xl border border-stone-200 p-5">
+        <Card padding="none" className="p-5">
           <p className="text-sm text-stone-600">
             {costurerasCount} costurera{costurerasCount !== 1 ? 's' : ''} activa{costurerasCount !== 1 ? 's' : ''}
           </p>
-        </div>
+        </Card>
       </div>
     </div>
   );

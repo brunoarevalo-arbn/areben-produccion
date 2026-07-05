@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { toast } from '@/components/ui/Toaster';
 
 interface Corte { id: string; sku: string | null; costoCorte: number; fecha: string | null }
@@ -46,7 +47,7 @@ export function RegistrarPagoCortador({ cortadorNombre, cortes, muestras }: { co
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-5 space-y-4">
+    <Card padding="none" className="p-5 space-y-4">
       <div className="space-y-1.5">
         {cortes.map((c) => (
           <label key={c.id} className="flex items-center gap-3 text-sm cursor-pointer">
@@ -77,6 +78,6 @@ export function RegistrarPagoCortador({ cortadorNombre, cortes, muestras }: { co
         </div>
         <Button variant="primary" onClick={pagar} isLoading={saving} disabled={n === 0}>Registrar pago de {fmt$(total)}</Button>
       </div>
-    </div>
+    </Card>
   );
 }

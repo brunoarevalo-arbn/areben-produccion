@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Card } from '@/components/ui/Card';
 
 interface SkuColor { id: string; nombre: string; abreviatura: string; }
 interface InsumoColorItem {
@@ -62,7 +63,7 @@ export function InsumoColoresManager({ insumoId, insumoNombre }: { insumoId: str
 
   return (
     <div className="space-y-5">
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <Card padding="none" className="p-5">
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Agregar color a {insumoNombre}</p>
         <div className="flex gap-2">
           <select value={selected} onChange={(e) => setSelected(e.target.value)} className={`flex-1 ${inp}`}>
@@ -80,9 +81,9 @@ export function InsumoColoresManager({ insumoId, insumoNombre }: { insumoId: str
         {noAsignados.length === 0 && disponibles.length > 0 && (
           <p className="text-xs text-stone-400 mt-2">Todos los colores del catalogo ya estan asignados.</p>
         )}
-      </div>
+      </Card>
 
-      <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+      <Card padding="none" className="divide-y divide-stone-100">
         {colores.length === 0 ? (
           <p className="text-sm text-stone-400 text-center py-10">Sin colores asignados</p>
         ) : (
@@ -100,7 +101,7 @@ export function InsumoColoresManager({ insumoId, insumoNombre }: { insumoId: str
             </div>
           ))
         )}
-      </div>
+      </Card>
     </div>
   );
 }

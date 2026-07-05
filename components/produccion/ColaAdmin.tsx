@@ -9,6 +9,8 @@ import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { PopoverMenu } from '@/components/ui/PopoverMenu';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 
 interface Transicion { fecha: string; estadoNuevo: string; }
 
@@ -565,7 +567,7 @@ export function ColaAdmin() {
       )}
 
       {/* Tabla */}
-      <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <Card padding="none" className="overflow-hidden">
         <div className={`px-4 md:px-5 py-2.5 bg-stone-50 border-b border-stone-100 ${GRID} text-xs font-bold uppercase tracking-widest text-stone-500`}>
           <span>SKU</span>
           <span>Descripcion</span>
@@ -579,7 +581,7 @@ export function ColaAdmin() {
         {loading ? (
           <LoadingState />
         ) : filas.length === 0 ? (
-          <div className="px-5 py-10 text-center text-stone-400 text-sm">Sin ordenes</div>
+          <EmptyState message="Sin ordenes" />
         ) : (
           filas.map((fila) => {
             if (fila.kind === 'lote') {
@@ -642,7 +644,7 @@ export function ColaAdmin() {
             return renderOrden(fila.orden, false);
           })
         )}
-      </div>
+      </Card>
 
       {/* Boton agregar */}
       {!showForm && (
@@ -653,7 +655,7 @@ export function ColaAdmin() {
 
       {/* Form crear: lote madre + una OP por color */}
       {showForm && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-5">
+        <Card padding="none" className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-sm font-bold text-stone-800">Nueva producción</h3>
             <Link href="/produccion/catalogo-sku" className="text-xs text-stone-500 hover:text-stone-800 transition">
@@ -715,7 +717,7 @@ export function ColaAdmin() {
               </Button>
             </div>
           </form>
-        </div>
+        </Card>
       )}
 
       {/* Mini-modal: asignar SKU al mandar a costura (OPs viejas sin SKU) */}

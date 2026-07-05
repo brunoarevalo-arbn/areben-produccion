@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Card } from '@/components/ui/Card';
 import { fmtMoney } from '@/lib/format';
 
 interface Row {
@@ -84,7 +85,7 @@ export function CuentasPorPagarClient() {
       )}
 
       {grupos.map((g) => (
-        <div key={g.proveedorId} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+        <Card key={g.proveedorId} padding="none" className="overflow-hidden">
           <div className="px-5 py-3 bg-stone-50 border-b border-stone-100 flex items-center justify-between">
             <span className="font-bold text-stone-800">{g.proveedorNombre}</span>
             <span className="text-sm text-stone-500">Pendiente: <strong className="text-stone-900">{fmtMoney(g.totalPendiente)}</strong></span>
@@ -140,7 +141,7 @@ export function CuentasPorPagarClient() {
               </div>
             );
           })}
-        </div>
+        </Card>
       ))}
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
@@ -23,12 +24,12 @@ export function FaseCatalogoManager({ inicial }: { inicial: Fase[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+      <Card padding="none" className="divide-y divide-stone-100">
         {fases.length === 0 && <p className="px-5 py-6 text-center text-xs text-stone-400 italic">Sin fases cargadas</p>}
         {fases.map((f) => (
           <FaseRow key={f.id} fase={f} onChange={refresh} />
         ))}
-      </div>
+      </Card>
       <NuevaFase onCreated={refresh} ordenSugerido={(fases[fases.length - 1]?.orden ?? 0) + 1} />
     </div>
   );

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { AviosSelector, type AvioOpt, type AvioSel } from '@/components/produccion/AviosSelector';
 import { TALLES_DEFAULT, TALLES_COMUNES } from '@/lib/validators/produccion';
 import { toast } from '@/components/ui/Toaster';
@@ -82,7 +83,7 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
       </div>
 
       {/* Cortador + fecha + costo */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Card padding="none" className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cortador</label>
           <select value={cortadorId} onChange={(e) => onCortador(e.target.value)} className={inp}>
@@ -105,10 +106,10 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
             </div>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Talles */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <Card padding="none" className="p-5">
         <div className="flex items-center justify-between mb-3">
           <label className="text-xs font-semibold text-stone-600">Talles cortados</label>
           <span className="text-xs text-stone-400">Total: <strong className="text-stone-700">{totalUnidades}</strong> u</span>
@@ -128,19 +129,19 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
             </select>
           )}
         </div>
-      </div>
+      </Card>
 
       {/* Avíos */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <Card padding="none" className="p-5">
         <label className="text-xs font-semibold text-stone-600 mb-3 block">Avíos</label>
         <AviosSelector aviosCatalogo={aviosCatalogo} marca={marca} aviosSel={aviosSel} setAviosSel={setAviosSel} totalUnidades={totalUnidades} />
-      </div>
+      </Card>
 
       {/* Notas */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <Card padding="none" className="p-5">
         <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Nota (opcional)</label>
         <input type="text" value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Se agrega a las notas de la orden" className={inp} />
-      </div>
+      </Card>
 
       <div className="flex gap-2">
         <Button variant="primary" size="sm" onClick={guardar} isLoading={saving}>Guardar cambios</Button>

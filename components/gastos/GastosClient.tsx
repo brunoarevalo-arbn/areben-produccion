@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { GastoCompraForm } from '@/components/compras/GastoCompraForm';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { fmtMoney } from '@/lib/format';
 
 interface Gasto {
@@ -170,15 +172,15 @@ export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, cos
 
           <TotalCards gastos={gastosD} costoMinuto={costoMinuto} />
 
-          <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             {gastosD.length === 0 && (
-              <p className="px-4 py-10 text-center text-stone-400 text-sm">Sin gastos de desarrollo</p>
+              <EmptyState message="Sin gastos de desarrollo" />
             )}
             {gastosD.map((g) => (
               <GastoRow key={g.id} gasto={g} costoMinuto={costoMinuto}
                 onDelete={(id) => setGastosDesarrollo((prev) => prev.filter((x) => x.id !== id))} />
             ))}
-          </div>
+          </Card>
 
           <GastoCompraForm defaultCategoria="desarrollo" onCreado={onCreado} />
         </div>
@@ -188,15 +190,15 @@ export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, cos
         <div className="space-y-6">
           <TotalCards gastos={gastosProduccion} costoMinuto={costoMinuto} />
 
-          <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             {gastosProduccion.length === 0 && (
-              <p className="px-4 py-10 text-center text-stone-400 text-sm">Sin gastos de producción</p>
+              <EmptyState message="Sin gastos de producción" />
             )}
             {gastosProduccion.map((g) => (
               <GastoRow key={g.id} gasto={g} costoMinuto={costoMinuto}
                 onDelete={(id) => setGastosProduccion((prev) => prev.filter((x) => x.id !== id))} />
             ))}
-          </div>
+          </Card>
 
           <GastoCompraForm defaultCategoria="produccion" onCreado={onCreado} />
         </div>

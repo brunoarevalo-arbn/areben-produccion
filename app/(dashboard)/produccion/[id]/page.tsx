@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Badge } from '@/components/ui/Badge';
+import { Card } from '@/components/ui/Card';
 import { resumenConsumoTela } from '@/lib/produccion/consumo';
 import { AsignarCortador } from '@/components/produccion/AsignarCortador';
 
@@ -60,7 +61,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
       />
 
       {/* Consumo de tela (los costos van en el módulo de Costos) */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
+      <Card padding="none" className="p-6 mb-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-stone-800">Consumo de tela</h3>
           {orden.cortador && <span className="text-xs text-stone-400">Cortador: {orden.cortador}</span>}
@@ -83,13 +84,13 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
             <p className="text-stone-800 tabular-nums">{kgPorU > 0 ? `${fmt(kgPorU)} kg` : '--'}</p>
           </div>
         </div>
-      </div>
+      </Card>
 
       {/* Asignar cortador (para que cargue desde su panel) */}
       {!orden.fichaCorteCargada && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-4 mb-6">
+        <Card padding="none" className="p-4 mb-6">
           <AsignarCortador ordenId={orden.id} cortadorId={orden.cortadorId} corteEstado={orden.corteEstado} />
-        </div>
+        </Card>
       )}
 
       {/* Acciones de ficha */}
@@ -115,7 +116,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
 
       {/* Talles cortados */}
       {orden.cortesPorTalle.length > 0 && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
+        <Card padding="none" className="p-6 mb-6">
           <h3 className="text-sm font-bold text-stone-800 mb-3">Desglose por talle</h3>
           <div className="flex flex-wrap gap-3">
             {orden.cortesPorTalle.map((c) => (
@@ -129,11 +130,11 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
               <strong className="text-lg tabular-nums">{orden.cortesPorTalle.reduce((s, c) => s + c.cantidad, 0)}</strong>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Historial de estados */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 mb-6">
+      <Card padding="none" className="p-6 mb-6">
         <h3 className="text-sm font-bold text-stone-800 mb-3">Historial de estados</h3>
         {orden.transiciones.length === 0 ? (
           <p className="text-sm text-stone-400">Sin transiciones</p>
@@ -154,11 +155,11 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
             ))}
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Movimientos de insumo */}
       {orden.movimientosInsumo.length > 0 && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-6">
+        <Card padding="none" className="p-6">
           <h3 className="text-sm font-bold text-stone-800 mb-3">Consumos de insumo</h3>
           <div className="overflow-x-auto"><table className="w-full text-sm">
             <thead>
@@ -189,7 +190,7 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
               })}
             </tbody>
           </table></div>
-        </div>
+        </Card>
       )}
     </div>
   );

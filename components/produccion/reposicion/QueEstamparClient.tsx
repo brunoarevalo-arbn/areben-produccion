@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
 import { toast } from '@/components/ui/Toaster';
 
 interface Ventas { v7: number; v30: number; v90: number; }
@@ -207,7 +208,7 @@ export function QueEstamparClient() {
   return (
     <div className="space-y-6 pb-20">
       {/* Barra de control */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+      <Card padding="none" className="p-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
         <Button variant="secondary" size="sm" onClick={actualizarStock} isLoading={actualizandoStock}>↻ Actualizar stock</Button>
         <Button variant="secondary" size="sm" onClick={actualizarVentas} isLoading={actualizandoVentas}>↻ Actualizar ventas</Button>
         <span className="text-xs text-stone-400">
@@ -220,14 +221,14 @@ export function QueEstamparClient() {
           <input type="checkbox" checked={soloFaltantes} onChange={(e) => setSoloFaltantes(e.target.checked)} className="rounded border-stone-300 accent-amber-500" />
           Solo lo que falta reponer
         </label>
-      </div>
+      </Card>
 
       {cargando ? (
         <p className="text-sm text-stone-400">Cargando…</p>
       ) : !reporte || (reporte.lisos.length === 0 && reporte.produccion.length === 0) ? (
-        <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center text-sm text-stone-400">
+        <Card padding="none" className="p-8 text-center text-sm text-stone-400">
           No hay productos vinculados. Andá a <Link href="/reposicion/vincular" className="text-amber-600 font-semibold">Vinculación</Link> para asociar tus productos de Gestión Nube.
-        </div>
+        </Card>
       ) : (
         <>
           {renderSeccion('Estampados', 'Tenés liso de buffer → reponés estampando', reporte.lisos, 'estampa', true)}

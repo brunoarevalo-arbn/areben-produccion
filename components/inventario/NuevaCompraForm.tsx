@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
+import { Card } from '@/components/ui/Card';
 
 interface Proveedor { id: string; nombre: string; }
 interface InsumoOpt { id: string; nombre: string; categoria: string; tipoTrazabilidad: string; unidadDefault: string; activo: boolean; }
@@ -423,7 +424,7 @@ ${provs}
       )}
 
       {/* Cabecera */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
+      <Card padding="none" className="p-6 space-y-4">
         <h3 className="text-sm font-bold text-stone-800 mb-2">Datos de la compra</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Select label="Proveedor *" fullWidth value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} required>
@@ -483,10 +484,10 @@ ${provs}
             <span>Total neto (sin IVA): <strong className="text-stone-800">${fmt(totalNetoCalc)}</strong></span>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Lineas */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
+      <Card padding="none" className="p-6 space-y-4">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-bold text-stone-800">Lineas de compra</h3>
           <div className="text-xs text-stone-500">
@@ -594,7 +595,7 @@ ${provs}
           className="text-xs px-3 py-2 border border-dashed border-stone-300 rounded-xl text-stone-500 hover:text-stone-800 hover:border-stone-400 transition w-full">
           + Agregar linea
         </button>
-      </div>
+      </Card>
 
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">

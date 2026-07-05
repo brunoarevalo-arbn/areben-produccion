@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/components/ui/Toaster';
 
 interface OrdenItem { id: string; gnId: number; gnNombre: string | null; skuLiso: string; talle: string; cantidad: number; confirmado: number; }
@@ -107,9 +108,7 @@ export function OrdenesEstampaClient() {
   return (
     <div className="space-y-3">
       {abiertas.length === 0 && hechas.length === 0 && (
-        <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center text-sm text-stone-400">
-          Todavía no hay órdenes. Generá una desde Qué estampar.
-        </div>
+        <EmptyState message="Todavía no hay órdenes. Generá una desde Qué estampar." />
       )}
       {abiertas.map(renderOrden)}
       {hechas.length > 0 && (

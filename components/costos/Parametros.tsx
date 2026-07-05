@@ -3,6 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
+import { Card } from '@/components/ui/Card';
+import { EmptyState } from '@/components/ui/EmptyState';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { LoadingState } from '@/components/ui/LoadingState';
 
@@ -142,7 +144,7 @@ export function Parametros() {
       </div>
 
       {/* Márgenes */}
-      <div className="bg-white rounded-2xl border border-stone-200 p-5">
+      <Card padding="none" className="p-5">
         <h3 className="text-sm font-bold text-stone-800 mb-1">Márgenes</h3>
         <p className="text-xs text-stone-400 mb-4">Se aplican a todos los escandallos.</p>
         <div className="grid grid-cols-2 gap-4">
@@ -161,15 +163,15 @@ export function Parametros() {
           className={`mt-4 px-4 py-2 rounded-xl text-sm font-semibold transition ${savedM ? 'bg-emerald-600 text-white' : 'bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50'}`}>
           {savingM ? 'Guardando...' : savedM ? '✓ Guardado' : 'Guardar márgenes'}
         </button>
-      </div>
+      </Card>
 
       {/* Gastos fijos */}
       <div>
         <h3 className="text-sm font-bold text-stone-800 mb-4">Gastos fijos del taller</h3>
-        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden mb-3">
+        <Card padding="none" className="overflow-hidden mb-3">
           {gastos.length === 0 && <p className="px-5 py-8 text-center text-stone-400 text-sm">Sin gastos cargados</p>}
           {gastos.map((g, i) => (
-            <div key={g.id} className={`px-5 py-3.5 flex items-center gap-4 ${i !== 0 ? 'border-t border-stone-100' : ''}`}>
+            <div key={g.id} className={`px-5 py-3 flex items-center gap-4 ${i !== 0 ? 'border-t border-stone-100' : ''}`}>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-stone-800">{g.nombre}</p>
                 <p className="text-xs text-stone-400 capitalize">{g.categoria}</p>
@@ -198,7 +200,7 @@ export function Parametros() {
               <span className="text-sm font-bold text-stone-900">{fmt$(totalGastos)}</span>
             </div>
           )}
-        </div>
+        </Card>
 
         <form onSubmit={agregarGasto} className="flex gap-2">
           <input type="text" value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)}
@@ -219,7 +221,7 @@ export function Parametros() {
       <div>
         <h3 className="text-sm font-bold text-stone-800 mb-4">Costos por costurera</h3>
         {usuarios.length === 0 && (
-          <p className="text-stone-400 text-sm">No hay costureras activas en el sistema.</p>
+          <EmptyState message="No hay costureras activas en el sistema." />
         )}
         <div className="space-y-3">
           {usuarios.map((u) => {
@@ -266,7 +268,7 @@ function CostoCosturеraRow({ nombre, usuarioId, inicial, onGuardar }: {
   const total = (parseFloat(sueldo) || 0) + (parseFloat(cargas) || 0);
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-4">
+    <Card padding="none" className="p-4">
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-semibold text-stone-800">{nombre}</p>
         {total > 0 && <span className="text-xs font-bold text-stone-500">${total.toLocaleString('es-AR')}/mes</span>}
@@ -292,6 +294,6 @@ function CostoCosturеraRow({ nombre, usuarioId, inicial, onGuardar }: {
         className={`mt-3 w-full py-2 rounded-xl text-xs font-bold uppercase tracking-wide transition ${saved ? 'bg-emerald-600 text-white' : 'bg-stone-800 hover:bg-stone-700 text-white disabled:opacity-50'}`}>
         {saving ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar'}
       </button>
-    </div>
+    </Card>
   );
 }

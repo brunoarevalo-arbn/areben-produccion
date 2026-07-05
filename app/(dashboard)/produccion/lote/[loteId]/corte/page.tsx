@@ -2,6 +2,8 @@ import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { Card } from '@/components/ui/Card';
+import { SkuChip } from '@/components/ui/SkuChip';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,11 +48,11 @@ export default async function CortarLotePage({ params }: { params: Promise<{ lot
         </div>
       )}
 
-      <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+      <Card padding="none" className="divide-y divide-stone-100">
         {lote.ordenes.map((o) => (
-          <div key={o.id} className="flex items-center gap-3 px-5 py-3.5">
+          <div key={o.id} className="flex items-center gap-3 px-5 py-3">
             <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
-              <span className="font-mono text-xs bg-stone-100 px-2 py-0.5 rounded text-stone-700">{o.sku ?? 'S/SKU'}</span>
+              <SkuChip sku={o.sku ?? 'S/SKU'} className="text-stone-700" />
               {o.descripcion && <span className="text-sm text-stone-500 truncate">{o.descripcion}</span>}
               {o.fichaCorteCargada && <span className="text-xs font-semibold text-emerald-600">✓ ficha</span>}
             </div>
@@ -62,7 +64,7 @@ export default async function CortarLotePage({ params }: { params: Promise<{ lot
             )}
           </div>
         ))}
-      </div>
+      </Card>
 
       <Link href="/produccion" className="inline-block mt-4 px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
         Volver a producción

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { Card } from '@/components/ui/Card';
 
 interface Registro {
   id: string;
@@ -172,15 +173,15 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
               { label: 'Tiempo total', value: minutosAHorasMin(data.totalMinutos), color: 'text-amber-700' },
               { label: 'Prendas', value: data.totalPrendas, color: 'text-emerald-700' },
             ].map((s) => (
-              <div key={s.label} className="bg-white rounded-2xl border border-stone-200 p-5 text-center">
+              <Card key={s.label} padding="none" className="p-5 text-center">
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
                 <p className="text-xs text-stone-400 mt-1">{s.label}</p>
-              </div>
+              </Card>
             ))}
           </div>
 
           {/* Por costurera */}
-          <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             <div className="px-5 py-3 border-b border-stone-100">
               <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Por costurera</h2>
             </div>
@@ -206,10 +207,10 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                   ))}
               </tbody>
             </table></div>
-          </div>
+          </Card>
 
           {/* Por actividad */}
-          <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             <div className="px-5 py-3 border-b border-stone-100">
               <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Por actividad</h2>
             </div>
@@ -233,11 +234,11 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                   ))}
               </tbody>
             </table></div>
-          </div>
+          </Card>
 
           {/* Por máquina */}
           {Object.keys(data.porMaquina).length > 0 && (
-            <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+            <Card padding="none" className="overflow-hidden">
               <div className="px-5 py-3 border-b border-stone-100">
                 <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Por máquina</h2>
               </div>
@@ -261,7 +262,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                     ))}
                 </tbody>
               </table></div>
-            </div>
+            </Card>
           )}
 
           {/* Inconvenientes */}
@@ -335,7 +336,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
           )}
 
           {/* Detalle */}
-          <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+          <Card padding="none" className="overflow-hidden">
             <div className="px-5 py-3 border-b border-stone-100 flex items-center justify-between">
               <h2 className="text-xs font-bold uppercase tracking-widest text-stone-400">Detalle de registros</h2>
               {isAdmin && !adding && (
@@ -401,7 +402,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                 ))}
               </tbody>
             </table></div>
-          </div>
+          </Card>
         </div>
       )}
     </div>

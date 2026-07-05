@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
+import { Card } from '@/components/ui/Card';
 
 interface GastoDetalleProps {
   gasto: {
@@ -17,7 +18,7 @@ export function GastoDetalle({ gasto: g }: GastoDetalleProps) {
     <div className="max-w-2xl">
       <Link href="/compras" className="text-sm text-stone-500 hover:text-stone-800 transition">← Volver a Compras</Link>
 
-      <div className="bg-white rounded-2xl border border-stone-200 p-6 mt-4">
+      <Card padding="none" className="p-6 mt-4">
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-lg font-bold text-stone-900">{g.proveedorNombre || 'Gasto sin proveedor'}</h2>
@@ -45,7 +46,7 @@ export function GastoDetalle({ gasto: g }: GastoDetalleProps) {
             </div>
           </div>
         )}
-      </div>
+      </Card>
     </div>
   );
 }

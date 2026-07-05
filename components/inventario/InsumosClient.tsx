@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { Card } from '@/components/ui/Card';
 
 interface RolloResumen { id: string; codigo: string; pesoActual: string; costoUnitario: string; estado: string; colorId: string | null; colorProveedor: string | null; compra: { proveedor: { nombre: string } }; }
 interface LoteResumen  { id: string; codigo: string; cantidadActual: string; costoUnitario: string; estado: string; colorId: string | null; colorProveedor: string | null; compra: { proveedor: { nombre: string } }; }
@@ -76,7 +77,7 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
             const open = expandido === ins.id;
             const bajoMinimo = ins.stockMinimo != null && ins.stockTotal < Number(ins.stockMinimo);
             return (
-              <div key={ins.id} className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+              <Card key={ins.id} padding="none" className="overflow-hidden">
                 <button
                   onClick={() => setExpandido(open ? null : ins.id)}
                   className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-stone-50 transition"
@@ -221,7 +222,7 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
                     )}
                   </div>
                 )}
-              </div>
+              </Card>
             );
           })}
         </div>
