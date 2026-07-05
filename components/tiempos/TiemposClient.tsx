@@ -97,7 +97,7 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
           <LogRegistros registros={tiempos.registros} loading={tiempos.loading} />
         </div>
 
-        <div className="bg-white border-t border-stone-200 overflow-y-auto max-h-[55vh] shrink-0">
+        <div className="bg-white border-t border-stone-200 overflow-y-auto max-h-[50vh] md:max-h-[65vh] shrink-0">
           <FormTiempos
             usuario={usuario.nombre}
             ordenesIniciales={ordenesIniciales}

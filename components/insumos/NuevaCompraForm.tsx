@@ -425,7 +425,7 @@ ${provs}
       {/* Cabecera */}
       <div className="bg-white rounded-2xl border border-stone-200 p-6 space-y-4">
         <h3 className="text-sm font-bold text-stone-800 mb-2">Datos de la compra</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <Select label="Proveedor *" fullWidth value={proveedorId} onChange={(e) => setProveedorId(e.target.value)} required>
             <option value="">-- Seleccionar --</option>
             {proveedores.filter((p) => 'activo' in p ? p.activo : true).map((p) => (
