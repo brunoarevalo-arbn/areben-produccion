@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { NuevaCompraForm } from '@/components/insumos/NuevaCompraForm';
+import { NuevaCompraForm } from '@/components/inventario/NuevaCompraForm';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';

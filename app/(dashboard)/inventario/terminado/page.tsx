@@ -1,6 +1,6 @@
-import { StockTerminadoClient } from '@/components/produccion/StockTerminadoClient';
-import { AjusteTerminadoForm } from '@/components/produccion/AjusteTerminadoForm';
-import { MovimientosTerminadoClient } from '@/components/produccion/MovimientosTerminadoClient';
+import { StockTerminadoClient } from '@/components/inventario/producto-terminado/StockTerminadoClient';
+import { AjusteTerminadoForm } from '@/components/inventario/producto-terminado/AjusteTerminadoForm';
+import { MovimientosTerminadoClient } from '@/components/inventario/producto-terminado/MovimientosTerminadoClient';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';

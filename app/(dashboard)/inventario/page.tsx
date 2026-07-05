@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { InsumosClient } from '@/components/insumos/InsumosClient';
+import { InsumosClient } from '@/components/inventario/InsumosClient';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';

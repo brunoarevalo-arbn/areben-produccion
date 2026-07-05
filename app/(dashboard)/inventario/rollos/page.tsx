@@ -1,4 +1,4 @@
-import { RollosClient } from '@/components/insumos/RollosClient';
+import { RollosClient } from '@/components/inventario/RollosClient';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';

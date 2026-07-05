@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
-import { InsumosCatalogoManager } from '@/components/configuracion/InsumosCatalogoManager';
+import { InsumosCatalogoManager } from '@/components/inventario/InsumosCatalogoManager';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';

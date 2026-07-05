@@ -1,5 +1,5 @@
-import { AjusteForm } from '@/components/insumos/AjusteForm';
-import { AjusteCostoForm } from '@/components/insumos/AjusteCostoForm';
+import { AjusteForm } from '@/components/inventario/AjusteForm';
+import { AjusteCostoForm } from '@/components/inventario/AjusteCostoForm';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';

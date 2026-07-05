@@ -1,4 +1,4 @@
-import { SinColorClient } from '@/components/insumos/SinColorClient';
+import { SinColorClient } from '@/components/inventario/SinColorClient';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';

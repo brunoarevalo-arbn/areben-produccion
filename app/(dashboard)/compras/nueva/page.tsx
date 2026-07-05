@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { NuevaCompraForm } from '@/components/insumos/NuevaCompraForm';
+import { NuevaCompraForm } from '@/components/inventario/NuevaCompraForm';
 import { GastoCompraForm } from '@/components/compras/GastoCompraForm';
 import { PageHeader } from '@/components/ui/PageHeader';
 

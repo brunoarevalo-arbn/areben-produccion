@@ -1,4 +1,4 @@
-import { MovimientosClient } from '@/components/insumos/MovimientosClient';
+import { MovimientosClient } from '@/components/inventario/MovimientosClient';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';

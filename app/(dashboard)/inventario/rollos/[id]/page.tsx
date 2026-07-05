@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
-import { RolloDetalle } from '@/components/insumos/RolloDetalle';
+import { RolloDetalle } from '@/components/inventario/RolloDetalle';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';

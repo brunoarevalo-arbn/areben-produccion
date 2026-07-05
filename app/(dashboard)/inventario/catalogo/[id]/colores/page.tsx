@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
-import { InsumoColoresManager } from '@/components/insumos/InsumoColoresManager';
+import { InsumoColoresManager } from '@/components/inventario/InsumoColoresManager';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';

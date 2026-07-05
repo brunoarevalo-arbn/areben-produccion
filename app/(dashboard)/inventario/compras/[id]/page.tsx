@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
-import { CompraDetalle } from '@/components/insumos/CompraDetalle';
+import { CompraDetalle } from '@/components/inventario/CompraDetalle';
 import { PageHeader } from '@/components/ui/PageHeader';
 
 export const dynamic = 'force-dynamic';
