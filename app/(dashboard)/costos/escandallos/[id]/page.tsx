@@ -30,8 +30,8 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
   const datos = parseDatos(escandallo.datos);
 
   const telasCosts = datos.telas.map(t => {
-    const { pMetro, costo } = telaCosto(t);
-    return { ...t, pMetro, costo };
+    const { pMetro, pM2, costo, merma } = telaCosto(t);
+    return { ...t, pMetro, pM2, costo, merma };
   });
 
   // Fuente única de cálculo: la misma calcular() que usan el editor y la lista,
@@ -109,12 +109,12 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
             <tbody>
               {telasCosts.map((t, i) => (
                 <tr key={i} className="border-b border-stone-100">
-                  <td className="py-2.5 pr-4 text-stone-800">{t.nombre || `Tela ${i + 1}`}</td>
+                  <td className="py-2.5 pr-4 text-stone-800">{t.nombre || `Tela ${i + 1}`}{t.tipo === 'tira' ? ' · tira' : ''}</td>
                   <td className="py-2.5 text-right tabular-nums text-stone-700">{fmt$(t.precioKgNeto)}</td>
                   <td className="py-2.5 text-right tabular-nums text-stone-500">{t.fletePercent}%</td>
                   <td className="py-2.5 text-right tabular-nums text-stone-700">{t.rindeMetrosKg}</td>
-                  <td className="py-2.5 text-right tabular-nums text-stone-700">{fmt$(t.pMetro)}</td>
-                  <td className="py-2.5 text-right tabular-nums text-stone-700">{t.consumoMetros}m</td>
+                  <td className="py-2.5 text-right tabular-nums text-stone-700">{t.tipo === 'tira' ? `${fmt$(t.pM2)}/m²` : fmt$(t.pMetro)}</td>
+                  <td className="py-2.5 text-right tabular-nums text-stone-700">{t.tipo === 'tira' ? `${t.anchoTiraCm ?? 0}×${t.largoTiraCm ?? 0}cm · ${(t.merma ?? 0).toLocaleString('es-AR', { maximumFractionDigits: 0 })}% merma` : `${t.consumoMetros}m`}</td>
                   <td className="py-2.5 text-right font-semibold tabular-nums text-stone-900">{fmt$(t.costo)}</td>
                 </tr>
               ))}

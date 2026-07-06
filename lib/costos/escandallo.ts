@@ -9,6 +9,14 @@ export interface Tela {
   fletePercent: number;
   rindeMetrosKg: number;
   consumoMetros: number;
+  // Modo tira (ribete / tapacostura): tela cortada en tira con la cortacollaretas.
+  // El consumo se mide por área (ancho×largo) y suma merma por las uniones del tubo.
+  tipo?: 'tela' | 'tira';
+  anchoTelaCm?: number;   // ancho del rollo — para pasar kg → m²
+  anchoTiraCm?: number;   // ancho de la tira cortada
+  largoTiraCm?: number;   // largo de tira por prenda
+  largoVueltaCm?: number; // largo de tira por vuelta del tubo (para calcular la merma)
+  mermaPercent?: number;  // % desperdicio por uniones (calculado o manual)
 }
 
 // Ítem con cantidad: el costo es cantidad × costoUnitario. Reemplaza al viejo
@@ -50,9 +58,16 @@ export interface DatosEscandallo {
 
 export interface Margenes { margenDesarrollo: number; margenFallas: number; }
 
-export const DATOS_VERSION = 2;
+export const DATOS_VERSION = 3;
 export const MEDIDAS_LAVADO_EMPTY: MedidasLavado = { largo: 0, ancho: 0, talle: '' };
-export const TELA_EMPTY: Tela = { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0 };
+export const TELA_EMPTY: Tela = { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0, tipo: 'tela' };
+export const TIRA_EMPTY: Tela = { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0, tipo: 'tira', anchoTelaCm: 0, anchoTiraCm: 0, largoTiraCm: 0, largoVueltaCm: 0, mermaPercent: 0 };
+
+/** Merma por uniones del tubo: cada vuelta trae una unión que inutiliza ~1 largo de prenda. */
+export function mermaPorVuelta(largoTiraCm: number, largoVueltaCm: number): number {
+  if (!largoVueltaCm || largoVueltaCm <= 0) return 0;
+  return Math.min(100, (largoTiraCm / largoVueltaCm) * 100);
+}
 
 export const DEFAULT_DATOS: DatosEscandallo = {
   version: DATOS_VERSION,
@@ -93,12 +108,21 @@ function migrarItem(raw: unknown): ItemExtra {
 
 function migrarTela(raw: unknown): Tela {
   const r = (raw ?? {}) as Record<string, unknown>;
+  const tipo = r.tipo === 'tira' ? 'tira' : 'tela';
   return {
     nombre: typeof r.nombre === 'string' ? r.nombre : '',
     precioKgNeto: num(r.precioKgNeto),
     fletePercent: num(r.fletePercent, 8),
     rindeMetrosKg: num(r.rindeMetrosKg),
     consumoMetros: num(r.consumoMetros),
+    tipo,
+    ...(tipo === 'tira' ? {
+      anchoTelaCm: num(r.anchoTelaCm),
+      anchoTiraCm: num(r.anchoTiraCm),
+      largoTiraCm: num(r.largoTiraCm),
+      largoVueltaCm: num(r.largoVueltaCm),
+      mermaPercent: num(r.mermaPercent),
+    } : {}),
   };
 }
 
@@ -140,10 +164,20 @@ export function parseDatos(raw: string | null | undefined): DatosEscandallo {
   };
 }
 
-export function telaCosto(t: Tela): { pMetro: number; costo: number } {
+export function telaCosto(t: Tela): { pMetro: number; pM2: number; costo: number; merma: number } {
   const pConFlete = t.precioKgNeto * (1 + t.fletePercent / 100);
+  if (t.tipo === 'tira') {
+    const anchoTela = (t.anchoTelaCm ?? 0) / 100; // m
+    const anchoTira = (t.anchoTiraCm ?? 0) / 100;
+    const largoTira = (t.largoTiraCm ?? 0) / 100;
+    const m2Kg = t.rindeMetrosKg * anchoTela;      // m² por kg
+    const pM2 = m2Kg > 0 ? pConFlete / m2Kg : 0;   // $/m²
+    const merma = t.mermaPercent ?? 0;
+    const costo = pM2 * (largoTira * anchoTira) * (1 + merma / 100);
+    return { pMetro: 0, pM2, costo, merma };
+  }
   const pMetro = t.rindeMetrosKg > 0 ? pConFlete / t.rindeMetrosKg : 0;
-  return { pMetro, costo: pMetro * t.consumoMetros };
+  return { pMetro, pM2: 0, costo: pMetro * t.consumoMetros, merma: 0 };
 }
 
 export function calcular(d: DatosEscandallo, costoMinuto: number, margenes: Margenes) {

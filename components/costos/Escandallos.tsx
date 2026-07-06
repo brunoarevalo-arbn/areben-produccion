@@ -9,8 +9,8 @@ import { SkuChip } from '@/components/ui/SkuChip';
 import { Select } from '@/components/ui/Select';
 import {
   type DatosEscandallo, type Margenes, type Tela, type ItemExtra,
-  DEFAULT_DATOS, TELA_EMPTY,
-  deepClone, parseDatos, calcular, itemCosto,
+  DEFAULT_DATOS, TELA_EMPTY, TIRA_EMPTY,
+  deepClone, parseDatos, calcular, itemCosto, telaCosto, mermaPorVuelta,
 } from '@/lib/costos/escandallo';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -168,8 +168,19 @@ export function Escandallos() {
 
   // Telas
   const addTela = () => setDatos(prev => ({ ...prev, telas: [...prev.telas, { ...TELA_EMPTY }] }));
+  const addTira = () => setDatos(prev => ({ ...prev, telas: [...prev.telas, { ...TIRA_EMPTY }] }));
   const updTela = (i: number, field: string, val: string) =>
-    setDatos(prev => ({ ...prev, telas: prev.telas.map((t, idx) => idx !== i ? t : ({ ...t, [field]: field === 'nombre' ? val : pf(val) } as Tela)) }));
+    setDatos(prev => ({ ...prev, telas: prev.telas.map((t, idx) => {
+      if (idx !== i) return t;
+      const isStr = field === 'nombre' || field === 'tipo';
+      const next = { ...t, [field]: isStr ? val : pf(val) } as Tela;
+      // El calculador: al cambiar el largo por prenda o por vuelta, recalculo la merma
+      // (unión por vuelta). Queda editable a mano después.
+      if (field === 'largoTiraCm' || field === 'largoVueltaCm') {
+        next.mermaPercent = mermaPorVuelta(next.largoTiraCm ?? 0, next.largoVueltaCm ?? 0);
+      }
+      return next;
+    }) }));
   const delTela = (i: number) => setDatos(prev => ({ ...prev, telas: prev.telas.filter((_, idx) => idx !== i) }));
   // Autocompleta una fila de tela con los datos del catálogo (nombre, rinde,
   // precio/kg). El precio ya trae flete prorrateado, así que dejamos flete en 0.
@@ -635,27 +646,41 @@ export function Escandallos() {
           <Card padding="none" className="p-5">
             <div className="flex items-center justify-between mb-4">
               <p className={sec}>Telas</p>
-              <button type="button" onClick={addTela}
-                className="text-xs px-3 py-1 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition">
-                + Agregar tela
-              </button>
+              <div className="flex gap-2">
+                <button type="button" onClick={addTela}
+                  className="text-xs px-3 py-1 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition">
+                  + Agregar tela
+                </button>
+                <button type="button" onClick={addTira}
+                  className="text-xs px-3 py-1 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition">
+                  + Agregar tira (ribete)
+                </button>
+              </div>
             </div>
             <div className="space-y-4">
               {datos.telas.map((t, i) => {
-                const pConFlete = t.precioKgNeto * (1 + t.fletePercent / 100);
-                const pMetro    = t.rindeMetrosKg > 0 ? pConFlete / t.rindeMetrosKg : 0;
-                const costoTela = pMetro * t.consumoMetros;
+                const esTira = t.tipo === 'tira';
+                const { pMetro, pM2, costo, merma } = telaCosto(t);
                 return (
                   <div key={i} className={`rounded-xl border p-4 ${i === 0 ? 'bg-violet-50 border-violet-100' : 'bg-stone-50 border-stone-100'}`}>
                     <div className="flex items-end gap-3 mb-3">
                       <div className="flex-1">
-                        <label className={lbl}>Nombre de la tela</label>
+                        <label className={lbl}>{esTira ? 'Nombre de la tira / ribete' : 'Nombre de la tela'}</label>
                         <input type="text" value={t.nombre} onChange={e => updTela(i, 'nombre', e.target.value)}
-                          placeholder="Ej: Jersey de algodón, Morley, French terry"
+                          placeholder={esTira ? 'Ej: Ribete rib, Tapacostura' : 'Ej: Jersey de algodón, Morley, French terry'}
                           className={inp} />
                       </div>
-                      {telasCatalogo.length > 0 && (
-                        <div className="w-56">
+                      {/* Toggle tela completa / tira */}
+                      <div className="flex rounded-lg border border-stone-200 overflow-hidden shrink-0 mb-0.5">
+                        {(['tela', 'tira'] as const).map(m => (
+                          <button key={m} type="button" onClick={() => updTela(i, 'tipo', m)}
+                            className={`px-3 py-2 text-xs font-semibold ${(t.tipo ?? 'tela') === m ? 'bg-stone-900 text-white' : 'bg-white text-stone-500'}`}>
+                            {m === 'tela' ? 'Tela' : 'Tira'}
+                          </button>
+                        ))}
+                      </div>
+                      {!esTira && telasCatalogo.length > 0 && (
+                        <div className="w-48">
                           <label className={lbl}>Traer del catálogo</label>
                           <select value="" onChange={e => { if (e.target.value) setTelaDesdeCatalogo(i, e.target.value); }} className={inp}>
                             <option value="">— autocompletar —</option>
@@ -664,7 +689,7 @@ export function Escandallos() {
                         </div>
                       )}
                       {datos.telas.length > 1 && (
-                        <button type="button" aria-label="Eliminar tela" onClick={() => delTela(i)}
+                        <button type="button" aria-label="Eliminar" onClick={() => delTela(i)}
                           className="text-stone-300 hover:text-red-400 transition text-xl shrink-0 leading-none mb-2">×</button>
                       )}
                     </div>
@@ -687,21 +712,72 @@ export function Escandallos() {
                         <NumInput value={t.rindeMetrosKg} onChange={n => updTela(i, 'rindeMetrosKg', String(n))}
                           min="0" step="any" className={inp} />
                       </div>
-                      <div>
-                        <label className={lbl}>Metros por prenda</label>
-                        <p className="text-xs text-stone-300 -mt-0.5 mb-1">consumo de esta tela</p>
-                        <NumInput value={t.consumoMetros} onChange={n => updTela(i, 'consumoMetros', String(n))}
-                          min="0" step="any" className={inp} />
-                      </div>
+                      {!esTira ? (
+                        <div>
+                          <label className={lbl}>Metros por prenda</label>
+                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">consumo de esta tela</p>
+                          <NumInput value={t.consumoMetros} onChange={n => updTela(i, 'consumoMetros', String(n))}
+                            min="0" step="any" className={inp} />
+                        </div>
+                      ) : (
+                        <div>
+                          <label className={lbl}>Ancho de la tela (cm)</label>
+                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">ancho del rollo</p>
+                          <NumInput value={t.anchoTelaCm ?? 0} onChange={n => updTela(i, 'anchoTelaCm', String(n))}
+                            min="0" step="any" className={inp} />
+                        </div>
+                      )}
                     </div>
+
+                    {/* Fila extra solo para tira: dimensiones + calculador de merma */}
+                    {esTira && (
+                      <div className="grid grid-cols-4 gap-3 mt-3">
+                        <div>
+                          <label className={lbl}>Ancho de la tira (cm)</label>
+                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">sale de la cortacollaretas</p>
+                          <NumInput value={t.anchoTiraCm ?? 0} onChange={n => updTela(i, 'anchoTiraCm', String(n))}
+                            min="0" step="any" className={inp} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Largo por prenda (cm)</label>
+                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">cuánto usa cada prenda</p>
+                          <NumInput value={t.largoTiraCm ?? 0} onChange={n => updTela(i, 'largoTiraCm', String(n))}
+                            min="0" step="any" className={inp} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Largo por vuelta (cm)</label>
+                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">tira entre uniones (paño)</p>
+                          <NumInput value={t.largoVueltaCm ?? 0} onChange={n => updTela(i, 'largoVueltaCm', String(n))}
+                            min="0" step="any" className={inp} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Merma %</label>
+                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">calculada · editable</p>
+                          <NumInput value={t.mermaPercent ?? 0} onChange={n => updTela(i, 'mermaPercent', String(n))}
+                            min="0" step="any" className={inp} />
+                        </div>
+                      </div>
+                    )}
+
                     {/* Resultado calculado */}
-                    <div className="flex items-center gap-4 mt-3 rounded-xl bg-stone-100 border border-stone-200 px-4 py-2.5">
-                      <span className="text-xs text-stone-400">Precio/metro:</span>
-                      <span className="text-sm font-mono tabular-nums text-stone-700 font-semibold">{fmt$(pMetro)}</span>
+                    <div className="flex items-center gap-4 mt-3 rounded-xl bg-stone-100 border border-stone-200 px-4 py-2.5 flex-wrap">
+                      {esTira ? (
+                        <>
+                          <span className="text-xs text-stone-400">Precio/m²:</span>
+                          <span className="text-sm font-mono tabular-nums text-stone-700 font-semibold">{fmt$(pM2)}</span>
+                          <span className="text-xs text-stone-400">· Merma:</span>
+                          <span className="text-sm font-semibold tabular-nums text-stone-700">{merma.toLocaleString('es-AR', { maximumFractionDigits: 1 })}%</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-xs text-stone-400">Precio/metro:</span>
+                          <span className="text-sm font-mono tabular-nums text-stone-700 font-semibold">{fmt$(pMetro)}</span>
+                        </>
+                      )}
                       <span className="text-stone-300">→</span>
-                      <span className="text-xs text-stone-400">Costo esta tela:</span>
-                      <span className={`text-base font-bold font-mono tabular-nums ml-auto ${costoTela > 0 ? 'text-violet-700' : 'text-stone-400'}`}>
-                        {fmt$(costoTela)}
+                      <span className="text-xs text-stone-400">{esTira ? 'Costo por prenda:' : 'Costo esta tela:'}</span>
+                      <span className={`text-base font-bold font-mono tabular-nums ml-auto ${costo > 0 ? 'text-violet-700' : 'text-stone-400'}`}>
+                        {fmt$(costo)}
                       </span>
                     </div>
                   </div>
