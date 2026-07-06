@@ -311,7 +311,9 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
                       : tc.metrosPorUnidad > 0 && <span>Necesario: <strong>{fmt(tc.metrosPorUnidad)} m/u × {totalUnidades} u = {fmt(tc.metrosNecesarios)} m</strong></span>}
                   </div>
                   {tc.faltante > 0.001 && (
-                    <p className="text-xs text-red-600 mt-2">Los rollos no alcanzan: faltan {fmt(tc.faltante)} m. Sumá otro rollo a esta tizada.</p>
+                    tc.t.rollos.length === 0
+                      ? <p className="text-xs text-blue-700 mt-2">Elegí abajo el/los rollo(s) de esta tela — necesitás ~{fmt(tc.metrosNecesarios)} m.</p>
+                      : <p className="text-xs text-red-600 mt-2">Los rollos elegidos no alcanzan: faltan {fmt(tc.faltante)} m. Sumá otro rollo a esta tizada.</p>
                   )}
                 </div>
               )}
