@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
+import { telaUnit, corteUnit } from '@/lib/costos/fichaCostos';
 
 // SKUs que ya se produjeron (tienen OP), con el costo de tela por unidad sacado
 // de la ficha de corte, y si ya tienen escandallo (para listar pendientes).
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
     where:  { sku: { not: null } },
     select: {
       sku: true, marca: true, descripcion: true, fichaCorteCargada: true,
-      costoTela: true, costoInsumosSecundarios: true, costoCorte: true, cantidad: true,
+      costoTela: true, costoInsumosSecundarios: true, costoCorte: true, cantidad: true, loteId: true,
     },
     orderBy: { createdAt: 'desc' },
   });
@@ -22,16 +23,10 @@ export async function GET(req: NextRequest) {
   const descartados = await prisma.costoSkuDescartado.findMany({ select: { sku: true } });
   const descartadoSet = new Set(descartados.map((d) => d.sku));
 
-  type OpRow = { fichaCorteCargada: boolean; costoTela: unknown; costoInsumosSecundarios: unknown; costoCorte: unknown; cantidad: number };
-  // Costos por unidad sacados de la ficha de corte (cuando está cargada).
-  // Tela incluye los insumos secundarios del corte (badanas, hilos), como antes.
-  const telaUnit  = (op: OpRow) => op.fichaCorteCargada && op.cantidad > 0
-    ? (Number(op.costoTela) + Number(op.costoInsumosSecundarios)) / op.cantidad : null;
-  const corteUnit = (op: OpRow) => op.fichaCorteCargada && op.cantidad > 0 ? Number(op.costoCorte) / op.cantidad : null;
-
   const bySku = new Map<string, {
     sku: string; marca: string; descripcion: string | null;
     costoTelaUnit: number | null; costoCorteUnit: number | null;
+    loteId: string | null;
     tieneFicha: boolean; tieneEscandallo: boolean; descartado: boolean;
   }>();
 
@@ -41,12 +36,14 @@ export async function GET(req: NextRequest) {
       bySku.set(sku, {
         sku, marca: op.marca, descripcion: op.descripcion,
         costoTelaUnit: telaUnit(op), costoCorteUnit: corteUnit(op),
+        loteId: op.loteId,
         tieneFicha: op.fichaCorteCargada,
         tieneEscandallo: conEscandallo.has(sku),
         descartado: descartadoSet.has(sku),
       });
     } else {
       const e = bySku.get(sku)!;
+      if (!e.loteId && op.loteId) e.loteId = op.loteId;
       if (!e.tieneFicha && op.fichaCorteCargada) {
         e.costoTelaUnit = telaUnit(op); e.costoCorteUnit = corteUnit(op);
         e.tieneFicha = true;

@@ -15,6 +15,7 @@ import {
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { toast } from '@/components/ui/Toaster';
 
 interface Escandallo {
   id: string; nombre: string; sku: string | null; marca: string | null;
@@ -27,6 +28,7 @@ interface ProductoProd {
   descripcion: string | null;
   costoTelaUnit: number | null;
   costoCorteUnit: number | null;
+  loteId: string | null;
   tieneFicha: boolean;
   tieneEscandallo: boolean;
   descartado: boolean;
@@ -347,6 +349,30 @@ export function Escandallos() {
     if (r.ok) { const data = await r.json(); setLista(prev => [data, ...prev]); }
   };
 
+  // Colores hermanos por SKU (para "aplicar al lote"): cuántos OTROS colores del lote.
+  const coloresPorLote = productos.reduce<Record<string, number>>((acc, p) => { if (p.loteId) acc[p.loteId] = (acc[p.loteId] ?? 0) + 1; return acc; }, {});
+  const hermanosDe = (sku: string | null) => {
+    if (!sku) return 0;
+    const l = productos.find((p) => p.sku === sku)?.loteId;
+    return l ? Math.max(0, (coloresPorLote[l] ?? 0) - 1) : 0;
+  };
+
+  const aplicarAlLote = async (e: Escandallo) => {
+    const n = hermanosDe(e.sku);
+    if (n < 1) return;
+    if (!(await confirmAsync({ message: `Se van a generar/actualizar los escandallos de ${n} color(es) del lote, cada uno con su tela y corte de su ficha. La parte común (servicios, MO, avíos, márgenes) se copia de "${e.nombre}". ¿Seguir?`, confirmLabel: 'Aplicar al lote' }))) return;
+    const r = await fetch('/api/costos/escandallos/aplicar-lote', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ escandalloId: e.id }) });
+    if (r.ok) {
+      const d = await r.json();
+      toast.success(`Lote: ${d.creados} creado(s) · ${d.actualizados} actualizado(s)`);
+      cargar();
+      fetch('/api/costos/productos-producidos').then((rr) => rr.ok ? rr.json() : []).then((p) => { if (Array.isArray(p)) setProductos(p); }).catch(() => {});
+    } else {
+      const d = await r.json().catch(() => ({}));
+      toast.error(d.error || 'No se pudo aplicar al lote');
+    }
+  };
+
   const eliminar = async (id: string, nom: string) => {
     if (!(await confirmAsync({ message: `¿Eliminar el escandallo "${nom}"?`, danger: true, confirmLabel: 'Eliminar' }))) return;
     const r = await fetch(`/api/costos/escandallos/${id}`, { method: 'DELETE' });
@@ -492,6 +518,11 @@ export function Escandallos() {
                           <Button variant="secondary" size="sm" onClick={() => openEdit(e)}>
                             Editar
                           </Button>
+                          {hermanosDe(e.sku) >= 1 && (
+                            <Button variant="primary" size="sm" onClick={() => aplicarAlLote(e)}>
+                              Aplicar al lote ({hermanosDe(e.sku)})
+                            </Button>
+                          )}
                           <Button variant="secondary" size="sm" onClick={() => duplicar(e)}>
                             Duplicar
                           </Button>
