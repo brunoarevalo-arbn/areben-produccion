@@ -11,8 +11,9 @@ const Schema = z.object({
   nombreComercial: z.string().nullable().optional(),
   coleccion:       z.string().nullable().optional(),
   imagenUrl:       z.string().nullable().optional(),
-  precioMetroDtf:  z.number().min(0).optional(),
+  anchoCm:         z.number().min(0).optional(),
   largoCm:         z.number().min(0).optional(),
+  mermaPercent:    z.number().min(0).optional(),
   estado:          z.enum(['pensada', 'pedida', 'recibida']).optional(),
   sku:             z.string().nullable().optional(),
   notas:           z.string().nullable().optional(),
@@ -32,8 +33,9 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (d.nombreComercial !== undefined) data.nombreComercial = d.nombreComercial?.trim() || null;
   if (d.coleccion !== undefined) data.coleccion = d.coleccion?.trim() || null;
   if (d.imagenUrl !== undefined) data.imagenUrl = d.imagenUrl?.trim() || null;
-  if (d.precioMetroDtf !== undefined) data.precioMetroDtf = new Prisma.Decimal(d.precioMetroDtf);
+  if (d.anchoCm !== undefined) data.anchoCm = new Prisma.Decimal(d.anchoCm);
   if (d.largoCm !== undefined) data.largoCm = new Prisma.Decimal(d.largoCm);
+  if (d.mermaPercent !== undefined) data.mermaPercent = new Prisma.Decimal(d.mermaPercent);
   if (d.estado !== undefined) data.estado = d.estado;
   if (d.sku !== undefined) data.sku = d.sku?.trim() || null;
   if (d.notas !== undefined) data.notas = d.notas?.trim() || null;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -9,43 +9,60 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
+import { costoEstampa } from '@/lib/costos/estampaCosto';
 
 interface Estampa {
   id: string; codigoInterno: string; nombreComercial: string | null; coleccion: string | null;
-  imagenUrl: string | null; precioMetroDtf: string | number; largoCm: string | number;
+  imagenUrl: string | null; anchoCm: string | number; largoCm: string | number; mermaPercent: string | number;
   estado: string; sku: string | null; notas: string | null;
 }
+interface DtfCfg { dtfPrecioMetro: number; dtfAnchoCm: number; dtfMermaDefault: number }
 
 const ESTADOS = [
-  { value: 'pensada',  label: 'Pensada',  variant: 'warning' as const },
+  { value: 'pensada',  label: 'Pensada',    variant: 'warning' as const },
   { value: 'pedida',   label: 'DTF pedido', variant: 'info' as const },
-  { value: 'recibida', label: 'Recibido', variant: 'success' as const },
+  { value: 'recibida', label: 'Recibido',   variant: 'success' as const },
 ];
 const estadoInfo = (e: string) => ESTADOS.find((x) => x.value === e) ?? ESTADOS[0];
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30';
+const inpSm = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400 w-full';
 const fmt$ = (n: number) => `$${n.toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
-const costoUnit = (e: { precioMetroDtf: string | number; largoCm: string | number }) => Number(e.precioMetroDtf) * Number(e.largoCm) / 100;
 
-export function EstamperiaClient() {
+export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const [lista, setLista] = useState<Estampa[]>([]);
   const [loading, setLoading] = useState(true);
+  const [cfg, setCfg] = useState<DtfCfg>({ dtfPrecioMetro: 0, dtfAnchoCm: 58, dtfMermaDefault: 0 });
   const [filtroEstado, setFiltroEstado] = useState('');
   const [soloSinNombre, setSoloSinNombre] = useState(false);
   const [q, setQ] = useState('');
 
+  // Form individual
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [codigoInterno, setCodigoInterno] = useState('');
   const [nombreComercial, setNombreComercial] = useState('');
   const [coleccion, setColeccion] = useState('');
   const [estado, setEstado] = useState('pensada');
-  const [precioMetroDtf, setPrecioMetroDtf] = useState('');
+  const [anchoCm, setAnchoCm] = useState('');
   const [largoCm, setLargoCm] = useState('');
+  const [mermaPercent, setMermaPercent] = useState('');
   const [sku, setSku] = useState('');
   const [imagenUrl, setImagenUrl] = useState('');
   const [notas, setNotas] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // Config editor (admin)
+  const [editCfg, setEditCfg] = useState(false);
+  const [cfgPrecio, setCfgPrecio] = useState('');
+  const [cfgAncho, setCfgAncho] = useState('');
+  const [cfgMerma, setCfgMerma] = useState('');
+
+  // Carga masiva
+  const [bulk, setBulk] = useState(false);
+  const seq = useRef(1);
+  const [bulkRows, setBulkRows] = useState<{ id: number; codigo: string; ancho: string; largo: string; coleccion: string }[]>([{ id: 0, codigo: '', ancho: '', largo: '', coleccion: '' }]);
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -57,19 +74,24 @@ export function EstamperiaClient() {
     setLoading(false);
   }, [filtroEstado, q]);
   useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => {
+    fetch('/api/estampas/config').then((r) => r.ok ? r.json() : null).then((c) => { if (c) setCfg(c); }).catch(() => {});
+  }, []);
+
+  const costo = (e: { anchoCm: string | number; largoCm: string | number; mermaPercent: string | number }) =>
+    costoEstampa({ anchoCm: Number(e.anchoCm), largoCm: Number(e.largoCm), mermaPercent: Number(e.mermaPercent) }, cfg);
 
   const resetForm = () => {
     setEditId(null); setCodigoInterno(''); setNombreComercial(''); setColeccion('');
-    setEstado('pensada'); setLargoCm(''); setSku(''); setImagenUrl(''); setNotas(''); setError('');
-    // El precio del DTF se prellena con el último usado (suele ser el mismo).
-    setPrecioMetroDtf(lista[0]?.precioMetroDtf ? String(Number(lista[0].precioMetroDtf)) : '');
+    setEstado('pensada'); setAnchoCm(''); setLargoCm(''); setMermaPercent(String(cfg.dtfMermaDefault || ''));
+    setSku(''); setImagenUrl(''); setNotas(''); setError('');
   };
-  const abrirNuevo = () => { resetForm(); setShowForm(true); };
+  const abrirNuevo = () => { resetForm(); setBulk(false); setShowForm(true); };
   const abrirEdicion = (e: Estampa) => {
     setEditId(e.id); setCodigoInterno(e.codigoInterno); setNombreComercial(e.nombreComercial ?? '');
-    setColeccion(e.coleccion ?? ''); setEstado(e.estado); setPrecioMetroDtf(String(Number(e.precioMetroDtf) || ''));
-    setLargoCm(String(Number(e.largoCm) || '')); setSku(e.sku ?? ''); setImagenUrl(e.imagenUrl ?? '');
-    setNotas(e.notas ?? ''); setError(''); setShowForm(true);
+    setColeccion(e.coleccion ?? ''); setEstado(e.estado);
+    setAnchoCm(String(Number(e.anchoCm) || '')); setLargoCm(String(Number(e.largoCm) || '')); setMermaPercent(String(Number(e.mermaPercent) || ''));
+    setSku(e.sku ?? ''); setImagenUrl(e.imagenUrl ?? ''); setNotas(e.notas ?? ''); setError(''); setBulk(false); setShowForm(true);
   };
 
   const guardar = async (ev: React.FormEvent) => {
@@ -77,15 +99,9 @@ export function EstamperiaClient() {
     if (!codigoInterno.trim()) { setError('Poné el código interno'); return; }
     setSaving(true); setError('');
     const payload = {
-      codigoInterno: codigoInterno.trim(),
-      nombreComercial: nombreComercial.trim() || null,
-      coleccion: coleccion.trim() || null,
-      estado,
-      precioMetroDtf: parseFloat(precioMetroDtf) || 0,
-      largoCm: parseFloat(largoCm) || 0,
-      sku: sku.trim() || null,
-      imagenUrl: imagenUrl.trim() || null,
-      notas: notas.trim() || null,
+      codigoInterno: codigoInterno.trim(), nombreComercial: nombreComercial.trim() || null, coleccion: coleccion.trim() || null,
+      estado, anchoCm: parseFloat(anchoCm) || 0, largoCm: parseFloat(largoCm) || 0, mermaPercent: parseFloat(mermaPercent) || 0,
+      sku: sku.trim() || null, imagenUrl: imagenUrl.trim() || null, notas: notas.trim() || null,
     };
     const r = await fetch(editId ? `/api/estampas/${editId}` : '/api/estampas', {
       method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
@@ -102,11 +118,54 @@ export function EstamperiaClient() {
     else toast.error('No se pudo eliminar');
   };
 
-  const costoVivo = (parseFloat(precioMetroDtf) || 0) * (parseFloat(largoCm) || 0) / 100;
+  const guardarCfg = async () => {
+    const r = await fetch('/api/estampas/config', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dtfPrecioMetro: parseFloat(cfgPrecio) || 0, dtfAnchoCm: parseFloat(cfgAncho) || 58, dtfMermaDefault: parseFloat(cfgMerma) || 0 }),
+    });
+    if (r.ok) { const c = await r.json(); setCfg(c); setEditCfg(false); toast.success('Precio del DTF actualizado'); }
+    else toast.error('No se pudo guardar');
+  };
+  const abrirCfg = () => { setCfgPrecio(String(cfg.dtfPrecioMetro || '')); setCfgAncho(String(cfg.dtfAnchoCm || 58)); setCfgMerma(String(cfg.dtfMermaDefault || '')); setEditCfg(true); };
+
+  // Carga masiva
+  const abrirBulk = () => { setBulkRows([{ id: 0, codigo: '', ancho: '', largo: '', coleccion: '' }]); seq.current = 1; setShowForm(false); setBulk(true); };
+  const guardarBulk = async () => {
+    const filas = bulkRows.filter((r) => r.codigo.trim()).map((r) => ({
+      codigoInterno: r.codigo.trim(), coleccion: r.coleccion.trim() || undefined,
+      anchoCm: parseFloat(r.ancho) || 0, largoCm: parseFloat(r.largo) || 0,
+    }));
+    if (filas.length === 0) { toast.error('Cargá al menos una fila con código'); return; }
+    setBulkSaving(true);
+    const r = await fetch('/api/estampas/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ filas }) });
+    if (r.ok) { const d = await r.json(); toast.success(`${d.creadas} estampa(s) cargadas`); setBulk(false); cargar(); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo cargar'); }
+    setBulkSaving(false);
+  };
+
+  const costoVivo = costo({ anchoCm, largoCm, mermaPercent });
   const vista = soloSinNombre ? lista.filter((e) => !e.nombreComercial?.trim()) : lista;
 
   return (
     <div className="space-y-5">
+      {/* Banner config DTF */}
+      <div className="bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3 text-sm">
+        {!editCfg ? (
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-stone-700"><strong>DTF:</strong> {fmt$(cfg.dtfPrecioMetro)}/metro · rollo {cfg.dtfAnchoCm} cm · merma default {cfg.dtfMermaDefault}%</span>
+            {esAdmin && <button onClick={abrirCfg} className="text-xs px-2.5 py-1 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-100 transition ml-auto">Editar precio</button>}
+          </div>
+        ) : (
+          <div className="flex items-end gap-3 flex-wrap">
+            <div><label className="text-xs text-stone-500 block mb-1">$/metro</label><NumInput value={parseFloat(cfgPrecio) || 0} onChange={(n) => setCfgPrecio(n ? String(n) : '')} min="0" className={inpSm} /></div>
+            <div><label className="text-xs text-stone-500 block mb-1">Ancho rollo (cm)</label><NumInput value={parseFloat(cfgAncho) || 0} onChange={(n) => setCfgAncho(n ? String(n) : '')} min="0" className={inpSm} /></div>
+            <div><label className="text-xs text-stone-500 block mb-1">Merma default %</label><NumInput value={parseFloat(cfgMerma) || 0} onChange={(n) => setCfgMerma(n ? String(n) : '')} min="0" className={inpSm} /></div>
+            <Button size="sm" onClick={guardarCfg}>Guardar</Button>
+            <Button size="sm" variant="secondary" onClick={() => setEditCfg(false)}>Cancelar</Button>
+          </div>
+        )}
+      </div>
+
       {/* Filtros */}
       <div className="flex items-center gap-2 flex-wrap">
         <Button variant={filtroEstado === '' ? 'primary' : 'secondary'} size="sm" onClick={() => setFiltroEstado('')}>Todas</Button>
@@ -118,11 +177,37 @@ export function EstamperiaClient() {
           Sin nombre comercial
         </label>
         <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar código / nombre / colección / SKU"
-          className="px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400 flex-1 min-w-[12rem]" />
-        {!showForm && <Button onClick={abrirNuevo}>+ Nueva estampa</Button>}
+          className="px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400 flex-1 min-w-[10rem]" />
+        {!showForm && !bulk && <><Button variant="secondary" onClick={abrirBulk}>Carga masiva</Button><Button onClick={abrirNuevo}>+ Nueva</Button></>}
       </div>
 
-      {/* Form */}
+      {/* Carga masiva */}
+      {bulk && (
+        <div className="bg-white rounded-2xl border border-stone-200 p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-stone-800">Carga masiva de estampas</h3>
+            <button type="button" onClick={() => setBulk(false)} className="text-xs text-stone-400 hover:text-stone-700">✕ Cancelar</button>
+          </div>
+          <div className="grid grid-cols-[1fr_5rem_5rem_1fr_auto] gap-2 text-xs font-bold uppercase tracking-widest text-stone-400 px-1">
+            <span>Código *</span><span>Ancho cm</span><span>Largo cm</span><span>Colección</span><span />
+          </div>
+          {bulkRows.map((row, i) => (
+            <div key={row.id} className="grid grid-cols-[1fr_5rem_5rem_1fr_auto] gap-2 items-center">
+              <input value={row.codigo} onChange={(e) => setBulkRows((p) => p.map((r) => r.id === row.id ? { ...r, codigo: e.target.value } : r))} placeholder="EST-00X" className={inpSm} />
+              <NumInput value={parseFloat(row.ancho) || 0} onChange={(n) => setBulkRows((p) => p.map((r) => r.id === row.id ? { ...r, ancho: n ? String(n) : '' } : r))} min="0" className={inpSm} />
+              <NumInput value={parseFloat(row.largo) || 0} onChange={(n) => setBulkRows((p) => p.map((r) => r.id === row.id ? { ...r, largo: n ? String(n) : '' } : r))} min="0" className={inpSm} />
+              <input value={row.coleccion} onChange={(e) => setBulkRows((p) => p.map((r) => r.id === row.id ? { ...r, coleccion: e.target.value } : r))} placeholder="(opcional)" className={inpSm} />
+              <button type="button" onClick={() => setBulkRows((p) => p.length > 1 ? p.filter((r) => r.id !== row.id) : p)} className="text-stone-300 hover:text-red-400 text-xl leading-none px-1">×</button>
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setBulkRows((p) => [...p, { id: seq.current++, codigo: '', ancho: '', largo: '', coleccion: '' }])}>+ Fila</Button>
+            <Button size="sm" onClick={guardarBulk} isLoading={bulkSaving}>Guardar {bulkRows.filter((r) => r.codigo.trim()).length || ''}</Button>
+          </div>
+        </div>
+      )}
+
+      {/* Form individual */}
       {showForm && (
         <form onSubmit={guardar} className="bg-white rounded-2xl border border-stone-200 p-5 space-y-4">
           <div className="flex items-center justify-between">
@@ -136,22 +221,17 @@ export function EstamperiaClient() {
             <Select label="Estado" fullWidth value={estado} onChange={(e) => setEstado(e.target.value)}>
               {ESTADOS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </Select>
-            <div>
-              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Precio DTF ($/metro)</label>
-              <NumInput value={parseFloat(precioMetroDtf) || 0} onChange={(n) => setPrecioMetroDtf(n ? String(n) : '')} min="0" className={inp} />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Largo en el rollo (cm)</label>
-              <NumInput value={parseFloat(largoCm) || 0} onChange={(n) => setLargoCm(n ? String(n) : '')} min="0" className={inp} />
-            </div>
+            <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Ancho diseño (cm)</label><NumInput value={parseFloat(anchoCm) || 0} onChange={(n) => setAnchoCm(n ? String(n) : '')} min="0" className={inp} /></div>
+            <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Largo diseño (cm)</label><NumInput value={parseFloat(largoCm) || 0} onChange={(n) => setLargoCm(n ? String(n) : '')} min="0" className={inp} /></div>
+            <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Merma %</label><NumInput value={parseFloat(mermaPercent) || 0} onChange={(n) => setMermaPercent(n ? String(n) : '')} min="0" className={inp} /></div>
             <Input label="Producto / SKU vinculado" fullWidth value={sku} onChange={(e) => setSku(e.target.value)} placeholder="(opcional, después)" />
             <Input label="Imagen (URL)" fullWidth value={imagenUrl} onChange={(e) => setImagenUrl(e.target.value)} placeholder="(opcional)" />
-            <Input label="Notas" fullWidth value={notas} onChange={(e) => setNotas(e.target.value)} />
           </div>
+          <Input label="Notas" fullWidth value={notas} onChange={(e) => setNotas(e.target.value)} />
           <div className="flex items-center gap-4 bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5">
             <span className="text-xs text-stone-400">Costo por prenda:</span>
             <span className="text-base font-bold font-mono tabular-nums text-violet-700">{fmt$(costoVivo)}</span>
-            <span className="text-xs text-stone-400">= $/m × {parseFloat(largoCm) || 0} cm</span>
+            <span className="text-xs text-stone-400">= ({parseFloat(anchoCm) || 0}×{parseFloat(largoCm) || 0}) / ({cfg.dtfAnchoCm}×100) × {fmt$(cfg.dtfPrecioMetro)} + {parseFloat(mermaPercent) || 0}% merma</span>
           </div>
           {error && <p className="text-red-500 text-xs">{error}</p>}
           <div className="flex gap-2">
@@ -178,10 +258,10 @@ export function EstamperiaClient() {
                     {e.nombreComercial || <span className="text-stone-400 italic">— sin nombre comercial —</span>}
                     {e.coleccion && <span className="text-xs text-stone-400 ml-2">· {e.coleccion}</span>}
                   </p>
-                  {e.sku && <p className="text-xs text-stone-400">SKU: {e.sku}</p>}
+                  <p className="text-xs text-stone-400">{Number(e.anchoCm) || 0}×{Number(e.largoCm) || 0} cm{e.sku ? ` · SKU ${e.sku}` : ''}</p>
                 </div>
                 <Badge variant={est.variant} size="sm">{est.label}</Badge>
-                <span className="text-sm font-semibold tabular-nums text-stone-700 w-20 text-right shrink-0">{fmt$(costoUnit(e))}</span>
+                <span className="text-sm font-semibold tabular-nums text-stone-700 w-20 text-right shrink-0">{fmt$(costo(e))}</span>
                 <div className="flex gap-1.5 shrink-0">
                   <Button variant="secondary" size="sm" onClick={() => abrirEdicion(e)}>Editar</Button>
                   <button onClick={() => eliminar(e)} aria-label="Eliminar" className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>

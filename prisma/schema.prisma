@@ -262,6 +262,9 @@ model ConfigCostos {
   id               String   @id @default("singleton")
   margenDesarrollo Float    @default(10)
   margenFallas     Float    @default(5)
+  dtfPrecioMetro   Float    @default(0)  // precio fijo del DTF por metro (rollo)
+  dtfAnchoCm       Float    @default(58) // ancho del rollo DTF
+  dtfMermaDefault  Float    @default(0)  // % merma default de estampas
   updatedAt        DateTime @updatedAt
 
   @@map("config_costos")
@@ -939,8 +942,10 @@ model Estampa {
   nombreComercial String?  // diferido: se pone después, no bloquea la carga
   coleccion       String?
   imagenUrl       String?  // opcional (URL; sin upload por ahora)
-  precioMetroDtf  Decimal  @default(0)
-  largoCm         Decimal  @default(0) // cm de rollo DTF que ocupa la estampa
+  precioMetroDtf  Decimal  @default(0) // (dormido) el precio ahora es global en ConfigCostos
+  anchoCm         Decimal  @default(0) // ancho del diseño (cm)
+  largoCm         Decimal  @default(0) // largo del diseño (cm)
+  mermaPercent    Decimal  @default(0) // % de merma/aprovechamiento
   estado          String   @default("pensada") // 'pensada' | 'pedida' | 'recibida'
   sku             String?  // producto vinculado (diferido)
   notas           String?

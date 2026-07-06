@@ -11,7 +11,8 @@ export default async function EstamperiaPage() {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
   const session = token ? await verifySession(token) : null;
   if (!session) redirect('/login');
-  if (session.rol !== 'admin') {
+  const esAdmin = session.rol === 'admin';
+  if (!esAdmin) {
     const u = await prisma.usuario.findUnique({ where: { id: session.id }, select: { permisos: true } });
     if (!u?.permisos.includes('estamperia')) redirect('/dashboard');
   }
@@ -20,7 +21,7 @@ export default async function EstamperiaPage() {
     <div className="p-8 max-w-5xl">
       <PageHeader eyebrow="Estampería" title="Estampas DTF"
         subtitle="Cargá las estampas con su código; el nombre comercial y el producto se asignan cuando quieras (nada bloquea a nada)." />
-      <EstamperiaClient />
+      <EstamperiaClient esAdmin={esAdmin} />
     </div>
   );
 }

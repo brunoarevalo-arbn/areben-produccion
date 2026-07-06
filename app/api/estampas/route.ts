@@ -11,8 +11,9 @@ const Schema = z.object({
   nombreComercial: z.string().optional(),
   coleccion:       z.string().optional(),
   imagenUrl:       z.string().optional(),
-  precioMetroDtf:  z.number().min(0).optional(),
+  anchoCm:         z.number().min(0).optional(),
   largoCm:         z.number().min(0).optional(),
+  mermaPercent:    z.number().min(0).optional(),
   estado:          z.enum(['pensada', 'pedida', 'recibida']).optional(),
   sku:             z.string().optional(),
   notas:           z.string().optional(),
@@ -46,14 +47,19 @@ export async function POST(req: NextRequest) {
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   const d = parsed.data;
 
+  // Merma default de la config si no viene.
+  const cfg = await prisma.configCostos.findUnique({ where: { id: 'singleton' }, select: { dtfMermaDefault: true } });
+  const merma = d.mermaPercent ?? cfg?.dtfMermaDefault ?? 0;
+
   const estampa = await prisma.estampa.create({
     data: {
       codigoInterno:   d.codigoInterno.trim(),
       nombreComercial: d.nombreComercial?.trim() || null,
       coleccion:       d.coleccion?.trim() || null,
       imagenUrl:       d.imagenUrl?.trim() || null,
-      precioMetroDtf:  new Prisma.Decimal(d.precioMetroDtf ?? 0),
+      anchoCm:         new Prisma.Decimal(d.anchoCm ?? 0),
       largoCm:         new Prisma.Decimal(d.largoCm ?? 0),
+      mermaPercent:    new Prisma.Decimal(merma),
       estado:          d.estado ?? 'pensada',
       sku:             d.sku?.trim() || null,
       notas:           d.notas?.trim() || null,
