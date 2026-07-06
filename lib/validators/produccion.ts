@@ -19,8 +19,9 @@ export const ESTADO_SIGUIENTE: Record<string, string[]> = {
 };
 
 export const TALLES_DEFAULT = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'UNICO'] as const;
-// Talles que se muestran por defecto en las grillas; el resto se agrega bajo demanda.
-export const TALLES_COMUNES = ['S', 'M', 'L', 'XL'] as const;
+// Talles que se muestran SIEMPRE por defecto en las grillas (S/M/L/XL + Único);
+// el resto (XS, XXL) se agrega bajo demanda con "+ talle".
+export const TALLES_COMUNES = ['S', 'M', 'L', 'XL', 'UNICO'] as const;
 
 export const CambioEstadoSchema = z.object({
   estado: z.enum(ESTADOS_OP),
