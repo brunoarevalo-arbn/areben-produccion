@@ -139,6 +139,7 @@ export function ColaAdmin() {
   // Agrupar OPs sueltas existentes en un lote
   const [agrupando,    setAgrupando]    = useState(false);
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
+  const [destinoLote,  setDestinoLote]  = useState(''); // '' = lote nuevo; si no, id de lote existente
   const [agrupSaving,  setAgrupSaving]  = useState(false);
 
   const marcas  = catalogo.filter((c) => c.categoria === 'marca' && c.activo);
@@ -155,6 +156,15 @@ export function ColaAdmin() {
 
   const prendaNombre = (abrev?: string | null) =>
     abrev ? (prendas.find((p) => p.abreviatura === abrev)?.nombre ?? abrev) : null;
+
+  // Lotes existentes (para "agregar a un lote ya creado" como destino del agrupado).
+  const lotesExistentes = Object.values(ordenes.reduce<Record<string, { id: string; label: string; count: number }>>((acc, o) => {
+    if (o.loteId && o.lote) {
+      if (!acc[o.loteId]) acc[o.loteId] = { id: o.loteId, label: `${prendaNombre(o.lote.prenda) || o.lote.descripcion || 'Molde'} · ${o.lote.marca}`, count: 0 };
+      acc[o.loteId].count++;
+    }
+    return acc;
+  }, {})).sort((a, b) => a.label.localeCompare(b.label));
 
   useEffect(() => {
     fetch('/api/sku-catalogo').then((r) => r.ok ? r.json() : []).then(setCatalogo).catch(() => {});
@@ -396,11 +406,12 @@ export function ColaAdmin() {
   const toggleSel = (id: string) =>
     setSeleccionadas((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const salirAgrupar = () => { setAgrupando(false); setSeleccionadas(new Set()); };
+  const salirAgrupar = () => { setAgrupando(false); setSeleccionadas(new Set()); setDestinoLote(''); };
 
   const agruparSeleccionadas = async () => {
     const ids = [...seleccionadas];
-    if (ids.length < 2) return;
+    const minReq = destinoLote ? 1 : 2;
+    if (ids.length < minReq) return;
     const elegidas = ordenes.filter((o) => seleccionadas.has(o.id));
     if (new Set(elegidas.map((o) => o.marca)).size > 1) {
       toast.error('Elegí órdenes de la misma marca');
@@ -410,7 +421,7 @@ export function ColaAdmin() {
     const r = await fetch('/api/produccion/lote/agrupar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ordenIds: ids }),
+      body: JSON.stringify({ ordenIds: ids, loteId: destinoLote || undefined }),
     });
     setAgrupSaving(false);
     if (r.ok) {
@@ -563,14 +574,22 @@ export function ColaAdmin() {
 
       {/* Barra de agrupado */}
       {agrupando && (
-        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex-wrap">
           <span className="text-sm text-amber-900">
-            Tildá las órdenes (sueltas o solas en su lote, mismo molde) que querés agrupar en un lote.
+            Tildá las órdenes (sueltas o solas en su lote, mismo molde).
             {seleccionadas.size > 0 && <strong className="ml-1">{seleccionadas.size} seleccionada{seleccionadas.size === 1 ? '' : 's'}</strong>}
           </span>
-          <Button variant="primary" size="sm" onClick={agruparSeleccionadas} isLoading={agrupSaving} disabled={seleccionadas.size < 2} className="ml-auto">
-            Agrupar en lote {seleccionadas.size >= 2 ? `(${seleccionadas.size})` : ''}
-          </Button>
+          <div className="flex items-center gap-2 ml-auto">
+            <label className="text-xs text-amber-900/80">Destino:</label>
+            <select value={destinoLote} onChange={(e) => setDestinoLote(e.target.value)}
+              className="px-2 py-1.5 border border-stone-200 rounded-lg text-sm bg-white focus:outline-none focus:border-amber-400 max-w-[16rem]">
+              <option value="">Lote nuevo</option>
+              {lotesExistentes.map((l) => <option key={l.id} value={l.id}>Agregar a: {l.label} ({l.count})</option>)}
+            </select>
+            <Button variant="primary" size="sm" onClick={agruparSeleccionadas} isLoading={agrupSaving} disabled={seleccionadas.size < (destinoLote ? 1 : 2)}>
+              {destinoLote ? 'Agregar al lote' : 'Agrupar en lote nuevo'} {seleccionadas.size > 0 ? `(${seleccionadas.size})` : ''}
+            </Button>
+          </div>
         </div>
       )}
 

@@ -4,9 +4,11 @@ import { requirePermiso } from '@/lib/auth';
 import { z } from 'zod';
 
 const BodySchema = z.object({
-  ordenIds: z.array(z.string().min(1)).min(2, 'Elegí al menos 2 órdenes'),
+  ordenIds: z.array(z.string().min(1)).min(1, 'Elegí al menos una orden'),
   // prenda (abreviatura del molde) opcional; si no viene se deriva del SKU.
   prenda:   z.string().optional(),
+  // Si viene, se AGREGAN las OPs a este lote existente en vez de crear uno nuevo.
+  loteId:   z.string().optional(),
 });
 
 // Agrupa OPs sueltas existentes (mismo molde, distintos colores) en un LoteProduccion
@@ -44,8 +46,28 @@ export async function POST(req: NextRequest) {
   if (marcas.size > 1) {
     return NextResponse.json({ error: 'Las órdenes deben ser de la misma marca' }, { status: 400 });
   }
-
   const marca = ordenes[0].marca;
+
+  // Destino: agregar a un lote existente, o crear uno nuevo.
+  const destinoId = parsed.data.loteId;
+  if (destinoId) {
+    const destino = await prisma.loteProduccion.findUnique({ where: { id: destinoId } });
+    if (!destino) return NextResponse.json({ error: 'El lote destino no existe' }, { status: 400 });
+    if (destino.marca !== marca) return NextResponse.json({ error: 'El lote destino es de otra marca' }, { status: 400 });
+
+    const lote = await prisma.$transaction(async (tx) => {
+      await tx.ordenProduccion.updateMany({ where: { id: { in: parsed.data.ordenIds } }, data: { loteId: destinoId } });
+      const vaciados = sourceLoteIds.filter((id) => id !== destinoId);
+      if (vaciados.length) await tx.loteProduccion.deleteMany({ where: { id: { in: vaciados } } });
+      return destino;
+    });
+    return NextResponse.json(lote, { status: 200 });
+  }
+
+  // Lote nuevo: requiere al menos 2.
+  if (parsed.data.ordenIds.length < 2) {
+    return NextResponse.json({ error: 'Para un lote nuevo elegí al menos 2 órdenes' }, { status: 400 });
+  }
   // prenda = 2do segmento del SKU (MARCA-PRENDA-COLOR-####); usa la primera disponible.
   const prenda = parsed.data.prenda
     || ordenes.map((o) => (o.sku || '').split('-')[1]).find(Boolean)
