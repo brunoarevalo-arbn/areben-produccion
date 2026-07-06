@@ -75,6 +75,13 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     ],
   },
   {
+    label: 'Estampería',
+    href: '/estamperia',
+    icon: '🖨',
+    seccion: 'estamperia',
+    sub: [],
+  },
+  {
     label: 'Reposición',
     href: '/reposicion',
     icon: '🔁',

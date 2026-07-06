@@ -932,3 +932,21 @@ model ReposicionMinimo {
   @@unique([gnId, talle])
   @@map("reposicion_minimo")
 }
+
+model Estampa {
+  id              String   @id @default(cuid())
+  codigoInterno   String   // ref de la diseñadora (lo único obligatorio)
+  nombreComercial String?  // diferido: se pone después, no bloquea la carga
+  coleccion       String?
+  imagenUrl       String?  // opcional (URL; sin upload por ahora)
+  precioMetroDtf  Decimal  @default(0)
+  largoCm         Decimal  @default(0) // cm de rollo DTF que ocupa la estampa
+  estado          String   @default("pensada") // 'pensada' | 'pedida' | 'recibida'
+  sku             String?  // producto vinculado (diferido)
+  notas           String?
+  creadoPor       String   @default("admin")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("estampas")
+}
