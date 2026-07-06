@@ -54,6 +54,7 @@ export function Escandallos() {
   const [telasCatalogo, setTelasCatalogo] = useState<TelaOpt[]>([]);
   const [modoProducido, setModoProducido] = useState(false);
   const [subTab, setSubTab] = useState<'pendientes' | 'listos'>('pendientes');
+  const [formTab, setFormTab] = useState<'producto' | 'materiales' | 'procesos'>('producto');
   const [verDescartados, setVerDescartados] = useState(false);
   const [soloSinDesc, setSoloSinDesc] = useState(false);
 
@@ -161,6 +162,7 @@ export function Escandallos() {
     setNombre(e.nombre); setSku(e.sku ?? ''); setMarca(e.marca ?? '');
     setTipoPrenda(e.tipoPrenda ?? ''); setNotas(e.notas ?? '');
     setDatos(parseDatos(e.datos));
+    setFormTab('producto');
     setShowForm(true);
   };
 
@@ -270,6 +272,7 @@ export function Escandallos() {
   };
 
   const costearPendiente = (p: ProductoProd) => {
+    setFormTab('producto');
     setShowForm(true);
     setModoProducido(true);
     seleccionarProducto(p);
@@ -482,7 +485,7 @@ export function Escandallos() {
                     );
                   })}
                 </div>
-                <Button onClick={() => setShowForm(true)}>
+                <Button onClick={() => { setFormTab('producto'); setShowForm(true); }}>
                   + Nuevo escandallo
                 </Button>
               </>
@@ -500,6 +503,22 @@ export function Escandallos() {
             <button type="button" onClick={resetForm} className="text-xs text-stone-400 hover:text-stone-700 transition">✕ Cancelar</button>
           </div>
 
+          {/* Tabs del formulario */}
+          <div className="flex gap-1 border-b border-stone-200">
+            {([
+              { key: 'producto', label: 'Producto' },
+              { key: 'materiales', label: 'Materiales' },
+              { key: 'procesos', label: 'Procesos y MO' },
+            ] as const).map(t => (
+              <button key={t.key} type="button" onClick={() => setFormTab(t.key)}
+                className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition ${formTab === t.key ? 'border-violet-600 text-violet-700' : 'border-transparent text-stone-400 hover:text-stone-600'}`}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Tab: Producto ── */}
+          <div className={formTab === 'producto' ? 'space-y-5' : 'hidden'}>
           {/* Selector de producto */}
           <Card padding="none" className="p-5 space-y-4">
             <p className={sec}>¿Qué producto querés costear?</p>
@@ -560,7 +579,10 @@ export function Escandallos() {
               </div>
             </div>
           </Card>
+          </div>
 
+          {/* ── Tab: Materiales ── */}
+          <div className={formTab === 'materiales' ? 'space-y-5' : 'hidden'}>
           {/* Telas */}
           {datos.costoTelaFicha != null ? (
           <Card padding="none" className="p-5">
@@ -688,7 +710,10 @@ export function Escandallos() {
             </div>
           </Card>
           )}
+          </div>
 
+          {/* ── Tab: Procesos y MO ── */}
+          <div className={formTab === 'procesos' ? 'space-y-5' : 'hidden'}>
           {/* Servicios fijos */}
           <Card padding="none" className="p-5">
             <p className={`${sec} mb-3`}>Servicios fijos</p>
@@ -790,7 +815,10 @@ export function Escandallos() {
               </div>
             )}
           </Card>
+          </div>
 
+          {/* ── Materiales (cont.): Varios + Terminación ── */}
+          <div className={formTab === 'materiales' ? 'space-y-5' : 'hidden'}>
           {/* Varios */}
           <Card padding="none" className="p-5">
             <div className="flex items-center justify-between mb-3">
@@ -896,8 +924,9 @@ export function Escandallos() {
               </div>
             </div>
           </Card>
+          </div>
 
-          {/* Resumen */}
+          {/* Resumen (siempre visible, en todos los tabs) */}
           <div className="bg-stone-900 rounded-2xl p-5 text-white">
             <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-4">Resumen de costos</p>
             <div className="space-y-2 text-sm">
