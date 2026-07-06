@@ -14,9 +14,10 @@ export interface Tela {
   tipo?: 'tela' | 'tira';
   anchoTelaM?: number;    // ancho del rollo en METROS — para pasar kg → m²
   anchoTiraCm?: number;   // ancho de la tira cortada
-  largoTiraCm?: number;   // largo de tira por prenda
-  largoVueltaCm?: number; // largo de tira por vuelta del tubo (para calcular la merma)
-  mermaPercent?: number;  // % desperdicio por uniones (calculado o manual)
+  largoTiraCm?: number;   // largo de una tira/pieza por prenda
+  largoVueltaCm?: number; // largo de tira por vuelta del tubo (entre uniones)
+  descarteUnionCm?: number; // cm que se pierden por la costura de cada unión (merma fija)
+  mermaPercent?: number;  // % desperdicio total (fija + empaque), calculado o manual
 }
 
 // Ítem con cantidad: el costo es cantidad × costoUnitario. Reemplaza al viejo
@@ -61,12 +62,18 @@ export interface Margenes { margenDesarrollo: number; margenFallas: number; }
 export const DATOS_VERSION = 3;
 export const MEDIDAS_LAVADO_EMPTY: MedidasLavado = { largo: 0, ancho: 0, talle: '' };
 export const TELA_EMPTY: Tela = { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0, tipo: 'tela' };
-export const TIRA_EMPTY: Tela = { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0, tipo: 'tira', anchoTelaM: 0, anchoTiraCm: 0, largoTiraCm: 0, largoVueltaCm: 0, mermaPercent: 0 };
+export const TIRA_EMPTY: Tela = { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0, tipo: 'tira', anchoTelaM: 0, anchoTiraCm: 0, largoTiraCm: 0, largoVueltaCm: 0, descarteUnionCm: 0, mermaPercent: 0 };
 
-/** Merma por uniones del tubo: cada vuelta trae una unión que inutiliza ~1 largo de prenda. */
-export function mermaPorVuelta(largoTiraCm: number, largoVueltaCm: number): number {
+/**
+ * Merma de la tira = suma de dos mermas por cada "vuelta" (tramo entre uniones):
+ *  - fija: el pedazo que se descarta por la costura de la unión (descarteUnionCm).
+ *  - empaque: lo que sobra sin completar otra tira entera (largoVuelta mod largoPieza).
+ */
+export function mermaPorVuelta(largoPiezaCm: number, largoVueltaCm: number, descarteUnionCm = 0): number {
   if (!largoVueltaCm || largoVueltaCm <= 0) return 0;
-  return Math.min(100, (largoTiraCm / largoVueltaCm) * 100);
+  const fija = descarteUnionCm / largoVueltaCm;
+  const empaque = largoPiezaCm > 0 ? (largoVueltaCm % largoPiezaCm) / largoVueltaCm : 0;
+  return Math.min(100, (fija + empaque) * 100);
 }
 
 export const DEFAULT_DATOS: DatosEscandallo = {
@@ -121,6 +128,7 @@ function migrarTela(raw: unknown): Tela {
       anchoTiraCm: num(r.anchoTiraCm),
       largoTiraCm: num(r.largoTiraCm),
       largoVueltaCm: num(r.largoVueltaCm),
+      descarteUnionCm: num(r.descarteUnionCm),
       mermaPercent: num(r.mermaPercent),
     } : {}),
   };

@@ -174,10 +174,10 @@ export function Escandallos() {
       if (idx !== i) return t;
       const isStr = field === 'nombre' || field === 'tipo';
       const next = { ...t, [field]: isStr ? val : pf(val) } as Tela;
-      // El calculador: al cambiar el largo por prenda o por vuelta, recalculo la merma
-      // (unión por vuelta). Queda editable a mano después.
-      if (field === 'largoTiraCm' || field === 'largoVueltaCm') {
-        next.mermaPercent = mermaPorVuelta(next.largoTiraCm ?? 0, next.largoVueltaCm ?? 0);
+      // El calculador: al cambiar largo por prenda / por vuelta / descarte por unión,
+      // recalculo la merma (fija + empaque). Queda editable a mano después.
+      if (field === 'largoTiraCm' || field === 'largoVueltaCm' || field === 'descarteUnionCm') {
+        next.mermaPercent = mermaPorVuelta(next.largoTiraCm ?? 0, next.largoVueltaCm ?? 0, next.descarteUnionCm ?? 0);
       }
       return next;
     }) }));
@@ -751,8 +751,14 @@ export function Escandallos() {
                             min="0" step="any" className={inp} />
                         </div>
                         <div>
-                          <label className={lbl}>Merma %</label>
-                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">calculada · editable</p>
+                          <label className={lbl}>Descarte por unión (cm)</label>
+                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">cm de la costura que se tira</p>
+                          <NumInput value={t.descarteUnionCm ?? 0} onChange={n => updTela(i, 'descarteUnionCm', String(n))}
+                            min="0" step="any" className={inp} />
+                        </div>
+                        <div>
+                          <label className={lbl}>Merma % (total)</label>
+                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">fija + empaque · editable</p>
                           <NumInput value={t.mermaPercent ?? 0} onChange={n => updTela(i, 'mermaPercent', String(n))}
                             min="0" step="any" className={inp} />
                         </div>
