@@ -42,9 +42,11 @@ export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marc
       const tizadasReceta = tizadasGuardadas.length
         ? tizadasGuardadas.map((t) => ({ nombre: t.nombre ?? '', modo: (t.modo ?? 'tizada'), metros: t.metros ?? '', unidades: t.unidades ?? '1' }))
         : undefined;
-      const metros = (d.movimientosInsumo ?? [])
-        .filter((m) => m.tipo === 'CONSUMO')
-        .reduce((s, m) => s + Math.abs(Number(m.cantidad)) * Number(m.rollo?.insumo?.rinde ?? 0), 0);
+      // Consumo NETO: sumar con signo (CONSUMO negativo + REVERSIÓN positiva) y recién
+      // ahí tomar el absoluto. Si la ficha fue editada, hay CONSUMO+REVERSIÓN+CONSUMO;
+      // sumar solo los CONSUMO en absoluto contaba doble (bug del rinde duplicado).
+      const metros = Math.abs((d.movimientosInsumo ?? [])
+        .reduce((s, m) => s + Number(m.cantidad) * Number(m.rollo?.insumo?.rinde ?? 0), 0));
       // Costo de corte: al copiar a otro color (que suele tener otra cantidad) llevamos
       // SIEMPRE el costo POR UNIDAD, derivado del origen. Así nunca se copia un total
       // crudo (que quedaría mal escalado) y respeta el corte por unidad.
