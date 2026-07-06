@@ -45,12 +45,17 @@ export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marc
       const metros = (d.movimientosInsumo ?? [])
         .filter((m) => m.tipo === 'CONSUMO')
         .reduce((s, m) => s + Math.abs(Number(m.cantidad)) * Number(m.rollo?.insumo?.rinde ?? 0), 0);
-      // Costo de corte: replicar la lógica del SKU copiado. Si la hermana tiene
-      // fichaCorteData, usar el valor CRUDO ingresado + su modo (total/unidad). Si no
-      // (ficha vieja), caer al total guardado en la OP como "total".
+      // Costo de corte: al copiar a otro color (que suele tener otra cantidad) llevamos
+      // SIEMPRE el costo POR UNIDAD, derivado del origen. Así nunca se copia un total
+      // crudo (que quedaría mal escalado) y respeta el corte por unidad.
+      const u = unidades || 1;
       const fd = d.fichaCorteData;
-      const costoCorte = fd?.costoCorte != null ? Number(fd.costoCorte) : (d.costoCorte ? Number(d.costoCorte) : undefined);
-      const modoCosto = fd?.modoCosto ?? 'total';
+      let porUnidad: number | undefined;
+      if (fd?.costoCorte != null && fd?.modoCosto === 'unidad') porUnidad = Number(fd.costoCorte);
+      else if (fd?.costoCorte != null && fd?.modoCosto === 'total') porUnidad = Number(fd.costoCorte) / u;
+      else if (d.costoCorte) porUnidad = Number(d.costoCorte) / u; // ficha vieja: total OP ÷ unidades
+      const costoCorte = porUnidad != null ? Math.round(porUnidad * 100) / 100 : undefined;
+      const modoCosto = 'unidad' as const;
       setPrefill({
         avios: (d.avios ?? []).map((a) => ({ etiquetaId: a.etiquetaId, cantidad: a.cantidad })),
         cortadorId: d.cortadorId ?? null,
