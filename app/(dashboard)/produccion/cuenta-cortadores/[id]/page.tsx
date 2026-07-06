@@ -37,7 +37,7 @@ export default async function CuentaCortadorPage({ params }: { params: Promise<{
   return (
     <div className="p-8 max-w-3xl space-y-6">
       <Link href="/produccion/cuenta-cortadores" className="text-sm text-stone-500 hover:text-stone-800 transition">← Cuenta de cortadores</Link>
-      <PageHeader eyebrow="Cuenta corriente" title={cortador.nombre} subtitle={`Saldo pendiente: ${fmt$(saldo)}`} />
+      <PageHeader eyebrow="Producción / Cuenta corriente" title={cortador.nombre} subtitle={`Saldo pendiente: ${fmt$(saldo)}`} />
 
       <section>
         <h2 className="text-sm font-bold text-stone-800 mb-3">Pendiente de pago · <span className="text-amber-700">{fmt$(saldo)}</span></h2>

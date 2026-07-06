@@ -52,7 +52,7 @@ const ACCESOS = [
 export default function ProduccionPage() {
   return (
     <div className="p-8 max-w-4xl">
-      <PageHeader eyebrow="Módulo 2" title="Control de Producción" subtitle="Cola de trabajo, tiempos y reportes del taller." />
+      <PageHeader eyebrow="Producción" title="Control de Producción" subtitle="Cola de trabajo, tiempos y reportes del taller." />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
         {ACCESOS.map((a) => (

@@ -15,7 +15,7 @@ export default async function ProveedoresPage() {
 
   return (
     <div className="p-8 max-w-4xl">
-      <PageHeader eyebrow="Compras" title="Proveedores" subtitle="Administra los proveedores de insumos." />
+      <PageHeader eyebrow="Configuración" title="Proveedores" subtitle="Administra los proveedores de insumos." />
       <ProveedoresManager initial={serialized} />
     </div>
   );

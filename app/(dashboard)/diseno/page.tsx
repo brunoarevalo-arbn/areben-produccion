@@ -30,7 +30,7 @@ export default async function DisenoPage() {
   return (
     <div className="p-6 max-w-[1400px]">
       <PageHeader
-        eyebrow="Módulo 1"
+        eyebrow="Diseño"
         title="Diseño"
         subtitle={`${items.filter((p) => !p.archivado).length} proyecto${items.filter((p) => !p.archivado).length !== 1 ? 's' : ''} activo${items.filter((p) => !p.archivado).length !== 1 ? 's' : ''}`}
         actions={

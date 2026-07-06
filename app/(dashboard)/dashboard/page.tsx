@@ -37,7 +37,7 @@ export default async function DashboardPage() {
   return (
     <div className="p-8 max-w-4xl space-y-8">
 
-      <PageHeader title="Dashboard" subtitle={hoy.charAt(0).toUpperCase() + hoy.slice(1)} />
+      <PageHeader title="Inicio" subtitle={hoy.charAt(0).toUpperCase() + hoy.slice(1)} />
 
       <div>
         <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Accesos rápidos</p>

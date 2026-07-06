@@ -14,7 +14,7 @@ export default async function MotivosPage() {
 
   return (
     <div className="p-8 max-w-4xl">
-      <PageHeader eyebrow="Producción" title="Motivos de descarte" subtitle="Categorias estructuradas para tracking de merma por proveedor / corte / costura / estampa." />
+      <PageHeader eyebrow="Configuración" title="Motivos de descarte" subtitle="Categorias estructuradas para tracking de merma por proveedor / corte / costura / estampa." />
       <MotivosDescarteManager initial={serialized} />
     </div>
   );

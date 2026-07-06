@@ -49,7 +49,7 @@ export default async function CortePage({ params, searchParams }: { params: Prom
   if (orden.fichaCorteCargada) {
     return (
       <div className="p-8 max-w-4xl">
-        <PageHeader eyebrow="Produccion / Corte" title={orden.sku ?? ''} />
+        <PageHeader eyebrow="Producción / Corte" title={orden.sku ?? ''} />
         <CorteEditor
           ordenId={orden.id}
           sku={orden.sku ?? ''}
@@ -78,7 +78,7 @@ export default async function CortePage({ params, searchParams }: { params: Prom
   return (
     <div className="p-8 max-w-4xl">
       <PageHeader
-        eyebrow="Produccion / Registrar corte"
+        eyebrow="Producción / Registrar corte"
         title={orden.sku ?? ''}
         subtitle={`${orden.descripcion || orden.marca} · Planificadas: ${orden.cantidad} unidades`}
       />

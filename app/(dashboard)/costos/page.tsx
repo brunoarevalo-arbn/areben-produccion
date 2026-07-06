@@ -19,7 +19,7 @@ export default function CostosPage() {
 
   return (
     <div className="p-8">
-      <PageHeader eyebrow="Módulo 3" title="Costos de Producción" subtitle="Parámetros y escandallos del taller." />
+      <PageHeader eyebrow="Costos" title="Costos de Producción" subtitle="Parámetros y escandallos del taller." />
 
       {/* Tabs */}
       <div className="flex gap-2 mb-7 border-b border-stone-200 pb-0">

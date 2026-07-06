@@ -29,7 +29,7 @@ export default async function TerminarLotePage({ params }: { params: Promise<{ l
   if (lote.ordenes.length === 0) {
     return (
       <div className="p-8 max-w-4xl">
-        <PageHeader eyebrow="Produccion / Terminar lote" title={titulo} subtitle={lote.marca} />
+        <PageHeader eyebrow="Producción / Terminar lote" title={titulo} subtitle={lote.marca} />
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
           <p className="text-sm text-amber-800">No hay colores de este lote en costura.</p>
         </div>
@@ -43,7 +43,7 @@ export default async function TerminarLotePage({ params }: { params: Promise<{ l
   return (
     <div className="p-8 max-w-4xl">
       <PageHeader
-        eyebrow="Produccion / Terminar lote"
+        eyebrow="Producción / Terminar lote"
         title={titulo}
         subtitle={`${lote.marca} · ${lote.ordenes.length} ${lote.ordenes.length === 1 ? 'color' : 'colores'} en costura`}
       />

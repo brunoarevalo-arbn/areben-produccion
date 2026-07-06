@@ -7,7 +7,7 @@ export default function PagosCortesPage() {
   return (
     <div className="p-8 max-w-6xl">
       <PageHeader
-        eyebrow="Produccion"
+        eyebrow="Producción"
         title="Pagos de cortes"
         subtitle="Registra pagos masivos a cortadores. Seleccioná los cortes pendientes y agrupalos en un solo pago."
       />

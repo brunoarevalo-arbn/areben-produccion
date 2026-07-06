@@ -12,7 +12,7 @@ export default async function CortadoresPage() {
 
   return (
     <div className="p-8 max-w-4xl">
-      <PageHeader eyebrow="Producción" title="Cortadores" subtitle="Administra los cortadores con sus tarifas y datos de contacto." />
+      <PageHeader eyebrow="Configuración" title="Cortadores" subtitle="Administra los cortadores con sus tarifas y datos de contacto." />
       <CortadoresManager initial={serialized} />
     </div>
   );

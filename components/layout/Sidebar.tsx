@@ -18,7 +18,7 @@ const tienePermiso = (permisos: string[], seccion?: string | string[]) =>
 
 const NAV: { label: string; href: string; icon: string; seccion: string | string[]; sub: SubItem[] }[] = [
   {
-    label: 'Dashboard',
+    label: 'Inicio',
     href: '/dashboard',
     icon: '⊞',
     seccion: 'dashboard',
@@ -40,13 +40,13 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     icon: '📦',
     seccion: 'insumos',
     sub: [
-      { label: 'Insumos',            href: '/inventario' },
+      { label: 'Telas',              href: '/inventario' },
       { label: 'Avíos',              href: '/inventario/catalogo/avios' },
       { label: 'Rollos',             href: '/inventario/rollos' },
       { label: 'Movimientos',        href: '/inventario/movimientos' },
       { label: 'Ajustes',            href: '/inventario/ajustes' },
       { label: 'Producto terminado', href: '/inventario/terminado', seccion: 'produccion' },
-      { label: 'Alta de insumos',    href: '/inventario/catalogo', nuevoHref: '/inventario/catalogo/avios' },
+      { label: 'Nuevo insumo',       href: '/inventario/catalogo', nuevoHref: '/inventario/catalogo/avios' },
     ],
   },
   {
@@ -82,7 +82,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     sub: [
       { label: 'Qué estampar',        href: '/reposicion' },
       { label: 'Órdenes de estampa',  href: '/reposicion/ordenes' },
-      { label: 'Vinculación',         href: '/reposicion/vincular' },
+      { label: 'Vincular productos',  href: '/reposicion/vincular' },
     ],
   },
   {
