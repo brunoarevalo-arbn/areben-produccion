@@ -127,6 +127,7 @@ export function Escandallos() {
 
   const [loadingTiempo,      setLoadingTiempo]      = useState(false);
   const [tiempoProduccion,   setTiempoProduccion]   = useState<{ minutos: number; registros: number; cantidadTotal: number } | null>(null);
+  const [tiempoLote,         setTiempoLote]         = useState<{ minutos: number; colores: number; cantidadTotal: number } | null>(null);
   const [sinDatosProduccion, setSinDatosProduccion] = useState(false);
   const [fichaResumen,       setFichaResumen]       = useState<{ costoTelaUnit: number | null; costoCorteUnit: number | null; kgUnit: number; metrosUnit: number; avios: { nombre: string; cantidad: number }[] } | null>(null);
 
@@ -236,13 +237,16 @@ export function Escandallos() {
     if (!sku.trim()) return;
     setLoadingTiempo(true);
     setTiempoProduccion(null);
+    setTiempoLote(null);
     setSinDatosProduccion(false);
     try {
       const r = await fetch(`/api/produccion/tiempo-sku?sku=${encodeURIComponent(sku)}`);
       if (r.ok) {
         const d = await r.json();
-        if (d.encontrado) setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
-        else setSinDatosProduccion(true);
+        if (d.encontrado) {
+          setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
+          if (d.lote) setTiempoLote({ minutos: d.lote.minutosPromedio, colores: d.lote.colores, cantidadTotal: d.lote.cantidadTotal });
+        } else setSinDatosProduccion(true);
       }
     } catch { /* ignore */ }
     setLoadingTiempo(false);
@@ -260,6 +264,7 @@ export function Escandallos() {
       costoCorte: p.costoCorteUnit != null ? p.costoCorteUnit : prev.costoCorte,
     }));
     setTiempoProduccion(null);
+    setTiempoLote(null);
     setSinDatosProduccion(false);
     setLoadingTiempo(true);
     try {
@@ -268,6 +273,7 @@ export function Escandallos() {
         const d = await r.json();
         if (d.encontrado) {
           setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
+          if (d.lote) setTiempoLote({ minutos: d.lote.minutosPromedio, colores: d.lote.colores, cantidadTotal: d.lote.cantidadTotal });
           setDatos(prev => ({ ...prev, tiempoConfeccion: d.minutosPromedio }));
         } else {
           setSinDatosProduccion(true);
@@ -889,9 +895,26 @@ export function Escandallos() {
                         className="text-xs px-3 py-1.5 bg-violet-600 hover:bg-violet-700 text-white rounded-lg font-semibold transition">
                         Usar {tiempoProduccion.minutos} min
                       </button>
-                      <button type="button" aria-label="Descartar" onClick={() => setTiempoProduccion(null)}
+                      <button type="button" aria-label="Descartar" onClick={() => { setTiempoProduccion(null); setTiempoLote(null); }}
                         className="text-xs text-stone-400 hover:text-stone-600 px-1">✕</button>
                     </div>
+                  </div>
+                )}
+                {tiempoLote && (
+                  <div className="flex items-center justify-between gap-4 bg-amber-50 rounded-xl px-4 py-3 mt-2">
+                    <div>
+                      <p className="text-xs font-semibold text-amber-700">
+                        Promedio del lote ({tiempoLote.colores} colores): {tiempoLote.minutos} min/prenda
+                      </p>
+                      <p className="text-xs text-stone-400 mt-0.5">
+                        unificado — Σ minutos ÷ {tiempoLote.cantidadTotal} prendas del lote
+                      </p>
+                    </div>
+                    <button type="button"
+                      onClick={() => { updDatos('tiempoConfeccion', String(tiempoLote.minutos)); setTiempoProduccion(null); setTiempoLote(null); }}
+                      className="shrink-0 text-xs px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-semibold transition">
+                      Usar {tiempoLote.minutos} min
+                    </button>
                   </div>
                 )}
               </div>
