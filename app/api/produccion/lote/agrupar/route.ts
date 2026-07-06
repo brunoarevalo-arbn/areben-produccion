@@ -26,11 +26,19 @@ export async function POST(req: NextRequest) {
   if (ordenes.length !== parsed.data.ordenIds.length) {
     return NextResponse.json({ error: 'Alguna OP no existe' }, { status: 400 });
   }
-  if (ordenes.some((o) => o.loteId)) {
-    return NextResponse.json({ error: 'Alguna OP ya está en un lote' }, { status: 400 });
-  }
   if (ordenes.some((o) => o.estado === 'CERRADA')) {
     return NextResponse.json({ error: 'No se pueden agrupar OPs cerradas' }, { status: 400 });
+  }
+  // Se permiten OPs sueltas o SOLAS en su lote. Si alguna está en un lote con varios
+  // colores, no se mueve (no desarmamos lotes ya armados).
+  const sourceLoteIds = [...new Set(ordenes.map((o) => o.loteId).filter(Boolean))] as string[];
+  if (sourceLoteIds.length) {
+    const counts = await prisma.ordenProduccion.groupBy({
+      by: ['loteId'], where: { loteId: { in: sourceLoteIds } }, _count: { _all: true },
+    });
+    if (counts.some((c) => c._count._all > 1)) {
+      return NextResponse.json({ error: 'Alguna OP está en un lote con varios colores; no se puede mover sin desarmarlo.' }, { status: 400 });
+    }
   }
   const marcas = new Set(ordenes.map((o) => o.marca));
   if (marcas.size > 1) {
@@ -51,6 +59,10 @@ export async function POST(req: NextRequest) {
       where: { id: { in: parsed.data.ordenIds } },
       data: { loteId: lote.id },
     });
+    // Los lotes de origen (cada uno tenía 1 sola OP, ya movida) quedan vacíos → se borran.
+    if (sourceLoteIds.length) {
+      await tx.loteProduccion.deleteMany({ where: { id: { in: sourceLoteIds } } });
+    }
     return lote;
   });
 
