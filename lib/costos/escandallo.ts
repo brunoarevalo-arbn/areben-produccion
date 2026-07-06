@@ -12,7 +12,7 @@ export interface Tela {
   // Modo tira (ribete / tapacostura): tela cortada en tira con la cortacollaretas.
   // El consumo se mide por área (ancho×largo) y suma merma por las uniones del tubo.
   tipo?: 'tela' | 'tira';
-  anchoTelaCm?: number;   // ancho del rollo — para pasar kg → m²
+  anchoTelaM?: number;    // ancho del rollo en METROS — para pasar kg → m²
   anchoTiraCm?: number;   // ancho de la tira cortada
   largoTiraCm?: number;   // largo de tira por prenda
   largoVueltaCm?: number; // largo de tira por vuelta del tubo (para calcular la merma)
@@ -61,7 +61,7 @@ export interface Margenes { margenDesarrollo: number; margenFallas: number; }
 export const DATOS_VERSION = 3;
 export const MEDIDAS_LAVADO_EMPTY: MedidasLavado = { largo: 0, ancho: 0, talle: '' };
 export const TELA_EMPTY: Tela = { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0, tipo: 'tela' };
-export const TIRA_EMPTY: Tela = { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0, tipo: 'tira', anchoTelaCm: 0, anchoTiraCm: 0, largoTiraCm: 0, largoVueltaCm: 0, mermaPercent: 0 };
+export const TIRA_EMPTY: Tela = { nombre: '', precioKgNeto: 0, fletePercent: 8, rindeMetrosKg: 0, consumoMetros: 0, tipo: 'tira', anchoTelaM: 0, anchoTiraCm: 0, largoTiraCm: 0, largoVueltaCm: 0, mermaPercent: 0 };
 
 /** Merma por uniones del tubo: cada vuelta trae una unión que inutiliza ~1 largo de prenda. */
 export function mermaPorVuelta(largoTiraCm: number, largoVueltaCm: number): number {
@@ -117,7 +117,7 @@ function migrarTela(raw: unknown): Tela {
     consumoMetros: num(r.consumoMetros),
     tipo,
     ...(tipo === 'tira' ? {
-      anchoTelaCm: num(r.anchoTelaCm),
+      anchoTelaM: num(r.anchoTelaM, r.anchoTelaCm != null ? num(r.anchoTelaCm) / 100 : 0),
       anchoTiraCm: num(r.anchoTiraCm),
       largoTiraCm: num(r.largoTiraCm),
       largoVueltaCm: num(r.largoVueltaCm),
@@ -167,7 +167,7 @@ export function parseDatos(raw: string | null | undefined): DatosEscandallo {
 export function telaCosto(t: Tela): { pMetro: number; pM2: number; costo: number; merma: number } {
   const pConFlete = t.precioKgNeto * (1 + t.fletePercent / 100);
   if (t.tipo === 'tira') {
-    const anchoTela = (t.anchoTelaCm ?? 0) / 100; // m
+    const anchoTela = t.anchoTelaM ?? 0;          // ya está en metros
     const anchoTira = (t.anchoTiraCm ?? 0) / 100;
     const largoTira = (t.largoTiraCm ?? 0) / 100;
     const m2Kg = t.rindeMetrosKg * anchoTela;      // m² por kg

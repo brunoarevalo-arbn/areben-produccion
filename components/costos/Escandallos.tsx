@@ -721,9 +721,9 @@ export function Escandallos() {
                         </div>
                       ) : (
                         <div>
-                          <label className={lbl}>Ancho de la tela (cm)</label>
-                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">ancho del rollo</p>
-                          <NumInput value={t.anchoTelaCm ?? 0} onChange={n => updTela(i, 'anchoTelaCm', String(n))}
+                          <label className={lbl}>Ancho de la tela (m)</label>
+                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">ancho del rollo, ej 1,5</p>
+                          <NumInput value={t.anchoTelaM ?? 0} onChange={n => updTela(i, 'anchoTelaM', String(n))}
                             min="0" step="any" className={inp} />
                         </div>
                       )}
