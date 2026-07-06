@@ -573,25 +573,33 @@ export function ColaAdmin() {
       </div>
 
       {/* Barra de agrupado */}
-      {agrupando && (
-        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 flex-wrap">
-          <span className="text-sm text-amber-900">
-            Tildá las órdenes (sueltas o solas en su lote, mismo molde).
-            {seleccionadas.size > 0 && <strong className="ml-1">{seleccionadas.size} seleccionada{seleccionadas.size === 1 ? '' : 's'}</strong>}
-          </span>
-          <div className="flex items-center gap-2 ml-auto">
-            <label className="text-xs text-amber-900/80">Destino:</label>
+      {agrupando && (() => {
+        const n = seleccionadas.size;
+        const minOk = n >= (destinoLote ? 1 : 2);
+        return (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-2.5">
+          {/* Paso 1: marcar */}
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-sm font-semibold text-amber-900">1. Marcá las órdenes a juntar</span>
+            <span className="text-xs text-amber-800/70">(mismo molde y marca — solo se pueden marcar las sueltas o las que están solas en su lote)</span>
+            <span className="ml-auto text-sm text-amber-900">{n > 0 ? <><strong>{n}</strong> marcada{n === 1 ? '' : 's'}</> : <span className="text-amber-700/70">ninguna marcada</span>}</span>
+          </div>
+          {/* Paso 2: destino + acción */}
+          <div className="flex items-center gap-2 flex-wrap border-t border-amber-200 pt-2.5">
+            <span className="text-sm font-semibold text-amber-900">2. ¿Dónde van?</span>
             <select value={destinoLote} onChange={(e) => setDestinoLote(e.target.value)}
-              className="px-2 py-1.5 border border-stone-200 rounded-lg text-sm bg-white focus:outline-none focus:border-amber-400 max-w-[16rem]">
-              <option value="">Lote nuevo</option>
-              {lotesExistentes.map((l) => <option key={l.id} value={l.id}>Agregar a: {l.label} ({l.count})</option>)}
+              className="px-2 py-1.5 border border-stone-200 rounded-lg text-sm bg-white focus:outline-none focus:border-amber-400 max-w-[18rem]">
+              <option value="">Crear un lote nuevo</option>
+              {lotesExistentes.map((l) => <option key={l.id} value={l.id}>Sumar a: {l.label} ({l.count} color{l.count === 1 ? '' : 'es'})</option>)}
             </select>
-            <Button variant="primary" size="sm" onClick={agruparSeleccionadas} isLoading={agrupSaving} disabled={seleccionadas.size < (destinoLote ? 1 : 2)}>
-              {destinoLote ? 'Agregar al lote' : 'Agrupar en lote nuevo'} {seleccionadas.size > 0 ? `(${seleccionadas.size})` : ''}
+            <Button variant="primary" size="sm" onClick={agruparSeleccionadas} isLoading={agrupSaving} disabled={!minOk}>
+              {destinoLote ? `Sumar ${n || ''} al lote` : `Crear lote con ${n || ''}`}
             </Button>
+            {!minOk && <span className="text-xs text-amber-700">{destinoLote ? 'marcá al menos 1' : 'marcá al menos 2 para un lote nuevo'}</span>}
           </div>
         </div>
-      )}
+        );
+      })()}
 
       {/* Tabla */}
       <Card padding="none" className="overflow-hidden">
