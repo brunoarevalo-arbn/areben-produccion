@@ -100,11 +100,11 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada }: { ordenId: stri
       </Card>
 
       {/* Precio + fecha */}
-      <Card padding="none" className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+      <Card padding="none" className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Precio del corte</label>
           <div className="flex gap-2">
-            <NumInput value={parseFloat(costoCorte) || 0} onChange={(n) => setCostoCorte(n ? String(n) : '')} min="0" className={`${inp} flex-1`} />
+            <NumInput value={parseFloat(costoCorte) || 0} onChange={(n) => setCostoCorte(n ? String(n) : '')} min="0" className={`${inp} flex-1 min-w-0`} />
             <div className="flex rounded-lg border border-stone-200 overflow-hidden shrink-0">
               {(['total', 'unidad'] as const).map((m) => (
                 <button key={m} type="button" onClick={() => setModoCosto(m)} className={`px-3 text-xs font-semibold ${modoCosto === m ? 'bg-stone-900 text-white' : 'bg-white text-stone-500'}`}>{m}</button>
