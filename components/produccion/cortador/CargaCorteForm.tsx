@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { TALLES_DEFAULT, TALLES_COMUNES } from '@/lib/validators/produccion';
 import { toast } from '@/components/ui/Toaster';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface Tizada { id: string; nombre: string; metros: string; unidades: string }
 export interface CargaCortePrefill {
@@ -16,15 +17,17 @@ export interface CargaCortePrefill {
   modoCosto: 'total' | 'unidad';
   fechaCorte?: string;
 }
+export interface HermanaTizadas { id: string; sku: string; tizadas: { nombre: string; metros: string; unidades: string }[] }
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 const hoyISO = () => new Date().toLocaleDateString('en-CA');
 
 // Form del cortador para cargar su corte de una OP: tizadas (nombre/metros/unidades),
 // talles y precio. Sin rollos (los asigna la diseñadora). Guarda en estado 'cargado'.
 // Con `prefill` reabre lo ya cargado (botón "Editar" del panel).
-export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill }: { ordenId: string; cantidadPlanificada: number; prefill?: CargaCortePrefill }) {
+export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill, hermanas = [] }: { ordenId: string; cantidadPlanificada: number; prefill?: CargaCortePrefill; hermanas?: HermanaTizadas[] }) {
   const router = useRouter();
   const seq = useRef((prefill?.tizadas.length ?? 1) + 1);
+  const [copiarDe, setCopiarDe] = useState(hermanas[0]?.id ?? '');
   const [tizadas, setTizadas] = useState<Tizada[]>(
     prefill && prefill.tizadas.length > 0
       ? prefill.tizadas.map((t, i) => ({ id: `t${i + 1}`, nombre: t.nombre, metros: t.metros, unidades: t.unidades }))
@@ -43,6 +46,16 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill }: { orde
   const agregables = [...TALLES_DEFAULT].filter((t) => !visibles.includes(t));
 
   const updTizada = (id: string, f: keyof Tizada, v: string) => setTizadas((p) => p.map((t) => t.id === id ? { ...t, [f]: v } : t));
+
+  const copiarTizadas = async () => {
+    const h = hermanas.find((x) => x.id === copiarDe);
+    if (!h || h.tizadas.length === 0) return;
+    const hayDatos = tizadas.some((t) => (parseFloat(t.metros) || 0) > 0 || t.nombre.trim());
+    if (hayDatos && !(await confirmAsync({ message: 'Esto reemplaza las tizadas que cargaste. ¿Copiar igual?', confirmLabel: 'Copiar' }))) return;
+    setTizadas(h.tizadas.map((t, i) => ({ id: `t${i + 1}`, nombre: t.nombre, metros: t.metros, unidades: t.unidades })));
+    seq.current = h.tizadas.length + 1;
+    toast.success(`Tizadas copiadas de ${h.sku}`);
+  };
 
   const guardar = async () => {
     const tizadasValidas = tizadas.filter((t) => (parseFloat(t.metros) || 0) > 0);
@@ -63,10 +76,22 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill }: { orde
     <div className="space-y-4">
       {/* Tizadas */}
       <Card padding="none" className="p-5">
-        <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center justify-between mb-3 gap-2 flex-wrap">
           <h3 className="text-sm font-bold text-stone-800">Tizadas</h3>
-          <button type="button" onClick={() => setTizadas((p) => [...p, { id: `t${seq.current++}`, nombre: '', metros: '', unidades: '1' }])}
-            className="text-xs px-3 py-1 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition">+ Tizada</button>
+          <div className="flex items-center gap-2">
+            {hermanas.length > 0 && (
+              <>
+                <select value={copiarDe} onChange={(e) => setCopiarDe(e.target.value)} title="Copiar tizadas de una hermana del lote"
+                  className="text-xs px-2 py-1 border border-stone-200 rounded-lg text-stone-600 bg-white cursor-pointer focus:outline-none focus:border-amber-400 max-w-[9rem]">
+                  {hermanas.map((h) => <option key={h.id} value={h.id}>{h.sku}</option>)}
+                </select>
+                <button type="button" onClick={copiarTizadas}
+                  className="text-xs px-3 py-1 border border-blue-200 rounded-lg text-blue-700 hover:bg-blue-50 transition">Copiar tizadas</button>
+              </>
+            )}
+            <button type="button" onClick={() => setTizadas((p) => [...p, { id: `t${seq.current++}`, nombre: '', metros: '', unidades: '1' }])}
+              className="text-xs px-3 py-1 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition">+ Tizada</button>
+          </div>
         </div>
         <div className="space-y-3">
           {tizadas.map((t, i) => {
