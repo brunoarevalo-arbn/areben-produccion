@@ -40,46 +40,62 @@ export default async function CortadorPanelPage() {
   const muestras = await prisma.corteMuestra.findMany({ where: { cortadorId: cortador.id }, orderBy: { fecha: 'desc' } });
   const muestrasVista = muestras.map((m) => ({ id: m.id, descripcion: m.descripcion, consumo: Number(m.consumo), unidad: m.unidad, valor: Number(m.valor), estado: m.estado, fecha: m.fecha.toISOString() }));
 
-  const pendientes = ordenes.filter((o) => !o.fichaCorteCargada);
+  const porCargar  = ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado !== 'cargado');
+  const cargados   = ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado === 'cargado');
   const historicos = ordenes.filter((o) => o.fichaCorteCargada);
   const totalUnidHist = historicos.reduce((s, o) => s + o.cantidad, 0);
   const totalCobrado  = historicos.reduce((s, o) => s + Number(o.costoCorte), 0);
+
+  type Orden = (typeof ordenes)[number];
+  const filaPendiente = (o: Orden, cargado: boolean) => (
+    <div key={o.id} className="flex items-center gap-3 px-5 py-3">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <SkuChip sku={o.sku ?? 'S/SKU'} className="text-stone-700" />
+          <span className="text-xs text-stone-400">{o.marca}</span>
+          {cargado && <span className="text-xs font-semibold text-blue-600">✓ confirmado (esperando al taller)</span>}
+        </div>
+        {o.descripcion && <p className="text-sm text-stone-600 mt-1 truncate">{o.descripcion}</p>}
+      </div>
+      <span className="text-xs text-stone-400 tabular-nums shrink-0">{o.cantidad} u</span>
+      {cargado && <EliminarCorteBtn ordenId={o.id} sku={o.sku ?? 'S/SKU'} />}
+      <Link href={`/cortador/${o.id}`} className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">
+        {cargado ? 'Editar' : 'Cargar corte'}
+      </Link>
+    </div>
+  );
 
   return (
     <div className="p-8 max-w-3xl space-y-8">
       <PageHeader eyebrow="Cortador" title={`Hola, ${cortador.nombre}`} subtitle="Cargá tus cortes: tizadas, talles y precio. El taller asigna la tela." />
 
-      {/* Pendientes */}
+      {/* Pendientes por cargar */}
       <section>
-        <h2 className="text-sm font-bold text-stone-800 mb-3">Cortes por cargar {pendientes.length > 0 && <span className="text-amber-600">({pendientes.length})</span>}</h2>
-        {pendientes.length === 0 ? (
-          <Card padding="none" className="p-6 text-center text-sm text-stone-400">No tenés cortes asignados pendientes.</Card>
+        <h2 className="text-sm font-bold text-stone-800 mb-3">Cortes pendientes {porCargar.length > 0 && <span className="text-amber-600">({porCargar.length})</span>}</h2>
+        {porCargar.length === 0 ? (
+          <Card padding="none" className="p-6 text-center text-sm text-stone-400">No tenés cortes pendientes.</Card>
         ) : (
           <Card padding="none" className="divide-y divide-stone-100">
-            {pendientes.map((o) => (
-              <div key={o.id} className="flex items-center gap-3 px-5 py-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <SkuChip sku={o.sku ?? 'S/SKU'} className="text-stone-700" />
-                    <span className="text-xs text-stone-400">{o.marca}</span>
-                    {o.corteEstado === 'cargado' && <span className="text-xs font-semibold text-blue-600">✓ confirmado (esperando al taller)</span>}
-                  </div>
-                  {o.descripcion && <p className="text-sm text-stone-600 mt-1 truncate">{o.descripcion}</p>}
-                </div>
-                <span className="text-xs text-stone-400 tabular-nums shrink-0">{o.cantidad} u</span>
-                {o.corteEstado === 'cargado' && <EliminarCorteBtn ordenId={o.id} sku={o.sku ?? 'S/SKU'} />}
-                <Link href={`/cortador/${o.id}`} className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">
-                  {o.corteEstado === 'cargado' ? 'Editar' : 'Cargar corte'}
-                </Link>
-              </div>
-            ))}
+            {porCargar.map((o) => filaPendiente(o, false))}
+          </Card>
+        )}
+      </section>
+
+      {/* Cargados, esperando al taller */}
+      <section>
+        <h2 className="text-sm font-bold text-stone-800 mb-3">Cortes cargados {cargados.length > 0 && <span className="text-blue-600">({cargados.length})</span>}</h2>
+        {cargados.length === 0 ? (
+          <Card padding="none" className="p-6 text-center text-sm text-stone-400">No tenés cortes esperando al taller.</Card>
+        ) : (
+          <Card padding="none" className="divide-y divide-stone-100">
+            {cargados.map((o) => filaPendiente(o, true))}
           </Card>
         )}
       </section>
 
       {/* Resumen + históricos */}
       <section>
-        <h2 className="text-sm font-bold text-stone-800 mb-3">Cortes hechos</h2>
+        <h2 className="text-sm font-bold text-stone-800 mb-3">Historial de cortes</h2>
         <div className="grid grid-cols-3 gap-3 mb-3">
           <Card padding="none" className="p-4"><p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Cortes</p><p className="text-lg font-bold text-stone-800">{historicos.length}</p></Card>
           <Card padding="none" className="p-4"><p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Unidades</p><p className="text-lg font-bold text-stone-800 tabular-nums">{totalUnidHist}</p></Card>
