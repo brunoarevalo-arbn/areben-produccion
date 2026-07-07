@@ -35,7 +35,7 @@ export default async function CortePage({ params, searchParams }: { params: Prom
   // Detalle guardado del form (para ver/editar idéntico). Puede faltar en fichas viejas.
   const fichaData = (orden.fichaCorteData ?? null) as FichaData | null;
   // Pre-carga del cortador (tizadas/talles/precio sin rollo) → la diseñadora asigna la tela.
-  const preCargaCortador = orden.corteEstado === 'cargado' && fichaData ? { fichaData } : undefined;
+  const preCargaCortador = (orden.corteEstado === 'cargado' || orden.corteEstado === 'validado') && fichaData ? { fichaData } : undefined;
 
   // Hermanas del mismo lote que ya tienen ficha → se puede copiar la suya.
   const hermanas = orden.loteId

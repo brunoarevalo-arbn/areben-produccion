@@ -30,6 +30,7 @@ interface Orden {
   cortador: string | null;
   cortadorId: string | null;
   corteEstado: string | null;
+  fichaCorteData: { costoCorte?: number; modoCosto?: string } | null;
   transiciones: Transicion[];
   loteId: string | null;
   lote: { id: string; prenda: string | null; descripcion: string | null; marca: string } | null;
@@ -183,6 +184,20 @@ export function ColaAdmin() {
     const r = await fetch(`/api/produccion/cola/${ordenId}/asignar-cortador`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cortadorId: cortadorId || null }) });
     if (r.ok) { const d = await r.json(); setOrdenes((prev) => prev.map((o) => o.id === ordenId ? { ...o, cortadorId: d.cortadorId, cortador: d.cortador, corteEstado: d.corteEstado } : o)); }
     else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo asignar'); }
+  };
+  // Validar el corte del cortador (cobrable) sin hacer la ficha de tela.
+  const validarCorte = async (orden: Orden) => {
+    const precio = Number(orden.fichaCorteData?.costoCorte) || 0;
+    const total = orden.fichaCorteData?.modoCosto === 'unidad' ? precio * orden.cantidad : precio;
+    const unidad = orden.cantidad > 0 ? total / orden.cantidad : total;
+    if (!(await confirmAsync({
+      title: `Validar corte ${orden.sku ?? 'S/SKU'}`,
+      message: `Cantidad: ${orden.cantidad} u\nPrecio: $${fmt(unidad)}/u  ·  Total: $${fmt(total)}\n\nQueda cobrable para el cortador. La ficha de tela se puede hacer después.`,
+      confirmLabel: 'Validar',
+    }))) return;
+    const r = await fetch(`/api/produccion/cola/${orden.id}/validar-corte`, { method: 'POST' });
+    if (r.ok) { toast.success('Corte validado — ya es cobrable'); cargar(); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo validar'); }
   };
   const asignarCortadorLote = async (loteId: string, cortadorId: string) => {
     const r = await fetch(`/api/produccion/lote/${loteId}/asignar-cortador`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cortadorId: cortadorId || null }) });
@@ -497,9 +512,11 @@ export function ColaAdmin() {
             <span className="text-xs text-stone-400 shrink-0">{orden.marca}</span>
             {!orden.sku && <Badge variant="warning" size="sm">SKU pendiente</Badge>}
             {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
-              orden.corteEstado === 'cargado'
-                ? <Badge variant="success" size="sm">Corte listo</Badge>
-                : <Badge variant="info" size="sm">Ficha pendiente</Badge>
+              orden.corteEstado === 'validado'
+                ? <Badge variant="blue" size="sm">Validado</Badge>
+                : orden.corteEstado === 'cargado'
+                  ? <Badge variant="success" size="sm">Corte listo</Badge>
+                  : <Badge variant="info" size="sm">Ficha pendiente</Badge>
             )}
           </div>
           <p className="text-xs text-stone-400">{fechaCorta(orden.createdAt)} · {orden.creadoPor}</p>
@@ -523,6 +540,12 @@ export function ColaAdmin() {
                 {cortadores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
             </div>
+          )}
+          {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && orden.corteEstado === 'cargado' && (
+            <button onClick={() => validarCorte(orden)} title="Validar el corte (lo hace cobrable, sin ficha de tela)"
+              className="text-xs px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">
+              Validar
+            </button>
           )}
           {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
             <Link href={`/produccion/${orden.id}/corte`}

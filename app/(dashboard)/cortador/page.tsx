@@ -40,16 +40,17 @@ export default async function CortadorPanelPage() {
   const muestras = await prisma.corteMuestra.findMany({ where: { cortadorId: cortador.id }, orderBy: { fecha: 'desc' } });
   const muestrasVista = muestras.map((m) => ({ id: m.id, descripcion: m.descripcion, consumo: Number(m.consumo), unidad: m.unidad, valor: Number(m.valor), estado: m.estado, fecha: m.fecha.toISOString() }));
 
-  const porCargar  = ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado !== 'cargado');
+  const esValidado = (o: (typeof ordenes)[number]) => o.corteEstado === 'validado';
+  const porCargar  = ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado !== 'cargado' && !esValidado(o));
   const cargados   = ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado === 'cargado');
-  const historicos = ordenes.filter((o) => o.fichaCorteCargada);
+  const historicos = ordenes.filter((o) => o.fichaCorteCargada || esValidado(o));
   const totalUnidHist = historicos.reduce((s, o) => s + o.cantidad, 0);
   const totalCobrado  = historicos.reduce((s, o) => s + Number(o.costoCorte), 0);
 
   // Resumen accionable de arriba: unidades por cortar y plata pendiente de cobro
   // (misma lógica que Cuenta de cortadores: validados + muestras validadas, sin pagar).
   const unidadesPendientes = porCargar.reduce((s, o) => s + o.cantidad, 0);
-  const cobroCortes   = ordenes.filter((o) => o.fichaCorteCargada && Number(o.costoCorte) > 0 && !o.pagoCorteId).reduce((s, o) => s + Number(o.costoCorte), 0);
+  const cobroCortes   = ordenes.filter((o) => (o.fichaCorteCargada || esValidado(o)) && Number(o.costoCorte) > 0 && !o.pagoCorteId).reduce((s, o) => s + Number(o.costoCorte), 0);
   const cobroMuestras = muestras.filter((m) => m.estado === 'validado' && !m.pagoCorteId).reduce((s, m) => s + Number(m.valor), 0);
   const pendienteCobro = cobroCortes + cobroMuestras;
 

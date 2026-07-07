@@ -20,6 +20,8 @@ export interface OpAsignada {
   corteEstado: string | null;
   fechaCorte: string | null;
   costoCorte: number;
+  precioTotal?: number;
+  precioUnidad?: number;
 }
 
 const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
@@ -44,6 +46,19 @@ export function CortadorAsignadosAdmin({ cortadorId, asignados, listos, hechos, 
     });
     if (r.ok) { toast.success(nuevoId ? 'Reasignado' : 'Quitado'); router.refresh(); }
     else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo'); }
+  };
+
+  const validar = async (o: OpAsignada) => {
+    const total = o.precioTotal ?? 0;
+    const unidad = o.precioUnidad ?? 0;
+    if (!(await confirmAsync({
+      title: `Validar corte ${o.sku ?? 'S/SKU'}`,
+      message: `Cantidad: ${o.cantidad} u\nPrecio: ${fmt$(unidad)}/u  ·  Total: ${fmt$(total)}\n\nQueda cobrable para el cortador. La ficha de tela se puede hacer después.`,
+      confirmLabel: 'Validar',
+    }))) return;
+    const r = await fetch(`/api/produccion/cola/${o.id}/validar-corte`, { method: 'POST' });
+    if (r.ok) { toast.success('Corte validado — ya es cobrable'); router.refresh(); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo validar'); }
   };
 
   const selectCortador = (o: OpAsignada) => (
@@ -83,7 +98,7 @@ export function CortadorAsignadosAdmin({ cortadorId, asignados, listos, hechos, 
       {seccion('Corte listo — a validar', listos, (o) => fila(o,
         <div className="flex items-center gap-2 shrink-0">
           {selectCortador(o)}
-          <Link href={`/produccion/${o.id}/corte`} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">Validar</Link>
+          <button onClick={() => validar(o)} className="text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">Validar</button>
         </div>,
         <Badge variant="success" size="sm">Corte listo</Badge>,
       ))}
@@ -98,6 +113,7 @@ export function CortadorAsignadosAdmin({ cortadorId, asignados, listos, hechos, 
           {o.fechaCorte && <span className="text-xs text-stone-400">{new Date(o.fechaCorte).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'UTC' })}</span>}
           <span className="text-xs font-semibold text-stone-700 tabular-nums w-20 text-right">{fmt$(o.costoCorte)}</span>
         </div>,
+        o.fichaCorteCargada ? undefined : <Badge variant="blue" size="sm">Validado</Badge>,
       ))}
     </div>
   );

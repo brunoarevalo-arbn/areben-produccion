@@ -21,7 +21,7 @@ export default async function CortadoresAdminHubPage() {
   for (const o of ordenes) {
     const s = o.cortadorId ? stats.get(o.cortadorId) : null;
     if (!s) continue;
-    if (o.fichaCorteCargada) s.hechos++;
+    if (o.fichaCorteCargada || o.corteEstado === 'validado') s.hechos++;
     else if (o.corteEstado === 'cargado') s.listos++;
     else s.asignados++;
   }

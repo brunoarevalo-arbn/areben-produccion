@@ -16,7 +16,7 @@ export default async function CuentaCortadorPage({ params }: { params: Promise<{
 
   const [cortesRaw, muestrasRaw, pagos] = await Promise.all([
     prisma.ordenProduccion.findMany({
-      where: { cortadorId: id, fichaCorteCargada: true, costoCorte: { gt: 0 }, pagoCorteId: null },
+      where: { cortadorId: id, costoCorte: { gt: 0 }, pagoCorteId: null, OR: [{ fichaCorteCargada: true }, { corteEstado: 'validado' }] },
       select: { id: true, sku: true, costoCorte: true, fechaCorte: true }, orderBy: { fechaCorte: 'asc' },
     }),
     prisma.corteMuestra.findMany({

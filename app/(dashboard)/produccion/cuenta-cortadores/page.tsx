@@ -10,7 +10,7 @@ const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
 export default async function CuentaCortadoresPage() {
   const [cortadores, ops, muestras] = await Promise.all([
     prisma.cortador.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' }, select: { id: true, nombre: true } }),
-    prisma.ordenProduccion.findMany({ where: { fichaCorteCargada: true, costoCorte: { gt: 0 }, pagoCorteId: null, cortadorId: { not: null } }, select: { cortadorId: true, costoCorte: true } }),
+    prisma.ordenProduccion.findMany({ where: { costoCorte: { gt: 0 }, pagoCorteId: null, cortadorId: { not: null }, OR: [{ fichaCorteCargada: true }, { corteEstado: 'validado' }] }, select: { cortadorId: true, costoCorte: true } }),
     prisma.corteMuestra.findMany({ where: { estado: 'validado', pagoCorteId: null }, select: { cortadorId: true, valor: true } }),
   ]);
 

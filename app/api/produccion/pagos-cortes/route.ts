@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
   const cortador = url.searchParams.get('cortador');
 
   const where: Record<string, unknown> = {
-    fichaCorteCargada: true,
     costoCorte: { gt: 0 },
+    OR: [{ fichaCorteCargada: true }, { corteEstado: 'validado' }],
   };
 
   if (filtroPago === 'pendiente') where.pagoCorteId = null;

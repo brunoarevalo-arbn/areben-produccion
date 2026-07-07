@@ -25,8 +25,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const c = await prisma.cortador.findUnique({ where: { id: cortadorId } });
     if (!c) return NextResponse.json({ error: 'Cortador no encontrado' }, { status: 400 });
   }
-  // Si ya cargó, no piso su estado; solo (re)asigno cuando está sin cargar.
-  const nuevoEstado = cortadorId ? (orden.corteEstado === 'cargado' ? 'cargado' : 'asignado') : null;
+  // Si ya cargó o validó, preservo ese estado; solo (re)asigno cuando está sin cargar.
+  const nuevoEstado = cortadorId ? (orden.corteEstado === 'cargado' || orden.corteEstado === 'validado' ? orden.corteEstado : 'asignado') : null;
   const actualizada = await prisma.ordenProduccion.update({
     where: { id },
     data: { cortadorId: cortadorId, corteEstado: nuevoEstado },
