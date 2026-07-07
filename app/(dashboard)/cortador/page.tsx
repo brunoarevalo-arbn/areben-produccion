@@ -61,7 +61,7 @@ export default async function CortadorPanelPage() {
                   <div className="flex items-center gap-2 flex-wrap">
                     <SkuChip sku={o.sku ?? 'S/SKU'} className="text-stone-700" />
                     <span className="text-xs text-stone-400">{o.marca}</span>
-                    {o.corteEstado === 'cargado' && <span className="text-xs font-semibold text-blue-600">✓ cargado (esperando al taller)</span>}
+                    {o.corteEstado === 'cargado' && <span className="text-xs font-semibold text-blue-600">✓ confirmado (esperando al taller)</span>}
                   </div>
                   {o.descripcion && <p className="text-sm text-stone-600 mt-1 truncate">{o.descripcion}</p>}
                 </div>

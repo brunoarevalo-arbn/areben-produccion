@@ -42,7 +42,7 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada }: { ordenId: stri
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tizadas: tizadasValidas.map((t) => ({ nombre: t.nombre, metros: t.metros, unidades: t.unidades })), talles: tallesArr, costoCorte: parseFloat(costoCorte) || 0, modoCosto, fechaCorte: fecha || undefined }),
     });
-    if (r.ok) { toast.success('Corte cargado — queda pendiente de que el taller asigne la tela'); router.push('/cortador'); router.refresh(); }
+    if (r.ok) { toast.success('Corte confirmado — el taller asigna la tela'); router.push('/cortador'); router.refresh(); }
     else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo guardar'); }
     setSaving(false);
   };
@@ -121,9 +121,12 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada }: { ordenId: stri
         </div>
       </Card>
 
-      <div className="flex gap-2">
-        <Button variant="primary" onClick={guardar} isLoading={saving}>Guardar corte</Button>
-        <Button variant="secondary" onClick={() => router.push('/cortador')}>Cancelar</Button>
+      <div className="space-y-2">
+        <p className="text-xs text-stone-500">Al confirmar, tu corte queda listo y pasa al taller para que asigne la tela. No hace falta nada más de tu parte.</p>
+        <div className="flex gap-2">
+          <Button variant="primary" onClick={guardar} isLoading={saving}>Confirmar corte</Button>
+          <Button variant="secondary" onClick={() => router.push('/cortador')}>Cancelar</Button>
+        </div>
       </div>
     </div>
   );

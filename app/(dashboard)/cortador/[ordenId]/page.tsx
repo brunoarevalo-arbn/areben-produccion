@@ -34,7 +34,10 @@ export default async function CortadorCargaPage({ params }: { params: Promise<{ 
       {orden.fichaCorteCargada ? (
         <div className="bg-stone-50 border border-stone-200 rounded-2xl p-6 text-sm text-stone-500">Este corte ya fue procesado por el taller.</div>
       ) : (
-        <CargaCorteForm ordenId={orden.id} cantidadPlanificada={orden.cantidad} />
+        <>
+          <p className="text-sm text-stone-500 mb-4">Cargá tizadas, talles y precio, y confirmá. La tela la asigna el taller.</p>
+          <CargaCorteForm ordenId={orden.id} cantidadPlanificada={orden.cantidad} />
+        </>
       )}
     </div>
   );
