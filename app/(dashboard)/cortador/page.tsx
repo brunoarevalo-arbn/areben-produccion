@@ -7,6 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { SkuChip } from '@/components/ui/SkuChip';
 import { MuestrasCortador } from '@/components/produccion/cortador/MuestrasCortador';
+import { EliminarCorteBtn } from '@/components/produccion/cortador/EliminarCorteBtn';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,6 +67,7 @@ export default async function CortadorPanelPage() {
                   {o.descripcion && <p className="text-sm text-stone-600 mt-1 truncate">{o.descripcion}</p>}
                 </div>
                 <span className="text-xs text-stone-400 tabular-nums shrink-0">{o.cantidad} u</span>
+                {o.corteEstado === 'cargado' && <EliminarCorteBtn ordenId={o.id} sku={o.sku ?? 'S/SKU'} />}
                 <Link href={`/cortador/${o.id}`} className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">
                   {o.corteEstado === 'cargado' ? 'Editar' : 'Cargar corte'}
                 </Link>

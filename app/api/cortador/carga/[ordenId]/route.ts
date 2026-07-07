@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { z } from 'zod';
@@ -50,6 +51,30 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   await prisma.ordenProduccion.update({
     where: { id: ordenId },
     data: { fichaCorteData, corteEstado: 'cargado', cantidad },
+  });
+
+  return NextResponse.json({ ok: true });
+}
+
+// Elimina la carga del cortador: limpia fichaCorteData y vuelve a 'asignado' (sigue
+// siendo su corte, listo para recargar). No toca stock (la carga nunca lo tocó).
+// Bloqueado si el taller ya validó (fichaCorteCargada): para eso el taller revierte.
+export async function DELETE(req: NextRequest, { params }: Ctx) {
+  const session = await requirePermiso(req, 'cortador');
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  const { ordenId } = await params;
+
+  const cortador = await prisma.cortador.findFirst({ where: { usuarioId: session.id } });
+  if (!cortador) return NextResponse.json({ error: 'Tu usuario no está vinculado a un cortador' }, { status: 400 });
+
+  const orden = await prisma.ordenProduccion.findUnique({ where: { id: ordenId } });
+  if (!orden || orden.cortadorId !== cortador.id) return NextResponse.json({ error: 'Ese corte no está asignado a vos' }, { status: 403 });
+  if (orden.fichaCorteCargada) return NextResponse.json({ error: 'Este corte ya fue validado por el taller, no se puede eliminar' }, { status: 400 });
+  if (orden.corteEstado !== 'cargado') return NextResponse.json({ error: 'No hay corte cargado para eliminar' }, { status: 400 });
+
+  await prisma.ordenProduccion.update({
+    where: { id: ordenId },
+    data: { fichaCorteData: Prisma.DbNull, corteEstado: 'asignado' },
   });
 
   return NextResponse.json({ ok: true });
