@@ -435,8 +435,10 @@ export function ColaAdmin() {
   };
 
   const q = busqueda.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
-  const filtradas = (filtro === 'activos'
-    ? ordenes.filter((o) => o.estado !== 'CERRADA')
+  const esCorteListo = (o: Orden) => o.corteEstado === 'cargado' && !o.fichaCorteCargada;
+  const filtradas = (
+    filtro === 'activos' ? ordenes.filter((o) => o.estado !== 'CERRADA')
+    : filtro === 'corte_listo' ? ordenes.filter(esCorteListo)
     : ordenes.filter((o) => o.estado === filtro)
   ).filter((o) => {
     if (!q) return true;
@@ -468,6 +470,7 @@ export function ColaAdmin() {
   })();
 
   const counts: Record<string, number> = { activos: ordenes.filter((o) => o.estado !== 'CERRADA').length };
+  counts.corte_listo = ordenes.filter(esCorteListo).length;
   for (const e of ESTADOS) counts[e] = ordenes.filter((o) => o.estado === e).length;
 
   const inputClass = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
@@ -493,7 +496,11 @@ export function ColaAdmin() {
             <p className="text-sm text-stone-800 font-medium truncate">{orden.descripcion || '--'}</p>
             <span className="text-xs text-stone-400 shrink-0">{orden.marca}</span>
             {!orden.sku && <Badge variant="warning" size="sm">SKU pendiente</Badge>}
-            {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && <Badge variant="info" size="sm">Ficha pendiente</Badge>}
+            {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
+              orden.corteEstado === 'cargado'
+                ? <Badge variant="success" size="sm">Corte listo</Badge>
+                : <Badge variant="info" size="sm">Ficha pendiente</Badge>
+            )}
           </div>
           <p className="text-xs text-stone-400">{fechaCorta(orden.createdAt)} · {orden.creadoPor}</p>
         </div>
@@ -515,7 +522,6 @@ export function ColaAdmin() {
                 <option value="">✂ cortador</option>
                 {cortadores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
               </select>
-              {orden.corteEstado === 'cargado' && <span className="text-[11px] text-blue-600 font-bold" title="El cortador ya cargó su corte">✓</span>}
             </div>
           )}
           {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
@@ -561,7 +567,7 @@ export function ColaAdmin() {
 
       {/* Filtros */}
       <div className="flex flex-wrap gap-2">
-        {[['activos', 'Activos', counts.activos] as const, ...ESTADOS.map((e) => [e, ESTADO_LABEL[e], counts[e]] as const)].map(([k, label, n]) => (
+        {[['activos', 'Activos', counts.activos] as const, ['corte_listo', 'Corte listo', counts.corte_listo] as const, ...ESTADOS.map((e) => [e, ESTADO_LABEL[e], counts[e]] as const)].map(([k, label, n]) => (
           <Button key={k} variant={filtro === k ? 'primary' : 'secondary'} size="sm" onClick={() => setFiltro(k)}>
             {label} <span className="ml-1 opacity-70">{n}</span>
           </Button>

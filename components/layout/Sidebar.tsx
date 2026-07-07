@@ -70,6 +70,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
       { label: 'Tiempos',          href: '/tiempos', seccion: 'produccion' },
       { label: 'Muestras',         href: '/produccion/muestras', seccion: 'produccion' },
       { label: 'Reportes',         href: '/produccion/reportes', seccion: 'produccion' },
+      { label: 'Cortes por cortador', href: '/produccion/cortadores', seccion: 'produccion' },
       { label: 'Pagos de cortes', href: '/produccion/pagos-cortes', seccion: 'produccion' },
       { label: 'Cuenta de cortadores', href: '/produccion/cuenta-cortadores', seccion: 'produccion' },
     ],
