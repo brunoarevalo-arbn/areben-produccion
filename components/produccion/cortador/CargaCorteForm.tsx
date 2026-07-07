@@ -36,7 +36,7 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill, hermanas
   const [talles, setTalles] = useState<Record<string, string>>(prefill?.talles ?? {});
   const [tallesExtra, setTallesExtra] = useState<string[]>([]);
   const [costoCorte, setCostoCorte] = useState(prefill?.costoCorte ? String(prefill.costoCorte) : '');
-  const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>(prefill?.modoCosto ?? 'total');
+  const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>(prefill?.modoCosto ?? 'unidad');
   const [fecha, setFecha] = useState(prefill?.fechaCorte || hoyISO());
   const [saving, setSaving] = useState(false);
 
@@ -143,7 +143,7 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill, hermanas
           <div className="flex gap-2">
             <NumInput value={parseFloat(costoCorte) || 0} onChange={(n) => setCostoCorte(n ? String(n) : '')} min="0" className={`${inp} flex-1 min-w-0`} />
             <div className="flex rounded-lg border border-stone-200 overflow-hidden shrink-0">
-              {(['total', 'unidad'] as const).map((m) => (
+              {(['unidad', 'total'] as const).map((m) => (
                 <button key={m} type="button" onClick={() => setModoCosto(m)} className={`px-3 text-xs font-semibold ${modoCosto === m ? 'bg-stone-900 text-white' : 'bg-white text-stone-500'}`}>{m}</button>
               ))}
             </div>
