@@ -34,7 +34,7 @@ export default async function CortadorPanelPage() {
   const ordenes = await prisma.ordenProduccion.findMany({
     where: { cortadorId: cortador.id },
     orderBy: [{ createdAt: 'desc' }],
-    select: { id: true, sku: true, descripcion: true, marca: true, cantidad: true, fichaCorteCargada: true, corteEstado: true, costoCorte: true, fechaCorte: true },
+    select: { id: true, sku: true, descripcion: true, marca: true, cantidad: true, fichaCorteCargada: true, corteEstado: true, costoCorte: true, fechaCorte: true, pagoCorteId: true },
   });
 
   const muestras = await prisma.corteMuestra.findMany({ where: { cortadorId: cortador.id }, orderBy: { fecha: 'desc' } });
@@ -45,6 +45,13 @@ export default async function CortadorPanelPage() {
   const historicos = ordenes.filter((o) => o.fichaCorteCargada);
   const totalUnidHist = historicos.reduce((s, o) => s + o.cantidad, 0);
   const totalCobrado  = historicos.reduce((s, o) => s + Number(o.costoCorte), 0);
+
+  // Resumen accionable de arriba: unidades por cortar y plata pendiente de cobro
+  // (misma lógica que Cuenta de cortadores: validados + muestras validadas, sin pagar).
+  const unidadesPendientes = porCargar.reduce((s, o) => s + o.cantidad, 0);
+  const cobroCortes   = ordenes.filter((o) => o.fichaCorteCargada && Number(o.costoCorte) > 0 && !o.pagoCorteId).reduce((s, o) => s + Number(o.costoCorte), 0);
+  const cobroMuestras = muestras.filter((m) => m.estado === 'validado' && !m.pagoCorteId).reduce((s, m) => s + Number(m.valor), 0);
+  const pendienteCobro = cobroCortes + cobroMuestras;
 
   type Orden = (typeof ordenes)[number];
   const filaPendiente = (o: Orden, cargado: boolean) => (
@@ -68,6 +75,25 @@ export default async function CortadorPanelPage() {
   return (
     <div className="p-8 max-w-3xl space-y-8">
       <PageHeader eyebrow="Cortador" title={`Hola, ${cortador.nombre}`} subtitle="Cargá tus cortes: tizadas, talles y precio. El taller asigna la tela." />
+
+      {/* Resumen accionable */}
+      <div className="grid grid-cols-3 gap-3">
+        <Card padding="none" className="p-4">
+          <p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Por cortar</p>
+          <p className="text-2xl font-bold text-stone-800 tabular-nums">{porCargar.length}</p>
+          <p className="text-xs text-stone-400">{unidadesPendientes} u por cortar</p>
+        </Card>
+        <Card padding="none" className="p-4">
+          <p className="text-xs text-stone-400 uppercase tracking-widest font-bold">Esperando taller</p>
+          <p className="text-2xl font-bold text-stone-800 tabular-nums">{cargados.length}</p>
+          <p className="text-xs text-stone-400">cargados, a validar</p>
+        </Card>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-xs text-amber-700 uppercase tracking-widest font-bold">Pendiente de cobro</p>
+          <p className="text-2xl font-bold text-amber-700 tabular-nums">{fmt$(pendienteCobro)}</p>
+          <p className="text-xs text-amber-600/80">cortes validados sin pagar</p>
+        </div>
+      </div>
 
       {/* Pendientes por cargar */}
       <section>
