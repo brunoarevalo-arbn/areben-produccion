@@ -9,20 +9,32 @@ import { TALLES_DEFAULT, TALLES_COMUNES } from '@/lib/validators/produccion';
 import { toast } from '@/components/ui/Toaster';
 
 interface Tizada { id: string; nombre: string; metros: string; unidades: string }
+export interface CargaCortePrefill {
+  tizadas: { nombre: string; metros: string; unidades: string }[];
+  talles: Record<string, string>;
+  costoCorte: number;
+  modoCosto: 'total' | 'unidad';
+  fechaCorte?: string;
+}
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 const hoyISO = () => new Date().toLocaleDateString('en-CA');
 
 // Form del cortador para cargar su corte de una OP: tizadas (nombre/metros/unidades),
 // talles y precio. Sin rollos (los asigna la diseñadora). Guarda en estado 'cargado'.
-export function CargaCorteForm({ ordenId, cantidadPlanificada }: { ordenId: string; cantidadPlanificada: number }) {
+// Con `prefill` reabre lo ya cargado (botón "Editar" del panel).
+export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill }: { ordenId: string; cantidadPlanificada: number; prefill?: CargaCortePrefill }) {
   const router = useRouter();
-  const seq = useRef(2);
-  const [tizadas, setTizadas] = useState<Tizada[]>([{ id: 't1', nombre: '', metros: '', unidades: '1' }]);
-  const [talles, setTalles] = useState<Record<string, string>>({});
+  const seq = useRef((prefill?.tizadas.length ?? 1) + 1);
+  const [tizadas, setTizadas] = useState<Tizada[]>(
+    prefill && prefill.tizadas.length > 0
+      ? prefill.tizadas.map((t, i) => ({ id: `t${i + 1}`, nombre: t.nombre, metros: t.metros, unidades: t.unidades }))
+      : [{ id: 't1', nombre: '', metros: '', unidades: '1' }]
+  );
+  const [talles, setTalles] = useState<Record<string, string>>(prefill?.talles ?? {});
   const [tallesExtra, setTallesExtra] = useState<string[]>([]);
-  const [costoCorte, setCostoCorte] = useState('');
-  const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>('total');
-  const [fecha, setFecha] = useState(hoyISO());
+  const [costoCorte, setCostoCorte] = useState(prefill?.costoCorte ? String(prefill.costoCorte) : '');
+  const [modoCosto, setModoCosto] = useState<'total' | 'unidad'>(prefill?.modoCosto ?? 'total');
+  const [fecha, setFecha] = useState(prefill?.fechaCorte || hoyISO());
   const [saving, setSaving] = useState(false);
 
   const totalU = Object.values(talles).reduce((s, v) => s + (parseInt(v) || 0), 0);
