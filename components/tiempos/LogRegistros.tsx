@@ -1,11 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import { TiemposProduccion } from '@/types/tiempos';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { PedirCorreccionModal } from './PedirCorreccionModal';
 
+interface OrdenCola { id: string; sku: string | null; marca: string }
 interface LogRegistrosProps {
   registros: TiemposProduccion[];
   loading: boolean;
+  ordenes?: OrdenCola[];
+  pendientes?: Set<string>; // tiempoIds con solicitud pendiente
+  onEnviada?: () => void;
 }
 
 const COLORES: Record<string, string> = {
@@ -26,7 +32,9 @@ const ICONOS: Record<string, string> = {
   'Cambio Hilo':        '🧵',
 };
 
-export function LogRegistros({ registros, loading }: LogRegistrosProps) {
+export function LogRegistros({ registros, loading, ordenes = [], pendientes, onEnviada }: LogRegistrosProps) {
+  const [corrigiendo, setCorrigiendo] = useState<TiemposProduccion | null>(null);
+
   if (loading) {
     return <LoadingState label="Cargando registros…" />;
   }
@@ -92,9 +100,31 @@ export function LogRegistros({ registros, loading }: LogRegistrosProps) {
                 )}
               </div>
             )}
+
+            {(reg.actividad === 'Proceso Completado' || reg.sku) && reg.id && (
+              <div className="mt-1.5 flex justify-end">
+                {pendientes?.has(reg.id) ? (
+                  <span className="text-xs font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded">⏳ cambio pendiente</span>
+                ) : (
+                  <button onClick={() => setCorrigiendo(reg)}
+                    className="text-xs text-stone-500 hover:text-stone-800 border border-stone-300 hover:border-stone-400 px-2 py-0.5 rounded transition">
+                    ✎ Pedir corrección
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
+
+      {corrigiendo && (
+        <PedirCorreccionModal
+          registro={corrigiendo}
+          ordenes={ordenes}
+          onClose={() => setCorrigiendo(null)}
+          onEnviada={() => onEnviada?.()}
+        />
+      )}
     </div>
   );
 }

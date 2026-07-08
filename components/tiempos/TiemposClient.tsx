@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTiempos } from '@/lib/hooks/useTiempos';
 import { Cronometro } from './Cronometro';
@@ -31,6 +32,14 @@ interface Props {
 export function TiemposClient({ usuario, ordenesIniciales }: Props) {
   const router  = useRouter();
   const tiempos = useTiempos(usuario.nombre);
+
+  // Registros propios con una solicitud de cambio pendiente (para badge / evitar dupes).
+  const [pendientes, setPendientes] = useState<Set<string>>(new Set());
+  const refreshPendientes = useCallback(async () => {
+    const r = await fetch('/api/tiempos/solicitudes');
+    if (r.ok) { const d = await r.json() as { tiempoId: string }[]; setPendientes(new Set(d.map((s) => s.tiempoId))); }
+  }, []);
+  useEffect(() => { refreshPendientes(); }, [refreshPendientes]);
 
   const handleDescartar = async () => {
     const ok = await confirmAsync({ message: '¿Descartar el registro en curso? Se va a perder el tiempo medido.', danger: true, confirmLabel: 'Descartar' });
@@ -94,7 +103,8 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
           <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">
             Registros de hoy
           </p>
-          <LogRegistros registros={tiempos.registros} loading={tiempos.loading} />
+          <LogRegistros registros={tiempos.registros} loading={tiempos.loading}
+            ordenes={ordenesIniciales} pendientes={pendientes} onEnviada={refreshPendientes} />
         </div>
 
         <div className="bg-white border-t border-stone-200 overflow-y-auto max-h-[50vh] md:max-h-[65vh] shrink-0">

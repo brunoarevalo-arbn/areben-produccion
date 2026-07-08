@@ -25,7 +25,30 @@ model TiemposProduccion {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
+  solicitudes        SolicitudCambioTiempo[]
+
   @@map("tiempos_produccion")
+}
+
+// Solicitud de la costurera para corregir SKU/máquina de un registro propio del día.
+// No se aplica sola: el admin la aprueba y recién ahí se cambia el registro.
+model SolicitudCambioTiempo {
+  id              String            @id @default(cuid())
+  tiempoId        String
+  tiempo          TiemposProduccion @relation(fields: [tiempoId], references: [id], onDelete: Cascade)
+  solicitadaPor   String            // nombre de la costurera
+  skuAnterior     String?
+  maquinaAnterior String?
+  skuNuevo        String?           // null = ese campo no se cambia
+  maquinaNueva    String?
+  estado          String            @default("pendiente") // 'pendiente' | 'aprobada' | 'rechazada'
+  resueltaPor     String?
+  resueltaAt      DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([estado])
+  @@map("solicitudes_cambio_tiempo")
 }
 
 // Estudio de tiempos de estampado: cada registro es una TANDA (armado + estampar+sellar,

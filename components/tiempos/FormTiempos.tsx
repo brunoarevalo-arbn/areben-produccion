@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { TiemposProduccion } from '@/types/tiempos';
 import type { EstadoCronometro } from '@/lib/hooks/useTiempos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
+import { MAQUINAS } from '@/lib/constants/maquinas';
 import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
 
@@ -36,7 +37,6 @@ const ACTIVIDADES: { label: string; icon: string; color: string }[] = [
   { label: 'Cambio Hilo',        icon: '🧵', color: 'bg-yellow-50 border-yellow-400 text-yellow-800' },
 ];
 
-const MAQUINAS = ['Recta', 'Collareta', 'Remalladora', 'Cadeneta', 'Cortacollareta'];
 const LIBRE_ID = '__libre__';
 
 export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempos, onGuardar, onRefresh, loading }: FormTiemposProps) {

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { minutosAHorasMin } from '@/lib/utils/calculos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
+import { MAQUINAS } from '@/lib/constants/maquinas';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -49,7 +50,6 @@ const ACTIVIDADES = [
   'Cambio Hilo',
 ];
 
-const MAQUINAS = ['Recta', 'Collareta', 'Remalladora', 'Cadeneta', 'Cortacollareta'];
 
 function hoy() {
   return new Date().toISOString().split('T')[0];
