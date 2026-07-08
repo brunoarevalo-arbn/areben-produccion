@@ -64,6 +64,12 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const [bulkRows, setBulkRows] = useState<{ id: number; codigo: string; ancho: string; largo: string; coleccion: string }[]>([{ id: 0, codigo: '', ancho: '', largo: '', coleccion: '' }]);
   const [bulkSaving, setBulkSaving] = useState(false);
 
+  // Edición masiva de tamaños (ancho/largo)
+  const [editTam, setEditTam] = useState(false);
+  const [tamLista, setTamLista] = useState<Estampa[]>([]);
+  const [tam, setTam] = useState<Record<string, { ancho: string; largo: string }>>({});
+  const [tamSaving, setTamSaving] = useState(false);
+
   const cargar = useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams();
@@ -143,6 +149,31 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
     setBulkSaving(false);
   };
 
+  // Edición masiva de tamaños
+  const abrirTam = () => {
+    setShowForm(false); setBulk(false);
+    setTamLista(vista);
+    setTam(Object.fromEntries(vista.map((e) => [e.id, { ancho: String(Number(e.anchoCm) || ''), largo: String(Number(e.largoCm) || '') }])));
+    setEditTam(true);
+  };
+  const setTamVal = (id: string, campo: 'ancho' | 'largo', v: string) =>
+    setTam((p) => ({ ...p, [id]: { ...p[id], [campo]: v } }));
+  const tamCambios = () => tamLista
+    .filter((e) => {
+      const t = tam[e.id]; if (!t) return false;
+      return (parseFloat(t.ancho) || 0) !== (Number(e.anchoCm) || 0) || (parseFloat(t.largo) || 0) !== (Number(e.largoCm) || 0);
+    })
+    .map((e) => ({ id: e.id, anchoCm: parseFloat(tam[e.id].ancho) || 0, largoCm: parseFloat(tam[e.id].largo) || 0 }));
+  const guardarTam = async () => {
+    const cambios = tamCambios();
+    if (cambios.length === 0) { toast.error('No cambiaste ningún tamaño'); return; }
+    setTamSaving(true);
+    const r = await fetch('/api/estampas/tamanos', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cambios }) });
+    if (r.ok) { const d = await r.json(); toast.success(`${d.actualizadas} tamaño(s) actualizados`); setEditTam(false); cargar(); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo guardar'); }
+    setTamSaving(false);
+  };
+
   const costoVivo = costo({ anchoCm, largoCm, mermaPercent });
   const vista = soloSinNombre ? lista.filter((e) => !e.nombreComercial?.trim()) : lista;
 
@@ -178,7 +209,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
         </label>
         <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar código / nombre / colección / SKU"
           className="px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400 flex-1 min-w-[10rem]" />
-        {!showForm && !bulk && <><Button variant="secondary" onClick={abrirBulk}>Carga masiva</Button><Button onClick={abrirNuevo}>+ Nueva</Button></>}
+        {!showForm && !bulk && !editTam && <><Button variant="secondary" onClick={abrirTam}>Editar tamaños</Button><Button variant="secondary" onClick={abrirBulk}>Carga masiva</Button><Button onClick={abrirNuevo}>+ Nueva</Button></>}
       </div>
 
       {/* Carga masiva */}
@@ -241,8 +272,40 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
         </form>
       )}
 
+      {/* Edición masiva de tamaños */}
+      {editTam && (
+        <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+          <div className="flex items-center justify-between px-4 md:px-5 py-3 border-b border-stone-100">
+            <h3 className="text-sm font-bold text-stone-800">Editar tamaños ({tamLista.length})</h3>
+            <button type="button" onClick={() => setEditTam(false)} className="text-xs text-stone-400 hover:text-stone-700">✕ Cancelar</button>
+          </div>
+          <div className="grid grid-cols-[auto_1fr_5rem_5rem_5rem] gap-2 px-4 md:px-5 py-2 bg-stone-50 text-xs font-bold uppercase tracking-widest text-stone-400">
+            <span>Código</span><span>Nombre</span><span className="text-center">Ancho</span><span className="text-center">Largo</span><span className="text-right">Costo</span>
+          </div>
+          <div className="divide-y divide-stone-100">
+            {tamLista.map((e) => {
+              const t = tam[e.id] ?? { ancho: '', largo: '' };
+              const c = costo({ anchoCm: t.ancho, largoCm: t.largo, mermaPercent: e.mermaPercent });
+              return (
+                <div key={e.id} className="grid grid-cols-[auto_1fr_5rem_5rem_5rem] gap-2 items-center px-4 md:px-5 py-2">
+                  <span className="font-mono text-xs bg-stone-100 text-stone-700 px-2 py-0.5 rounded shrink-0">{e.codigoInterno}</span>
+                  <span className="text-sm text-stone-700 truncate">{e.nombreComercial || <span className="text-stone-400 italic">— sin nombre —</span>}</span>
+                  <NumInput value={parseFloat(t.ancho) || 0} onChange={(n) => setTamVal(e.id, 'ancho', n ? String(n) : '')} min="0" className={`${inpSm} text-center`} />
+                  <NumInput value={parseFloat(t.largo) || 0} onChange={(n) => setTamVal(e.id, 'largo', n ? String(n) : '')} min="0" className={`${inpSm} text-center`} />
+                  <span className="text-sm font-semibold tabular-nums text-stone-700 text-right">{fmt$(c)}</span>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2 px-4 md:px-5 py-3 border-t border-stone-100">
+            <Button onClick={guardarTam} isLoading={tamSaving}>Guardar cambios {tamCambios().length || ''}</Button>
+            <Button variant="secondary" onClick={() => setEditTam(false)}>Cancelar</Button>
+          </div>
+        </div>
+      )}
+
       {/* Lista */}
-      {loading ? (
+      {editTam ? null : loading ? (
         <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center text-sm text-stone-400">Cargando…</div>
       ) : vista.length === 0 ? (
         <EmptyState title="Sin estampas" message="Cargá la primera estampa con su código; el nombre comercial lo ponés cuando quieras." />
