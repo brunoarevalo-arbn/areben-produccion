@@ -13,10 +13,10 @@ const ACCESOS = [
 
 export default function ProduccionPage() {
   return (
-    <div className="p-8 max-w-4xl">
+    <div className="p-6 md:p-8 max-w-7xl">
       <PageHeader eyebrow="Producción" title="Control de Producción" subtitle="Cola de trabajo, tiempos y reportes del taller." />
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 max-w-2xl">
         {ACCESOS.map((a) => (
           <Link
             key={a.href}
