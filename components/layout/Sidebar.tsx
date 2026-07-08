@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface SidebarProps {
   permisos: string[];
@@ -140,6 +140,19 @@ export function Sidebar({ permisos, nombre }: SidebarProps) {
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
 
+  // Acordeón: qué secciones están desplegadas. La sección activa arranca (y se mantiene) abierta.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (href: string) => setExpanded((prev) => {
+    const n = new Set(prev);
+    n.has(href) ? n.delete(href) : n.add(href);
+    return n;
+  });
+  useEffect(() => {
+    const act = visible.find((i) => i.sub.length > 0 && isActive(i.href));
+    if (act) setExpanded((prev) => prev.has(act.href) ? prev : new Set(prev).add(act.href));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
@@ -158,23 +171,39 @@ export function Sidebar({ permisos, nombre }: SidebarProps) {
       <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
         {visible.map((item) => {
           const active = isActive(item.href);
+          const tieneSub = item.sub.length > 0;
+          const abierto = expanded.has(item.href);
+          const headerClass = `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+            active
+              ? 'bg-amber-400/10 text-amber-400 border-amber-400/30'
+              : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60 border-transparent'
+          }`;
           return (
             <div key={item.href}>
-              <Link
-                href={item.href}
-                onClick={close}
-                aria-current={active ? 'page' : undefined}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
-                  active
-                    ? 'bg-amber-400/10 text-amber-400 border-amber-400/30'
-                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60 border-transparent'
-                }`}
-              >
-                <span className="text-lg w-5 text-center flex-shrink-0">{item.icon}</span>
-                <span className="flex-1">{item.label}</span>
-              </Link>
+              {tieneSub ? (
+                <button
+                  type="button"
+                  onClick={() => toggle(item.href)}
+                  aria-expanded={abierto}
+                  className={`w-full text-left ${headerClass}`}
+                >
+                  <span className="text-lg w-5 text-center flex-shrink-0">{item.icon}</span>
+                  <span className="flex-1">{item.label}</span>
+                  <span className="text-xs text-stone-500 flex-shrink-0">{abierto ? '▾' : '▸'}</span>
+                </button>
+              ) : (
+                <Link
+                  href={item.href}
+                  onClick={close}
+                  aria-current={active ? 'page' : undefined}
+                  className={headerClass}
+                >
+                  <span className="text-lg w-5 text-center flex-shrink-0">{item.icon}</span>
+                  <span className="flex-1">{item.label}</span>
+                </Link>
+              )}
 
-              {item.sub.length > 0 && active && (
+              {tieneSub && abierto && (
                 <div className="ml-4 mt-2 mb-2 pl-4 border-l border-stone-700 space-y-1">
                   {item.sub.filter((s) => tienePermiso(permisos, s.seccion ?? item.seccion)).map((s) => (
                     <div key={s.href} className="flex items-center gap-2 group">
