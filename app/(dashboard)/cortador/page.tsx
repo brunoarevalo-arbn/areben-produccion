@@ -43,7 +43,9 @@ export default async function CortadorPanelPage() {
   const esValidado = (o: (typeof ordenes)[number]) => o.corteEstado === 'validado';
   const porCargar  = ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado !== 'cargado' && !esValidado(o));
   const cargados   = ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado === 'cargado');
-  const historicos = ordenes.filter((o) => o.fichaCorteCargada || esValidado(o));
+  const historicos = ordenes
+    .filter((o) => o.fichaCorteCargada || esValidado(o))
+    .sort((a, b) => (b.fechaCorte?.getTime() ?? 0) - (a.fechaCorte?.getTime() ?? 0)); // más reciente primero, por fecha de corte
   const totalUnidHist = historicos.reduce((s, o) => s + o.cantidad, 0);
   const totalCobrado  = historicos.reduce((s, o) => s + Number(o.costoCorte), 0);
 
