@@ -20,7 +20,7 @@ async function usuarioActivo(id: string): Promise<boolean> {
 
 export async function getPermisos(session: SessionPayload): Promise<string[]> {
   if (session.rol === 'admin') return (await usuarioActivo(session.id)) ? [...PERMISO_KEYS] : [];
-  if (session.rol === 'costurera') return [];
+  if (session.rol === 'costurera' || session.rol === 'estampador') return [];
   const user = await prisma.usuario.findUnique({ where: { id: session.id, activo: true }, select: { permisos: true } });
   return user?.permisos ?? [];
 }
@@ -43,7 +43,7 @@ export async function requirePermiso(req: NextRequest, permiso: PermisoKey): Pro
   const session = await getSession(req);
   if (!session) return null;
   if (session.rol === 'admin') return (await usuarioActivo(session.id)) ? session : null;
-  if (session.rol === 'costurera') return null;
+  if (session.rol === 'costurera' || session.rol === 'estampador') return null;
   const user = await prisma.usuario.findUnique({ where: { id: session.id, activo: true }, select: { permisos: true } });
   return (user?.permisos ?? []).includes(permiso) ? session : null;
 }
@@ -58,7 +58,7 @@ export async function requireAlguno(req: NextRequest, permisos: PermisoKey[]): P
   const session = await getSession(req);
   if (!session) return null;
   if (session.rol === 'admin') return (await usuarioActivo(session.id)) ? session : null;
-  if (session.rol === 'costurera') return null;
+  if (session.rol === 'costurera' || session.rol === 'estampador') return null;
   const user = await prisma.usuario.findUnique({ where: { id: session.id, activo: true }, select: { permisos: true } });
   const has = user?.permisos ?? [];
   return permisos.some((p) => has.includes(p)) ? session : null;

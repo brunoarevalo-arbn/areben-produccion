@@ -80,7 +80,10 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     href: '/estamperia',
     icon: '🖨',
     seccion: 'estamperia',
-    sub: [],
+    sub: [
+      { label: 'Catálogo',            href: '/estamperia', seccion: 'estamperia' },
+      { label: 'Tiempos de estampado', href: '/estamperia/tiempos', seccion: 'estamperia' },
+    ],
   },
   {
     label: 'Reposición',

@@ -27,6 +27,7 @@ const ROLES = [
   { value: 'diseñadora', label: 'Por permisos',  color: 'bg-violet-100 text-violet-700' },
   { value: 'admin',      label: 'Administrador', color: 'bg-stone-100 text-stone-700' },
   { value: 'costurera',  label: 'Costurera (tablet)', color: 'bg-amber-100 text-amber-700' },
+  { value: 'estampador', label: 'Estampador (tablet)', color: 'bg-sky-100 text-sky-700' },
 ] as const;
 
 function rolColor(rol: string) {
@@ -53,6 +54,11 @@ function PermisosToggle({
   if (rol === 'costurera') {
     return (
       <p className="text-xs text-stone-400 italic">Las costureras solo acceden a la pantalla de tiempos.</p>
+    );
+  }
+  if (rol === 'estampador') {
+    return (
+      <p className="text-xs text-stone-400 italic">Los estampadores solo acceden a la pantalla de estampado.</p>
     );
   }
   // permisos = allowlist: las secciones presentes en el array están OTORGADAS.

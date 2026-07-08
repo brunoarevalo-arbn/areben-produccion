@@ -10,7 +10,7 @@ export interface SessionPayload {
   id: string;
   nombre: string;
   username: string;
-  rol: 'admin' | 'costurera' | 'diseñadora';
+  rol: 'admin' | 'costurera' | 'diseñadora' | 'estampador';
 }
 
 function toUrlSafe(b64: string): string {

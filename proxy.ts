@@ -39,10 +39,24 @@ export async function proxy(req: NextRequest) {
     }
   }
 
-  // If logged-in admin tries to go to /login → redirect to dashboard
+  // Estampador solo accede a su tablet /estampado
+  if (session.rol === 'estampador') {
+    const allowed =
+      pathname.startsWith('/estampado') ||
+      pathname.startsWith('/api/estampado') ||
+      pathname.startsWith('/api/auth');
+
+    if (!allowed) {
+      const url = req.nextUrl.clone();
+      url.pathname = '/estampado';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // If logged-in user tries to go to /login → redirect to su pantalla
   if (pathname === '/login') {
     const url = req.nextUrl.clone();
-    url.pathname = session.rol === 'costurera' ? '/tiempos' : '/dashboard';
+    url.pathname = session.rol === 'costurera' ? '/tiempos' : session.rol === 'estampador' ? '/estampado' : '/dashboard';
     return NextResponse.redirect(url);
   }
 

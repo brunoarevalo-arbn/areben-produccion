@@ -28,6 +28,24 @@ model TiemposProduccion {
   @@map("tiempos_produccion")
 }
 
+// Estudio de tiempos de estampado: cada registro es una TANDA (armado + estampar+sellar,
+// un solo tiempo) con cuántas estampas se aplicaron. Estándar = minutosNetos / cantidad.
+model TiemposEstampado {
+  id           String   @id @default(cuid())
+  usuario      String   // estampador (nombre)
+  fecha        String   // YYYY-MM-DD
+  cantidad     Int      @default(0) // estampas aplicadas en la tanda
+  minutosNetos Float    @default(0) // tiempo total de la tanda
+  horaInicio   String?
+  horaFin      String?
+  estado       String   @default("guardado")
+  notas        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("tiempos_estampado")
+}
+
 model SkuCatalogo {
   id            String        @id @default(cuid())
   categoria     String        // 'marca' | 'prenda' | 'color' (extensible)

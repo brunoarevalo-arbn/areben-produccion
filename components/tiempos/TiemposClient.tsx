@@ -20,7 +20,7 @@ interface SessionUser {
   id: string;
   nombre: string;
   username: string;
-  rol: 'admin' | 'costurera' | 'diseñadora';
+  rol: 'admin' | 'costurera' | 'diseñadora' | 'estampador';
 }
 
 interface Props {
