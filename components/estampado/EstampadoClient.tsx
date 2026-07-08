@@ -11,7 +11,7 @@ interface Tanda { id: string; cantidad: number; minutosNetos: number; notas: str
 
 const fmtMin = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 1 });
 
-export function EstampadoClient({ usuario }: { usuario: string }) {
+export function EstampadoClient({ usuario, esEstampador = true }: { usuario: string; esEstampador?: boolean }) {
   const router = useRouter();
   const crono = useCronometro(usuario, 'estampado');
   const [cantidad, setCantidad] = useState('');
@@ -44,7 +44,10 @@ export function EstampadoClient({ usuario }: { usuario: string }) {
     setSaving(false);
   };
 
-  const logout = async () => { await fetch('/api/auth/logout', { method: 'POST' }); router.push('/login'); };
+  const salir = async () => {
+    if (esEstampador) { await fetch('/api/auth/logout', { method: 'POST' }); router.push('/login'); }
+    else { router.push('/estamperia'); }
+  };
 
   const totalEst = tandas.reduce((s, t) => s + t.cantidad, 0);
   const totalMin = tandas.reduce((s, t) => s + t.minutosNetos, 0);
@@ -57,7 +60,7 @@ export function EstampadoClient({ usuario }: { usuario: string }) {
           <p className="text-amber-400 text-xs font-bold uppercase tracking-widest">Estampado</p>
           <p className="text-stone-300 text-sm">{usuario}</p>
         </div>
-        <button onClick={logout} className="text-xs text-stone-500 hover:text-stone-300">Salir</button>
+        <button onClick={salir} className="text-xs text-stone-500 hover:text-stone-300">{esEstampador ? 'Salir' : '← Volver'}</button>
       </div>
 
       <Cronometro

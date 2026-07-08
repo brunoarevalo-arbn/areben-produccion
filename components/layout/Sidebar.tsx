@@ -83,6 +83,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     sub: [
       { label: 'Catálogo',            href: '/estamperia', seccion: 'estamperia' },
       { label: 'Tiempos de estampado', href: '/estamperia/tiempos', seccion: 'estamperia' },
+      { label: 'Tablet estampado',    href: '/estampado', seccion: 'estamperia' },
     ],
   },
   {

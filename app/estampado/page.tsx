@@ -10,5 +10,5 @@ export default async function EstampadoPage() {
   const session = token ? await verifySession(token) : null;
   if (!session) redirect('/login');
 
-  return <EstampadoClient usuario={session.nombre} />;
+  return <EstampadoClient usuario={session.nombre} esEstampador={session.rol === 'estampador'} />;
 }
