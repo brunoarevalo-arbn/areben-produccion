@@ -5,48 +5,10 @@ import { PageHeader } from '@/components/ui/PageHeader';
 export const dynamic = 'force-dynamic';
 
 const ACCESOS = [
-  {
-    label: 'Fichas de corte',
-    desc: 'Fichas pendientes de cargar y todos los SKU en producción.',
-    href: '/produccion/fichas',
-    icon: '📋',
-    color: 'bg-amber-50 border-amber-300 hover:border-amber-400',
-  },
-  {
-    label: 'Registrar Tiempos',
-    desc: 'Cronómetro y formulario para costureras en el taller.',
-    href: '/tiempos',
-    icon: '⏱',
-    color: 'bg-amber-50 border-amber-300 hover:border-amber-400',
-  },
-  {
-    label: 'Reportes Diarios',
-    desc: 'Resumen por costurera, máquina y actividad.',
-    href: '/produccion/reportes',
-    icon: '📊',
-    color: 'bg-stone-50 border-stone-200 hover:border-stone-400',
-  },
-  {
-    label: 'Costos por SKU',
-    desc: 'Minutos totales y desglose por máquina de cada corte terminado.',
-    href: '/produccion/reportes/sku',
-    icon: '📦',
-    color: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400',
-  },
-  {
-    label: 'Catálogo de SKU',
-    desc: 'Marcas, prendas y colores con sus abreviaturas para generar SKUs.',
-    href: '/produccion/catalogo-sku',
-    icon: '🏷',
-    color: 'bg-violet-50 border-violet-200 hover:border-violet-400',
-  },
-  {
-    label: 'Pagos de cortes',
-    desc: 'Registrar pagos masivos a cortadores. Pendientes y pagados.',
-    href: '/produccion/pagos-cortes',
-    icon: '💵',
-    color: 'bg-blue-50 border-blue-200 hover:border-blue-400',
-  },
+  { label: 'Fichas de corte',  href: '/produccion/fichas',       icon: '📋', color: 'bg-amber-50 border-amber-200 hover:border-amber-400' },
+  { label: 'Reportes Diarios', href: '/produccion/reportes',     icon: '📊', color: 'bg-stone-50 border-stone-200 hover:border-stone-400' },
+  { label: 'Costos por SKU',   href: '/produccion/reportes/sku', icon: '📦', color: 'bg-emerald-50 border-emerald-200 hover:border-emerald-400' },
+  { label: 'Catálogo de SKU',  href: '/produccion/catalogo-sku', icon: '🏷', color: 'bg-violet-50 border-violet-200 hover:border-violet-400' },
 ];
 
 export default function ProduccionPage() {
@@ -54,16 +16,15 @@ export default function ProduccionPage() {
     <div className="p-8 max-w-4xl">
       <PageHeader eyebrow="Producción" title="Control de Producción" subtitle="Cola de trabajo, tiempos y reportes del taller." />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
         {ACCESOS.map((a) => (
           <Link
             key={a.href}
             href={a.href}
-            className={`block rounded-2xl border-2 p-6 transition ${a.color}`}
+            className={`flex items-center gap-2 rounded-xl border p-3 transition ${a.color}`}
           >
-            <div className="text-3xl mb-3">{a.icon}</div>
-            <h2 className="font-bold text-stone-800 text-base">{a.label}</h2>
-            <p className="text-stone-500 text-sm mt-1">{a.desc}</p>
+            <span className="text-xl shrink-0">{a.icon}</span>
+            <span className="text-sm font-semibold text-stone-700 leading-tight">{a.label}</span>
           </Link>
         ))}
       </div>
