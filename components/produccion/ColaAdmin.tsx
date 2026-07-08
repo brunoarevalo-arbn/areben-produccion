@@ -143,6 +143,14 @@ export function ColaAdmin() {
   const [destinoLote,  setDestinoLote]  = useState(''); // '' = lote nuevo; si no, id de lote existente
   const [agrupSaving,  setAgrupSaving]  = useState(false);
 
+  // Lotes colapsados por defecto; se despliegan con el chevron.
+  const [lotesAbiertos, setLotesAbiertos] = useState<Set<string>>(new Set());
+  const toggleLote = (id: string) => setLotesAbiertos((prev) => {
+    const n = new Set(prev);
+    n.has(id) ? n.delete(id) : n.add(id);
+    return n;
+  });
+
   const marcas  = catalogo.filter((c) => c.categoria === 'marca' && c.activo);
   const prendas = catalogo.filter((c) => c.categoria === 'prenda' && c.activo);
   const colores = catalogo.filter((c) => c.categoria === 'color' && c.activo);
@@ -495,18 +503,18 @@ export function ColaAdmin() {
     const siguientes = ESTADO_SIGUIENTE[orden.estado] || [];
     return (
       <div key={orden.id}
-        className={`px-4 md:px-5 py-3 ${GRID} items-center hover:bg-stone-50 transition border-t border-stone-100 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
+        className={`px-4 md:px-5 py-2 ${GRID} items-center hover:bg-stone-50 transition border-t border-stone-100 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
         <div className="flex items-center gap-2">
           {esAgrupable(orden) && (
             <input type="checkbox" checked={seleccionadas.has(orden.id)} onChange={() => toggleSel(orden.id)}
               aria-label={`Seleccionar ${orden.sku ?? orden.id}`} className="rounded border-stone-300 accent-amber-500" />
           )}
           <Link href={`/produccion/${orden.id}`}
-            className={`font-mono font-bold text-sm px-2 py-1 rounded-lg transition ${orden.sku ? 'bg-stone-100 text-stone-700 hover:text-amber-600' : 'bg-amber-50 text-amber-600 hover:text-amber-700'}`}>
+            className={`font-mono font-bold text-sm px-2 py-0.5 rounded-lg transition ${orden.sku ? 'bg-stone-100 text-stone-700 hover:text-amber-600' : 'bg-amber-50 text-amber-600 hover:text-amber-700'}`}>
             {orden.sku ?? 'S/SKU'}
           </Link>
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 leading-tight">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm text-stone-800 font-medium truncate">{orden.descripcion || '--'}</p>
             <span className="text-xs text-stone-400 shrink-0">{orden.marca}</span>
@@ -519,7 +527,7 @@ export function ColaAdmin() {
                   : <Badge variant="info" size="sm">Ficha pendiente</Badge>
             )}
           </div>
-          <p className="text-xs text-stone-400">{fechaCorta(orden.createdAt)} · {orden.creadoPor}</p>
+          <p className="text-xs text-stone-400 mt-0.5">{fechaCorta(orden.createdAt)} · {orden.creadoPor}</p>
         </div>
         <span className="text-sm font-bold text-stone-700 text-center tabular-nums">{orden.cantidad}</span>
         <Badge variant={ESTADO_BADGE[orden.estado] ?? 'default'} size="sm" className="whitespace-nowrap justify-self-start">
@@ -632,7 +640,7 @@ export function ColaAdmin() {
 
       {/* Tabla */}
       <Card padding="none" className="overflow-hidden">
-        <div className={`px-4 md:px-5 py-2.5 bg-stone-50 border-b border-stone-100 ${GRID} text-xs font-bold uppercase tracking-widest text-stone-500`}>
+        <div className={`px-4 md:px-5 py-2 bg-stone-50 border-b border-stone-100 ${GRID} text-xs font-bold uppercase tracking-widest text-stone-500`}>
           <span>SKU</span>
           <span>Descripcion</span>
           <span className="text-center">Cant.</span>
@@ -658,16 +666,25 @@ export function ColaAdmin() {
               const asignables       = fila.ordenes.filter((o) => !o.fichaCorteCargada && o.estado !== 'CERRADA');
               const idsCortador      = [...new Set(asignables.map((o) => o.cortadorId))];
               const loteCortadorId   = idsCortador.length === 1 ? (idsCortador[0] ?? '') : '';
+              const nCorteListo      = fila.ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado === 'cargado').length;
+              const nValidado        = fila.ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado === 'validado').length;
+              const abierto          = lotesAbiertos.has(fila.loteId) || busqueda.trim() !== '' || agrupando;
               return (
                 <div key={fila.loteId} className="border-t border-stone-100">
-                  <div className="px-4 md:px-5 py-2.5 bg-amber-50/60 flex items-center gap-2 text-xs flex-wrap">
-                    <span className="text-base">🧵</span>
-                    <span className="font-bold text-stone-700">{prendaNombre(lote?.prenda) || lote?.descripcion || 'Molde'}</span>
-                    <span className="text-stone-400">{lote?.marca}</span>
-                    <Badge variant="amber" size="sm">{fila.ordenes.length} colores</Badge>
+                  <div className="px-4 md:px-5 py-2 bg-amber-50/60 flex items-center gap-2 text-xs flex-wrap">
+                    <button type="button" onClick={() => toggleLote(fila.loteId)}
+                      className="flex items-center gap-2 min-w-0 hover:opacity-70 transition" title={abierto ? 'Colapsar lote' : 'Desplegar colores'}>
+                      <span className="text-stone-400 w-3 shrink-0">{abierto ? '▾' : '▸'}</span>
+                      <span className="text-base">🧵</span>
+                      <span className="font-bold text-stone-700">{prendaNombre(lote?.prenda) || lote?.descripcion || 'Molde'}</span>
+                      <span className="text-stone-400">{lote?.marca}</span>
+                      <Badge variant="amber" size="sm">{fila.ordenes.length} colores</Badge>
+                    </button>
                     {lote?.descripcion && prendaNombre(lote?.prenda) && (
-                      <span className="text-stone-400 truncate">· {lote.descripcion}</span>
+                      <span className="text-stone-400 truncate hidden md:inline">· {lote.descripcion}</span>
                     )}
+                    {nCorteListo > 0 && <Badge variant="success" size="sm">{nCorteListo} corte listo</Badge>}
+                    {nValidado > 0 && <Badge variant="blue" size="sm">{nValidado} validado</Badge>}
                     <span className="ml-auto text-stone-500 font-semibold tabular-nums">{totalU} u</span>
                     {asignables.length > 0 && cortadores.length > 0 && (
                       <select value={loteCortadorId} onChange={(e) => asignarCortadorLote(fila.loteId, e.target.value)} title="Asignar cortador a todo el lote"
@@ -701,7 +718,7 @@ export function ColaAdmin() {
                       </button>
                     )}
                   </div>
-                  {fila.ordenes.map((orden) => renderOrden(orden, true))}
+                  {abierto && fila.ordenes.map((orden) => renderOrden(orden, true))}
                 </div>
               );
             }
