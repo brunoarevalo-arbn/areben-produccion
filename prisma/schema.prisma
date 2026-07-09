@@ -318,6 +318,22 @@ model CostoSkuDescartado {
   @@map("costos_skus_descartados")
 }
 
+// Producto final con estampa: liso (escandallo referenciado, vivo) + estampa(s) del
+// catálogo. Total = costo del liso + Σ (material DTF + costo de estampado manual).
+model ProductoEstampado {
+  id               String   @id @default(cuid())
+  nombre           String
+  sku              String?
+  marca            String?
+  lisoEscandalloId String   // ref viva al escandallo del liso (se resuelve al calcular)
+  estampas         Json     // [{ estampaId, costoEstampado }]
+  notas            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("productos_estampados")
+}
+
 model Escandallo {
   id          String   @id @default(cuid())
   nombre      String

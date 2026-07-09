@@ -4,13 +4,15 @@ import { useState } from 'react';
 import { Parametros }  from '@/components/costos/Parametros';
 import { Escandallos } from '@/components/costos/Escandallos';
 import { CatalogosCosto } from '@/components/costos/CatalogosCosto';
+import { ProductosEstampados } from '@/components/costos/ProductosEstampados';
 import { PageHeader } from '@/components/ui/PageHeader';
 
-type Tab = 'parametros' | 'escandallos' | 'catalogos';
+type Tab = 'parametros' | 'escandallos' | 'estampados' | 'catalogos';
 
 const TABS: { id: Tab; label: string }[] = [
   { id: 'parametros',  label: 'Parámetros de costo' },
   { id: 'escandallos', label: 'Escandallos' },
+  { id: 'estampados',  label: 'Productos con estampa' },
   { id: 'catalogos',   label: 'Catálogos' },
 ];
 
@@ -40,6 +42,7 @@ export default function CostosPage() {
 
       {tab === 'parametros'  && <Parametros />}
       {tab === 'escandallos' && <Escandallos />}
+      {tab === 'estampados'  && <ProductosEstampados />}
       {tab === 'catalogos'   && <CatalogosCosto />}
     </div>
   );
