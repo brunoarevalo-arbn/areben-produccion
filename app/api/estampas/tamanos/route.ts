@@ -10,6 +10,8 @@ const Schema = z.object({
     id: z.string().min(1),
     anchoCm: z.number().min(0),
     largoCm: z.number().min(0),
+    ancho2Cm: z.number().min(0).optional(),
+    largo2Cm: z.number().min(0).optional(),
   })).min(1, 'No hay cambios'),
 });
 
@@ -24,7 +26,11 @@ export async function PATCH(req: NextRequest) {
   await prisma.$transaction(
     cambios.map((c) => prisma.estampa.update({
       where: { id: c.id },
-      data: { anchoCm: new Prisma.Decimal(c.anchoCm), largoCm: new Prisma.Decimal(c.largoCm) },
+      data: {
+        anchoCm: new Prisma.Decimal(c.anchoCm), largoCm: new Prisma.Decimal(c.largoCm),
+        ...(c.ancho2Cm !== undefined ? { ancho2Cm: new Prisma.Decimal(c.ancho2Cm) } : {}),
+        ...(c.largo2Cm !== undefined ? { largo2Cm: new Prisma.Decimal(c.largo2Cm) } : {}),
+      },
     })),
   );
 

@@ -11,9 +11,11 @@ import { parseDatos, calcular, type Margenes } from '@/lib/costos/escandallo';
 import { costoEstampa } from '@/lib/costos/estampaCosto';
 
 interface Escandallo { id: string; nombre: string; sku: string | null; marca: string | null; datos: string | null; }
-interface EstampaOpt { id: string; codigoInterno: string; nombreComercial: string | null; anchoCm: string | number; largoCm: string | number; mermaPercent: string | number; }
-interface LineaEstampa { id: number; estampaId: string; costoEstampado: string; }
-interface Producto { id: string; nombre: string; sku: string | null; marca: string | null; lisoEscandalloId: string; estampas: { estampaId: string; costoEstampado: number }[]; notas: string | null; }
+interface EstampaOpt { id: string; codigoInterno: string; nombreComercial: string | null; anchoCm: string | number; largoCm: string | number; mermaPercent: string | number; ancho2Cm: string | number; largo2Cm: string | number; merma2Percent: string | number; }
+interface LineaEstampa { id: number; estampaId: string; tamano: number; costoEstampado: string; }
+interface Producto { id: string; nombre: string; sku: string | null; marca: string | null; lisoEscandalloId: string; estampas: { estampaId: string; tamano?: number; costoEstampado: number }[]; notas: string | null; }
+
+const tiene2 = (e?: EstampaOpt) => !!e && (Number(e.ancho2Cm) || 0) > 0 && (Number(e.largo2Cm) || 0) > 0;
 
 const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
@@ -34,7 +36,7 @@ export function ProductosEstampados() {
   const [marca, setMarca] = useState('');
   const [lisoId, setLisoId] = useState('');
   const [notas, setNotas] = useState('');
-  const [lineas, setLineas] = useState<LineaEstampa[]>([{ id: 0, estampaId: '', costoEstampado: '' }]);
+  const [lineas, setLineas] = useState<LineaEstampa[]>([{ id: 0, estampaId: '', tamano: 1, costoEstampado: '' }]);
   const seq = useRef(1);
   const [saving, setSaving] = useState(false);
 
@@ -67,24 +69,25 @@ export function ProductosEstampados() {
     if (!e) return null;
     return calcular(parseDatos(e.datos), costoMinuto, margenes).costoTotal;
   };
-  const costoDTF = (estampaId: string): number => {
+  const costoDTF = (estampaId: string, tamano = 1): number => {
     const e = estampas.find((x) => x.id === estampaId);
     if (!e) return 0;
+    if (tamano === 2 && tiene2(e)) return costoEstampa({ anchoCm: Number(e.ancho2Cm), largoCm: Number(e.largo2Cm), mermaPercent: Number(e.merma2Percent) }, cfgDTF);
     return costoEstampa({ anchoCm: Number(e.anchoCm), largoCm: Number(e.largoCm), mermaPercent: Number(e.mermaPercent) }, cfgDTF);
   };
   const estampaLabel = (e: EstampaOpt) => `${e.codigoInterno}${e.nombreComercial ? ` · ${e.nombreComercial}` : ''}`;
 
   const totalProducto = (p: Producto): { liso: number | null; total: number } => {
     const liso = lisoTotal(p.lisoEscandalloId);
-    const est = p.estampas.reduce((s, l) => s + costoDTF(l.estampaId) + (Number(l.costoEstampado) || 0), 0);
+    const est = p.estampas.reduce((s, l) => s + costoDTF(l.estampaId, l.tamano ?? 1) + (Number(l.costoEstampado) || 0), 0);
     return { liso, total: (liso ?? 0) + est };
   };
 
-  const resetForm = () => { setEditId(null); setNombre(''); setSku(''); setMarca(''); setLisoId(''); setNotas(''); setLineas([{ id: 0, estampaId: '', costoEstampado: '' }]); seq.current = 1; };
+  const resetForm = () => { setEditId(null); setNombre(''); setSku(''); setMarca(''); setLisoId(''); setNotas(''); setLineas([{ id: 0, estampaId: '', tamano: 1, costoEstampado: '' }]); seq.current = 1; };
   const abrirNuevo = () => { resetForm(); setShowForm(true); };
   const abrirEdicion = (p: Producto) => {
     setEditId(p.id); setNombre(p.nombre); setSku(p.sku ?? ''); setMarca(p.marca ?? ''); setLisoId(p.lisoEscandalloId); setNotas(p.notas ?? '');
-    setLineas(p.estampas.length ? p.estampas.map((l, i) => ({ id: i, estampaId: l.estampaId, costoEstampado: l.costoEstampado ? String(l.costoEstampado) : '' })) : [{ id: 0, estampaId: '', costoEstampado: '' }]);
+    setLineas(p.estampas.length ? p.estampas.map((l, i) => ({ id: i, estampaId: l.estampaId, tamano: l.tamano ?? 1, costoEstampado: l.costoEstampado ? String(l.costoEstampado) : '' })) : [{ id: 0, estampaId: '', tamano: 1, costoEstampado: '' }]);
     seq.current = p.estampas.length + 1;
     setShowForm(true);
   };
@@ -92,7 +95,7 @@ export function ProductosEstampados() {
   const guardar = async () => {
     if (!nombre.trim()) { toast.error('Poné un nombre'); return; }
     if (!lisoId) { toast.error('Elegí el liso base'); return; }
-    const estampasBody = lineas.filter((l) => l.estampaId).map((l) => ({ estampaId: l.estampaId, costoEstampado: parseFloat(l.costoEstampado) || 0 }));
+    const estampasBody = lineas.filter((l) => l.estampaId).map((l) => ({ estampaId: l.estampaId, tamano: l.tamano ?? 1, costoEstampado: parseFloat(l.costoEstampado) || 0 }));
     setSaving(true);
     const body = { nombre: nombre.trim(), sku: sku.trim() || null, marca: marca.trim() || null, lisoEscandalloId: lisoId, estampas: estampasBody, notas: notas.trim() || null };
     const r = await fetch(editId ? `/api/costos/productos-estampados/${editId}` : '/api/costos/productos-estampados', {
@@ -111,7 +114,7 @@ export function ProductosEstampados() {
 
   // Total en vivo del editor
   const lisoVivo = lisoId ? lisoTotal(lisoId) : null;
-  const estVivo = lineas.reduce((s, l) => s + (l.estampaId ? costoDTF(l.estampaId) + (parseFloat(l.costoEstampado) || 0) : 0), 0);
+  const estVivo = lineas.reduce((s, l) => s + (l.estampaId ? costoDTF(l.estampaId, l.tamano) + (parseFloat(l.costoEstampado) || 0) : 0), 0);
   const totalVivo = (lisoVivo ?? 0) + estVivo;
 
   return (
@@ -148,17 +151,27 @@ export function ProductosEstampados() {
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-stone-600 block">Estampas</label>
-              <button type="button" onClick={() => setLineas((p) => [...p, { id: seq.current++, estampaId: '', costoEstampado: '' }])}
+              <button type="button" onClick={() => setLineas((p) => [...p, { id: seq.current++, estampaId: '', tamano: 1, costoEstampado: '' }])}
                 className="text-xs px-2.5 py-1 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition">+ Estampa</button>
             </div>
             {lineas.map((l) => {
-              const dtf = l.estampaId ? costoDTF(l.estampaId) : 0;
+              const est = estampas.find((x) => x.id === l.estampaId);
+              const con2 = tiene2(est);
+              const dtf = l.estampaId ? costoDTF(l.estampaId, l.tamano) : 0;
               return (
                 <div key={l.id} className="grid grid-cols-[1fr_8rem_auto] gap-2 items-center">
-                  <select value={l.estampaId} onChange={(e) => setLineas((p) => p.map((x) => x.id === l.id ? { ...x, estampaId: e.target.value } : x))} className={`${inp} w-full`}>
-                    <option value="">— elegí estampa —</option>
-                    {estampas.map((e) => <option key={e.id} value={e.id}>{estampaLabel(e)}</option>)}
-                  </select>
+                  <div className="flex gap-1">
+                    <select value={l.estampaId} onChange={(e) => setLineas((p) => p.map((x) => x.id === l.id ? { ...x, estampaId: e.target.value, tamano: 1 } : x))} className={`${inp} flex-1 min-w-0`}>
+                      <option value="">— elegí estampa —</option>
+                      {estampas.map((e) => <option key={e.id} value={e.id}>{estampaLabel(e)}</option>)}
+                    </select>
+                    {con2 && (
+                      <select value={l.tamano} onChange={(e) => setLineas((p) => p.map((x) => x.id === l.id ? { ...x, tamano: Number(e.target.value) } : x))} className={`${inp} w-24 shrink-0`} title="Tamaño de la estampa">
+                        <option value={1}>Tam. 1</option>
+                        <option value={2}>Tam. 2</option>
+                      </select>
+                    )}
+                  </div>
                   <div>
                     <NumInput value={parseFloat(l.costoEstampado) || 0} onChange={(n) => setLineas((p) => p.map((x) => x.id === l.id ? { ...x, costoEstampado: n ? String(n) : '' } : x))} min="0" placeholder="MO $" className={`${inp} w-full`} />
                   </div>

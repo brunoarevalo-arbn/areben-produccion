@@ -14,6 +14,9 @@ const Schema = z.object({
   anchoCm:         z.number().min(0).optional(),
   largoCm:         z.number().min(0).optional(),
   mermaPercent:    z.number().min(0).optional(),
+  ancho2Cm:        z.number().min(0).optional(),
+  largo2Cm:        z.number().min(0).optional(),
+  merma2Percent:   z.number().min(0).optional(),
   estado:          z.enum(['pensada', 'pedida', 'recibida']).optional(),
   sku:             z.string().nullable().optional(),
   notas:           z.string().nullable().optional(),
@@ -36,6 +39,9 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (d.anchoCm !== undefined) data.anchoCm = new Prisma.Decimal(d.anchoCm);
   if (d.largoCm !== undefined) data.largoCm = new Prisma.Decimal(d.largoCm);
   if (d.mermaPercent !== undefined) data.mermaPercent = new Prisma.Decimal(d.mermaPercent);
+  if (d.ancho2Cm !== undefined) data.ancho2Cm = new Prisma.Decimal(d.ancho2Cm);
+  if (d.largo2Cm !== undefined) data.largo2Cm = new Prisma.Decimal(d.largo2Cm);
+  if (d.merma2Percent !== undefined) data.merma2Percent = new Prisma.Decimal(d.merma2Percent);
   if (d.estado !== undefined) data.estado = d.estado;
   if (d.sku !== undefined) data.sku = d.sku?.trim() || null;
   if (d.notas !== undefined) data.notas = d.notas?.trim() || null;

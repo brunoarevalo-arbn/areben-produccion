@@ -1003,6 +1003,9 @@ model Estampa {
   anchoCm         Decimal  @default(0) // ancho del diseño (cm)
   largoCm         Decimal  @default(0) // largo del diseño (cm)
   mermaPercent    Decimal  @default(0) // % de merma/aprovechamiento
+  ancho2Cm        Decimal  @default(0) // 2º tamaño opcional (0 = no tiene)
+  largo2Cm        Decimal  @default(0)
+  merma2Percent   Decimal  @default(0)
   estado          String   @default("pensada") // 'pensada' | 'pedida' | 'recibida'
   sku             String?  // producto vinculado (diferido)
   notas           String?
