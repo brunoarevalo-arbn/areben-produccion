@@ -346,6 +346,9 @@ export function Escandallos() {
     if (r.ok) {
       const data = await r.json();
       setLista(prev => editId ? prev.map(x => x.id === editId ? data : x) : [data, ...prev]);
+      // Sacar el producto de "pendientes de costear" al toque (ya tiene escandallo).
+      const skuGuardado = sku.trim();
+      if (skuGuardado) setProductos(prev => prev.map(p => p.sku === skuGuardado ? { ...p, tieneEscandallo: true } : p));
       resetForm();
     }
     setSaving(false);
