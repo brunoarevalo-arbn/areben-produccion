@@ -5,6 +5,7 @@ import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
 import { parseDatos, calcular, type Margenes } from '@/lib/costos/escandallo';
@@ -62,9 +63,15 @@ export function ProductosEstampados() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExp = (id: string) => setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
+  const [cargando, setCargando] = useState(true);
+
   const cargarProductos = useCallback(async () => {
-    const r = await fetch('/api/costos/productos-estampados');
-    if (r.ok) setProductos(await r.json());
+    try {
+      const r = await fetch('/api/costos/productos-estampados');
+      if (r.ok) setProductos(await r.json());
+    } finally {
+      setCargando(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -461,7 +468,9 @@ export function ProductosEstampados() {
       )}
 
       {!showForm && !showBulk && !showTiempos && (
-        productos.length === 0 ? (
+        cargando ? (
+          <LoadingState />
+        ) : productos.length === 0 ? (
           <EmptyState title="Sin productos con estampa" message="Creá uno: liso base (escandallo) + la(s) estampa(s) del catálogo." />
         ) : (
           <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
