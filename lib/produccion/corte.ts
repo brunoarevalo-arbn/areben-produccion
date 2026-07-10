@@ -165,6 +165,11 @@ export async function revertirCorteOrden(
   tx: Prisma.TransactionClient,
   ordenId: string,
   session: SessionPayload,
+  // La edición de ficha (revierte + re-registra en la misma tx) es segura aun con la
+  // orden terminada: solo cambia el consumo de rollos, NO toca el stock de terminados.
+  // Por eso permite terminada. El "revertir" suelto sí queda bloqueado (dejaría la orden
+  // terminada sin ficha).
+  permitirTerminada = false,
 ) {
   const orden = await tx.ordenProduccion.findUnique({
     where: { id: ordenId },
@@ -172,7 +177,7 @@ export async function revertirCorteOrden(
   });
   if (!orden) throw new CorteError('OP no encontrada');
   if (!orden.fichaCorteCargada) return;
-  if (orden.terminadoAt) throw new CorteError('La orden ya está terminada. Retrocedela a Costura antes de editar o revertir la ficha.');
+  if (orden.terminadoAt && !permitirTerminada) throw new CorteError('La orden ya está terminada. Retrocedela a Costura antes de editar o revertir la ficha.');
 
   for (const mov of orden.movimientosInsumo) {
     const inv = mov.cantidad.neg();

@@ -58,7 +58,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     // Si la ficha ya estaba cargada, es una EDICIÓN: revierte y re-registra en la misma
     // transacción (el impacto neto en rollos es la diferencia). Nada se toca si algo falla.
     const result = await prisma.$transaction(async (tx) => {
-      await revertirCorteOrden(tx, id, session);
+      // permitirTerminada: editar la ficha (incl. tela) aun con costura terminada.
+      // Solo cambia consumo de rollos; el stock de prendas terminadas no se toca.
+      await revertirCorteOrden(tx, id, session, true);
       return registrarCorteOrden(tx, id, parsed.data, session);
     }, { timeout: 30000, maxWait: 15000 });
     return NextResponse.json(result, { status: 201 });
