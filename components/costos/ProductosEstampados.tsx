@@ -221,6 +221,22 @@ export function ProductosEstampados() {
     const est = p.estampas.reduce((s, l, i) => s + costoDTF(l.estampaId, l.tamano ?? 1) + (parseFloat(arr[i]) || 0) * costoMinutoEst, 0);
     return liso + est;
   };
+  // Totales del pie de la grilla de tiempos (en vivo).
+  const totMinutos = Object.values(tiempos).flat().reduce((s, x) => s + (parseFloat(x) || 0), 0);
+  const totMO = totMinutos * costoMinutoEst;
+  const totFinal = productos.reduce((s, p) => s + tiemposRowTotal(p), 0);
+
+  // Export CSV: nombre, marca, costo final (para importar en otro sistema).
+  const exportarCSV = () => {
+    const csvCell = (v: string) => /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
+    const filas = [['Nombre', 'Marca', 'Costo final'], ...productos.map((p) => [p.nombre, p.marca ?? '', String(Math.round(desglose(p).total))])];
+    const csv = '﻿' + filas.map((f) => f.map((c) => csvCell(c)).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = 'productos-con-estampa.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
   const guardarTiempos = async () => {
     const cambios = productos
       .filter((p) => {
@@ -247,6 +263,7 @@ export function ProductosEstampados() {
         <div className="flex justify-between items-center gap-3">
           <p className="text-sm text-stone-500">Producto final = costo del liso (escandallo) + material DTF + estampería (minutos × valor hora). El liso se referencia vivo.</p>
           <div className="flex gap-2 shrink-0">
+            {productos.length > 0 && <Button variant="secondary" onClick={exportarCSV}>Exportar CSV</Button>}
             {productos.length > 0 && <Button variant="secondary" onClick={abrirTiempos}>Editar tiempos</Button>}
             <Button variant="secondary" onClick={abrirBulk}>Carga masiva</Button>
             <Button onClick={abrirNuevo}>+ Nuevo</Button>
@@ -295,6 +312,14 @@ export function ProductosEstampados() {
                 </div>
               );
             })}
+          </div>
+          <div className="grid grid-cols-[1fr_auto] gap-3 items-center px-3 py-2 bg-stone-50 border border-stone-200 rounded-xl">
+            <span className="text-xs font-bold text-stone-600 uppercase tracking-wide">Totales ({productos.length} producto{productos.length !== 1 ? 's' : ''})</span>
+            <div className="flex items-center gap-4 text-xs">
+              <span className="text-stone-500 tabular-nums">{fmt1(totMinutos)} min</span>
+              <span className="text-stone-500 tabular-nums">MO {fmt$(totMO)}</span>
+              <span className="font-bold text-emerald-700 tabular-nums">= {fmt$(totFinal)}</span>
+            </div>
           </div>
           <div className="flex gap-2">
             <Button onClick={guardarTiempos} isLoading={tiemposSaving}>Guardar</Button>
