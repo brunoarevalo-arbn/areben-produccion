@@ -18,23 +18,23 @@ export async function GET(req: NextRequest) {
     select: { minutosNetos: true, cantidad: true },
   });
 
-  if (registros.length === 0) return NextResponse.json({ encontrado: false });
-
-  // El tiempo total de costura es la suma de TODOS los procesos (mangas, cuello,
-  // ruedo, etc.) de toda la tanda.
-  const minutosTotales = registros.reduce((s, r) => s + r.minutosNetos, 0);
-
-  // La cantidad PRODUCIDA es fija: la del/los OP del SKU (el corte), NO la suma de
-  // las cantidades de cada proceso. La misma tanda de 38 pasa por N procesos, y
-  // sumar esas cantidades daría 38×N (508). Fallback sin OP: el máximo preseteado.
+  // OPs del SKU (para el lote y la cantidad producida). Se busca SIEMPRE, aunque el
+  // SKU no tenga tiempos propios: si está en un lote con tiempos de otros colores,
+  // igual devolvemos el promedio del lote.
   const ops = await prisma.ordenProduccion.findMany({
     where:  { sku: { equals: sku, mode: 'insensitive' }, cantidad: { gt: 0 } },
     select: { cantidad: true, loteId: true },
   });
-  let cantidadProducida = ops.reduce((s, o) => s + o.cantidad, 0);
-  if (cantidadProducida === 0) cantidadProducida = Math.max(...registros.map((r) => r.cantidad));
 
-  const minutosPromedio = cantidadProducida > 0 ? minutosTotales / cantidadProducida : 0;
+  // Individual del SKU (solo si tiene tiempos propios).
+  let minutosPromedio = 0;
+  let cantidadProducida = 0;
+  if (registros.length > 0) {
+    const minutosTotales = registros.reduce((s, r) => s + r.minutosNetos, 0);
+    cantidadProducida = ops.reduce((s, o) => s + o.cantidad, 0);
+    if (cantidadProducida === 0) cantidadProducida = Math.max(...registros.map((r) => r.cantidad));
+    minutosPromedio = cantidadProducida > 0 ? minutosTotales / cantidadProducida : 0;
+  }
 
   // Tiempo unificado del lote: si el SKU pertenece a un lote con ≥2 colores, el
   // min/prenda ponderado = Σ minutos de todos los SKUs del lote ÷ Σ unidades del lote.
@@ -46,27 +46,36 @@ export async function GET(req: NextRequest) {
       select: { sku: true, cantidad: true },
     });
     const loteSkus = [...new Set(loteOps.map((o) => o.sku).filter(Boolean))] as string[];
-    const cantidadLote = loteOps.reduce((s, o) => s + o.cantidad, 0);
-    if (loteSkus.length >= 2 && cantidadLote > 0) {
+    if (loteSkus.length >= 2) {
       const regsLote = await prisma.tiemposProduccion.findMany({
         where: { sku: { in: loteSkus }, cantidad: { gt: 0 }, minutosNetos: { gt: 0 } },
-        select: { minutosNetos: true },
+        select: { sku: true, minutosNetos: true },
       });
       if (regsLote.length > 0) {
+        // El promedio se divide por las prendas CRONOMETRADAS (los colores que sí
+        // tienen tiempos), no por todo el lote — si no, los colores sin cronometrar
+        // diluyen el promedio hacia abajo.
+        const skusConTiempo = new Set(regsLote.map((r) => r.sku).filter(Boolean));
+        const cantidadCronometrada = loteOps.filter((o) => o.sku && skusConTiempo.has(o.sku)).reduce((s, o) => s + o.cantidad, 0);
         const minLote = regsLote.reduce((s, r) => s + r.minutosNetos, 0);
-        lote = {
-          minutosPromedio: Math.round((minLote / cantidadLote) * 10) / 10,
-          cantidadTotal:   cantidadLote,
-          colores:         loteSkus.length,
-          registros:       regsLote.length,
-        };
+        if (cantidadCronometrada > 0) {
+          lote = {
+            minutosPromedio: Math.round((minLote / cantidadCronometrada) * 10) / 10,
+            cantidadTotal:   cantidadCronometrada,
+            colores:         skusConTiempo.size,
+            registros:       regsLote.length,
+          };
+        }
       }
     }
   }
 
+  // Sin tiempos propios NI de lote → no hay dato.
+  if (registros.length === 0 && !lote) return NextResponse.json({ encontrado: false });
+
   return NextResponse.json({
     encontrado:      true,
-    minutosPromedio: Math.round(minutosPromedio * 10) / 10,
+    minutosPromedio: Math.round(minutosPromedio * 10) / 10, // 0 si el SKU no tiene tiempos propios
     cantidadTotal:   cantidadProducida,
     registros:       registros.length,
     lote,

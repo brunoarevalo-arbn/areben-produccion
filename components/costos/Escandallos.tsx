@@ -159,7 +159,7 @@ export function Escandallos() {
       .then((d) => {
         if (cancel || !d) return;
         if (d.encontrado) {
-          setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
+          if (d.registros > 0) setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
           if (d.lote) setTiempoLote({ minutos: d.lote.minutosPromedio, colores: d.lote.colores, cantidadTotal: d.lote.cantidadTotal });
           const valor = d.lote ? d.lote.minutosPromedio : d.minutosPromedio;
           setDatos((prev) => prev.tiempoConfeccion > 0 ? prev : { ...prev, tiempoConfeccion: valor });
@@ -262,7 +262,7 @@ export function Escandallos() {
       if (r.ok) {
         const d = await r.json();
         if (d.encontrado) {
-          setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
+          if (d.registros > 0) setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
           if (d.lote) setTiempoLote({ minutos: d.lote.minutosPromedio, colores: d.lote.colores, cantidadTotal: d.lote.cantidadTotal });
         } else setSinDatosProduccion(true);
       }
@@ -290,7 +290,7 @@ export function Escandallos() {
       if (r.ok) {
         const d = await r.json();
         if (d.encontrado) {
-          setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
+          if (d.registros > 0) setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
           if (d.lote) setTiempoLote({ minutos: d.lote.minutosPromedio, colores: d.lote.colores, cantidadTotal: d.lote.cantidadTotal });
           setDatos(prev => ({ ...prev, tiempoConfeccion: d.lote ? d.lote.minutosPromedio : d.minutosPromedio }));
         } else {
