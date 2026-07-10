@@ -58,6 +58,10 @@ export function ProductosEstampados() {
   const [fillValue, setFillValue] = useState('');
   const [tiemposSaving, setTiemposSaving] = useState(false);
 
+  // Detalle de costo expandible por fila
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggleExp = (id: string) => setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
   const cargarProductos = useCallback(async () => {
     const r = await fetch('/api/costos/productos-estampados');
     if (r.ok) setProductos(await r.json());
@@ -103,10 +107,15 @@ export function ProductosEstampados() {
     l.minutosEstampado != null ? (l.minutosEstampado * costoMinutoEst) : (l.costoEstampado || 0);
   const estampaLabel = (e: EstampaOpt) => `${e.codigoInterno}${e.nombreComercial ? ` · ${e.nombreComercial}` : ''}`;
 
-  const totalProducto = (p: Producto): { liso: number | null; total: number } => {
+  const desglose = (p: Producto): { liso: number | null; dtf: number; mo: number; total: number } => {
     const liso = lisoTotal(p.lisoEscandalloId);
-    const est = p.estampas.reduce((s, l) => s + costoDTF(l.estampaId, l.tamano ?? 1) + moGuardado(l), 0);
-    return { liso, total: (liso ?? 0) + est };
+    const dtf = p.estampas.reduce((s, l) => s + costoDTF(l.estampaId, l.tamano ?? 1), 0);
+    const mo = p.estampas.reduce((s, l) => s + moGuardado(l), 0);
+    return { liso, dtf, mo, total: (liso ?? 0) + dtf + mo };
+  };
+  const totalProducto = (p: Producto): { liso: number | null; total: number } => {
+    const d = desglose(p);
+    return { liso: d.liso, total: d.total };
   };
 
   const resetForm = () => { setEditId(null); setNombre(''); setSku(''); setMarca(''); setLisoId(''); setNotas(''); setLineas([{ id: 0, estampaId: '', tamano: 1, minutosEstampado: '' }]); seq.current = 1; };
@@ -205,6 +214,13 @@ export function ProductosEstampados() {
     setTiempos((prev) => Object.fromEntries(Object.entries(prev).map(([pid, arr]) => [pid, arr.map((x) => (parseFloat(x) || 0) > 0 ? x : val)])));
   };
   const nSinTiempo = productos.reduce((s, p) => s + (showTiempos ? (tiempos[p.id]?.filter((x) => !((parseFloat(x) || 0) > 0)).length ?? 0) : 0), 0);
+  // Total en vivo de una fila de la grilla de tiempos (usa los minutos en edición).
+  const tiemposRowTotal = (p: Producto): number => {
+    const liso = lisoTotal(p.lisoEscandalloId) ?? 0;
+    const arr = tiempos[p.id] ?? [];
+    const est = p.estampas.reduce((s, l, i) => s + costoDTF(l.estampaId, l.tamano ?? 1) + (parseFloat(arr[i]) || 0) * costoMinutoEst, 0);
+    return liso + est;
+  };
   const guardarTiempos = async () => {
     const cambios = productos
       .filter((p) => {
@@ -274,6 +290,7 @@ export function ProductosEstampados() {
                         </div>
                       );
                     })}
+                    <span className="text-xs font-semibold tabular-nums text-emerald-700 w-20 text-right">= {fmt$(tiemposRowTotal(p))}</span>
                   </div>
                 </div>
               );
@@ -424,19 +441,32 @@ export function ProductosEstampados() {
         ) : (
           <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
             {productos.map((p) => {
-              const { liso, total } = totalProducto(p);
+              const d = desglose(p);
+              const abierto = expanded.has(p.id);
               return (
-                <div key={p.id} className="flex items-center gap-3 px-4 md:px-5 py-3">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-stone-800 truncate">{p.nombre}{p.sku && <span className="text-xs text-stone-400 font-mono ml-2">{p.sku}</span>}</p>
-                    <p className="text-xs text-stone-400">{p.estampas.length} estampa{p.estampas.length !== 1 ? 's' : ''} · liso {liso == null ? '— (no encontrado)' : fmt$(liso)}</p>
+                <div key={p.id} className="px-4 md:px-5 py-3">
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => toggleExp(p.id)} aria-label={abierto ? 'Ocultar detalle' : 'Ver detalle'} aria-expanded={abierto}
+                      className="text-xs text-stone-400 hover:text-stone-700 w-4 shrink-0 leading-none">{abierto ? '▾' : '▸'}</button>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-stone-800 truncate">{p.nombre}{p.sku && <span className="text-xs text-stone-400 font-mono ml-2">{p.sku}</span>}</p>
+                      <p className="text-xs text-stone-400">{p.estampas.length} estampa{p.estampas.length !== 1 ? 's' : ''} · liso {d.liso == null ? '— (no encontrado)' : fmt$(d.liso)}</p>
+                    </div>
+                    {sinTiempo(p) && <span className="text-[11px] px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-700 shrink-0" title="Falta el tiempo de estampería: el costo está incompleto">⚠ sin tiempo</span>}
+                    <span className="text-sm font-bold tabular-nums text-emerald-700 w-24 text-right">{fmt$(d.total)}</span>
+                    <div className="flex gap-1.5 shrink-0">
+                      <Button variant="secondary" size="sm" onClick={() => abrirEdicion(p)}>Editar</Button>
+                      <button onClick={() => eliminar(p)} aria-label="Eliminar" className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>
+                    </div>
                   </div>
-                  {sinTiempo(p) && <span className="text-[11px] px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-700 shrink-0" title="Falta el tiempo de estampería: el costo está incompleto">⚠ sin tiempo</span>}
-                  <span className="text-sm font-bold tabular-nums text-emerald-700 w-24 text-right">{fmt$(total)}</span>
-                  <div className="flex gap-1.5 shrink-0">
-                    <Button variant="secondary" size="sm" onClick={() => abrirEdicion(p)}>Editar</Button>
-                    <button onClick={() => eliminar(p)} aria-label="Eliminar" className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>
-                  </div>
+                  {abierto && (
+                    <div className="ml-7 mt-2 max-w-xs space-y-0.5 text-xs">
+                      <div className="flex justify-between text-stone-500"><span>Liso (escandallo)</span><span className="tabular-nums">{d.liso == null ? '— no encontrado' : fmt$(d.liso)}</span></div>
+                      <div className="flex justify-between text-stone-500"><span>Material DTF</span><span className="tabular-nums">{fmt$(d.dtf)}</span></div>
+                      <div className="flex justify-between text-stone-500"><span>Estampería (MO)</span><span className="tabular-nums">{fmt$(d.mo)}</span></div>
+                      <div className="flex justify-between font-semibold text-stone-700 border-t border-stone-100 pt-1 mt-1"><span>Total</span><span className="tabular-nums text-emerald-700">{fmt$(d.total)}</span></div>
+                    </div>
+                  )}
                 </div>
               );
             })}
