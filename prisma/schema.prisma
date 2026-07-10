@@ -335,8 +335,9 @@ model ProductoEstampado {
 }
 
 model Escandallo {
-  id          String   @id @default(cuid())
-  nombre      String
+  id              String   @id @default(cuid())
+  nombre          String
+  nombreComercial String?
   sku         String?
   marca       String?
   tipoPrenda  String?

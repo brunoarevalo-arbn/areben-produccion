@@ -13,11 +13,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!await requirePermiso(req, 'costos')) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
-  const { nombre, sku, marca, tipoPrenda, proyectoId, notas, datos } = await req.json();
+  const { nombre, nombreComercial, sku, marca, tipoPrenda, proyectoId, notas, datos } = await req.json();
   if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });
   const escandallo = await prisma.escandallo.create({
     data: {
-      nombre:     nombre.trim(),
+      nombre:          nombre.trim(),
+      nombreComercial: nombreComercial?.trim() || null,
       sku:        sku?.trim()        || null,
       marca:      marca?.trim()      || null,
       tipoPrenda: tipoPrenda?.trim() || null,

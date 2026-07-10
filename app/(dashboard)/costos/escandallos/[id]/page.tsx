@@ -70,6 +70,7 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-1">Ficha de Costo — Escandallo</p>
             <h1 className="text-2xl font-bold text-stone-900">{escandallo.nombre}</h1>
+            {escandallo.nombreComercial && <p className="text-base text-violet-600 font-medium">{escandallo.nombreComercial}</p>}
             <div className="flex items-center gap-3 mt-2">
               {escandallo.sku        && <span className="font-mono text-sm bg-stone-100 px-2 py-0.5 rounded text-stone-700">{escandallo.sku}</span>}
               {escandallo.marca      && <span className="text-sm text-stone-500">{escandallo.marca}</span>}

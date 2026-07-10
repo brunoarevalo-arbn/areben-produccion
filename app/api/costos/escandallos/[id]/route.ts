@@ -22,6 +22,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const data: Record<string, unknown> = {};
 
   if (body.nombre     !== undefined) data.nombre     = body.nombre.trim();
+  if (body.nombreComercial !== undefined) data.nombreComercial = body.nombreComercial?.trim() || null;
   if (body.sku        !== undefined) data.sku        = body.sku?.trim()        || null;
   if (body.marca      !== undefined) data.marca      = body.marca?.trim()      || null;
   if (body.tipoPrenda !== undefined) data.tipoPrenda = body.tipoPrenda?.trim() || null;

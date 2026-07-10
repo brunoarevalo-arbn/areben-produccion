@@ -18,7 +18,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/components/ui/Toaster';
 
 interface Escandallo {
-  id: string; nombre: string; sku: string | null; marca: string | null;
+  id: string; nombre: string; nombreComercial: string | null; sku: string | null; marca: string | null;
   tipoPrenda: string | null; notas: string | null; datos: string | null;
   createdAt: string; updatedAt: string;
 }
@@ -120,6 +120,7 @@ export function Escandallos() {
   }, []);
 
   const [nombre,     setNombre]     = useState('');
+  const [nombreComercial, setNombreComercial] = useState('');
   const [sku,        setSku]        = useState('');
   const [marca,      setMarca]      = useState('');
   const [tipoPrenda, setTipoPrenda] = useState('');
@@ -154,7 +155,7 @@ export function Escandallos() {
   }, [sku]);
 
   const resetForm = () => {
-    setNombre(''); setSku(''); setMarca(''); setTipoPrenda(''); setNotas('');
+    setNombre(''); setNombreComercial(''); setSku(''); setMarca(''); setTipoPrenda(''); setNotas('');
     setDatos(deepClone(DEFAULT_DATOS)); setEditId(null); setShowForm(false);
     setTiempoProduccion(null); setSinDatosProduccion(false);
     setModoProducido(false);
@@ -162,7 +163,7 @@ export function Escandallos() {
 
   const openEdit = (e: Escandallo) => {
     setEditId(e.id);
-    setNombre(e.nombre); setSku(e.sku ?? ''); setMarca(e.marca ?? '');
+    setNombre(e.nombre); setNombreComercial(e.nombreComercial ?? ''); setSku(e.sku ?? ''); setMarca(e.marca ?? '');
     setTipoPrenda(e.tipoPrenda ?? ''); setNotas(e.notas ?? '');
     setDatos(parseDatos(e.datos));
     setFormTab('producto');
@@ -323,7 +324,7 @@ export function Escandallos() {
     setSaving(true);
     datos.margenDesarrollo = margenes.margenDesarrollo;
     datos.margenFallas = margenes.margenFallas;
-    const body = { nombre, sku, marca, tipoPrenda, notas, datos };
+    const body = { nombre, nombreComercial, sku, marca, tipoPrenda, notas, datos };
     const url    = editId ? `/api/costos/escandallos/${editId}` : '/api/costos/escandallos';
     const method = editId ? 'PATCH' : 'POST';
     const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -340,7 +341,7 @@ export function Escandallos() {
     try { datosObj = e.datos ? JSON.parse(e.datos) : null; } catch { datosObj = null; }
     // El SKU identifica un producto puntual: no se copia para no duplicarlo.
     const body = {
-      nombre: `${e.nombre} (copia)`, sku: '', marca: e.marca ?? '',
+      nombre: `${e.nombre} (copia)`, nombreComercial: e.nombreComercial ?? '', sku: '', marca: e.marca ?? '',
       tipoPrenda: e.tipoPrenda ?? '', notas: e.notas ?? '', datos: datosObj,
     };
     const r = await fetch('/api/costos/escandallos', {
@@ -496,6 +497,7 @@ export function Escandallos() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 flex-wrap">
                             <p className="font-bold text-stone-900">{e.nombre}</p>
+                            {e.nombreComercial && <span className="text-sm text-violet-600 font-medium">· {e.nombreComercial}</span>}
                             {e.sku        && <SkuChip sku={e.sku} />}
                             {e.marca      && <span className="text-xs text-stone-400">{e.marca}</span>}
                             {e.tipoPrenda && <span className="text-xs text-stone-400 italic">{e.tipoPrenda}</span>}
@@ -598,10 +600,15 @@ export function Escandallos() {
           <Card padding="none" className="p-5 space-y-4">
             <p className={sec}>Identificación</p>
             <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className={lbl}>Nombre del producto <span className="text-red-400">*</span></label>
+              <div>
+                <label className={lbl}>Nombre interno <span className="text-red-400">*</span></label>
                 <input type="text" value={nombre} onChange={e => setNombre(e.target.value)}
                   placeholder="Ej: Remera básica manga corta" className={inp} />
+              </div>
+              <div>
+                <label className={lbl}>Nombre comercial <span className="font-normal text-stone-400">(opcional)</span></label>
+                <input type="text" value={nombreComercial} onChange={e => setNombreComercial(e.target.value)}
+                  placeholder="El nombre con el que se vende" className={inp} />
               </div>
               <div>
                 <label className={lbl}>SKU</label>
