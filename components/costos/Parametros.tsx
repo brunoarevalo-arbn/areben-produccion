@@ -35,6 +35,10 @@ export function Parametros() {
   const [savingM,          setSavingM]          = useState(false);
   const [savedM,           setSavedM]           = useState(false);
 
+  const [estValorHora, setEstValorHora] = useState('');
+  const [savingE,      setSavingE]      = useState(false);
+  const [savedE,       setSavedE]       = useState(false);
+
   const cargar = useCallback(async () => {
     setLoading(true);
     const [rG, rC] = await Promise.all([
@@ -56,9 +60,20 @@ export function Parametros() {
           setMargenDesarrollo(String(c.margenDesarrollo));
           setMargenFallas(String(c.margenFallas));
         }
+        if (c && c.estampadoValorHora) setEstValorHora(String(c.estampadoValorHora));
       })
       .catch(() => {});
   }, []);
+
+  const guardarEstamperia = async () => {
+    setSavingE(true);
+    const r = await fetch('/api/costos/config', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ estampadoValorHora: parseFloat(estValorHora) || 0 }),
+    });
+    setSavingE(false);
+    if (r.ok) { setSavedE(true); setTimeout(() => setSavedE(false), 2000); }
+  };
 
   const guardarMargenes = async () => {
     setSavingM(true);
@@ -162,6 +177,26 @@ export function Parametros() {
         <button onClick={guardarMargenes} disabled={savingM}
           className={`mt-4 px-4 py-2 rounded-xl text-sm font-semibold transition ${savedM ? 'bg-emerald-600 text-white' : 'bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50'}`}>
           {savingM ? 'Guardando...' : savedM ? '✓ Guardado' : 'Guardar márgenes'}
+        </button>
+      </Card>
+
+      {/* Estampería */}
+      <Card padding="none" className="p-5">
+        <h3 className="text-sm font-bold text-stone-800 mb-1">Estampería</h3>
+        <p className="text-xs text-stone-400 mb-4">Valor hora de mano de obra de estampado. Se usa para costear el tiempo de estampería en los productos con estampa.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-stone-400 mb-1 block">Valor hora estampería $</label>
+            <NumInput value={parseFloat(estValorHora) || 0} onChange={(n) => setEstValorHora(n ? String(n) : '')}
+              placeholder="0" min="0" className={inputCls} />
+            {parseFloat(estValorHora) > 0 && (
+              <p className="text-xs text-stone-400 mt-1">≈ {fmt$(Math.round((parseFloat(estValorHora) || 0) / 60))}/min</p>
+            )}
+          </div>
+        </div>
+        <button onClick={guardarEstamperia} disabled={savingE}
+          className={`mt-4 px-4 py-2 rounded-xl text-sm font-semibold transition ${savedE ? 'bg-emerald-600 text-white' : 'bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50'}`}>
+          {savingE ? 'Guardando...' : savedE ? '✓ Guardado' : 'Guardar estampería'}
         </button>
       </Card>
 

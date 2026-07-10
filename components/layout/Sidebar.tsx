@@ -104,7 +104,10 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     icon: '💰',
     seccion: 'costos',
     sub: [
-      { label: 'Escandallos', href: '/costos' },
+      { label: 'Escandallos',           href: '/costos' },
+      { label: 'Productos con estampa', href: '/costos/estampados' },
+      { label: 'Parámetros de costo',   href: '/costos/parametros' },
+      { label: 'Catálogos',             href: '/costos/catalogos' },
     ],
   },
   {

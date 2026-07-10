@@ -306,6 +306,7 @@ model ConfigCostos {
   dtfPrecioMetro   Float    @default(0)  // precio fijo del DTF por metro (rollo)
   dtfAnchoCm       Float    @default(58) // ancho del rollo DTF
   dtfMermaDefault  Float    @default(0)  // % merma default de estampas
+  estampadoValorHora Float  @default(0)  // $/hora de MO de estampería ($/min = /60)
   updatedAt        DateTime @updatedAt
 
   @@map("config_costos")
@@ -319,14 +320,14 @@ model CostoSkuDescartado {
 }
 
 // Producto final con estampa: liso (escandallo referenciado, vivo) + estampa(s) del
-// catálogo. Total = costo del liso + Σ (material DTF + costo de estampado manual).
+// catálogo. Total = costo del liso + Σ (material DTF + estampería: minutos × valor hora).
 model ProductoEstampado {
   id               String   @id @default(cuid())
   nombre           String
   sku              String?
   marca            String?
   lisoEscandalloId String   // ref viva al escandallo del liso (se resuelve al calcular)
-  estampas         Json     // [{ estampaId, costoEstampado }]
+  estampas         Json     // [{ estampaId, tamano, minutosEstampado }] (legacy: costoEstampado $)
   notas            String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

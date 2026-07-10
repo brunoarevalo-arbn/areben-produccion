@@ -15,10 +15,16 @@ export async function GET(req: NextRequest) {
 export async function PUT(req: NextRequest) {
   if (!(await requirePermiso(req, 'costos'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const body = await req.json();
+  // Update parcial: solo tocamos los campos presentes en el body (así guardar
+  // márgenes no pisa la tarifa de estampería y viceversa).
+  const data: Record<string, number> = {};
+  if (body.margenDesarrollo !== undefined)   data.margenDesarrollo   = Number(body.margenDesarrollo) || 0;
+  if (body.margenFallas !== undefined)       data.margenFallas       = Number(body.margenFallas) || 0;
+  if (body.estampadoValorHora !== undefined) data.estampadoValorHora = Number(body.estampadoValorHora) || 0;
   const cfg = await prisma.configCostos.upsert({
     where:  { id: ID },
-    create: { id: ID, margenDesarrollo: Number(body.margenDesarrollo) || 0, margenFallas: Number(body.margenFallas) || 0 },
-    update: { margenDesarrollo: Number(body.margenDesarrollo) || 0, margenFallas: Number(body.margenFallas) || 0 },
+    create: { id: ID, ...data },
+    update: data,
   });
   return NextResponse.json(cfg);
 }
