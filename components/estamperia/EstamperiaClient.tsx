@@ -85,6 +85,8 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const [vincMin, setVincMin] = useState('');
   const [vincNombres, setVincNombres] = useState<Record<string, string>>({});
   const [vincSaving, setVincSaving] = useState(false);
+  const [productosPorEstampa, setProductosPorEstampa] = useState<Record<string, { id: string; nombre: string }[]>>({});
+  const [soloSinProducto, setSoloSinProducto] = useState(false);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -100,7 +102,12 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
     fetch('/api/estampas/config').then((r) => r.ok ? r.json() : null).then((c) => { if (c) setCfg(c); }).catch(() => {});
     fetch('/api/costos/escandallos').then((r) => r.ok ? r.json() : []).then((e) => { if (Array.isArray(e)) setLisos(e); }).catch(() => {});
     fetch('/api/estampado/tiempo').then((r) => r.ok ? r.json() : null).then((c) => { if (c && c.minPorEstampa) { setMinGlobal(c.minPorEstampa); setVincMin(String(Math.round(c.minPorEstampa * 10) / 10)); } }).catch(() => {});
+    cargarVinculos();
   }, []);
+
+  const cargarVinculos = () => {
+    fetch('/api/costos/productos-estampados/por-estampa').then((r) => r.ok ? r.json() : null).then((m) => { if (m && typeof m === 'object') setProductosPorEstampa(m); }).catch(() => {});
+  };
 
   const toggleSel = (id: string) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const lisoLabel = (l: { nombre: string; sku: string | null }) => `${l.nombre}${l.sku ? ` · ${l.sku}` : ''}`;
@@ -122,7 +129,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
     if (productos.length === 0) { toast.error('Tildá al menos una estampa'); return; }
     setVincSaving(true);
     const r = await fetch('/api/costos/productos-estampados/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productos }) });
-    if (r.ok) { const d = await r.json(); toast.success(`${d.creados} producto(s) creados`); setSel(new Set()); setVincNombres({}); setVincLisoId(''); }
+    if (r.ok) { const d = await r.json(); toast.success(`${d.creados} producto(s) creados`); setSel(new Set()); setVincNombres({}); setVincLisoId(''); cargarVinculos(); }
     else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo vincular'); }
     setVincSaving(false);
   };
@@ -224,7 +231,9 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
 
   const costoVivo = costo({ anchoCm, largoCm, mermaPercent });
   const costo2Vivo = costo({ anchoCm: ancho2Cm, largoCm: largo2Cm, mermaPercent: merma2Percent });
-  const vista = soloSinNombre ? lista.filter((e) => !e.nombreComercial?.trim()) : lista;
+  let vista = lista;
+  if (soloSinNombre) vista = vista.filter((e) => !e.nombreComercial?.trim());
+  if (soloSinProducto) vista = vista.filter((e) => !(productosPorEstampa[e.id]?.length));
 
   return (
     <div className="space-y-5">
@@ -255,6 +264,10 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
         <label className="flex items-center gap-1.5 text-xs text-stone-600 ml-2">
           <input type="checkbox" checked={soloSinNombre} onChange={(e) => setSoloSinNombre(e.target.checked)} className="rounded border-stone-300 accent-amber-500" />
           Sin nombre comercial
+        </label>
+        <label className="flex items-center gap-1.5 text-xs text-stone-600">
+          <input type="checkbox" checked={soloSinProducto} onChange={(e) => setSoloSinProducto(e.target.checked)} className="rounded border-stone-300 accent-amber-500" />
+          Sin producto
         </label>
         <input type="text" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar código / nombre / colección / SKU"
           className="px-3 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400 flex-1 min-w-[10rem]" />
@@ -434,6 +447,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
                     {tiene2Tam(e) && <span className="text-violet-500"> · T2 {Number(e.ancho2Cm)}×{Number(e.largo2Cm)} cm ({fmt$(costo({ anchoCm: e.ancho2Cm, largoCm: e.largo2Cm, mermaPercent: e.merma2Percent }))})</span>}
                   </p>
                 </div>
+                {productosPorEstampa[e.id]?.length ? <ProductosChip productos={productosPorEstampa[e.id]} /> : null}
                 <Badge variant={est.variant} size="sm">{est.label}</Badge>
                 <span className="text-sm font-semibold tabular-nums text-stone-700 w-20 text-right shrink-0">{fmt$(costo(e))}</span>
                 <div className="flex gap-1.5 shrink-0">
@@ -444,6 +458,29 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
             );
           })}
         </div>
+      )}
+    </div>
+  );
+}
+
+// Chip discreto: solo aparece en estampas que ya tienen productos. Al click,
+// popover con los nombres (solo lectura).
+function ProductosChip({ productos }: { productos: { id: string; nombre: string }[] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative shrink-0">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-label={`${productos.length} producto(s)`} aria-expanded={open}
+        className="text-[11px] px-1.5 py-0.5 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition leading-none tabular-nums">
+        🔗 {productos.length}
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} aria-hidden />
+          <div className="absolute right-0 mt-1 z-50 min-w-[11rem] max-w-[16rem] bg-white border border-stone-200 rounded-xl shadow-lg py-1">
+            <p className="px-3 py-1 text-[10px] uppercase tracking-widest text-stone-400">En {productos.length} producto{productos.length !== 1 ? 's' : ''}</p>
+            {productos.map((p) => <p key={p.id} className="px-3 py-1 text-xs text-stone-700 truncate">{p.nombre}</p>)}
+          </div>
+        </>
       )}
     </div>
   );
