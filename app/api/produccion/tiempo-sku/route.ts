@@ -46,26 +46,22 @@ export async function GET(req: NextRequest) {
       select: { sku: true, cantidad: true },
     });
     const loteSkus = [...new Set(loteOps.map((o) => o.sku).filter(Boolean))] as string[];
-    if (loteSkus.length >= 2) {
+    const cantidadLote = loteOps.reduce((s, o) => s + o.cantidad, 0);
+    if (loteSkus.length >= 2 && cantidadLote > 0) {
       const regsLote = await prisma.tiemposProduccion.findMany({
         where: { sku: { in: loteSkus }, cantidad: { gt: 0 }, minutosNetos: { gt: 0 } },
-        select: { sku: true, minutosNetos: true },
+        select: { minutosNetos: true },
       });
       if (regsLote.length > 0) {
-        // El promedio se divide por las prendas CRONOMETRADAS (los colores que sí
-        // tienen tiempos), no por todo el lote — si no, los colores sin cronometrar
-        // diluyen el promedio hacia abajo.
-        const skusConTiempo = new Set(regsLote.map((r) => r.sku).filter(Boolean));
-        const cantidadCronometrada = loteOps.filter((o) => o.sku && skusConTiempo.has(o.sku)).reduce((s, o) => s + o.cantidad, 0);
+        // El tiempo se registra para TODA la tanda (se produce junta) y se asigna a
+        // 1-2 SKUs; por eso el promedio se divide por el TOTAL de prendas del lote.
         const minLote = regsLote.reduce((s, r) => s + r.minutosNetos, 0);
-        if (cantidadCronometrada > 0) {
-          lote = {
-            minutosPromedio: Math.round((minLote / cantidadCronometrada) * 10) / 10,
-            cantidadTotal:   cantidadCronometrada,
-            colores:         skusConTiempo.size,
-            registros:       regsLote.length,
-          };
-        }
+        lote = {
+          minutosPromedio: Math.round((minLote / cantidadLote) * 10) / 10,
+          cantidadTotal:   cantidadLote,
+          colores:         loteSkus.length,
+          registros:       regsLote.length,
+        };
       }
     }
   }
