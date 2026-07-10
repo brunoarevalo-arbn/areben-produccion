@@ -77,6 +77,15 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const [tam, setTam] = useState<Record<string, { ancho: string; largo: string; ancho2: string; largo2: string }>>({});
   const [tamSaving, setTamSaving] = useState(false);
 
+  // Vincular estampas ↔ liso (crea 1 producto con estampa por estampa tildada)
+  const [sel, setSel] = useState<Set<string>>(new Set());
+  const [lisos, setLisos] = useState<{ id: string; nombre: string; nombreComercial: string | null; sku: string | null; marca: string | null }[]>([]);
+  const [minGlobal, setMinGlobal] = useState(0);
+  const [vincLisoId, setVincLisoId] = useState('');
+  const [vincMin, setVincMin] = useState('');
+  const [vincNombres, setVincNombres] = useState<Record<string, string>>({});
+  const [vincSaving, setVincSaving] = useState(false);
+
   const cargar = useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams();
@@ -89,7 +98,34 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   useEffect(() => { cargar(); }, [cargar]);
   useEffect(() => {
     fetch('/api/estampas/config').then((r) => r.ok ? r.json() : null).then((c) => { if (c) setCfg(c); }).catch(() => {});
+    fetch('/api/costos/escandallos').then((r) => r.ok ? r.json() : []).then((e) => { if (Array.isArray(e)) setLisos(e); }).catch(() => {});
+    fetch('/api/estampado/tiempo').then((r) => r.ok ? r.json() : null).then((c) => { if (c && c.minPorEstampa) { setMinGlobal(c.minPorEstampa); setVincMin(String(Math.round(c.minPorEstampa * 10) / 10)); } }).catch(() => {});
   }, []);
+
+  const toggleSel = (id: string) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const lisoLabel = (l: { nombre: string; sku: string | null }) => `${l.nombre}${l.sku ? ` · ${l.sku}` : ''}`;
+  const nombreAuto = (e: Estampa) => e.nombreComercial?.trim() || e.codigoInterno;
+
+  const crearVinculos = async () => {
+    if (!vincLisoId) { toast.error('Elegí el liso base'); return; }
+    const liso = lisos.find((l) => l.id === vincLisoId);
+    const min = parseFloat(vincMin) || 0;
+    const productos = [...sel].map((id) => {
+      const e = lista.find((x) => x.id === id);
+      return {
+        nombre: (vincNombres[id] ?? (e ? nombreAuto(e) : '')).trim() || (e?.codigoInterno ?? 'Producto'),
+        marca: liso?.marca ?? null,
+        lisoEscandalloId: vincLisoId,
+        estampas: [{ estampaId: id, tamano: 1, minutosEstampado: min }],
+      };
+    });
+    if (productos.length === 0) { toast.error('Tildá al menos una estampa'); return; }
+    setVincSaving(true);
+    const r = await fetch('/api/costos/productos-estampados/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productos }) });
+    if (r.ok) { const d = await r.json(); toast.success(`${d.creados} producto(s) creados`); setSel(new Set()); setVincNombres({}); setVincLisoId(''); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo vincular'); }
+    setVincSaving(false);
+  };
 
   const costo = (e: { anchoCm: string | number; largoCm: string | number; mermaPercent: string | number }) =>
     costoEstampa({ anchoCm: Number(e.anchoCm), largoCm: Number(e.largoCm), mermaPercent: Number(e.mermaPercent) }, cfg);
@@ -338,6 +374,43 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
         </div>
       )}
 
+      {/* Vincular con liso → crea 1 producto con estampa por estampa tildada */}
+      {sel.size > 0 && !bulk && !showForm && !editTam && (
+        <div className="bg-white rounded-2xl border border-amber-200 p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-stone-800">Vincular {sel.size} estampa{sel.size !== 1 ? 's' : ''} a un liso</h3>
+            <button type="button" onClick={() => { setSel(new Set()); setVincNombres({}); }} className="text-xs text-stone-400 hover:text-stone-700">✕ Deseleccionar</button>
+          </div>
+          <p className="text-xs text-stone-500">Se crea un producto con estampa por cada estampa tildada, sobre el liso elegido. El nombre y los minutos se pueden editar después en Costos.</p>
+          <div className="flex items-end gap-3 flex-wrap">
+            <div className="flex-1 min-w-[14rem]">
+              <label className="text-xs text-stone-500 block mb-1">Liso base (escandallo)</label>
+              <Select fullWidth value={vincLisoId} onChange={(e) => setVincLisoId(e.target.value)}>
+                <option value="">— elegí el liso —</option>
+                {lisos.map((l) => <option key={l.id} value={l.id}>{lisoLabel(l)}</option>)}
+              </Select>
+            </div>
+            <div className="w-28">
+              <label className="text-xs text-stone-500 block mb-1">Min estampería</label>
+              <NumInput value={parseFloat(vincMin) || 0} onChange={(n) => setVincMin(n ? String(n) : '')} min="0" step="0.5" className={inpSm} />
+            </div>
+          </div>
+          <div className="border border-stone-100 rounded-xl divide-y divide-stone-100">
+            {[...sel].map((id) => {
+              const e = lista.find((x) => x.id === id);
+              if (!e) return null;
+              return (
+                <div key={id} className="grid grid-cols-[auto_1fr] gap-3 items-center px-3 py-2">
+                  <span className="font-mono text-xs bg-stone-100 text-stone-700 px-2 py-0.5 rounded shrink-0">{e.codigoInterno}</span>
+                  <Input fullWidth value={vincNombres[id] ?? nombreAuto(e)} onChange={(ev) => setVincNombres((p) => ({ ...p, [id]: ev.target.value }))} placeholder="Nombre del producto" />
+                </div>
+              );
+            })}
+          </div>
+          <Button onClick={crearVinculos} isLoading={vincSaving}>Crear {sel.size} producto{sel.size !== 1 ? 's' : ''}</Button>
+        </div>
+      )}
+
       {/* Lista */}
       {editTam ? null : loading ? (
         <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center text-sm text-stone-400">Cargando…</div>
@@ -348,7 +421,8 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
           {vista.map((e) => {
             const est = estadoInfo(e.estado);
             return (
-              <div key={e.id} className="flex items-center gap-3 px-4 md:px-5 py-3 hover:bg-stone-50 transition">
+              <div key={e.id} className={`flex items-center gap-3 px-4 md:px-5 py-3 transition ${sel.has(e.id) ? 'bg-amber-50' : 'hover:bg-stone-50'}`}>
+                <input type="checkbox" checked={sel.has(e.id)} onChange={() => toggleSel(e.id)} aria-label={`Seleccionar ${e.codigoInterno}`} className="rounded border-stone-300 accent-amber-500 shrink-0" />
                 <span className="font-mono text-xs bg-stone-100 text-stone-700 px-2 py-0.5 rounded shrink-0">{e.codigoInterno}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-stone-800 truncate">

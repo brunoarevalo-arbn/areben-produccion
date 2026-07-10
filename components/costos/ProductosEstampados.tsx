@@ -13,6 +13,7 @@ import { costoEstampa } from '@/lib/costos/estampaCosto';
 interface Escandallo { id: string; nombre: string; sku: string | null; marca: string | null; datos: string | null; }
 interface EstampaOpt { id: string; codigoInterno: string; nombreComercial: string | null; anchoCm: string | number; largoCm: string | number; mermaPercent: string | number; ancho2Cm: string | number; largo2Cm: string | number; merma2Percent: string | number; }
 interface LineaEstampa { id: number; estampaId: string; tamano: number; minutosEstampado: string; }
+interface BulkRow { id: number; nombre: string; lisoEscandalloId: string; estampas: LineaEstampa[]; }
 interface EstampaProducto { estampaId: string; tamano?: number; minutosEstampado?: number; costoEstampado?: number }
 interface Producto { id: string; nombre: string; sku: string | null; marca: string | null; lisoEscandalloId: string; estampas: EstampaProducto[]; notas: string | null; }
 
@@ -43,6 +44,13 @@ export function ProductosEstampados() {
   const [lineas, setLineas] = useState<LineaEstampa[]>([{ id: 0, estampaId: '', tamano: 1, minutosEstampado: '' }]);
   const seq = useRef(1);
   const [saving, setSaving] = useState(false);
+
+  // Carga masiva (grilla; cada fila = 1 producto con N estampas)
+  const [showBulk, setShowBulk] = useState(false);
+  const [bulkRows, setBulkRows] = useState<BulkRow[]>([]);
+  const bulkSeq = useRef(1);
+  const lineaSeq = useRef(1);
+  const [bulkSaving, setBulkSaving] = useState(false);
 
   const cargarProductos = useCallback(async () => {
     const r = await fetch('/api/costos/productos-estampados');
@@ -132,6 +140,50 @@ export function ProductosEstampados() {
   // MO de estampería de una línea del editor: minutos × tarifa.
   const moLinea = (l: LineaEstampa): number => (parseFloat(l.minutosEstampado) || 0) * costoMinutoEst;
 
+  // ── Carga masiva ──────────────────────────────────────────────
+  const minDefault = () => (minGlobal ? String(Math.round(minGlobal * 10) / 10) : '');
+  const nombreAutoEst = (e?: EstampaOpt) => e ? (e.nombreComercial?.toString().trim() || e.codigoInterno) : '';
+  const nuevaLineaBulk = (): LineaEstampa => ({ id: lineaSeq.current++, estampaId: '', tamano: 1, minutosEstampado: minDefault() });
+  const nuevaFilaBulk = (): BulkRow => ({ id: bulkSeq.current++, nombre: '', lisoEscandalloId: '', estampas: [nuevaLineaBulk()] });
+  const abrirBulk = () => { setShowForm(false); setBulkRows([nuevaFilaBulk()]); setShowBulk(true); };
+  const cerrarBulk = () => { setShowBulk(false); setBulkRows([]); };
+  const setFila = (rowId: number, patch: Partial<BulkRow>) => setBulkRows((p) => p.map((r) => r.id === rowId ? { ...r, ...patch } : r));
+  const setLineaBulk = (rowId: number, lineaId: number, patch: Partial<LineaEstampa>) =>
+    setBulkRows((p) => p.map((r) => r.id === rowId ? { ...r, estampas: r.estampas.map((l) => l.id === lineaId ? { ...l, ...patch } : l) } : r));
+  const elegirEstampaBulk = (rowId: number, lineaId: number, estampaId: string) =>
+    setBulkRows((p) => p.map((r) => {
+      if (r.id !== rowId) return r;
+      const nuevasLineas = r.estampas.map((l) => l.id === lineaId ? { ...l, estampaId, tamano: 1 } : l);
+      // Auto-nombre desde la estampa elegida, solo si el nombre está vacío (no pisa).
+      const nombre = r.nombre.trim() || nombreAutoEst(estampas.find((e) => e.id === estampaId));
+      return { ...r, estampas: nuevasLineas, nombre };
+    }));
+  const bulkRowTotal = (r: BulkRow): number => {
+    const liso = r.lisoEscandalloId ? (lisoTotal(r.lisoEscandalloId) ?? 0) : 0;
+    const est = r.estampas.reduce((s, l) => s + (l.estampaId ? costoDTF(l.estampaId, l.tamano) + moLinea(l) : 0), 0);
+    return liso + est;
+  };
+  const guardarBulk = async () => {
+    const productos = bulkRows
+      .filter((r) => r.lisoEscandalloId && r.estampas.some((l) => l.estampaId))
+      .map((r) => {
+        const liso = escandallos.find((e) => e.id === r.lisoEscandalloId);
+        const primera = r.estampas.find((l) => l.estampaId);
+        const est = primera && estampas.find((e) => e.id === primera.estampaId);
+        const nombre = r.nombre.trim() || nombreAutoEst(est) || liso?.nombre || 'Producto';
+        return {
+          nombre, marca: liso?.marca ?? null, lisoEscandalloId: r.lisoEscandalloId,
+          estampas: r.estampas.filter((l) => l.estampaId).map((l) => ({ estampaId: l.estampaId, tamano: l.tamano ?? 1, minutosEstampado: parseFloat(l.minutosEstampado) || 0 })),
+        };
+      });
+    if (productos.length === 0) { toast.error('Cargá al menos una fila con liso y estampa'); return; }
+    setBulkSaving(true);
+    const r = await fetch('/api/costos/productos-estampados/bulk', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ productos }) });
+    if (r.ok) { const d = await r.json(); toast.success(`${d.creados} producto(s) creados`); cerrarBulk(); cargarProductos(); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo cargar'); }
+    setBulkSaving(false);
+  };
+
   // Total en vivo del editor
   const lisoVivo = lisoId ? lisoTotal(lisoId) : null;
   const estVivo = lineas.reduce((s, l) => s + (l.estampaId ? costoDTF(l.estampaId, l.tamano) + moLinea(l) : 0), 0);
@@ -139,11 +191,67 @@ export function ProductosEstampados() {
 
   return (
     <div className="space-y-5 max-w-3xl">
-      {!showForm && (
-        <div className="flex justify-between items-center">
+      {!showForm && !showBulk && (
+        <div className="flex justify-between items-center gap-3">
           <p className="text-sm text-stone-500">Producto final = costo del liso (escandallo) + material DTF + estampería (minutos × valor hora). El liso se referencia vivo.</p>
-          <Button onClick={abrirNuevo}>+ Nuevo</Button>
+          <div className="flex gap-2 shrink-0">
+            <Button variant="secondary" onClick={abrirBulk}>Carga masiva</Button>
+            <Button onClick={abrirNuevo}>+ Nuevo</Button>
+          </div>
         </div>
+      )}
+
+      {showBulk && (
+        <Card padding="none" className="p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-stone-800">Carga masiva de productos con estampa</h3>
+            <button onClick={cerrarBulk} className="text-xs text-stone-400 hover:text-stone-700">✕ Cancelar</button>
+          </div>
+          <p className="text-[11px] text-stone-400">Cada fila es un producto. Podés juntar varias estampas en la misma prenda (frente + espalda) con "+ estampa". Nombre y minutos vienen auto y se editan.</p>
+          {bulkRows.map((row) => (
+            <div key={row.id} className="border border-stone-200 rounded-xl p-3 space-y-2">
+              <div className="grid grid-cols-[1fr_1fr_auto] gap-2 items-center">
+                <input value={row.nombre} onChange={(e) => setFila(row.id, { nombre: e.target.value })} placeholder="Nombre del producto" className={`${inp} w-full`} />
+                <select value={row.lisoEscandalloId} onChange={(e) => setFila(row.id, { lisoEscandalloId: e.target.value })} className={`${inp} w-full`}>
+                  <option value="">— liso base —</option>
+                  {escandallos.map((e) => <option key={e.id} value={e.id}>{e.nombre}{e.sku ? ` · ${e.sku}` : ''}</option>)}
+                </select>
+                <button type="button" onClick={() => setBulkRows((p) => p.length > 1 ? p.filter((r) => r.id !== row.id) : p)} className="text-stone-300 hover:text-red-400 text-xl leading-none px-1">×</button>
+              </div>
+              {row.estampas.map((l) => {
+                const e = estampas.find((x) => x.id === l.estampaId);
+                const con2 = tiene2(e);
+                return (
+                  <div key={l.id} className="grid grid-cols-[1fr_auto_auto_auto] gap-2 items-center pl-2">
+                    <select value={l.estampaId} onChange={(ev) => elegirEstampaBulk(row.id, l.id, ev.target.value)} className={`${inp} min-w-0`}>
+                      <option value="">— estampa —</option>
+                      {estampas.map((es) => <option key={es.id} value={es.id}>{estampaLabel(es)}</option>)}
+                    </select>
+                    {con2 ? (
+                      <select value={l.tamano} onChange={(ev) => setLineaBulk(row.id, l.id, { tamano: Number(ev.target.value) })} className={`${inp} w-20`} title="Tamaño">
+                        <option value={1}>T1</option>
+                        <option value={2}>T2</option>
+                      </select>
+                    ) : <span />}
+                    <div className="flex items-center gap-1">
+                      <NumInput value={parseFloat(l.minutosEstampado) || 0} onChange={(n) => setLineaBulk(row.id, l.id, { minutosEstampado: n ? String(n) : '' })} min="0" step="0.5" placeholder="min" className={`${inp} w-16`} />
+                      <span className="text-xs text-stone-400">min</span>
+                    </div>
+                    <button type="button" onClick={() => setBulkRows((p) => p.map((r) => r.id === row.id ? { ...r, estampas: r.estampas.length > 1 ? r.estampas.filter((x) => x.id !== l.id) : r.estampas } : r))} className="text-stone-300 hover:text-red-400 text-lg leading-none">×</button>
+                  </div>
+                );
+              })}
+              <div className="flex items-center justify-between pl-2">
+                <button type="button" onClick={() => setFila(row.id, { estampas: [...row.estampas, nuevaLineaBulk()] })} className="text-xs px-2 py-0.5 border border-stone-200 rounded-lg text-stone-500 hover:border-stone-400 transition">+ estampa</button>
+                <span className="text-xs text-stone-500">{row.lisoEscandalloId ? <>Total: <strong className="text-emerald-700">{fmt$(bulkRowTotal(row))}</strong></> : ''}</span>
+              </div>
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <Button size="sm" variant="secondary" onClick={() => setBulkRows((p) => [...p, nuevaFilaBulk()])}>+ Fila</Button>
+            <Button size="sm" onClick={guardarBulk} isLoading={bulkSaving}>Crear {bulkRows.filter((r) => r.lisoEscandalloId && r.estampas.some((l) => l.estampaId)).length || ''}</Button>
+          </div>
+        </Card>
       )}
 
       {showForm && (
@@ -225,7 +333,7 @@ export function ProductosEstampados() {
         </Card>
       )}
 
-      {!showForm && (
+      {!showForm && !showBulk && (
         productos.length === 0 ? (
           <EmptyState title="Sin productos con estampa" message="Creá uno: liso base (escandallo) + la(s) estampa(s) del catálogo." />
         ) : (
