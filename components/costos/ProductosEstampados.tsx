@@ -118,11 +118,12 @@ export function ProductosEstampados() {
     l.minutosEstampado != null ? (l.minutosEstampado * costoMinutoEst) : (l.costoEstampado || 0);
   const estampaLabel = (e: EstampaOpt) => `${e.codigoInterno}${e.nombreComercial ? ` · ${e.nombreComercial}` : ''}`;
 
-  const desglose = (p: Producto): { liso: number | null; dtf: number; mo: number; total: number } => {
+  const desglose = (p: Producto): { liso: number | null; dtf: number; mo: number; min: number; total: number } => {
     const liso = lisoTotal(p.lisoEscandalloId);
     const dtf = p.estampas.reduce((s, l) => s + costoDTF(l.estampaId, l.tamano ?? 1), 0);
     const mo = p.estampas.reduce((s, l) => s + moGuardado(l), 0);
-    return { liso, dtf, mo, total: (liso ?? 0) + dtf + mo };
+    const min = p.estampas.reduce((s, l) => s + (Number(l.minutosEstampado) || 0), 0);
+    return { liso, dtf, mo, min, total: (liso ?? 0) + dtf + mo };
   };
   const totalProducto = (p: Producto): { liso: number | null; total: number } => {
     const d = desglose(p);
@@ -511,7 +512,7 @@ export function ProductosEstampados() {
                     <div className="ml-7 mt-2 max-w-xs space-y-0.5 text-xs">
                       <div className="flex justify-between text-stone-500"><span>Liso (escandallo)</span><span className="tabular-nums">{d.liso == null ? '— no encontrado' : fmt$(d.liso)}</span></div>
                       <div className="flex justify-between text-stone-500"><span>Material DTF</span><span className="tabular-nums">{fmt$(d.dtf)}</span></div>
-                      <div className="flex justify-between text-stone-500"><span>Estampería (MO)</span><span className="tabular-nums">{fmt$(d.mo)}</span></div>
+                      <div className="flex justify-between text-stone-500"><span>Estampería (MO){d.min ? ` · ${fmt1(d.min)} min` : ''}</span><span className="tabular-nums">{fmt$(d.mo)}</span></div>
                       <div className="flex justify-between font-semibold text-stone-700 border-t border-stone-100 pt-1 mt-1"><span>Total</span><span className="tabular-nums text-emerald-700">{fmt$(d.total)}</span></div>
                     </div>
                   )}
