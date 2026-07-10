@@ -63,6 +63,10 @@ export function ProductosEstampados() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggleExp = (id: string) => setExpanded((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
+  // Selección para exportar
+  const [selCsv, setSelCsv] = useState<Set<string>>(new Set());
+  const toggleSelCsv = (id: string) => setSelCsv((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
   const [cargando, setCargando] = useState(true);
 
   const cargarProductos = useCallback(async () => {
@@ -234,9 +238,11 @@ export function ProductosEstampados() {
   const totFinal = productos.reduce((s, p) => s + tiemposRowTotal(p), 0);
 
   // Export CSV: nombre, marca, costo final (para importar en otro sistema).
+  // Exporta los seleccionados; si no hay selección, exporta todos.
   const exportarCSV = () => {
+    const elegidos = selCsv.size > 0 ? productos.filter((p) => selCsv.has(p.id)) : productos;
     const csvCell = (v: string) => /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
-    const filas = [['Nombre', 'Marca', 'Costo final'], ...productos.map((p) => [p.nombre, p.marca ?? '', String(Math.round(desglose(p).total))])];
+    const filas = [['Nombre', 'Marca', 'Costo final'], ...elegidos.map((p) => [p.nombre, p.marca ?? '', String(Math.round(desglose(p).total))])];
     const csv = '﻿' + filas.map((f) => f.map((c) => csvCell(c)).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
     const a = document.createElement('a');
@@ -270,7 +276,7 @@ export function ProductosEstampados() {
         <div className="flex justify-between items-center gap-3">
           <p className="text-sm text-stone-500">Producto final = costo del liso (escandallo) + material DTF + estampería (minutos × valor hora). El liso se referencia vivo.</p>
           <div className="flex gap-2 shrink-0">
-            {productos.length > 0 && <Button variant="secondary" onClick={exportarCSV}>Exportar CSV</Button>}
+            {productos.length > 0 && <Button variant="secondary" onClick={exportarCSV}>Exportar CSV{selCsv.size > 0 ? ` (${selCsv.size})` : ''}</Button>}
             {productos.length > 0 && <Button variant="secondary" onClick={abrirTiempos}>Editar tiempos</Button>}
             <Button variant="secondary" onClick={abrirBulk}>Carga masiva</Button>
             <Button onClick={abrirNuevo}>+ Nuevo</Button>
@@ -474,12 +480,20 @@ export function ProductosEstampados() {
           <EmptyState title="Sin productos con estampa" message="Creá uno: liso base (escandallo) + la(s) estampa(s) del catálogo." />
         ) : (
           <div className="bg-white rounded-2xl border border-stone-200 divide-y divide-stone-100">
+            <label className="flex items-center gap-2 px-4 md:px-5 py-2 text-xs text-stone-500 bg-stone-50/60 rounded-t-2xl">
+              <input type="checkbox" checked={productos.length > 0 && productos.every((p) => selCsv.has(p.id))}
+                onChange={(e) => setSelCsv(e.target.checked ? new Set(productos.map((p) => p.id)) : new Set())}
+                className="rounded border-stone-300 accent-amber-500" />
+              Seleccionar todo{selCsv.size > 0 ? ` · ${selCsv.size} seleccionado${selCsv.size !== 1 ? 's' : ''}` : ''}
+            </label>
             {productos.map((p) => {
               const d = desglose(p);
               const abierto = expanded.has(p.id);
               return (
                 <div key={p.id} className="px-4 md:px-5 py-3">
                   <div className="flex items-center gap-3">
+                    <input type="checkbox" checked={selCsv.has(p.id)} onChange={() => toggleSelCsv(p.id)} aria-label={`Seleccionar ${p.nombre}`}
+                      className="rounded border-stone-300 accent-amber-500 shrink-0" />
                     <button onClick={() => toggleExp(p.id)} aria-label={abierto ? 'Ocultar detalle' : 'Ver detalle'} aria-expanded={abierto}
                       className="text-xs text-stone-400 hover:text-stone-700 w-4 shrink-0 leading-none">{abierto ? '▾' : '▸'}</button>
                     <div className="flex-1 min-w-0">
