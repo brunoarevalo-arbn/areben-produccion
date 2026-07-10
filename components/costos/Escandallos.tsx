@@ -143,13 +143,28 @@ export function Escandallos() {
 
   useEffect(() => { cargar(); }, [cargar]);
   useEffect(() => {
-    setTiempoProduccion(null); setSinDatosProduccion(false); setFichaResumen(null);
+    setTiempoProduccion(null); setTiempoLote(null); setSinDatosProduccion(false); setFichaResumen(null);
     const s = sku.trim();
     if (!s) return;
     let cancel = false;
     fetch(`/api/costos/ficha-resumen?sku=${encodeURIComponent(s)}`)
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (!cancel && d?.encontrado) setFichaResumen(d); })
+      .catch(() => {});
+    // Tiempo de costura: se trae solo al poner el SKU. Si el SKU es de un lote,
+    // aplica DIRECTO el promedio del lote (unificado por color). Solo autocompleta
+    // si todavía no hay tiempo cargado (no pisa el de un escandallo ya guardado).
+    fetch(`/api/produccion/tiempo-sku?sku=${encodeURIComponent(s)}`)
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => {
+        if (cancel || !d) return;
+        if (d.encontrado) {
+          setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
+          if (d.lote) setTiempoLote({ minutos: d.lote.minutosPromedio, colores: d.lote.colores, cantidadTotal: d.lote.cantidadTotal });
+          const valor = d.lote ? d.lote.minutosPromedio : d.minutosPromedio;
+          setDatos((prev) => prev.tiempoConfeccion > 0 ? prev : { ...prev, tiempoConfeccion: valor });
+        } else setSinDatosProduccion(true);
+      })
       .catch(() => {});
     return () => { cancel = true; };
   }, [sku]);
@@ -277,7 +292,7 @@ export function Escandallos() {
         if (d.encontrado) {
           setTiempoProduccion({ minutos: d.minutosPromedio, registros: d.registros, cantidadTotal: d.cantidadTotal });
           if (d.lote) setTiempoLote({ minutos: d.lote.minutosPromedio, colores: d.lote.colores, cantidadTotal: d.lote.cantidadTotal });
-          setDatos(prev => ({ ...prev, tiempoConfeccion: d.minutosPromedio }));
+          setDatos(prev => ({ ...prev, tiempoConfeccion: d.lote ? d.lote.minutosPromedio : d.minutosPromedio }));
         } else {
           setSinDatosProduccion(true);
         }
