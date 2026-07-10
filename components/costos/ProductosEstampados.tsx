@@ -52,6 +52,12 @@ export function ProductosEstampados() {
   const lineaSeq = useRef(1);
   const [bulkSaving, setBulkSaving] = useState(false);
 
+  // Edición masiva de tiempos de estampería (minutos por estampa)
+  const [showTiempos, setShowTiempos] = useState(false);
+  const [tiempos, setTiempos] = useState<Record<string, string[]>>({});
+  const [fillValue, setFillValue] = useState('');
+  const [tiemposSaving, setTiemposSaving] = useState(false);
+
   const cargarProductos = useCallback(async () => {
     const r = await fetch('/api/costos/productos-estampados');
     if (r.ok) setProductos(await r.json());
@@ -184,6 +190,36 @@ export function ProductosEstampados() {
     setBulkSaving(false);
   };
 
+  // ── Edición masiva de tiempos ─────────────────────────────────
+  const lineaSinTiempo = (l: EstampaProducto) => !(l.minutosEstampado) && !(l.costoEstampado);
+  const sinTiempo = (p: Producto) => p.estampas.some(lineaSinTiempo);
+  const abrirTiempos = () => {
+    setShowForm(false); setShowBulk(false);
+    setTiempos(Object.fromEntries(productos.map((p) => [p.id, p.estampas.map((l) => l.minutosEstampado ? String(l.minutosEstampado) : '')])));
+    setFillValue(''); setShowTiempos(true);
+  };
+  const setTiempoVal = (pid: string, idx: number, v: string) =>
+    setTiempos((prev) => ({ ...prev, [pid]: prev[pid].map((x, i) => i === idx ? v : x) }));
+  const completarVacios = () => {
+    const val = fillValue.trim(); if (!val) { toast.error('Poné un valor'); return; }
+    setTiempos((prev) => Object.fromEntries(Object.entries(prev).map(([pid, arr]) => [pid, arr.map((x) => (parseFloat(x) || 0) > 0 ? x : val)])));
+  };
+  const nSinTiempo = productos.reduce((s, p) => s + (showTiempos ? (tiempos[p.id]?.filter((x) => !((parseFloat(x) || 0) > 0)).length ?? 0) : 0), 0);
+  const guardarTiempos = async () => {
+    const cambios = productos
+      .filter((p) => {
+        const arr = tiempos[p.id]; if (!arr) return false;
+        return p.estampas.some((l, i) => (parseFloat(arr[i]) || 0) !== (Number(l.minutosEstampado) || 0));
+      })
+      .map((p) => ({ id: p.id, estampas: p.estampas.map((l, i) => ({ estampaId: l.estampaId, tamano: l.tamano ?? 1, minutosEstampado: parseFloat(tiempos[p.id][i]) || 0 })) }));
+    if (cambios.length === 0) { toast.error('No cambiaste ningún tiempo'); return; }
+    setTiemposSaving(true);
+    const r = await fetch('/api/costos/productos-estampados/tiempos', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cambios }) });
+    if (r.ok) { const d = await r.json(); toast.success(`${d.actualizados} producto(s) actualizados`); setShowTiempos(false); cargarProductos(); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo guardar'); }
+    setTiemposSaving(false);
+  };
+
   // Total en vivo del editor
   const lisoVivo = lisoId ? lisoTotal(lisoId) : null;
   const estVivo = lineas.reduce((s, l) => s + (l.estampaId ? costoDTF(l.estampaId, l.tamano) + moLinea(l) : 0), 0);
@@ -191,14 +227,63 @@ export function ProductosEstampados() {
 
   return (
     <div className="space-y-5 max-w-3xl">
-      {!showForm && !showBulk && (
+      {!showForm && !showBulk && !showTiempos && (
         <div className="flex justify-between items-center gap-3">
           <p className="text-sm text-stone-500">Producto final = costo del liso (escandallo) + material DTF + estampería (minutos × valor hora). El liso se referencia vivo.</p>
           <div className="flex gap-2 shrink-0">
+            {productos.length > 0 && <Button variant="secondary" onClick={abrirTiempos}>Editar tiempos</Button>}
             <Button variant="secondary" onClick={abrirBulk}>Carga masiva</Button>
             <Button onClick={abrirNuevo}>+ Nuevo</Button>
           </div>
         </div>
+      )}
+
+      {showTiempos && (
+        <Card padding="none" className="p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold text-stone-800">Tiempos de estampería {nSinTiempo > 0 && <span className="text-amber-600 font-semibold">· {nSinTiempo} sin tiempo</span>}</h3>
+            <button onClick={() => setShowTiempos(false)} className="text-xs text-stone-400 hover:text-stone-700">✕ Cancelar</button>
+          </div>
+          <div className="flex items-end gap-2 flex-wrap bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5">
+            <div>
+              <label className="text-xs text-stone-500 block mb-1">Poner a los sin tiempo</label>
+              <NumInput value={parseFloat(fillValue) || 0} onChange={(n) => setFillValue(n ? String(n) : '')} min="0" step="0.5" placeholder="min" className={`${inp} w-24`} />
+            </div>
+            <Button size="sm" variant="secondary" onClick={completarVacios}>Completar los sin tiempo</Button>
+            <span className="text-[11px] text-stone-400">No pisa los que ya tienen tiempo cargado.</span>
+          </div>
+          <div className="border border-stone-100 rounded-xl divide-y divide-stone-100">
+            {productos.map((p) => {
+              const arr = tiempos[p.id] ?? [];
+              return (
+                <div key={p.id} className="grid grid-cols-[1fr_auto] gap-3 items-center px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-stone-800 truncate">{p.nombre}</p>
+                    <p className="text-xs text-stone-400 truncate">{escandallos.find((e) => e.id === p.lisoEscandalloId)?.nombre ?? '— liso —'}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {p.estampas.map((l, i) => {
+                      const e = estampas.find((x) => x.id === l.estampaId);
+                      const vacio = !((parseFloat(arr[i]) || 0) > 0);
+                      return (
+                        <div key={i} className="flex items-center gap-1">
+                          {p.estampas.length > 1 && <span className="text-[10px] text-stone-400 font-mono">{e?.codigoInterno ?? '?'}</span>}
+                          <NumInput value={parseFloat(arr[i]) || 0} onChange={(n) => setTiempoVal(p.id, i, n ? String(n) : '')} min="0" step="0.5" placeholder="min"
+                            className={`${inp} w-20 ${vacio ? 'border-amber-300 bg-amber-50' : ''}`} />
+                          <span className="text-xs text-stone-400">min</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex gap-2">
+            <Button onClick={guardarTiempos} isLoading={tiemposSaving}>Guardar</Button>
+            <Button variant="secondary" onClick={() => setShowTiempos(false)}>Cancelar</Button>
+          </div>
+        </Card>
       )}
 
       {showBulk && (
@@ -333,7 +418,7 @@ export function ProductosEstampados() {
         </Card>
       )}
 
-      {!showForm && !showBulk && (
+      {!showForm && !showBulk && !showTiempos && (
         productos.length === 0 ? (
           <EmptyState title="Sin productos con estampa" message="Creá uno: liso base (escandallo) + la(s) estampa(s) del catálogo." />
         ) : (
@@ -346,6 +431,7 @@ export function ProductosEstampados() {
                     <p className="text-sm font-semibold text-stone-800 truncate">{p.nombre}{p.sku && <span className="text-xs text-stone-400 font-mono ml-2">{p.sku}</span>}</p>
                     <p className="text-xs text-stone-400">{p.estampas.length} estampa{p.estampas.length !== 1 ? 's' : ''} · liso {liso == null ? '— (no encontrado)' : fmt$(liso)}</p>
                   </div>
+                  {sinTiempo(p) && <span className="text-[11px] px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-700 shrink-0" title="Falta el tiempo de estampería: el costo está incompleto">⚠ sin tiempo</span>}
                   <span className="text-sm font-bold tabular-nums text-emerald-700 w-24 text-right">{fmt$(total)}</span>
                   <div className="flex gap-1.5 shrink-0">
                     <Button variant="secondary" size="sm" onClick={() => abrirEdicion(p)}>Editar</Button>
