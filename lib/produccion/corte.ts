@@ -173,22 +173,38 @@ export async function revertirCorteOrden(
 ) {
   const orden = await tx.ordenProduccion.findUnique({
     where: { id: ordenId },
-    include: { movimientosInsumo: { where: { tipo: 'CONSUMO' } } },
+    // Todos los movimientos de la ficha que mueven stock (CONSUMO −, REVERSION +).
+    // Reponemos el NETO pendiente, no cada CONSUMO histórico: si la ficha ya se
+    // editó antes, revertir cada CONSUMO por separado duplicaría la reposición
+    // (infla el stock y deja el consumo neto en ~0).
+    include: { movimientosInsumo: { where: { tipo: { in: ['CONSUMO', 'REVERSION'] } } } },
   });
   if (!orden) throw new CorteError('OP no encontrada');
   if (!orden.fichaCorteCargada) return;
   if (orden.terminadoAt && !permitirTerminada) throw new CorteError('La orden ya está terminada. Retrocedela a Costura antes de editar o revertir la ficha.');
 
+  // Neto por rollo / lote (con signo). El consumo pendiente a reponer = −neto.
+  const netRollo = new Map<string, Prisma.Decimal>();
+  const netLote  = new Map<string, Prisma.Decimal>();
   for (const mov of orden.movimientosInsumo) {
-    const inv = mov.cantidad.neg();
-    if (mov.rolloId) {
-      await tx.rollo.update({ where: { id: mov.rolloId }, data: { pesoActual: { increment: inv }, estado: 'DISPONIBLE' } });
-    }
-    if (mov.loteId) {
-      await tx.lote.update({ where: { id: mov.loteId }, data: { cantidadActual: { increment: inv }, estado: 'DISPONIBLE' } });
-    }
+    if (mov.rolloId) netRollo.set(mov.rolloId, (netRollo.get(mov.rolloId) ?? new Prisma.Decimal(0)).add(mov.cantidad));
+    if (mov.loteId)  netLote.set(mov.loteId,  (netLote.get(mov.loteId)  ?? new Prisma.Decimal(0)).add(mov.cantidad));
+  }
+  const EPS = new Prisma.Decimal('0.0001');
+  for (const [rolloId, net] of netRollo) {
+    const inv = net.neg(); // reponer lo que sigue consumido (positivo en el caso normal)
+    if (inv.abs().lt(EPS)) continue;
+    await tx.rollo.update({ where: { id: rolloId }, data: { pesoActual: { increment: inv }, estado: 'DISPONIBLE' } });
     await tx.movimientoInsumo.create({
-      data: { tipo: 'REVERSION', rolloId: mov.rolloId, loteId: mov.loteId, ordenId, cantidad: inv, motivo: `Reversion corte OP ${orden.sku ?? ordenId}`, usuarioId: session.id, reversionNota: `Revertido por ${session.nombre}` },
+      data: { tipo: 'REVERSION', rolloId, ordenId, cantidad: inv, motivo: `Reversion corte OP ${orden.sku ?? ordenId}`, usuarioId: session.id, reversionNota: `Revertido por ${session.nombre}` },
+    });
+  }
+  for (const [loteId, net] of netLote) {
+    const inv = net.neg();
+    if (inv.abs().lt(EPS)) continue;
+    await tx.lote.update({ where: { id: loteId }, data: { cantidadActual: { increment: inv }, estado: 'DISPONIBLE' } });
+    await tx.movimientoInsumo.create({
+      data: { tipo: 'REVERSION', loteId, ordenId, cantidad: inv, motivo: `Reversion corte OP ${orden.sku ?? ordenId}`, usuarioId: session.id, reversionNota: `Revertido por ${session.nombre}` },
     });
   }
   await tx.cortePorTalle.deleteMany({ where: { ordenId } });
