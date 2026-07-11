@@ -85,6 +85,7 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
   const router = useRouter();
   const [over, setOver] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
+  const [preview, setPreview] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const moodArr = (() => {
     if (proyecto.moodboard) { try { const a = JSON.parse(proyecto.moodboard); if (Array.isArray(a)) return a.map(String); } catch { /* ignore */ } }
@@ -116,43 +117,52 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ir(); } }}
       className="relative w-full bg-white rounded-xl border border-stone-200 hover:border-violet-400 hover:shadow-sm transition text-left overflow-hidden block cursor-pointer"
     >
-      {/* Cuadro de foto: click o drag para cargar; preview de la 1ª imagen */}
-      <div
-        onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
-        onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOver(true); }}
-        onDragLeave={() => setOver(false)}
-        onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setOver(false); agregarFoto(e.dataTransfer.files?.[0]); }}
-        title="Cargar foto al moodboard"
-        className={`relative w-full h-24 flex items-center justify-center overflow-hidden group ${fotoPreview ? 'bg-stone-100' : 'bg-stone-50 border-b border-dashed'} ${over ? 'ring-2 ring-inset ring-violet-400' : ''}`}
-      >
-        {fotoPreview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={fotoPreview} alt="" className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-xs text-stone-400 group-hover:text-violet-500 transition">＋ Agregar foto</span>
-        )}
-        {fotoPreview && !subiendo && !over && (
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition flex items-center justify-center text-xs font-semibold text-white opacity-0 group-hover:opacity-100">＋ foto</div>
-        )}
-        {(over || subiendo) && (
-          <div className="absolute inset-0 bg-violet-50/85 flex items-center justify-center text-xs font-semibold text-violet-700">
-            {subiendo ? 'Subiendo…' : 'Soltá la imagen'}
-          </div>
-        )}
-      </div>
       <input ref={fileRef} type="file" accept="image/*" className="hidden"
         onChange={(e) => { agregarFoto(e.target.files?.[0]); e.target.value = ''; }} />
       <div className="p-2.5">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <p className="font-semibold text-sm text-stone-800 leading-tight line-clamp-2">{proyecto.nombre}</p>
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${proyecto.marca === 'Zattia' ? 'bg-violet-100 text-violet-700' : 'bg-pink-100 text-pink-700'}`}>
-            {proyecto.marca}
-          </span>
+        <div className="flex items-start gap-2.5 mb-1">
+          {/* Cuadradito de foto: chico; click abre preview grande, ＋ agrega, drag suelta */}
+          <div className="relative w-12 h-12 shrink-0"
+            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setOver(true); }}
+            onDragLeave={() => setOver(false)}
+            onDrop={(e) => { e.preventDefault(); e.stopPropagation(); setOver(false); agregarFoto(e.dataTransfer.files?.[0]); }}>
+            {fotoPreview ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={fotoPreview} alt="" title="Ver foto" onClick={(e) => { e.stopPropagation(); setPreview(true); }}
+                  className={`w-12 h-12 rounded-md object-cover border cursor-zoom-in ${over ? 'border-violet-400' : 'border-stone-200'}`} />
+                <button type="button" title="Agregar otra foto" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+                  className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-stone-300 text-stone-500 hover:text-violet-600 text-xs leading-none shadow-sm flex items-center justify-center">＋</button>
+              </>
+            ) : (
+              <div onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }} title="Cargar foto"
+                className={`w-12 h-12 rounded-md border border-dashed flex items-center justify-center text-lg cursor-pointer bg-stone-50 ${over ? 'border-violet-400 text-violet-500' : 'border-stone-300 text-stone-400 hover:border-violet-400'}`}>＋</div>
+            )}
+            {subiendo && <div className="absolute inset-0 rounded-md bg-white/70 flex items-center justify-center text-[9px] text-stone-600">…</div>}
+          </div>
+          {/* Nombre + marca */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <p className="font-semibold text-sm text-stone-800 leading-tight line-clamp-2">{proyecto.nombre}</p>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${proyecto.marca === 'Zattia' ? 'bg-violet-100 text-violet-700' : 'bg-pink-100 text-pink-700'}`}>
+                {proyecto.marca}
+              </span>
+            </div>
+            {proyecto.estado === 'produccion' && proyecto.faseActual && (
+              <p className="text-xs text-emerald-700 font-medium mt-1">→ {proyecto.faseActual}</p>
+            )}
+          </div>
         </div>
-        {proyecto.estado === 'produccion' && proyecto.faseActual && (
-          <p className="text-xs text-emerald-700 font-medium mt-1">→ {proyecto.faseActual}</p>
-        )}
       </div>
+
+      {/* Preview grande (lightbox) */}
+      {preview && fotoPreview && (
+        <div onClick={(e) => { e.stopPropagation(); setPreview(false); }}
+          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6 cursor-zoom-out">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={fotoPreview} alt="" className="max-w-full max-h-full rounded-lg shadow-xl" />
+        </div>
+      )}
     </div>
   );
 }
