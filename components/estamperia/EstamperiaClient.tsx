@@ -10,7 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
 import { costoEstampa } from '@/lib/costos/estampaCosto';
-import { ImageDrop, Thumbnail } from '@/components/ui/ImageDrop';
+import { ImageDrop, ThumbUpload } from '@/components/ui/ImageDrop';
 
 interface Estampa {
   id: string; codigoInterno: string; nombreComercial: string | null; coleccion: string | null;
@@ -170,6 +170,13 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
     if (r.ok) { setShowForm(false); resetForm(); cargar(); toast.success(editId ? 'Estampa actualizada' : 'Estampa cargada'); }
     else { const d = await r.json().catch(() => ({})); setError(d.error || 'No se pudo guardar'); }
     setSaving(false);
+  };
+
+  // Carga/cambia la foto directo desde la fila (update parcial de imagenUrl).
+  const guardarFoto = async (id: string, imagenUrl: string) => {
+    const r = await fetch(`/api/estampas/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ imagenUrl }) });
+    if (r.ok) { setLista((prev) => prev.map((e) => e.id === id ? { ...e, imagenUrl } : e)); toast.success('Foto cargada'); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo guardar la foto'); }
   };
 
   const eliminar = async (e: Estampa) => {
@@ -440,7 +447,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
             return (
               <div key={e.id} className={`flex items-center gap-3 px-4 md:px-5 py-3 transition ${sel.has(e.id) ? 'bg-amber-50' : 'hover:bg-stone-50'}`}>
                 <input type="checkbox" checked={sel.has(e.id)} onChange={() => toggleSel(e.id)} aria-label={`Seleccionar ${e.codigoInterno}`} className="rounded border-stone-300 accent-amber-500 shrink-0" />
-                <Thumbnail src={e.imagenUrl} size={36} />
+                <ThumbUpload src={e.imagenUrl} size={40} onUploaded={(url) => guardarFoto(e.id, url)} />
                 <span className="font-mono text-xs bg-stone-100 text-stone-700 px-2 py-0.5 rounded shrink-0">{e.codigoInterno}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-stone-800 truncate">
