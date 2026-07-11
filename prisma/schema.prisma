@@ -154,6 +154,22 @@ model ProyectoDiseno {
   @@map("proyectos_diseno")
 }
 
+// Idea liviana del Moodboard: nombre + marca + fotos. Al madurar se "convierte"
+// en un ProyectoDiseno (copiando fotos → moodboard); proyectoId guarda la traza.
+model Idea {
+  id         String   @id @default(cuid())
+  nombre     String
+  marca      String
+  fotos      String?  // JSON array de URLs (mismo formato que ProyectoDiseno.moodboard)
+  notas      String?
+  proyectoId String?  // set al convertir
+  archivado  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("ideas")
+}
+
 model FaseCatalogo {
   id        String         @id @default(cuid())
   nombre    String         @unique
