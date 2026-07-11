@@ -6,6 +6,7 @@ import { KANBAN_COLUMNAS, ESTADO_LABEL, type EstadoProyecto } from '@/lib/diseno
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
+import { toast } from '@/components/ui/Toaster';
 
 interface ProyectoItem {
   id:          string;
@@ -82,21 +83,44 @@ export function KanbanDiseno({ proyectos }: { proyectos: ProyectoItem[] }) {
 
 function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
   const router = useRouter();
-  const fotoPreview = (() => {
-    if (proyecto.moodboard) {
-      try {
-        const arr = JSON.parse(proyecto.moodboard);
-        if (Array.isArray(arr) && arr.length > 0) return String(arr[0]);
-      } catch { /* ignore */ }
-    }
-    return null;
+  const [over, setOver] = useState(false);
+  const [subiendo, setSubiendo] = useState(false);
+  const moodArr = (() => {
+    if (proyecto.moodboard) { try { const a = JSON.parse(proyecto.moodboard); if (Array.isArray(a)) return a.map(String); } catch { /* ignore */ } }
+    return [] as string[];
   })();
+  const fotoPreview = moodArr[0] ?? null;
+
+  // Soltar una imagen sobre la card la agrega al moodboard del proyecto.
+  const onDrop = async (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation(); setOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file || !file.type.startsWith('image/')) return;
+    setSubiendo(true);
+    const fd = new FormData(); fd.append('archivo', file);
+    const r = await fetch('/api/upload-imagen', { method: 'POST', body: fd });
+    if (r.ok) {
+      const { url } = await r.json();
+      await fetch(`/api/proyectos/${proyecto.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moodboard: [...moodArr, url] }) });
+      router.refresh();
+      toast.success('Foto agregada al moodboard');
+    } else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo subir'); }
+    setSubiendo(false);
+  };
 
   return (
     <button
       onClick={() => router.push(`/diseno/${proyecto.id}`)}
-      className="w-full bg-white rounded-xl border border-stone-200 hover:border-violet-400 hover:shadow-sm transition text-left overflow-hidden block"
+      onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
+      onDrop={onDrop}
+      className={`relative w-full bg-white rounded-xl border transition text-left overflow-hidden block ${over ? 'border-violet-400 ring-2 ring-violet-300' : 'border-stone-200 hover:border-violet-400 hover:shadow-sm'}`}
     >
+      {(over || subiendo) && (
+        <div className="absolute inset-0 z-10 bg-violet-50/80 flex items-center justify-center text-xs font-semibold text-violet-700 pointer-events-none">
+          {subiendo ? 'Subiendo…' : 'Soltá para agregar al moodboard'}
+        </div>
+      )}
       {fotoPreview && (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={fotoPreview} alt="" className="w-full h-24 object-cover bg-stone-100" />

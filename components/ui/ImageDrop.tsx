@@ -59,6 +59,74 @@ export function Thumbnail({ src, size = 36, className = '' }: { src?: string | n
   return <img src={src} alt="" style={style} className={`rounded-md object-cover border border-stone-200 shrink-0 ${className}`} />;
 }
 
+// Sube un archivo de imagen a Blob y devuelve la URL (o null si falla). Reusado por
+// los componentes de subida.
+async function subirImagen(file: File): Promise<string | null> {
+  if (!file.type.startsWith('image/')) { toast.error(`"${file.name}" no es una imagen`); return null; }
+  const fd = new FormData();
+  fd.append('archivo', file);
+  const r = await fetch('/api/upload-imagen', { method: 'POST', body: fd });
+  if (r.ok) return (await r.json()).url as string;
+  const d = await r.json().catch(() => ({}));
+  toast.error(d.error || `No se pudo subir "${file.name}"`);
+  return null;
+}
+
+// Grilla multi-imagen para armar un moodboard: arrastrás VARIAS imágenes (o click),
+// se suben a Blob y se agregan; cada una con quitar; además se puede pegar una URL.
+export function MultiImageDrop({ value, onChange }: { value: string[]; onChange: (urls: string[]) => void }) {
+  const [subiendo, setSubiendo] = useState(0);
+  const [url, setUrl] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const subirVarias = async (files: FileList | File[]) => {
+    const arr = [...files].filter((f) => f.type.startsWith('image/'));
+    if (!arr.length) return;
+    setSubiendo((n) => n + arr.length);
+    const urls = (await Promise.all(arr.map(subirImagen))).filter((u): u is string => !!u);
+    setSubiendo((n) => Math.max(0, n - arr.length));
+    if (urls.length) onChange([...value, ...urls]);
+  };
+
+  const agregarUrl = () => {
+    const u = url.trim();
+    if (!u) return;
+    onChange([...value, u]);
+    setUrl('');
+  };
+
+  return (
+    <div className="space-y-3">
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {value.map((u, i) => (
+            <div key={`${u}-${i}`} className="relative group">
+              <Thumbnail src={u} size={80} />
+              <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))}
+                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-stone-300 text-stone-500 hover:text-red-500 hover:border-red-300 text-xs leading-none shadow-sm flex items-center justify-center transition">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div
+        onClick={() => inputRef.current?.click()}
+        onDragOver={(e) => e.preventDefault()}
+        onDrop={(e) => { e.preventDefault(); if (e.dataTransfer.files?.length) subirVarias(e.dataTransfer.files); }}
+        className="rounded-xl border-2 border-dashed border-stone-300 hover:border-violet-400 bg-stone-50 py-6 text-center cursor-pointer transition text-xs text-stone-400"
+      >
+        {subiendo > 0 ? `Subiendo ${subiendo}…` : 'Arrastrá imágenes acá o hacé click'}
+      </div>
+      <div className="flex gap-2">
+        <input value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); agregarUrl(); } }}
+          placeholder="…o pegá el link de una imagen" className="flex-1 px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400" />
+        <button type="button" onClick={agregarUrl} className="px-3 py-2 rounded-xl border border-stone-200 text-stone-600 hover:border-stone-400 text-sm transition">＋</button>
+      </div>
+      <input ref={inputRef} type="file" accept="image/*" multiple className="hidden"
+        onChange={(e) => { if (e.target.files?.length) subirVarias(e.target.files); e.target.value = ''; }} />
+    </div>
+  );
+}
+
 // Miniatura chica que ADEMÁS sube: click o drag & drop sobre el cuadradito → sube a
 // Blob y llama onUploaded(url). Sirve para cargar la foto directo desde una fila.
 export function ThumbUpload({ src, size = 40, onUploaded }: { src?: string | null; size?: number; onUploaded: (url: string) => void | Promise<void> }) {

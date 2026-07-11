@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Textarea } from '@/components/ui/Textarea';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { MultiImageDrop } from '@/components/ui/ImageDrop';
 
 interface Iteracion {
   id:              string;
@@ -167,6 +168,9 @@ export function ProyectoView({ proyecto, catalogoFases, estadoActual }: Props) {
       {/* Inspiración */}
       <SeccionInspiracion proyecto={proyecto} onChange={refresh} />
 
+      {/* Moodboard */}
+      <SeccionMoodboard proyecto={proyecto} />
+
       {/* Muestras */}
       <SeccionMuestras
         proyectoId={proyecto.id}
@@ -287,6 +291,27 @@ function Box({ color, children }: { color: 'violet' | 'amber' | 'sky' | 'emerald
     stone:   'bg-stone-50   border-stone-200',
   }[color];
   return <div className={`rounded-2xl border-2 ${cls} p-5`}>{children}</div>;
+}
+
+// ───────────────────────── Moodboard ─────────────────────────
+
+function SeccionMoodboard({ proyecto }: { proyecto: Proyecto }) {
+  const parse = (m: unknown): string[] => {
+    if (Array.isArray(m)) return m.map(String);
+    if (typeof m === 'string' && m) { try { const a = JSON.parse(m); return Array.isArray(a) ? a.map(String) : []; } catch { return []; } }
+    return [];
+  };
+  const [urls, setUrls] = useState<string[]>(parse(proyecto.moodboard));
+  const guardar = async (nuevas: string[]) => {
+    setUrls(nuevas);
+    await fetch(`/api/proyectos/${proyecto.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moodboard: nuevas }) });
+  };
+  return (
+    <Card padding="none" className="p-5">
+      <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-3">Moodboard · inspo</p>
+      <MultiImageDrop value={urls} onChange={guardar} />
+    </Card>
+  );
 }
 
 // ───────────────────────── Inspiración ─────────────────────────
