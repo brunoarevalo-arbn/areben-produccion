@@ -10,6 +10,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
 import { costoEstampa } from '@/lib/costos/estampaCosto';
+import { ImageDrop, Thumbnail } from '@/components/ui/ImageDrop';
 
 interface Estampa {
   id: string; codigoInterno: string; nombreComercial: string | null; coleccion: string | null;
@@ -318,7 +319,10 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
             <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Largo diseño (cm)</label><NumInput value={parseFloat(largoCm) || 0} onChange={(n) => setLargoCm(n ? String(n) : '')} min="0" className={inp} /></div>
             <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Merma %</label><NumInput value={parseFloat(mermaPercent) || 0} onChange={(n) => setMermaPercent(n ? String(n) : '')} min="0" className={inp} /></div>
             <Input label="Producto / SKU vinculado" fullWidth value={sku} onChange={(e) => setSku(e.target.value)} placeholder="(opcional, después)" />
-            <Input label="Imagen (URL)" fullWidth value={imagenUrl} onChange={(e) => setImagenUrl(e.target.value)} placeholder="(opcional)" />
+            <div>
+              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Imagen de la estampa</label>
+              <ImageDrop value={imagenUrl || null} onChange={(u) => setImagenUrl(u ?? '')} />
+            </div>
           </div>
 
           {/* 2º tamaño opcional */}
@@ -436,6 +440,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
             return (
               <div key={e.id} className={`flex items-center gap-3 px-4 md:px-5 py-3 transition ${sel.has(e.id) ? 'bg-amber-50' : 'hover:bg-stone-50'}`}>
                 <input type="checkbox" checked={sel.has(e.id)} onChange={() => toggleSel(e.id)} aria-label={`Seleccionar ${e.codigoInterno}`} className="rounded border-stone-300 accent-amber-500 shrink-0" />
+                <Thumbnail src={e.imagenUrl} size={36} />
                 <span className="font-mono text-xs bg-stone-100 text-stone-700 px-2 py-0.5 rounded shrink-0">{e.codigoInterno}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-stone-800 truncate">

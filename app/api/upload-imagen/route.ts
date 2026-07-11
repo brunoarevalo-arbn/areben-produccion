@@ -1,28 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
+import { put } from '@vercel/blob';
+import { getSession } from '@/lib/auth';
 
+const MAX_BYTES = 6 * 1024 * 1024; // 6 MB
+
+// Sube una imagen a Vercel Blob y devuelve la URL pública. La usa el drag & drop
+// de estampas (y cualquier ImageDrop). El filesystem de Vercel es efímero, por eso
+// no se escribe a disco.
 export async function POST(req: NextRequest) {
-  try {
-    const form    = await req.formData();
-    const archivo = form.get('archivo') as File | null;
+  const session = await getSession(req);
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
 
-    if (!archivo) {
-      return NextResponse.json({ error: 'Falta archivo' }, { status: 400 });
-    }
+  const form = await req.formData();
+  const archivo = form.get('archivo');
+  if (!(archivo instanceof File)) return NextResponse.json({ error: 'Falta archivo' }, { status: 400 });
+  if (!archivo.type.startsWith('image/')) return NextResponse.json({ error: 'El archivo no es una imagen' }, { status: 400 });
+  if (archivo.size > MAX_BYTES) return NextResponse.json({ error: 'La imagen supera 6 MB' }, { status: 400 });
 
-    const bytes     = await archivo.arrayBuffer();
-    const buffer    = Buffer.from(bytes);
-    const ext       = archivo.name.split('.').pop()?.toLowerCase() ?? 'jpg';
-    const nombre    = `img-${Date.now()}.${ext}`;
-    const uploadDir = join(process.cwd(), 'public', 'uploads');
-
-    await mkdir(uploadDir, { recursive: true });
-    await writeFile(join(uploadDir, nombre), buffer);
-
-    return NextResponse.json({ url: `/uploads/${nombre}` }, { status: 201 });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Error subiendo imagen' }, { status: 500 });
-  }
+  const { url } = await put(`estampas/${archivo.name}`, archivo, { access: 'public', addRandomSuffix: true });
+  return NextResponse.json({ url }, { status: 201 });
 }

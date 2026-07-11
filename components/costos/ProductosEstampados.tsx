@@ -10,9 +10,10 @@ import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
 import { parseDatos, calcular, type Margenes } from '@/lib/costos/escandallo';
 import { costoEstampa } from '@/lib/costos/estampaCosto';
+import { Thumbnail } from '@/components/ui/ImageDrop';
 
 interface Escandallo { id: string; nombre: string; sku: string | null; marca: string | null; datos: string | null; }
-interface EstampaOpt { id: string; codigoInterno: string; nombreComercial: string | null; anchoCm: string | number; largoCm: string | number; mermaPercent: string | number; ancho2Cm: string | number; largo2Cm: string | number; merma2Percent: string | number; }
+interface EstampaOpt { id: string; codigoInterno: string; nombreComercial: string | null; imagenUrl: string | null; anchoCm: string | number; largoCm: string | number; mermaPercent: string | number; ancho2Cm: string | number; largo2Cm: string | number; merma2Percent: string | number; }
 interface LineaEstampa { id: number; estampaId: string; tamano: number; minutosEstampado: string; }
 interface BulkRow { id: number; nombre: string; lisoEscandalloId: string; estampas: LineaEstampa[]; }
 interface EstampaProducto { estampaId: string; tamano?: number; minutosEstampado?: number; costoEstampado?: number }
@@ -430,7 +431,8 @@ export function ProductosEstampados() {
               const mo = l.estampaId ? moLinea(l) : 0;
               return (
                 <div key={l.id} className="grid grid-cols-[1fr_auto] gap-2 items-center">
-                  <div className="flex gap-1">
+                  <div className="flex gap-1 items-center">
+                    {l.estampaId && <Thumbnail src={est?.imagenUrl} size={32} />}
                     <select value={l.estampaId} onChange={(e) => setLineas((p) => p.map((x) => x.id === l.id ? { ...x, estampaId: e.target.value, tamano: 1 } : x))} className={`${inp} flex-1 min-w-0`}>
                       <option value="">— elegí estampa —</option>
                       {estampas.map((e) => <option key={e.id} value={e.id}>{estampaLabel(e)}</option>)}
@@ -497,6 +499,7 @@ export function ProductosEstampados() {
                       className="rounded border-stone-300 accent-amber-500 shrink-0" />
                     <button onClick={() => toggleExp(p.id)} aria-label={abierto ? 'Ocultar detalle' : 'Ver detalle'} aria-expanded={abierto}
                       className="text-xs text-stone-400 hover:text-stone-700 w-4 shrink-0 leading-none">{abierto ? '▾' : '▸'}</button>
+                    <Thumbnail src={estampas.find((x) => x.id === p.estampas[0]?.estampaId)?.imagenUrl} size={36} />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-stone-800 truncate">{p.nombre}{p.sku && <span className="text-xs text-stone-400 font-mono ml-2">{p.sku}</span>}</p>
                       <p className="text-xs text-stone-400">{p.estampas.length} estampa{p.estampas.length !== 1 ? 's' : ''} · liso {d.liso == null ? '— (no encontrado)' : fmt$(d.liso)}</p>
