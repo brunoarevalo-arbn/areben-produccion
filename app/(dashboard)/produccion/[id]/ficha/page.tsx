@@ -26,6 +26,10 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
 
   const totalCortado = orden.cortesPorTalle.reduce((s, c) => s + c.cantidad, 0);
 
+  // Constancia: si al cortar faltaba tela según el rinde promedio (se cortó igual).
+  const faltantes = ((orden.fichaCorteData as { faltantes?: { nombre: string; faltante: number }[] } | null)?.faltantes ?? [])
+    .filter((f) => f && f.faltante > 0.001);
+
   // Consumo NETO por rollo (una ficha editada tiene CONSUMO + REVERSION + CONSUMO…).
   const { kg: kgTotal, metros: metrosTotal, porRollo } = consumoNetoPorRollo(
     orden.movimientosInsumo.map((m) => ({ rolloId: m.rolloId, cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
@@ -88,6 +92,13 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
             <div className="bg-stone-900 text-white rounded-lg px-3 py-1.5 text-sm ml-auto"><span className="opacity-70 mr-1.5">Total</span><strong className="tabular-nums">{totalCortado}</strong></div>
           </div>
         </div>
+
+        {/* Constancia de rinde ajustado (faltaba tela según rinde promedio) */}
+        {faltantes.length > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            <strong>Cortado con rinde ajustado.</strong> Según el rinde promedio faltaba tela: {faltantes.map((f) => `${f.nombre} ${fmt(f.faltante)} m`).join(' · ')}. La tela rindió más de lo estimado.
+          </div>
+        )}
 
         {/* Tela consumida (neto por rollo) */}
         <div>

@@ -8,6 +8,7 @@ import { AviosSelector, type AvioOpt, type AvioSel } from '@/components/producci
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 
 interface RolloDisp {
   id: string; codigo: string; pesoActual: string; costoUnitario: string;
@@ -199,9 +200,14 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
       const etq = tc.t.nombre.trim() || 'sin nombre';
       if (tc.t.modo === 'tizada') {
         if (tc.metrosPorUnidad <= 0) { setError(`Tizada "${etq}": cargá los metros y unidades`); return; }
-        if (tc.faltante > 0.001) { setError(`Tizada "${etq}": los rollos no alcanzan, faltan ${fmt(tc.faltante)} m`); return; }
       }
     }
+
+    // El faltante por rinde promedio NO traba: solo avisa. El rinde es un promedio
+    // y a veces la tela rinde más. Se pide confirmación y queda como constancia en la ficha.
+    const faltantes = tizadasCalc
+      .filter((tc) => tc.t.rollos.length > 0 && tc.t.modo === 'tizada' && tc.faltante > 0.001)
+      .map((tc) => ({ nombre: tc.t.nombre.trim() || 'sin nombre', faltante: tc.faltante }));
 
     // Rollos que realmente aportan metros (descarta seleccionados con consumo 0)
     const rollosFinal = rollosAgg.filter((c) => c.metrosEf > 0.001);
@@ -215,6 +221,17 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
       .filter((t) => t.cantidad > 0);
 
     if (cortesArr.length === 0) { setError('Carga al menos un talle con cantidad'); return; }
+
+    // Aviso no bloqueante: si según el rinde promedio no alcanza, se pide confirmar.
+    if (faltantes.length > 0) {
+      const detalle = faltantes.map((f) => `${f.nombre}: faltan ${fmt(f.faltante)} m`).join('\n');
+      const ok = await confirmAsync({
+        title: 'La tela podría no alcanzar',
+        message: `Según el rinde promedio faltaría tela:\n${detalle}\n\nEl rinde es un promedio y a veces la tela rinde más. ¿Registrar el corte igual?`,
+        confirmLabel: 'Registrar igual',
+      });
+      if (!ok) return;
+    }
 
     setSaving(true);
     const r = await fetch(`/api/produccion/cola/${ordenId}/corte`, {
@@ -237,6 +254,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
           costoCorte,
           modoCosto,
           fechaCorte,
+          faltantes,
         },
       }),
     });
@@ -313,7 +331,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
                   {tc.faltante > 0.001 && (
                     tc.t.rollos.length === 0
                       ? <p className="text-xs text-blue-700 mt-2">Elegí abajo el/los rollo(s) de esta tela — necesitás ~{fmt(tc.metrosNecesarios)} m.</p>
-                      : <p className="text-xs text-red-600 mt-2">Los rollos elegidos no alcanzan: faltan {fmt(tc.faltante)} m. Sumá otro rollo a esta tizada.</p>
+                      : <p className="text-xs text-amber-600 mt-2">Según el rinde promedio faltarían ~{fmt(tc.faltante)} m. Podés registrar igual (la tela puede rendir más) o sumar otro rollo.</p>
                   )}
                 </div>
               )}
