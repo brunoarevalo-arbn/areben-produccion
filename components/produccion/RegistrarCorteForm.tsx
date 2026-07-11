@@ -198,9 +198,13 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
     for (const tc of tizadasCalc) {
       if (tc.t.rollos.length === 0) continue;
       const etq = tc.t.nombre.trim() || 'sin nombre';
-      if (tc.t.modo === 'tizada') {
-        if (tc.metrosPorUnidad <= 0) { setError(`Tizada "${etq}": cargá los metros y unidades`); return; }
-      }
+      if (tc.t.modo === 'tizada' && tc.metrosPorUnidad <= 0) { setError(`Tizada "${etq}": cargá los metros y unidades`); return; }
+      // Una tizada se corta de un solo color.
+      const colores = [...new Set(tc.t.rollos.map((c) => rollosDisp.find((r) => r.id === c.rolloId)?.color?.nombre ?? 's/color'))];
+      if (colores.length > 1) { setError(`Tizada "${etq}": mezcla telas de distinto color (${colores.join(', ')}). Una tizada se corta de un solo color.`); return; }
+      // Un rollo asignado tiene que cortar algo: no se permiten rollos con 0 m de consumo.
+      const sinUso = tc.rollosCalc.find((c) => c.metrosEf <= 0.001);
+      if (sinUso) { setError(`Tizada "${etq}": el rollo ${sinUso.codigo} no consume nada (0 m). Quitalo — un rollo asignado tiene que cortar algo.`); return; }
     }
 
     // El faltante por rinde promedio NO traba: solo avisa. El rinde es un promedio
