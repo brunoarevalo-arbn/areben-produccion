@@ -25,9 +25,9 @@ const fmtFecha = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateStrin
 // editarla en el lugar. "Editar" abre el mismo formulario pre-cargado; al Guardar, el
 // backend repone y re-registra en una sola transacción (impacto neto = la diferencia).
 // Nada se toca hasta guardar.
-export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen, fichaData, prefill }: {
+export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen, fichaData, consumidoPorRollo, prefill }: {
   ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null;
-  resumen: Resumen; fichaData: FichaData | null; prefill: CortePrefill;
+  resumen: Resumen; fichaData: FichaData | null; consumidoPorRollo?: Record<string, number>; prefill: CortePrefill;
 }) {
   const [modo, setModo] = useState<'ver' | 'rapido' | 'completo'>('ver');
 
@@ -90,21 +90,25 @@ export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen,
           <div>
             <p className="text-xs text-emerald-700 uppercase tracking-widest font-bold mb-2">Tela por tizada</p>
             <div className="space-y-2">
-              {fichaData.tizadas.map((t, i) => (
-                <div key={t.id ?? i} className="bg-white rounded-lg border border-emerald-200 p-3 text-sm">
-                  <p className="font-semibold text-stone-700 mb-1">{t.nombre?.trim() || `Tizada ${i + 1}`}{t.modo === 'tizada' && t.metros ? <span className="text-stone-400 font-normal"> · {t.metros}m / {t.unidades}u</span> : null}</p>
-                  {t.rollos.length === 0 ? <p className="text-xs text-stone-400">Sin rollos</p> : (
-                    <div className="space-y-0.5">
-                      {t.rollos.map((r) => (
-                        <div key={r.rolloId} className="flex justify-between text-stone-600">
-                          <span className="font-mono text-xs">{r.codigo} · {r.nombre}</span>
-                          {r.metros ? <span className="tabular-nums">{r.metros} m</span> : null}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
+              {fichaData.tizadas.map((t, i) => {
+                // Solo los rollos que realmente consumieron (los asignados-sin-uso / vestigios no se muestran).
+                const rollosUsados = t.rollos.filter((r) => (consumidoPorRollo?.[r.rolloId] ?? 0) > 0.001);
+                return (
+                  <div key={t.id ?? i} className="bg-white rounded-lg border border-emerald-200 p-3 text-sm">
+                    <p className="font-semibold text-stone-700 mb-1">{t.nombre?.trim() || `Tizada ${i + 1}`}{t.modo === 'tizada' && t.metros ? <span className="text-stone-400 font-normal"> · {t.metros}m / {t.unidades}u</span> : null}</p>
+                    {rollosUsados.length === 0 ? <p className="text-xs text-stone-400">Sin consumo</p> : (
+                      <div className="space-y-0.5">
+                        {rollosUsados.map((r) => (
+                          <div key={r.rolloId} className="flex justify-between text-stone-600">
+                            <span className="font-mono text-xs">{r.codigo} · {r.nombre}</span>
+                            <span className="tabular-nums">{fmt(consumidoPorRollo?.[r.rolloId] ?? 0)} m</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : null}

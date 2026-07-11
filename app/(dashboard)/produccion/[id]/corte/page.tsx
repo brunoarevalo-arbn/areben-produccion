@@ -4,7 +4,7 @@ import { RegistrarCorteConCopia } from '@/components/produccion/RegistrarCorteCo
 import { CorteEditor } from '@/components/produccion/CorteEditor';
 import type { FichaData } from '@/components/produccion/RegistrarCorteForm';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { resumenConsumoTela } from '@/lib/produccion/consumo';
+import { consumoNetoPorRollo } from '@/lib/produccion/consumo';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,11 +26,17 @@ export default async function CortePage({ params, searchParams }: { params: Prom
 
   if (!orden) notFound();
 
-  const { kg: kgTotal, metros: metrosTotal } = resumenConsumoTela(
+  const { kg: kgTotal, metros: metrosTotal, porRollo } = consumoNetoPorRollo(
     orden.movimientosInsumo.map((m) => ({ rolloId: m.rolloId, cantidad: Number(m.cantidad), unidadDefault: m.rollo?.insumo.unidadDefault ?? null, rinde: m.rollo?.insumo.rinde ? Number(m.rollo.insumo.rinde) : null })),
   );
   const metrosPorU = orden.cantidad > 0 ? metrosTotal / orden.cantidad : 0;
   const kgPorU = orden.cantidad > 0 ? kgTotal / orden.cantidad : 0;
+  // Metros realmente consumidos por rollo (para mostrar solo lo consumido en "Tela por tizada").
+  const consumidoPorRollo: Record<string, number> = {};
+  for (const [rolloId, v] of porRollo) {
+    const u = (v.unidadDefault || '').toLowerCase();
+    consumidoPorRollo[rolloId] = u.includes('kg') ? v.consumo * (v.rinde || 0) : v.consumo;
+  }
 
   // Detalle guardado del form (para ver/editar idéntico). Puede faltar en fichas viejas.
   const fichaData = (orden.fichaCorteData ?? null) as FichaData | null;
@@ -62,6 +68,7 @@ export default async function CortePage({ params, searchParams }: { params: Prom
             talles: orden.cortesPorTalle.map((c) => ({ talle: c.talle, cantidad: c.cantidad })),
           }}
           fichaData={fichaData}
+          consumidoPorRollo={consumidoPorRollo}
           prefill={fichaData
             ? { fichaData }
             : {
