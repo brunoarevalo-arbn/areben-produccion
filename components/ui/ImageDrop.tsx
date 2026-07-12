@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { toast } from '@/components/ui/Toaster';
+import { openLightbox } from '@/components/ui/Lightbox';
 
 // Cuadrado para cargar una imagen: drag & drop o click, con preview y subida a
 // Vercel Blob (/api/upload-imagen). onChange recibe la URL pública (o null).
@@ -51,12 +52,18 @@ export function ImageDrop({ value, onChange }: { value: string | null; onChange:
   );
 }
 
-// Miniatura reutilizable (o placeholder gris si no hay imagen). Centraliza el <img> crudo.
-export function Thumbnail({ src, size = 36, className = '' }: { src?: string | null; size?: number; className?: string }) {
+// Miniatura reutilizable (o placeholder gris si no hay imagen). Centraliza el <img>
+// crudo y, si tiene imagen, abre el lightbox al click (preview grande). `set`/`index`
+// permiten navegar un conjunto (ej. todas las fotos de un moodboard).
+export function Thumbnail({ src, size = 36, className = '', set, index = 0 }: { src?: string | null; size?: number; className?: string; set?: string[]; index?: number }) {
   const style = { width: size, height: size };
   if (!src) return <div style={style} className={`rounded-md bg-stone-100 border border-stone-200 shrink-0 ${className}`} />;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={src} alt="" style={style} className={`rounded-md object-cover border border-stone-200 shrink-0 ${className}`} />;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" style={style}
+      onClick={(e) => { e.stopPropagation(); openLightbox(set && set.length ? set : [src], set && set.length ? index : 0); }}
+      className={`rounded-md object-cover border border-stone-200 shrink-0 cursor-zoom-in ${className}`} />
+  );
 }
 
 // Sube un archivo de imagen a Blob y devuelve la URL (o null si falla). Reusado por
@@ -101,7 +108,7 @@ export function MultiImageDrop({ value, onChange }: { value: string[]; onChange:
         <div className="flex flex-wrap gap-2">
           {value.map((u, i) => (
             <div key={`${u}-${i}`} className="relative group">
-              <Thumbnail src={u} size={80} />
+              <Thumbnail src={u} size={80} set={value} index={i} />
               <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))}
                 className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-stone-300 text-stone-500 hover:text-red-500 hover:border-red-300 text-xs leading-none shadow-sm flex items-center justify-center transition">×</button>
             </div>
@@ -146,13 +153,19 @@ export function ThumbUpload({ src, size = 40, onUploaded }: { src?: string | nul
   };
 
   return (
-    <div style={style} title="Cargar / cambiar foto"
-      onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+    <div style={style} className="relative shrink-0 group"
       onDragOver={(e) => e.preventDefault()}
-      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const f = e.dataTransfer.files?.[0]; if (f) subir(f); }}
-      className="relative shrink-0 cursor-pointer group">
-      {src ? <Thumbnail src={src} size={size} /> : (
-        <div style={style} className="rounded-md bg-stone-100 border border-dashed border-stone-300 group-hover:border-amber-400 flex items-center justify-center text-stone-400 text-lg leading-none">+</div>
+      onDrop={(e) => { e.preventDefault(); e.stopPropagation(); const f = e.dataTransfer.files?.[0]; if (f) subir(f); }}>
+      {src ? (
+        <>
+          {/* Click en la imagen → preview grande; el ＋ sube/reemplaza. */}
+          <Thumbnail src={src} size={size} />
+          <button type="button" title="Cambiar foto" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+            className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-stone-300 text-stone-500 hover:text-amber-600 text-xs leading-none shadow-sm flex items-center justify-center">＋</button>
+        </>
+      ) : (
+        <div style={style} title="Cargar foto" onClick={(e) => { e.stopPropagation(); inputRef.current?.click(); }}
+          className="rounded-md bg-stone-100 border border-dashed border-stone-300 hover:border-amber-400 flex items-center justify-center text-stone-400 text-lg leading-none cursor-pointer">+</div>
       )}
       {subiendo && <div className="absolute inset-0 rounded-md bg-white/70 flex items-center justify-center text-[9px] text-stone-600">…</div>}
       <input ref={inputRef} type="file" accept="image/*" className="hidden"

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { toast } from '@/components/ui/Toaster';
+import { openLightbox } from '@/components/ui/Lightbox';
 
 interface ProyectoItem {
   id:          string;
@@ -85,7 +86,6 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
   const router = useRouter();
   const [over, setOver] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
-  const [preview, setPreview] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const moodArr = (() => {
     if (proyecto.moodboard) { try { const a = JSON.parse(proyecto.moodboard); if (Array.isArray(a)) return a.map(String); } catch { /* ignore */ } }
@@ -129,7 +129,7 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
             {fotoPreview ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fotoPreview} alt="" title="Ver foto" onClick={(e) => { e.stopPropagation(); setPreview(true); }}
+                <img src={fotoPreview} alt="" title="Ver foto" onClick={(e) => { e.stopPropagation(); openLightbox(moodArr, 0); }}
                   className={`w-12 h-12 rounded-md object-cover border cursor-zoom-in ${over ? 'border-violet-400' : 'border-stone-200'}`} />
                 <button type="button" title="Agregar otra foto" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
                   className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-stone-300 text-stone-500 hover:text-violet-600 text-xs leading-none shadow-sm flex items-center justify-center">＋</button>
@@ -154,15 +154,6 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
           </div>
         </div>
       </div>
-
-      {/* Preview grande (lightbox) */}
-      {preview && fotoPreview && (
-        <div onClick={(e) => { e.stopPropagation(); setPreview(false); }}
-          className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-6 cursor-zoom-out">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={fotoPreview} alt="" className="max-w-full max-h-full rounded-lg shadow-xl" />
-        </div>
-      )}
     </div>
   );
 }

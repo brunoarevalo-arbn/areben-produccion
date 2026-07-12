@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ConfirmHost } from "@/components/ui/ConfirmProvider";
 import { ToastHost } from "@/components/ui/Toaster";
+import { LightboxHost } from "@/components/ui/Lightbox";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,6 +31,7 @@ export default function RootLayout({
         {children}
         <ConfirmHost />
         <ToastHost />
+        <LightboxHost />
       </body>
     </html>
   );
