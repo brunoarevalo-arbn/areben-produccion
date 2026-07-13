@@ -170,6 +170,23 @@ model Idea {
   @@map("ideas")
 }
 
+// Diseño confirmado / geometral con estampa que ya se viene. Misma modalidad que
+// el Moodboard (fotos), pero para lanzamientos confirmados: el equipo ve lo que
+// se lanza sin consultar a diseño. Sin flujo de "convertir a proyecto".
+model Lanzamiento {
+  id            String    @id @default(cuid())
+  nombre        String
+  marca         String
+  fotos         String?   // JSON array de URLs (mismo formato que Idea.fotos)
+  estado        String    @default("Confirmado") // Confirmado | En producción | Lanzado
+  fechaEstimada DateTime?
+  notas         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("lanzamientos")
+}
+
 model FaseCatalogo {
   id        String         @id @default(cuid())
   nombre    String         @unique

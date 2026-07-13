@@ -32,6 +32,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     sub: [
       { label: 'Proyectos', href: '/diseno', nuevoHref: '/diseno/nuevo' },
       { label: 'Moodboard', href: '/diseno/moodboard' },
+      { label: 'Lanzamientos', href: '/diseno/lanzamientos' },
       { label: 'Molderías', href: '/diseno/molderias' },
     ],
   },
