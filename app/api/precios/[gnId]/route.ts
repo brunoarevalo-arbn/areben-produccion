@@ -17,7 +17,10 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   const gnId = Number((await params).gnId);
   if (!Number.isFinite(gnId)) return NextResponse.json({ error: 'gnId inválido' }, { status: 400 });
   const body = await req.json();
-  const data: { pvpManual?: number | null; costoManual?: number | null } = {};
+  const data: {
+    pvpManual?: number | null; costoManual?: number | null;
+    precioPromo?: number | null; promoDescuentoPct?: number | null; promoAt?: Date | null;
+  } = {};
   if ('pvpManual' in body) {
     const { ok, val } = parseOverride(body.pvpManual);
     if (!ok) return NextResponse.json({ error: 'PVP inválido' }, { status: 400 });
@@ -27,6 +30,19 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     const { ok, val } = parseOverride(body.costoManual);
     if (!ok) return NextResponse.json({ error: 'Costo inválido' }, { status: 400 });
     data.costoManual = val;
+  }
+  // Confirmar / desconfirmar promo de Sale. precioPromo:null limpia la promo.
+  if ('precioPromo' in body) {
+    const { ok, val } = parseOverride(body.precioPromo);
+    if (!ok) return NextResponse.json({ error: 'Precio promo inválido' }, { status: 400 });
+    data.precioPromo = val;
+    data.promoAt = val != null ? new Date() : null;
+    if (val == null) data.promoDescuentoPct = null;
+  }
+  if ('promoDescuentoPct' in body) {
+    const { ok, val } = parseOverride(body.promoDescuentoPct);
+    if (!ok) return NextResponse.json({ error: 'Descuento inválido' }, { status: 400 });
+    data.promoDescuentoPct = val;
   }
   const row = await prisma.precioProducto.upsert({
     where:  { gnId },

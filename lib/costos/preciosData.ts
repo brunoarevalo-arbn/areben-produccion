@@ -23,6 +23,9 @@ export interface FilaPrecio {
   markup: number | null;
   margen: number | null;
   overrideAt: string | null;  // updatedAt del override manual (para saber qué precios están viejos)
+  precioPromo: number | null;       // precio promocional confirmado en Sale
+  promoDescuentoPct: number | null; // % con el que se confirmó
+  promoAt: string | null;           // cuándo se confirmó
 }
 
 export interface PreciosResult {
@@ -89,6 +92,9 @@ export async function construirFilasPrecios(): Promise<PreciosResult> {
       markup,
       margen,
       overrideAt: ov ? ov.updatedAt.toISOString() : null,
+      precioPromo: ov?.precioPromo ?? null,
+      promoDescuentoPct: ov?.promoDescuentoPct ?? null,
+      promoAt: ov?.promoAt ? ov.promoAt.toISOString() : null,
     });
   }
 

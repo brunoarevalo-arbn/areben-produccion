@@ -976,10 +976,13 @@ model GnProducto {
 // Override manual del PVP por producto GN (correción o cuando GN no trae precio).
 // Separado de GnProducto para que la sync no lo pise. PVP efectivo = pvpManual ?? GnProducto.precioRetail.
 model PrecioProducto {
-  gnId        Int      @id          // id del producto en Gestión Nube
-  pvpManual   Float?                // override manual del PVP minorista (IVA incluido)
-  costoManual Float?                // costo neto cargado a mano (cuando el SKU no matchea un escandallo)
-  updatedAt   DateTime @updatedAt
+  gnId              Int       @id     // id del producto en Gestión Nube
+  pvpManual         Float?            // override manual del PVP minorista (IVA incluido)
+  costoManual       Float?            // costo neto cargado a mano (cuando el SKU no matchea un escandallo)
+  precioPromo       Float?            // precio promocional confirmado en Sale (c/IVA); null = sin promo
+  promoDescuentoPct Float?            // % de descuento con el que se confirmó la promo
+  promoAt           DateTime?         // cuándo se confirmó la promo
+  updatedAt         DateTime  @updatedAt
 
   @@map("precios_producto")
 }

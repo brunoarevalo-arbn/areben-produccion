@@ -121,6 +121,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
       { label: 'Resumen',                    href: '/precios' },
       { label: 'Lista de precios',           href: '/precios/lista' },
       { label: 'Comisiones y medios de pago', href: '/precios/comisiones' },
+      { label: 'Descuentos / Sale',           href: '/precios/sale' },
     ],
   },
   {

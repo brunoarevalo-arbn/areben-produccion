@@ -27,3 +27,68 @@ export function pvpDesdeMarkup(costoNeto: number, markupPct: number, ivaPct: num
 export function aplicarDescuento(pvp: number, descuentoPct: number): number {
   return pvp * (1 - descuentoPct / 100);
 }
+
+// ── Margen neto real (Sale) ──────────────────────────────────────────────────
+// Contempla la forma de pago (comisión, costo financiero, descuento) y canal, más
+// los impuestos globales (IVA, IIBB, DREI, Ganancias). Devuelve el desglose línea
+// por línea para mostrarlo transparente. Criterios validados con Bruno:
+//  · descuento Sale + descuento de la forma de pago se ACUMULAN (suma), tope 100%.
+//  · IVA SIEMPRE resta (el ingreso se toma neto); si saldoIvaFavor, se aclara que
+//    no sale de caja (margenSinPagarIva lo suma de nuevo, informativo).
+//  · IIBB y DREI sobre la venta bruta; Ganancias sobre la utilidad. Los tres solo
+//    si la forma de pago "aplica impuestos".
+//  · comisión y costo financiero sobre el total cobrado (c/IVA).
+export interface MargenNetoInput {
+  pvp: number;                 // PVP con IVA (efectivo)
+  costo: number | null;        // costo neto
+  descuentoSalePct: number;    // rebaja que se está probando
+  descuentoFormaPct: number;   // descuento propio de la forma de pago
+  comisionPct: number;
+  costoFinancieroPct: number;
+  costoCanal: number;          // costo del canal por venta
+  costoCanalEsPct: boolean;    // true: % sobre la venta · false: $ fijo
+  aplicaImpuestos: boolean;
+  ivaPct: number;
+  iibbPct: number;
+  dreiPct: number;
+  gananciasPct: number;
+  saldoIvaFavor: boolean;
+}
+export interface MargenNetoCalc {
+  descuentoTotalPct: number;
+  precioCobrado: number;       // con IVA
+  precioNeto: number;          // sin IVA
+  ivaDebito: number;
+  comision: number;
+  costoFinanciero: number;
+  costoCanal: number;
+  iibb: number;
+  drei: number;
+  ganancias: number;
+  costo: number;
+  margenNeto: number;          // $ por unidad
+  margenNetoPct: number | null;
+  margenSinPagarIva: number;   // informativo, cuando hay saldo IVA a favor
+}
+
+export function calcularMargenNeto(i: MargenNetoInput): MargenNetoCalc {
+  const descuentoTotalPct = Math.min(100, Math.max(0, i.descuentoSalePct + i.descuentoFormaPct));
+  const precioCobrado = i.pvp * (1 - descuentoTotalPct / 100);
+  const ivaDebito = precioCobrado * i.ivaPct / (100 + i.ivaPct);
+  const precioNeto = precioCobrado - ivaDebito;
+  const comision = i.comisionPct / 100 * precioCobrado;
+  const costoFinanciero = i.costoFinancieroPct / 100 * precioCobrado;
+  const costoCanal = i.costoCanalEsPct ? i.costoCanal / 100 * precioCobrado : i.costoCanal;
+  const iibb = i.aplicaImpuestos ? i.iibbPct / 100 * precioCobrado : 0;
+  const drei = i.aplicaImpuestos ? i.dreiPct / 100 * precioCobrado : 0;
+  const costo = i.costo ?? 0;
+  const utilidad = precioNeto - costo - comision - costoFinanciero - costoCanal - iibb - drei;
+  const ganancias = i.aplicaImpuestos ? i.gananciasPct / 100 * Math.max(0, utilidad) : 0;
+  const margenNeto = utilidad - ganancias;
+  const margenNetoPct = precioNeto > 0 ? margenNeto / precioNeto * 100 : null;
+  const margenSinPagarIva = i.saldoIvaFavor ? margenNeto + ivaDebito : margenNeto;
+  return {
+    descuentoTotalPct, precioCobrado, precioNeto, ivaDebito, comision, costoFinanciero,
+    costoCanal, iibb, drei, ganancias, costo, margenNeto, margenNetoPct, margenSinPagarIva,
+  };
+}
