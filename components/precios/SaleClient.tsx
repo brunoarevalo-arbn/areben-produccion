@@ -53,18 +53,21 @@ export function SaleClient() {
   const forma = canal?.comisiones.find((f) => f.id === formaId) ?? canal?.comisiones[0];
   useEffect(() => { if (canal && !canal.comisiones.some((f) => f.id === formaId)) setFormaId(canal.comisiones[0]?.id ?? ''); }, [canalId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Margen neto de una fila con la forma/canal elegidos.
+  // Margen neto de un producto con una forma de pago dada (y el descuento Sale de la fila).
+  const calcConForma = (f: Fila, dSale: number, fp: Forma | undefined) => {
+    if (f.pvpEfectivo == null || !canal || !fp) return null;
+    return calcularMargenNeto({
+      pvp: f.pvpEfectivo, costo: f.costoNeto, descuentoSalePct: dSale, descuentoFormaPct: fp.descuentoPct,
+      comisionPct: fp.comisionPct, costoFinancieroPct: fp.costoFinancieroPct,
+      costoCanal: canal.costoPorVenta, costoCanalEsPct: canal.costoEsPct, aplicaImpuestos: fp.aplicaImpuestos,
+      ivaPct: config.ivaVenta, iibbPct: config.iibbPct, dreiPct: config.dreiPct, gananciasPct: config.gananciasPct, saldoIvaFavor: config.saldoIvaFavor,
+    });
+  };
+  // Fila con la forma elegida (para el margen del renglón).
   const calcFila = (f: Fila) => {
     const dSale = descRow[f.gnId] ?? descuento;
     const precioPromoLista = f.pvpEfectivo != null ? f.pvpEfectivo * (1 - dSale / 100) : null; // lo que se sube a GN (solo desc. Sale)
-    if (f.pvpEfectivo == null || !canal || !forma) return { dSale, precioPromoLista, calc: null };
-    const calc = calcularMargenNeto({
-      pvp: f.pvpEfectivo, costo: f.costoNeto, descuentoSalePct: dSale, descuentoFormaPct: forma.descuentoPct,
-      comisionPct: forma.comisionPct, costoFinancieroPct: forma.costoFinancieroPct,
-      costoCanal: canal.costoPorVenta, costoCanalEsPct: canal.costoEsPct, aplicaImpuestos: forma.aplicaImpuestos,
-      ivaPct: config.ivaVenta, iibbPct: config.iibbPct, dreiPct: config.dreiPct, gananciasPct: config.gananciasPct, saldoIvaFavor: config.saldoIvaFavor,
-    });
-    return { dSale, precioPromoLista, calc };
+    return { dSale, precioPromoLista, calc: calcConForma(f, dSale, forma) };
   };
 
   const visibles = useMemo(() => (soloConfirmados ? filas.filter((f) => f.precioPromo != null) : filas), [filas, soloConfirmados]);
@@ -185,11 +188,41 @@ export function SaleClient() {
                   </tr>
                   {abierto && calc && (
                     <tr className="bg-stone-50/60">
-                      <td colSpan={8} className="px-6 py-3">
-                        <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-stone-600">
-                          <span>Precio cobrado (c/desc {pct(calc.descuentoTotalPct)}): <b className="tabular-nums">{money(calc.precioCobrado)}</b></span>
-                          <span>Neto s/IVA: <b className="tabular-nums">{money(calc.precioNeto)}</b></span>
-                          <span className={config.saldoIvaFavor ? 'text-emerald-600' : ''}>− IVA: <b className="tabular-nums">{money(calc.ivaDebito)}</b>{config.saldoIvaFavor ? ' (no se paga)' : ''}</span>
+                      <td colSpan={8} className="px-6 py-4 space-y-3">
+                        {/* Comparativo por medio de pago */}
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-stone-400 mb-1">Margen por medio de pago · precio promo {money(precioPromoLista)}</p>
+                          <table className="text-xs">
+                            <thead>
+                              <tr className="text-stone-400 text-left">
+                                <th className="pr-6 py-1 font-semibold">Forma de pago</th>
+                                <th className="pr-6 py-1 font-semibold text-right">Precio cobrado</th>
+                                <th className="pr-6 py-1 font-semibold text-right">Margen neto</th>
+                                <th className="pr-6 py-1 font-semibold text-right">Ganancia $/u</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {canal.comisiones.map((fp) => {
+                                const c = calcConForma(f, dSale, fp);
+                                if (!c) return null;
+                                const sel = fp.id === forma?.id;
+                                return (
+                                  <tr key={fp.id} className={sel ? 'font-semibold' : ''}>
+                                    <td className="pr-6 py-0.5">{fp.nombre}{sel && <span className="text-amber-600"> ◂</span>}{!fp.aplicaImpuestos && <span className="text-stone-400 font-normal"> · s/factura</span>}</td>
+                                    <td className="pr-6 py-0.5 text-right tabular-nums text-stone-600">{money(c.precioCobrado)}</td>
+                                    <td className={`pr-6 py-0.5 text-right tabular-nums ${margenColor(c.margenNetoPct)}`}>{pct(c.margenNetoPct)}</td>
+                                    <td className={`pr-6 py-0.5 text-right tabular-nums ${margenColor(c.margenNetoPct)}`}>{money(c.margenNeto)}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        {/* Desglose del medio elegido */}
+                        <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-stone-600 border-t border-stone-200 pt-2">
+                          <span className="text-stone-400">Desglose {forma?.nombre}:</span>
+                          <span>Cobrado (desc {pct(calc.descuentoTotalPct)}): <b className="tabular-nums">{money(calc.precioCobrado)}</b></span>
+                          {calc.ivaDebito > 0 && <span className={config.saldoIvaFavor ? 'text-emerald-600' : ''}>− IVA: <b className="tabular-nums">{money(calc.ivaDebito)}</b>{config.saldoIvaFavor ? ' (no se paga)' : ''}</span>}
                           <span>− Costo: <b className="tabular-nums">{money(calc.costo)}</b></span>
                           <span>− Comisión: <b className="tabular-nums">{money(calc.comision)}</b></span>
                           {calc.costoFinanciero > 0 && <span>− Costo financiero: <b className="tabular-nums">{money(calc.costoFinanciero)}</b></span>}
@@ -197,8 +230,8 @@ export function SaleClient() {
                           {calc.iibb > 0 && <span>− IIBB: <b className="tabular-nums">{money(calc.iibb)}</b></span>}
                           {calc.drei > 0 && <span>− DREI: <b className="tabular-nums">{money(calc.drei)}</b></span>}
                           {calc.ganancias > 0 && <span>− Ganancias: <b className="tabular-nums">{money(calc.ganancias)}</b></span>}
-                          <span className="text-stone-800">= Margen neto: <b className="tabular-nums">{money(calc.margenNeto)}</b> ({pct(calc.margenNetoPct)})</span>
-                          {config.saldoIvaFavor && <span className="text-emerald-600">Margen sin pagar IVA: <b className="tabular-nums">{money(calc.margenSinPagarIva)}</b></span>}
+                          <span className="text-stone-800">= <b className="tabular-nums">{money(calc.margenNeto)}</b> ({pct(calc.margenNetoPct)})</span>
+                          {config.saldoIvaFavor && calc.ivaDebito > 0 && <span className="text-emerald-600">Sin pagar IVA: <b className="tabular-nums">{money(calc.margenSinPagarIva)}</b></span>}
                         </div>
                       </td>
                     </tr>
