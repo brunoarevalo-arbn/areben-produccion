@@ -34,8 +34,19 @@ async function gnGet<T = unknown>(path: string, tries = 4): Promise<T> {
   throw new GestionNubeError(`Gestión Nube no respondió (${last}). Su API está inestable, probá de nuevo en un rato.`);
 }
 
-export interface GnProducto { id: number; code: string; name: string; category: string; provider: string; }
+export interface GnProducto {
+  id: number; code: string; name: string; category: string; provider: string;
+  retailer_price?: string | number | null;   // PVP minorista (IVA incluido), viene como string "15990.00"
+  wholesaler_price?: string | number | null; // precio mayorista
+}
 interface ProductosResp { data: GnProducto[]; meta?: { has_more_pages?: boolean } }
+
+// GN manda los precios como string ("15990.00"); 0/"0.00"/vacío => null (sin precio cargado).
+export function parseGnPrecio(v: string | number | null | undefined): number | null {
+  if (v == null) return null;
+  const n = typeof v === 'number' ? v : parseFloat(v);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
 
 const esPropio = (p: GnProducto) => PROVEEDORES_PROPIOS.some((x) => (p.provider || '').toLowerCase().includes(x));
 

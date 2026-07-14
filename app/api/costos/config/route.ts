@@ -21,6 +21,8 @@ export async function PUT(req: NextRequest) {
   if (body.margenDesarrollo !== undefined)   data.margenDesarrollo   = Number(body.margenDesarrollo) || 0;
   if (body.margenFallas !== undefined)       data.margenFallas       = Number(body.margenFallas) || 0;
   if (body.estampadoValorHora !== undefined) data.estampadoValorHora = Number(body.estampadoValorHora) || 0;
+  if (body.ivaVenta !== undefined)           data.ivaVenta           = Number(body.ivaVenta) || 0;
+  if (body.markupVentaDefault !== undefined) data.markupVentaDefault = Number(body.markupVentaDefault) || 0;
   const cfg = await prisma.configCostos.upsert({
     where:  { id: ID },
     create: { id: ID, ...data },

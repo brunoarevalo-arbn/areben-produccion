@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma';
-import { paginaProductos, esProductoPropio, stockDeProducto, paginaVentas, GestionNubeError } from './client';
+import { paginaProductos, esProductoPropio, stockDeProducto, paginaVentas, parseGnPrecio, GestionNubeError } from './client';
 
 const SYNC_ID = 'main';
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -117,10 +117,12 @@ export async function runSyncBatch({ budgetMs = 45000, reiniciar = false }: { bu
       total = t;
       for (const p of data) {
         if (!esProductoPropio(p)) continue;
+        const precioRetail    = parseGnPrecio(p.retailer_price);
+        const precioMayorista = parseGnPrecio(p.wholesaler_price);
         await prisma.gnProducto.upsert({
           where:  { gnId: p.id },
-          create: { gnId: p.id, code: p.code || null, name: p.name, provider: p.provider, category: p.category || null },
-          update: { code: p.code || null, name: p.name, provider: p.provider, category: p.category || null },
+          create: { gnId: p.id, code: p.code || null, name: p.name, provider: p.provider, category: p.category || null, precioRetail, precioMayorista },
+          update: { code: p.code || null, name: p.name, provider: p.provider, category: p.category || null, precioRetail, precioMayorista },
         });
         propios++;
       }

@@ -340,6 +340,8 @@ model ConfigCostos {
   dtfAnchoCm       Float    @default(58) // ancho del rollo DTF
   dtfMermaDefault  Float    @default(0)  // % merma default de estampas
   estampadoValorHora Float  @default(0)  // $/hora de MO de estampería ($/min = /60)
+  ivaVenta         Float    @default(21)  // % IVA de venta (para separar PVP del costo neto)
+  markupVentaDefault Float  @default(130) // markup % s/ costo por defecto (simulador de precios)
   updatedAt        DateTime @updatedAt
 
   @@map("config_costos")
@@ -928,9 +930,22 @@ model GnProducto {
   name     String
   provider String
   category String?
+  precioRetail     Float?          // retailer_price de GN: PVP minorista (IVA incluido)
+  precioMayorista  Float?          // wholesaler_price de GN: precio mayorista
   syncedAt DateTime @default(now()) @updatedAt
 
   @@map("gn_productos")
+}
+
+// Override manual del PVP por producto GN (correción o cuando GN no trae precio).
+// Separado de GnProducto para que la sync no lo pise. PVP efectivo = pvpManual ?? GnProducto.precioRetail.
+model PrecioProducto {
+  gnId        Int      @id          // id del producto en Gestión Nube
+  pvpManual   Float?                // override manual del PVP minorista (IVA incluido)
+  costoManual Float?                // costo neto cargado a mano (cuando el SKU no matchea un escandallo)
+  updatedAt   DateTime @updatedAt
+
+  @@map("precios_producto")
 }
 
 // Cursor de la sincronización del catálogo GN (resumible): permite continuar donde
