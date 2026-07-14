@@ -43,8 +43,12 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
   const fecha = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
 
   // Texto para copiar y mandar por WhatsApp a administración (costo + descripción).
+  // Si hay nombre comercial, va arriba de todo en negrita; abajo el SKU y el nombre técnico.
   const resumenTexto = [
-    `*${escandallo.sku || escandallo.nombre}*${escandallo.sku ? ` — ${escandallo.nombre}` : ''}`,
+    escandallo.nombreComercial ? `*${escandallo.nombreComercial}*` : null,
+    escandallo.nombreComercial
+      ? `${escandallo.sku ? `${escandallo.sku} — ` : ''}${escandallo.nombre}`
+      : `*${escandallo.sku || escandallo.nombre}*${escandallo.sku ? ` — ${escandallo.nombre}` : ''}`,
     escandallo.marca ? `Marca: ${escandallo.marca}` : null,
     escandallo.notas ? `\n${escandallo.notas}` : null,
     ``,
