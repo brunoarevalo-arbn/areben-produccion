@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     where: { sku: { equals: sku, mode: 'insensitive' }, fichaCorteCargada: true },
     orderBy: { createdAt: 'desc' },
     include: {
-      avios: { include: { etiqueta: { select: { nombre: true } } } },
+      avios: { include: { etiqueta: { select: { nombre: true, precio: true } } } },
       movimientosInsumo: {
         where: { rolloId: { not: null } },
         include: { rollo: { select: { insumo: { select: { unidadDefault: true, rinde: true } } } } },
@@ -33,13 +33,21 @@ export async function GET(req: NextRequest) {
   const costoTelaUnit = cant > 0 ? (Number(orden.costoTela) + Number(orden.costoInsumosSecundarios)) / cant : null;
   const costoCorteUnit = cant > 0 ? Number(orden.costoCorte) / cant : null;
 
+  // Avíos de la ficha con su costo por prenda (cantidad de OrdenAvio ya es por prenda).
+  const avios = orden.avios.map((a) => {
+    const precio = Number(a.etiqueta.precio) || 0;
+    return { nombre: a.etiqueta.nombre, cantidad: a.cantidad, costo: precio * a.cantidad };
+  });
+  const costoAviosUnit = avios.reduce((s, a) => s + a.costo, 0);
+
   return NextResponse.json({
     encontrado: true,
     cantidad: cant,
     costoTelaUnit,
     costoCorteUnit,
+    costoAviosUnit,
     kgUnit: cant > 0 ? kg / cant : 0,
     metrosUnit: cant > 0 ? metros / cant : 0,
-    avios: orden.avios.map((a) => ({ nombre: a.etiqueta.nombre, cantidad: a.cantidad })),
+    avios,
   });
 }

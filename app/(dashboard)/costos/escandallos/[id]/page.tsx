@@ -2,13 +2,11 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { PrintButton } from '@/components/costos/PrintButton';
-import { CopiarResumen } from '@/components/costos/CopiarResumen';
 import { parseDatos, telaCosto, itemCosto, calcular } from '@/lib/costos/escandallo';
 
 export const dynamic = 'force-dynamic';
 
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
-function fmtC(n: number) { return `$${Math.round(n).toLocaleString('es-AR')}`; } // compacto para el mensaje
 
 export default async function EscandalloPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -42,27 +40,12 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
 
   const fecha = new Date().toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
 
-  // Texto para copiar y mandar por WhatsApp a administración (costo + descripción).
-  // Si hay nombre comercial, va arriba de todo en negrita; abajo el SKU y el nombre técnico.
-  const resumenTexto = [
-    escandallo.nombreComercial ? `*${escandallo.nombreComercial}*` : null,
-    escandallo.nombreComercial
-      ? `${escandallo.sku ? `${escandallo.sku} — ` : ''}${escandallo.nombre}`
-      : `*${escandallo.sku || escandallo.nombre}*${escandallo.sku ? ` — ${escandallo.nombre}` : ''}`,
-    escandallo.marca ? `Marca: ${escandallo.marca}` : null,
-    escandallo.notas ? `\n${escandallo.notas}` : null,
-    ``,
-    `💵 Costo unitario: ${fmtC(costoTotal)}`,
-    `_Telas ${fmtC(costoTelas)} · Servicios ${fmtC(costoServicios)} · MO ${fmtC(costoMO)}${costoVarios > 0 ? ` · Varios ${fmtC(costoVarios)}` : ''} · Avíos ${fmtC(costoAvios)}_`,
-  ].filter((l) => l !== null).join('\n');
-
   return (
     <div>
       {/* Barra de acción */}
       <div className="print:hidden sticky top-0 z-10 bg-white border-b border-stone-200 px-6 py-3 flex items-center gap-4">
         <Link href="/costos" className="text-sm text-stone-500 hover:text-stone-800 transition">← Volver</Link>
         <div className="flex-1" />
-        <CopiarResumen texto={resumenTexto} />
         <PrintButton />
       </div>
 

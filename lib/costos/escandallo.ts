@@ -55,6 +55,7 @@ export interface DatosEscandallo {
   margenFallas: number;
   costoTelaFicha?: number;
   costoCorteFicha?: number; // costo de corte por prenda traído de la ficha (un solo corte por SKU)
+  costoAviosFicha?: number; // costo de avíos por prenda traído de la ficha (bloquea la carga manual)
 }
 
 export interface Margenes { margenDesarrollo: number; margenFallas: number; }
@@ -169,6 +170,7 @@ export function parseDatos(raw: string | null | undefined): DatosEscandallo {
     margenFallas: num(p.margenFallas, 5),
     costoTelaFicha: typeof p.costoTelaFicha === 'number' ? p.costoTelaFicha : undefined,
     costoCorteFicha: typeof p.costoCorteFicha === 'number' ? p.costoCorteFicha : undefined,
+    costoAviosFicha: typeof p.costoAviosFicha === 'number' ? p.costoAviosFicha : undefined,
   };
 }
 
@@ -196,9 +198,13 @@ export function calcular(d: DatosEscandallo, costoMinuto: number, margenes: Marg
   const costoMO         = d.tiempoConfeccion * costoMinuto;
   const costoVarios     = d.varios.reduce((s, v) => s + itemCosto(v), 0);
   const costoEmbolsado  = d.avios.tiempoEmbolsado * costoMinuto;
-  const costoAvios      = d.avios.etiquetaPrincipal + d.avios.etiquetaComposicion +
-    d.avios.bolsaPolipropileno + costoEmbolsado +
-    d.avios.extras.reduce((s, e) => s + itemCosto(e), 0);
+  // Si la ficha trae avíos, su costo reemplaza los materiales manuales (etiquetas/bolsa/extras);
+  // el embolsado (mano de obra) se suma siempre.
+  const costoAviosMat   = d.costoAviosFicha != null
+    ? d.costoAviosFicha
+    : d.avios.etiquetaPrincipal + d.avios.etiquetaComposicion + d.avios.bolsaPolipropileno +
+      d.avios.extras.reduce((s, e) => s + itemCosto(e), 0);
+  const costoAvios      = costoAviosMat + costoEmbolsado;
   const costoBase       = costoTelas + costoServicios + costoMO + costoVarios + costoAvios;
   const conDesarrollo   = costoBase * (1 + margenes.margenDesarrollo / 100);
   const costoTotal      = conDesarrollo * (1 + margenes.margenFallas / 100);

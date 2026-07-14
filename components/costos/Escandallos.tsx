@@ -6,7 +6,7 @@ import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SkuChip } from '@/components/ui/SkuChip';
-import { Select } from '@/components/ui/Select';
+import { CopiarResumen } from '@/components/costos/CopiarResumen';
 import {
   type DatosEscandallo, type Margenes, type Tela, type ItemExtra,
   DEFAULT_DATOS, TELA_EMPTY, TIRA_EMPTY,
@@ -54,7 +54,6 @@ export function Escandallos() {
   const [etiquetas, setEtiquetas] = useState<EtiquetaOpt[]>([]);
   const [costosCorte, setCostosCorte] = useState<CostoCorteOpt[]>([]);
   const [telasCatalogo, setTelasCatalogo] = useState<TelaOpt[]>([]);
-  const [modoProducido, setModoProducido] = useState(false);
   const [subTab, setSubTab] = useState<'pendientes' | 'listos'>('pendientes');
   const [formTab, setFormTab] = useState<'producto' | 'materiales' | 'procesos'>('producto');
   const [verDescartados, setVerDescartados] = useState(false);
@@ -132,7 +131,7 @@ export function Escandallos() {
   const [tiempoProduccion,   setTiempoProduccion]   = useState<{ minutos: number; registros: number; cantidadTotal: number } | null>(null);
   const [tiempoLote,         setTiempoLote]         = useState<{ minutos: number; colores: number; cantidadTotal: number } | null>(null);
   const [sinDatosProduccion, setSinDatosProduccion] = useState(false);
-  const [fichaResumen,       setFichaResumen]       = useState<{ costoTelaUnit: number | null; costoCorteUnit: number | null; kgUnit: number; metrosUnit: number; avios: { nombre: string; cantidad: number }[] } | null>(null);
+  const [fichaResumen,       setFichaResumen]       = useState<{ costoTelaUnit: number | null; costoCorteUnit: number | null; costoAviosUnit: number; kgUnit: number; metrosUnit: number; avios: { nombre: string; cantidad: number; costo: number }[] } | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -168,6 +167,16 @@ export function Escandallos() {
             };
           });
         }
+        // Si la ficha trae avíos, aplicamos su costo (bloquea la carga manual), salvo
+        // que el escandallo ya tenga avíos cargados a mano o un costo de ficha aplicado.
+        if (Array.isArray(d.avios) && d.avios.length > 0) {
+          setDatos((prev) => {
+            const a = prev.avios;
+            const tieneAviosManuales = a.etiquetaPrincipal > 0 || a.etiquetaComposicion > 0 || a.bolsaPolipropileno > 0 || a.extras.length > 0;
+            if (prev.costoAviosFicha != null || tieneAviosManuales) return prev;
+            return { ...prev, costoAviosFicha: d.costoAviosUnit };
+          });
+        }
       })
       .catch(() => {});
     // Tiempo de costura: se trae solo al poner el SKU. Si el SKU es de un lote,
@@ -192,7 +201,6 @@ export function Escandallos() {
     setNombre(''); setNombreComercial(''); setSku(''); setMarca(''); setTipoPrenda(''); setNotas('');
     setDatos(deepClone(DEFAULT_DATOS)); setEditId(null); setShowForm(false);
     setTiempoProduccion(null); setSinDatosProduccion(false);
-    setModoProducido(false);
   };
 
   const openEdit = (e: Escandallo) => {
@@ -320,15 +328,10 @@ export function Escandallos() {
     setLoadingTiempo(false);
   };
 
-  const onSelectProducidoSku = (skuSel: string) => {
-    const p = productos.find(x => x.sku === skuSel);
-    if (p) seleccionarProducto(p);
-  };
-
   const costearPendiente = (p: ProductoProd) => {
+    resetForm();
     setFormTab('producto');
     setShowForm(true);
-    setModoProducido(true);
     seleccionarProducto(p);
   };
 
@@ -550,6 +553,16 @@ export function Escandallos() {
                           )}
                         </div>
                         <div className="flex gap-2 shrink-0">
+                          <CopiarResumen compact label="📋 Copiar" texto={[
+                            e.nombreComercial ? `*${e.nombreComercial}*` : null,
+                            e.nombreComercial
+                              ? `${e.sku ? `${e.sku} — ` : ''}${e.nombre}`
+                              : `*${e.sku || e.nombre}*${e.sku ? ` — ${e.nombre}` : ''}`,
+                            e.marca ? `Marca: ${e.marca}` : null,
+                            e.notas?.trim() ? `\n${e.notas.trim()}` : null,
+                            ``,
+                            `💵 Costo unitario: $${Math.round(c?.costoTotal ?? 0).toLocaleString('es-AR')}`,
+                          ].filter((l) => l !== null).join('\n')} />
                           <button onClick={() => router.push(`/costos/escandallos/${e.id}`)}
                             className="text-xs px-3 py-1.5 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-50 transition">
                             Ver PDF
@@ -572,7 +585,7 @@ export function Escandallos() {
                     );
                   })}
                 </div>
-                <Button onClick={() => { setFormTab('producto'); setShowForm(true); }}>
+                <Button onClick={() => { resetForm(); setFormTab('producto'); setShowForm(true); }}>
                   + Nuevo escandallo
                 </Button>
               </>
@@ -606,33 +619,6 @@ export function Escandallos() {
 
           {/* ── Tab: Producto ── */}
           <div className={formTab === 'producto' ? 'space-y-5' : 'hidden'}>
-          {/* Selector de producto */}
-          <Card padding="none" className="p-5 space-y-4">
-            <p className={sec}>¿Qué producto querés costear?</p>
-            <div className="flex gap-2">
-              <button type="button"
-                onClick={() => setModoProducido(true)}
-                className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold border transition ${modoProducido ? 'bg-violet-600 border-violet-600 text-white' : 'border-stone-200 text-stone-600 hover:border-stone-400'}`}>
-                Producto producido
-              </button>
-              <button type="button"
-                onClick={() => { setModoProducido(false); setDatos(prev => ({ ...prev, costoTelaFicha: undefined, costoCorteFicha: undefined })); }}
-                className={`flex-1 px-4 py-2.5 rounded-xl text-sm font-semibold border transition ${!modoProducido ? 'bg-violet-600 border-violet-600 text-white' : 'border-stone-200 text-stone-600 hover:border-stone-400'}`}>
-                Nuevo producto
-              </button>
-            </div>
-            {modoProducido && (
-              <Select label="Elegí un producto ya producido" value={sku} onChange={e => onSelectProducidoSku(e.target.value)} fullWidth>
-                <option value="">— Seleccionar producto —</option>
-                {productos.map(p => (
-                  <option key={p.sku} value={p.sku}>
-                    {p.sku}{p.descripcion ? ` · ${p.descripcion}` : ''}
-                  </option>
-                ))}
-              </Select>
-            )}
-          </Card>
-
           {/* Identificación */}
           <Card padding="none" className="p-5 space-y-4">
             <p className={sec}>Identificación</p>
@@ -1029,45 +1015,72 @@ export function Escandallos() {
           {/* Terminación y Avíos */}
           <Card padding="none" className="p-5">
             <p className={`${sec} mb-4`}>Terminación y Avíos</p>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className={lbl}>Etiqueta principal</label>
-                {etiquetas.length > 0 && (
-                  <select value={datos.avios.etiquetaPrincipalId ?? ''} onChange={e => elegirEtiqueta('etiquetaPrincipal', e.target.value)}
-                    className={`${inp} mb-1.5`}>
-                    <option value="">— Precio manual —</option>
-                    {etiquetas.filter(et => et.tipo === 'principal' && (!et.marca || et.marca === marca)).map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
-                  </select>
+
+            {datos.costoAviosFicha != null ? (
+              /* Avíos traídos de la ficha de corte (bloqueados) */
+              <div className="rounded-xl bg-violet-50 border border-violet-100 p-4 space-y-2 mb-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-stone-600">Avíos (de la ficha de corte)</span>
+                  <span className="text-base font-bold font-mono tabular-nums text-violet-700">{fmt$(datos.costoAviosFicha)} <span className="text-xs font-normal text-stone-400">/ prenda</span></span>
+                </div>
+                {fichaResumen && fichaResumen.avios.length > 0 && (
+                  <div className="space-y-1 pt-2 border-t border-violet-100">
+                    {fichaResumen.avios.map((a, i) => (
+                      <div key={i} className="flex items-center justify-between text-xs">
+                        <span className="text-stone-600">{a.nombre} <span className="text-stone-400">×{a.cantidad}</span></span>
+                        <span className={`tabular-nums ${a.costo > 0 ? 'text-stone-700' : 'text-amber-600'}`}>{a.costo > 0 ? fmt$(a.costo) : 'sin precio'}</span>
+                      </div>
+                    ))}
+                  </div>
                 )}
-                <NumInput value={datos.avios.etiquetaPrincipal} onChange={n => updAvios('etiquetaPrincipal', String(n))}
-                  placeholder="$ 0" min="0" step="0.01" className={inp} />
+                <p className="text-xs text-stone-400 pt-2 border-t border-violet-100">Salen de la ficha de corte. Para cambiarlos, corregí la ficha en producción (o el precio en el catálogo de avíos).</p>
               </div>
-              <div>
-                <label className={lbl}>Etiqueta composición</label>
-                {etiquetas.length > 0 && (
-                  <select value={datos.avios.etiquetaComposicionId ?? ''} onChange={e => elegirEtiqueta('etiquetaComposicion', e.target.value)}
-                    className={`${inp} mb-1.5`}>
-                    <option value="">— Precio manual —</option>
-                    {etiquetas.filter(et => et.tipo === 'composicion').map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
-                  </select>
-                )}
-                <NumInput value={datos.avios.etiquetaComposicion} onChange={n => updAvios('etiquetaComposicion', String(n))}
-                  placeholder="$ 0" min="0" step="0.01" className={inp} />
-              </div>
-              <div>
-                <label className={lbl}>Bolsa polipropileno $</label>
-                <NumInput value={datos.avios.bolsaPolipropileno} onChange={n => updAvios('bolsaPolipropileno', String(n))}
-                  placeholder="0" min="0" step="0.01" className={inp} />
-              </div>
-              <div>
-                <label className={lbl}>Tiempo embolsado (min)</label>
-                <div className="flex items-center gap-2">
-                  <NumInput value={datos.avios.tiempoEmbolsado} onChange={n => updAvios('tiempoEmbolsado', String(n))}
-                    placeholder="0" min="0" step="0.5" className={inp} />
-                  <span className="text-xs text-stone-400 shrink-0 tabular-nums">= {fmt$(datos.avios.tiempoEmbolsado * costoMinuto)}</span>
+            ) : (
+              /* Carga manual de avíos */
+              <div className="grid grid-cols-2 gap-4 mb-4">
+                <div>
+                  <label className={lbl}>Etiqueta principal</label>
+                  {etiquetas.length > 0 && (
+                    <select value={datos.avios.etiquetaPrincipalId ?? ''} onChange={e => elegirEtiqueta('etiquetaPrincipal', e.target.value)}
+                      className={`${inp} mb-1.5`}>
+                      <option value="">— Precio manual —</option>
+                      {etiquetas.filter(et => et.tipo === 'principal' && (!et.marca || et.marca === marca)).map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
+                    </select>
+                  )}
+                  <NumInput value={datos.avios.etiquetaPrincipal} onChange={n => updAvios('etiquetaPrincipal', String(n))}
+                    placeholder="$ 0" min="0" step="0.01" className={inp} />
+                </div>
+                <div>
+                  <label className={lbl}>Etiqueta composición</label>
+                  {etiquetas.length > 0 && (
+                    <select value={datos.avios.etiquetaComposicionId ?? ''} onChange={e => elegirEtiqueta('etiquetaComposicion', e.target.value)}
+                      className={`${inp} mb-1.5`}>
+                      <option value="">— Precio manual —</option>
+                      {etiquetas.filter(et => et.tipo === 'composicion').map(et => <option key={et.id} value={et.id}>{et.nombre} · {fmt$(et.precio)}</option>)}
+                    </select>
+                  )}
+                  <NumInput value={datos.avios.etiquetaComposicion} onChange={n => updAvios('etiquetaComposicion', String(n))}
+                    placeholder="$ 0" min="0" step="0.01" className={inp} />
+                </div>
+                <div>
+                  <label className={lbl}>Bolsa polipropileno $</label>
+                  <NumInput value={datos.avios.bolsaPolipropileno} onChange={n => updAvios('bolsaPolipropileno', String(n))}
+                    placeholder="0" min="0" step="0.01" className={inp} />
                 </div>
               </div>
+            )}
+
+            {/* Embolsado (mano de obra) — siempre editable */}
+            <div className="mb-4 max-w-[50%]">
+              <label className={lbl}>Tiempo embolsado (min)</label>
+              <div className="flex items-center gap-2">
+                <NumInput value={datos.avios.tiempoEmbolsado} onChange={n => updAvios('tiempoEmbolsado', String(n))}
+                  placeholder="0" min="0" step="0.5" className={inp} />
+                <span className="text-xs text-stone-400 shrink-0 tabular-nums">= {fmt$(datos.avios.tiempoEmbolsado * costoMinuto)}</span>
+              </div>
             </div>
+
+            {datos.costoAviosFicha == null && (
             <div className="border-t border-stone-100 pt-4">
               <div className="flex items-center justify-between mb-2 gap-2">
                 <p className="text-xs text-stone-500 font-semibold shrink-0">Extras avíos <span className="font-normal text-stone-400">(ocasionales: cierres, tachas…)</span></p>
@@ -1103,6 +1116,7 @@ export function Escandallos() {
                 ))}
               </div>
             </div>
+            )}
           </Card>
           </div>
 
