@@ -149,7 +149,26 @@ export function Escandallos() {
     let cancel = false;
     fetch(`/api/costos/ficha-resumen?sku=${encodeURIComponent(s)}`)
       .then((r) => r.ok ? r.json() : null)
-      .then((d) => { if (!cancel && d?.encontrado) setFichaResumen(d); })
+      .then((d) => {
+        if (cancel || !d?.encontrado) return;
+        setFichaResumen(d);
+        // Si el SKU ya tiene ficha de corte cargada y el escandallo no tiene telas
+        // propias ni un costo de ficha aplicado, traemos el costo de la ficha
+        // automáticamente. Antes esto solo pasaba al elegir en "Producto producido",
+        // así que al tipear el SKU en "Nuevo producto" quedaba "sin materiales".
+        if (d.costoTelaUnit != null) {
+          setDatos((prev) => {
+            const tieneTelasManuales = prev.telas.some((t) => t.nombre || t.precioKgNeto || t.consumoMetros);
+            if (prev.costoTelaFicha != null || tieneTelasManuales) return prev;
+            return {
+              ...prev,
+              costoTelaFicha:  d.costoTelaUnit,
+              costoCorteFicha: d.costoCorteUnit != null ? d.costoCorteUnit : prev.costoCorteFicha,
+              costoCorte:      d.costoCorteUnit != null ? d.costoCorteUnit : prev.costoCorte,
+            };
+          });
+        }
+      })
       .catch(() => {});
     // Tiempo de costura: se trae solo al poner el SKU. Si el SKU es de un lote,
     // aplica DIRECTO el promedio del lote (unificado por color). Solo autocompleta
