@@ -120,8 +120,10 @@ export function SaleClient() {
           <NumInput value={descuento} onChange={setDescuento} min="0" max="100" placeholder="0" className={`${inp} w-24`} />
         </div>
         <p className="text-xs text-stone-500 flex-1 min-w-[12rem]">
-          El margen neto contempla la comisión, el costo financiero, IIBB/DREI/Ganancias e IVA de <strong>{forma?.nombre}</strong>.
-          {config.saldoIvaFavor && <span className="text-emerald-600"> · IVA a favor: el IVA no se paga (compensado con crédito).</span>}
+          El margen neto contempla la comisión y el costo financiero de <strong>{forma?.nombre}</strong>
+          {forma?.aplicaImpuestos
+            ? <> más IVA, IIBB, DREI y Ganancias.{config.saldoIvaFavor && <span className="text-emerald-600"> IVA a favor: el IVA no se paga (compensado con crédito).</span>}</>
+            : <> · <span className="text-amber-600">sin factura: no descuenta IVA ni impuestos.</span></>}
         </p>
       </Card>
 

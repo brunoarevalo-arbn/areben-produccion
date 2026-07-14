@@ -33,11 +33,12 @@ export function aplicarDescuento(pvp: number, descuentoPct: number): number {
 // los impuestos globales (IVA, IIBB, DREI, Ganancias). Devuelve el desglose línea
 // por línea para mostrarlo transparente. Criterios validados con Bruno:
 //  · descuento Sale + descuento de la forma de pago se ACUMULAN (suma), tope 100%.
-//  · IVA SIEMPRE resta (el ingreso se toma neto); si saldoIvaFavor, se aclara que
-//    no sale de caja (margenSinPagarIva lo suma de nuevo, informativo).
-//  · IIBB y DREI sobre la venta bruta; Ganancias sobre la utilidad. Los tres solo
-//    si la forma de pago "aplica impuestos".
-//  · comisión y costo financiero sobre el total cobrado (c/IVA).
+//  · "aplica impuestos" de la forma gatea TODO lo impositivo: IVA, IIBB, DREI y
+//    Ganancias. Si está destildada (venta sin factura), no se descuenta ninguno.
+//  · Con factura: el IVA resta (ingreso neto); si saldoIvaFavor, se aclara que no
+//    sale de caja (margenSinPagarIva lo suma de nuevo, informativo).
+//  · IIBB y DREI sobre la venta bruta; Ganancias sobre la utilidad.
+//  · comisión y costo financiero sobre el total cobrado.
 export interface MargenNetoInput {
   pvp: number;                 // PVP con IVA (efectivo)
   costo: number | null;        // costo neto
@@ -74,7 +75,8 @@ export interface MargenNetoCalc {
 export function calcularMargenNeto(i: MargenNetoInput): MargenNetoCalc {
   const descuentoTotalPct = Math.min(100, Math.max(0, i.descuentoSalePct + i.descuentoFormaPct));
   const precioCobrado = i.pvp * (1 - descuentoTotalPct / 100);
-  const ivaDebito = precioCobrado * i.ivaPct / (100 + i.ivaPct);
+  // Sin factura (no aplica impuestos) no hay IVA: el ingreso es el total cobrado.
+  const ivaDebito = i.aplicaImpuestos ? precioCobrado * i.ivaPct / (100 + i.ivaPct) : 0;
   const precioNeto = precioCobrado - ivaDebito;
   const comision = i.comisionPct / 100 * precioCobrado;
   const costoFinanciero = i.costoFinancieroPct / 100 * precioCobrado;
