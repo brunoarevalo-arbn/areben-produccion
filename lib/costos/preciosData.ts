@@ -1,6 +1,7 @@
-// Arma las filas de la sección Precios: productos de producción propia vinculados
-// (ReposicionMapeo ⋈ GnProducto) con su costo neto (del escandallo del liso),
-// el PVP de GN + override manual, y el margen. Reusado por la API y el export.
+// Arma las filas de la sección Precios: TODOS los productos de producción propia
+// sincronizados de GN (GnProducto), con el PVP de GN + override manual, y el costo
+// del escandallo cuando el producto está vinculado (ReposicionMapeo → skuLiso).
+// Reusado por la API y el export.
 import { prisma } from '@/lib/prisma';
 import { calcular, parseDatos } from '@/lib/costos/escandallo';
 import { calcularCostoMinuto } from '@/lib/costoMinuto';
@@ -34,22 +35,21 @@ export interface PreciosResult {
 }
 
 export async function construirFilasPrecios(): Promise<PreciosResult> {
-  const [mapeos, cfg, costoMinuto] = await Promise.all([
+  const [productos, mapeos, cfg, costoMinuto] = await Promise.all([
+    prisma.gnProducto.findMany(),                       // todos los propios sincronizados
     prisma.reposicionMapeo.findMany({ where: { activo: true } }),
     prisma.configCostos.upsert({ where: { id: 'singleton' }, create: { id: 'singleton' }, update: {} }),
     calcularCostoMinuto(),
   ]);
 
-  const gnIds = mapeos.map((m) => m.gnId);
+  const mapeoPorId = new Map(mapeos.map((m) => [m.gnId, m]));
   const skus = [...new Set(mapeos.map((m) => m.skuLiso).filter(Boolean))];
 
-  const [productos, escandallos, overrides] = await Promise.all([
-    prisma.gnProducto.findMany({ where: { gnId: { in: gnIds } } }),
+  const [escandallos, overrides] = await Promise.all([
     prisma.escandallo.findMany({ where: { sku: { in: skus } }, orderBy: { updatedAt: 'desc' } }),
-    prisma.precioProducto.findMany({ where: { gnId: { in: gnIds } } }),
+    prisma.precioProducto.findMany(),
   ]);
 
-  const prodPorId = new Map(productos.map((p) => [p.gnId, p]));
   const overridePorId = new Map(overrides.map((o) => [o.gnId, o]));
   const margenes = { margenDesarrollo: cfg.margenDesarrollo, margenFallas: cfg.margenFallas };
 
@@ -64,11 +64,10 @@ export async function construirFilasPrecios(): Promise<PreciosResult> {
   }
 
   const filas: FilaPrecio[] = [];
-  for (const m of mapeos) {
-    const p = prodPorId.get(m.gnId);
-    if (!p) continue; // solo productos propios presentes en la copia local (GnProducto)
-    const ov = overridePorId.get(m.gnId);
-    const costoAuto = costoPorSku.get(m.skuLiso) ?? null;
+  for (const p of productos) {
+    const m = mapeoPorId.get(p.gnId);                   // vinculación (opcional)
+    const ov = overridePorId.get(p.gnId);
+    const costoAuto = m?.skuLiso ? costoPorSku.get(m.skuLiso) ?? null : null;
     const costoManual = ov?.costoManual ?? null;
     const costoNeto = costoManual ?? costoAuto;
     const pvpGN = p.precioRetail ?? null;
@@ -76,12 +75,12 @@ export async function construirFilasPrecios(): Promise<PreciosResult> {
     const pvpEfectivo = pvpManual ?? pvpGN;
     const { pvpSinIva, markup, margen } = calcularMargen(costoNeto, pvpEfectivo, cfg.ivaVenta);
     filas.push({
-      gnId: m.gnId,
-      code: p.code ?? m.gnCode ?? null,
-      nombre: p.name ?? m.gnNombre ?? '',
+      gnId: p.gnId,
+      code: p.code ?? m?.gnCode ?? null,
+      nombre: p.name ?? m?.gnNombre ?? '',
       marca: p.provider || '',
-      skuLiso: m.skuLiso,
-      tipo: m.tipo,
+      skuLiso: m?.skuLiso ?? '',
+      tipo: m?.tipo ?? '',
       costoAuto,
       costoManual,
       costoNeto,
