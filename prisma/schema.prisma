@@ -346,6 +346,9 @@ model ConfigCostos {
   dreiPct          Float    @default(0)   // % DREI (derecho de registro e inspección) sobre venta
   gananciasPct     Float    @default(0)   // % Impuesto a las ganancias
   saldoIvaFavor    Boolean  @default(false) // si hay saldo de IVA a favor (afecta el margen neto en Sale)
+  redondeoActivo      Boolean @default(true) // redondear los precios promo de Sale
+  redondeoTerminacion Int     @default(90)   // los precios promo terminan en este número (90, 99, 990…)
+  redondeoModo        String  @default("cercano") // cercano | arriba | abajo
   updatedAt        DateTime @updatedAt
 
   @@map("config_costos")

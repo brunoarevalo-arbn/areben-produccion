@@ -9,7 +9,7 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { NumInput } from '@/components/ui/NumInput';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
-import { calcularMargenNeto } from '@/lib/costos/precios';
+import { calcularMargenNeto, redondearPrecio } from '@/lib/costos/precios';
 
 interface Fila {
   gnId: number; code: string | null; nombre: string; marca: string; skuLiso: string;
@@ -17,7 +17,7 @@ interface Fila {
 }
 interface Forma { id: string; nombre: string; comisionPct: number; costoFinancieroPct: number; descuentoPct: number; aplicaImpuestos: boolean; }
 interface Canal { id: string; nombre: string; costoPorVenta: number; costoEsPct: boolean; comisiones: Forma[]; }
-interface Config { ivaVenta: number; iibbPct: number; dreiPct: number; gananciasPct: number; saldoIvaFavor: boolean; }
+interface Config { ivaVenta: number; iibbPct: number; dreiPct: number; gananciasPct: number; saldoIvaFavor: boolean; redondeoActivo: boolean; redondeoTerminacion: number; redondeoModo: string; }
 
 const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 const fmt = new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 });
@@ -28,7 +28,7 @@ const margenColor = (m: number | null) => (m == null ? 'text-stone-400' : m < 15
 
 export function SaleClient() {
   const [filas, setFilas] = useState<Fila[]>([]);
-  const [config, setConfig] = useState<Config>({ ivaVenta: 21, iibbPct: 0, dreiPct: 0, gananciasPct: 0, saldoIvaFavor: false });
+  const [config, setConfig] = useState<Config>({ ivaVenta: 21, iibbPct: 0, dreiPct: 0, gananciasPct: 0, saldoIvaFavor: false, redondeoActivo: true, redondeoTerminacion: 90, redondeoModo: 'cercano' });
   const [canales, setCanales] = useState<Canal[]>([]);
   const [cargando, setCargando] = useState(true);
   const [canalId, setCanalId] = useState('');
@@ -53,11 +53,21 @@ export function SaleClient() {
   const forma = canal?.comisiones.find((f) => f.id === formaId) ?? canal?.comisiones[0];
   useEffect(() => { if (canal && !canal.comisiones.some((f) => f.id === formaId)) setFormaId(canal.comisiones[0]?.id ?? ''); }, [canalId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Margen neto de un producto con una forma de pago dada (y el descuento Sale de la fila).
+  // Precio promocional de lista (lo que se sube a GN): PVP con el descuento Sale, redondeado
+  // según la config (terminar en 90, etc.). Es la BASE de todo (columna, margen, confirmar).
+  const promoLista = (f: Fila, dSale: number): number | null => {
+    if (f.pvpEfectivo == null) return null;
+    const bruto = f.pvpEfectivo * (1 - dSale / 100);
+    return config.redondeoActivo ? redondearPrecio(bruto, config.redondeoTerminacion, config.redondeoModo) : Math.round(bruto);
+  };
+  const dSaleOf = (f: Fila) => descRow[f.gnId] ?? descuento;
+
+  // Margen neto de un producto con una forma de pago dada, sobre el precio promo (ya redondeado).
   const calcConForma = (f: Fila, dSale: number, fp: Forma | undefined) => {
-    if (f.pvpEfectivo == null || !canal || !fp) return null;
+    const base = promoLista(f, dSale);
+    if (base == null || !canal || !fp) return null;
     return calcularMargenNeto({
-      pvp: f.pvpEfectivo, costo: f.costoNeto, descuentoSalePct: dSale, descuentoFormaPct: fp.descuentoPct,
+      pvp: base, costo: f.costoNeto, descuentoSalePct: 0, descuentoFormaPct: fp.descuentoPct,
       comisionPct: fp.comisionPct, costoFinancieroPct: fp.costoFinancieroPct,
       costoCanal: canal.costoPorVenta, costoCanalEsPct: canal.costoEsPct, aplicaImpuestos: fp.aplicaImpuestos,
       ivaPct: config.ivaVenta, iibbPct: config.iibbPct, dreiPct: config.dreiPct, gananciasPct: config.gananciasPct, saldoIvaFavor: config.saldoIvaFavor,
@@ -65,10 +75,15 @@ export function SaleClient() {
   };
   // Fila con la forma elegida (para el margen del renglón).
   const calcFila = (f: Fila) => {
-    const dSale = descRow[f.gnId] ?? descuento;
-    const precioPromoLista = f.pvpEfectivo != null ? f.pvpEfectivo * (1 - dSale / 100) : null; // lo que se sube a GN (solo desc. Sale)
-    return { dSale, precioPromoLista, calc: calcConForma(f, dSale, forma) };
+    const dSale = dSaleOf(f);
+    return { dSale, precioPromoLista: promoLista(f, dSale), calc: calcConForma(f, dSale, forma) };
   };
+
+  // Productos "con cambios": tienen descuento y su promo calculado difiere del confirmado.
+  const conCambios = useMemo(
+    () => filas.filter((f) => { const d = descRow[f.gnId] ?? descuento; const p = promoLista(f, d); return d > 0 && p != null && p !== f.precioPromo; }),
+    [filas, descRow, descuento, config], // eslint-disable-line react-hooks/exhaustive-deps
+  );
 
   const visibles = useMemo(() => (soloConfirmados ? filas.filter((f) => f.precioPromo != null) : filas), [filas, soloConfirmados]);
   const nConfirmados = filas.filter((f) => f.precioPromo != null).length;
@@ -78,8 +93,15 @@ export function SaleClient() {
     setFilas((prev) => prev.map((x) => x.gnId === f.gnId ? { ...x, precioPromo, promoDescuentoPct: precioPromo != null ? dSale : null } : x));
     await fetch(`/api/precios/${f.gnId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ precioPromo, promoDescuentoPct: precioPromo != null ? dSale : null }) });
   };
-  const confirmar = (f: Fila) => { const { dSale, precioPromoLista } = calcFila(f); if (precioPromoLista == null) { toast.error('El producto no tiene PVP'); return; } guardarPromo(f, Math.round(precioPromoLista), dSale); };
+  const confirmar = (f: Fila) => { const { dSale, precioPromoLista } = calcFila(f); if (precioPromoLista == null) { toast.error('El producto no tiene PVP'); return; } guardarPromo(f, precioPromoLista, dSale); };
   const limpiarUno = (f: Fila) => guardarPromo(f, null, null);
+
+  const confirmarCambios = async () => {
+    if (conCambios.length === 0) return;
+    setFilas((prev) => prev.map((x) => { const c = conCambios.find((f) => f.gnId === x.gnId); if (!c) return x; const d = descRow[x.gnId] ?? descuento; return { ...x, precioPromo: promoLista(x, d), promoDescuentoPct: d }; }));
+    await Promise.all(conCambios.map((f) => { const d = descRow[f.gnId] ?? descuento; return fetch(`/api/precios/${f.gnId}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ precioPromo: promoLista(f, d), promoDescuentoPct: d }) }); }));
+    toast.success(`${conCambios.length} precio(s) confirmado(s)`);
+  };
 
   const limpiarTodos = async () => {
     if (!(await confirmAsync({ message: `¿Limpiar los ${nConfirmados} precios promocionales confirmados?`, danger: true, confirmLabel: 'Limpiar' }))) return;
@@ -136,9 +158,11 @@ export function SaleClient() {
           <input type="checkbox" checked={soloConfirmados} onChange={(e) => setSoloConfirmados(e.target.checked)} /> Solo confirmados
         </label>
         <span className="text-sm text-stone-500">{nConfirmados} confirmado(s)</span>
+        {conCambios.length > 0 && <span className="text-sm font-semibold text-amber-600">· {conCambios.length} con cambios</span>}
         <div className="flex-1" />
+        <Button onClick={confirmarCambios} disabled={conCambios.length === 0}>Confirmar cambios ({conCambios.length})</Button>
         {nConfirmados > 0 && <Button variant="secondary" onClick={limpiarTodos}>Limpiar confirmados</Button>}
-        <Button onClick={exportar} isLoading={exportando} disabled={nConfirmados === 0}>Exportar Excel ({nConfirmados})</Button>
+        <Button variant="secondary" onClick={exportar} isLoading={exportando} disabled={nConfirmados === 0}>Exportar Excel ({nConfirmados})</Button>
       </div>
 
       {/* Tabla */}

@@ -12,21 +12,26 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     ivaVenta: cfg.ivaVenta, iibbPct: cfg.iibbPct, dreiPct: cfg.dreiPct,
     gananciasPct: cfg.gananciasPct, saldoIvaFavor: cfg.saldoIvaFavor,
+    redondeoActivo: cfg.redondeoActivo, redondeoTerminacion: cfg.redondeoTerminacion, redondeoModo: cfg.redondeoModo,
   });
 }
 
 export async function PUT(req: NextRequest) {
   if (!(await requirePermiso(req, 'precios'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const b = await req.json();
-  const data: Record<string, number | boolean> = {};
+  const data: Record<string, number | boolean | string> = {};
   if (b.ivaVenta !== undefined)      data.ivaVenta      = Number(b.ivaVenta) || 0;
   if (b.iibbPct !== undefined)       data.iibbPct       = Number(b.iibbPct) || 0;
   if (b.dreiPct !== undefined)       data.dreiPct       = Number(b.dreiPct) || 0;
   if (b.gananciasPct !== undefined)  data.gananciasPct  = Number(b.gananciasPct) || 0;
   if (b.saldoIvaFavor !== undefined) data.saldoIvaFavor = !!b.saldoIvaFavor;
+  if (b.redondeoActivo !== undefined)      data.redondeoActivo      = !!b.redondeoActivo;
+  if (b.redondeoTerminacion !== undefined) data.redondeoTerminacion = Math.max(0, Math.floor(Number(b.redondeoTerminacion) || 0));
+  if (b.redondeoModo !== undefined)        data.redondeoModo        = ['cercano', 'arriba', 'abajo'].includes(b.redondeoModo) ? b.redondeoModo : 'cercano';
   const cfg = await prisma.configCostos.upsert({ where: { id: ID }, create: { id: ID, ...data }, update: data });
   return NextResponse.json({
     ivaVenta: cfg.ivaVenta, iibbPct: cfg.iibbPct, dreiPct: cfg.dreiPct,
     gananciasPct: cfg.gananciasPct, saldoIvaFavor: cfg.saldoIvaFavor,
+    redondeoActivo: cfg.redondeoActivo, redondeoTerminacion: cfg.redondeoTerminacion, redondeoModo: cfg.redondeoModo,
   });
 }

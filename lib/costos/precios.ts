@@ -28,6 +28,19 @@ export function aplicarDescuento(pvp: number, descuentoPct: number): number {
   return pvp * (1 - descuentoPct / 100);
 }
 
+// Redondea un precio para que "termine en" un número (ej. 90 → $..X90), configurable.
+// modo: 'cercano' (empate → arriba) | 'arriba' (nunca por debajo) | 'abajo' (nunca por encima).
+export function redondearPrecio(valor: number, terminacion = 90, modo = 'cercano'): number {
+  if (!(valor > 0)) return Math.round(valor);
+  const t = Math.max(0, Math.floor(terminacion));
+  const M = Math.pow(10, String(t).length); // 90→100, 990→1000, 9→10
+  const candBelow = Math.floor((valor - t) / M) * M + t;
+  const candAbove = candBelow + M;
+  if (modo === 'arriba') return candBelow >= valor ? candBelow : candAbove;
+  if (modo === 'abajo')  return candAbove <= valor ? candAbove : candBelow;
+  return (valor - candBelow) < (candAbove - valor) ? candBelow : candAbove; // cercano (empate → arriba)
+}
+
 // ── Margen neto real (Sale) ──────────────────────────────────────────────────
 // Contempla la forma de pago (comisión, costo financiero, descuento) y canal, más
 // los impuestos globales (IVA, IIBB, DREI, Ganancias). Devuelve el desglose línea

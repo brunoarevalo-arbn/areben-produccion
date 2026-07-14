@@ -14,12 +14,12 @@ interface Forma {
   descuentoPct: number; aplicaImpuestos: boolean; diasAcreditacion: number;
 }
 interface Canal { id: string; nombre: string; costoPorVenta: number; costoEsPct: boolean; comisiones: Forma[]; }
-interface Config { ivaVenta: number; iibbPct: number; dreiPct: number; gananciasPct: number; saldoIvaFavor: boolean; }
+interface Config { ivaVenta: number; iibbPct: number; dreiPct: number; gananciasPct: number; saldoIvaFavor: boolean; redondeoActivo: boolean; redondeoTerminacion: number; redondeoModo: string; }
 
 const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
 
 export function ComisionesClient() {
-  const [config, setConfig] = useState<Config>({ ivaVenta: 21, iibbPct: 0, dreiPct: 0, gananciasPct: 0, saldoIvaFavor: false });
+  const [config, setConfig] = useState<Config>({ ivaVenta: 21, iibbPct: 0, dreiPct: 0, gananciasPct: 0, saldoIvaFavor: false, redondeoActivo: true, redondeoTerminacion: 90, redondeoModo: 'cercano' });
   const [canales, setCanales] = useState<Canal[]>([]);
   const [canalId, setCanalId] = useState<string>('');
   const [cargando, setCargando] = useState(true);
@@ -104,6 +104,27 @@ export function ComisionesClient() {
             <input type="checkbox" checked={config.saldoIvaFavor} onChange={(e) => guardarConfig({ saldoIvaFavor: e.target.checked })} />
             <span className="text-sm text-stone-600">Saldo IVA a favor <strong>{config.saldoIvaFavor ? 'ACTIVO' : 'inactivo'}</strong></span>
           </label>
+        </div>
+
+        {/* Redondeo de precios promocionales */}
+        <div className="flex flex-wrap items-end gap-4 pt-4 border-t border-stone-100">
+          <label className="flex items-center gap-2 pb-2 cursor-pointer">
+            <input type="checkbox" checked={config.redondeoActivo} onChange={(e) => guardarConfig({ redondeoActivo: e.target.checked })} />
+            <span className="text-sm font-semibold text-stone-700">Redondear precios promo</span>
+          </label>
+          <div>
+            <label className="text-xs font-semibold text-stone-600 mb-1 block">Terminar en</label>
+            <NumInput value={config.redondeoTerminacion} onChange={(n) => setConfig((p) => ({ ...p, redondeoTerminacion: n }))} onBlur={() => guardarConfig({ redondeoTerminacion: config.redondeoTerminacion })} className={`${inp} w-24`} />
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-stone-600 mb-1 block">Modo</label>
+            <select value={config.redondeoModo} onChange={(e) => guardarConfig({ redondeoModo: e.target.value })} className={inp}>
+              <option value="cercano">Al más cercano</option>
+              <option value="arriba">Hacia arriba</option>
+              <option value="abajo">Hacia abajo</option>
+            </select>
+          </div>
+          <p className="text-xs text-stone-400 pb-2 flex-1 min-w-[12rem]">Ej: terminación 90 → los precios promo de Sale terminan en $…90.</p>
         </div>
       </Card>
 
