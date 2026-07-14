@@ -342,9 +342,45 @@ model ConfigCostos {
   estampadoValorHora Float  @default(0)  // $/hora de MO de estampería ($/min = /60)
   ivaVenta         Float    @default(21)  // % IVA de venta (para separar PVP del costo neto)
   markupVentaDefault Float  @default(130) // markup % s/ costo por defecto (simulador de precios)
+  iibbPct          Float    @default(0)   // % Ingresos Brutos sobre venta
+  dreiPct          Float    @default(0)   // % DREI (derecho de registro e inspección) sobre venta
+  gananciasPct     Float    @default(0)   // % Impuesto a las ganancias
+  saldoIvaFavor    Boolean  @default(false) // si hay saldo de IVA a favor (afecta el margen neto en Sale)
   updatedAt        DateTime @updatedAt
 
   @@map("config_costos")
+}
+
+// Canal de venta (Local, Web, Mayorista…) con su costo por venta. Cada canal tiene
+// sus propias formas de pago con comisiones. Config compartida del área Precios.
+model CanalVenta {
+  id            String         @id @default(cuid())
+  nombre        String
+  costoPorVenta Float          @default(0)     // costo del canal por venta
+  costoEsPct    Boolean        @default(false) // true: % sobre la venta · false: $ fijo
+  orden         Int            @default(0)
+  activo        Boolean        @default(true)
+  comisiones    ComisionPago[]
+
+  @@map("canales_venta")
+}
+
+// Forma de pago dentro de un canal, con su comisión, costo financiero, descuento
+// promocional, si le aplican impuestos y días de acreditación.
+model ComisionPago {
+  id                 String     @id @default(cuid())
+  canalId            String
+  canal              CanalVenta @relation(fields: [canalId], references: [id], onDelete: Cascade)
+  nombre             String     // Efectivo, Transferencia, Débito, Crédito 3 cuotas…
+  comisionPct        Float      @default(0)
+  costoFinancieroPct Float      @default(0)
+  descuentoPct       Float      @default(0)
+  aplicaImpuestos    Boolean    @default(true)
+  diasAcreditacion   Int        @default(0)
+  orden              Int        @default(0)
+
+  @@index([canalId])
+  @@map("comisiones_pago")
 }
 
 model CostoSkuDescartado {

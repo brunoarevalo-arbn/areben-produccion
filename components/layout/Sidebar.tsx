@@ -107,10 +107,20 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     seccion: 'costos',
     sub: [
       { label: 'Escandallos',           href: '/costos' },
-      { label: 'Precios',               href: '/costos/precios' },
       { label: 'Productos con estampa', href: '/costos/estampados' },
       { label: 'Parámetros de costo',   href: '/costos/parametros' },
       { label: 'Catálogos',             href: '/costos/catalogos' },
+    ],
+  },
+  {
+    label: 'Precios',
+    href: '/precios',
+    icon: '🏷',
+    seccion: 'precios',
+    sub: [
+      { label: 'Resumen',                    href: '/precios' },
+      { label: 'Lista de precios',           href: '/precios/lista' },
+      { label: 'Comisiones y medios de pago', href: '/precios/comisiones' },
     ],
   },
   {

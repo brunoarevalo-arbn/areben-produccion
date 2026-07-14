@@ -7,7 +7,7 @@ import { calcularMargen, aplicarDescuento } from '@/lib/costos/precios';
 // Genera un .xlsx con las filas de precios. Si viene descuento%, agrega el PVP nuevo
 // y recalcula el margen sobre ese precio. NO escribe en GN: es solo la lista.
 export async function GET(req: NextRequest) {
-  if (!(await requirePermiso(req, 'costos'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'precios'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const sp = req.nextUrl.searchParams;
   const descuento = Number(sp.get('descuento')) || 0;

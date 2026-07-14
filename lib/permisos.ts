@@ -15,6 +15,7 @@ export const PERMISOS = [
   { key: 'produccion',    label: 'Producción',    desc: 'Órdenes, cortes, reportes y pagos de corte' },
   { key: 'gastos',        label: 'Gastos',        desc: 'Gastos del taller' },
   { key: 'costos',        label: 'Costos',        desc: 'Escandallos, costos de costura y productividad' },
+  { key: 'precios',       label: 'Precios',       desc: 'Lista de precios, márgenes, comisiones y descuentos' },
   { key: 'proveedores',   label: 'Proveedores',   desc: 'Alta y edición de proveedores (en Compras)' },
   { key: 'cortadores',    label: 'Cortadores',    desc: 'Alta y edición de cortadores y tarifas (en Producción)' },
   { key: 'motivos',       label: 'Motivos de descarte', desc: 'Catálogo de motivos de descarte/merma (en Producción)' },

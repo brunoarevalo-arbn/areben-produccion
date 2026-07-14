@@ -13,7 +13,7 @@ const parseOverride = (v: unknown): { ok: boolean; val: number | null } => {
 };
 
 export async function PUT(req: NextRequest, { params }: Ctx) {
-  if (!(await requirePermiso(req, 'costos'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requirePermiso(req, 'precios'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const gnId = Number((await params).gnId);
   if (!Number.isFinite(gnId)) return NextResponse.json({ error: 'gnId inválido' }, { status: 400 });
   const body = await req.json();

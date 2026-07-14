@@ -30,7 +30,7 @@ const marcaBadge = (m: string) => {
 };
 const margenColor = (m: number | null) => (m == null ? 'text-stone-400' : m < 40 ? 'text-red-600 font-semibold' : m < 55 ? 'text-amber-600' : 'text-emerald-700');
 
-export function PreciosClient() {
+export function ListaPreciosClient() {
   const [filas, setFilas] = useState<Fila[]>([]);
   const [config, setConfig] = useState<Config>({ ivaVenta: 21, markupVentaDefault: 130 });
   const [cargando, setCargando] = useState(true);
