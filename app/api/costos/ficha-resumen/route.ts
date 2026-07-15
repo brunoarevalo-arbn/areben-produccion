@@ -46,6 +46,8 @@ export async function GET(req: NextRequest) {
     costoTelaUnit,
     costoCorteUnit,
     costoAviosUnit,
+    metrosTotal: metros,
+    kgTotal: kg,
     kgUnit: cant > 0 ? kg / cant : 0,
     metrosUnit: cant > 0 ? metros / cant : 0,
     avios,

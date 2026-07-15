@@ -131,7 +131,7 @@ export function Escandallos() {
   const [tiempoProduccion,   setTiempoProduccion]   = useState<{ minutos: number; registros: number; cantidadTotal: number } | null>(null);
   const [tiempoLote,         setTiempoLote]         = useState<{ minutos: number; colores: number; cantidadTotal: number } | null>(null);
   const [sinDatosProduccion, setSinDatosProduccion] = useState(false);
-  const [fichaResumen,       setFichaResumen]       = useState<{ costoTelaUnit: number | null; costoCorteUnit: number | null; costoAviosUnit: number; kgUnit: number; metrosUnit: number; avios: { nombre: string; cantidad: number; costo: number }[] } | null>(null);
+  const [fichaResumen,       setFichaResumen]       = useState<{ costoTelaUnit: number | null; costoCorteUnit: number | null; costoAviosUnit: number; cantidad: number; metrosTotal: number; kgUnit: number; metrosUnit: number; avios: { nombre: string; cantidad: number; costo: number }[] } | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -673,13 +673,22 @@ export function Escandallos() {
                 </span>
               </div>
 
+              {fichaResumen && fichaResumen.metrosTotal > 0 && fichaResumen.cantidad > 0 && (
+                <div className="flex items-center justify-between text-sm pt-2 border-t border-violet-100">
+                  <span className="text-stone-500">Tizada</span>
+                  <span className="font-semibold tabular-nums text-stone-700">
+                    {fichaResumen.metrosTotal.toLocaleString('es-AR', { maximumFractionDigits: 2 })} m × {fichaResumen.cantidad} u
+                  </span>
+                </div>
+              )}
+
               {fichaResumen && (fichaResumen.kgUnit > 0 || fichaResumen.metrosUnit > 0) && (
                 <div className="flex items-center justify-between text-sm pt-2 border-t border-violet-100">
                   <span className="text-stone-500">Consumo de tela por prenda</span>
                   <span className="font-semibold tabular-nums text-stone-700">
-                    {fichaResumen.kgUnit > 0 ? `${fichaResumen.kgUnit.toLocaleString('es-AR', { maximumFractionDigits: 3 })} kg` : ''}
-                    {fichaResumen.kgUnit > 0 && fichaResumen.metrosUnit > 0 ? ' · ' : ''}
                     {fichaResumen.metrosUnit > 0 ? `${fichaResumen.metrosUnit.toLocaleString('es-AR', { maximumFractionDigits: 2 })} m` : ''}
+                    {fichaResumen.kgUnit > 0 && fichaResumen.metrosUnit > 0 ? ' · ' : ''}
+                    {fichaResumen.kgUnit > 0 ? `${fichaResumen.kgUnit.toLocaleString('es-AR', { maximumFractionDigits: 3 })} kg` : ''}
                   </span>
                 </div>
               )}

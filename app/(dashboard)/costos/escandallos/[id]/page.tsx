@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { PrintButton } from '@/components/costos/PrintButton';
 import { parseDatos, telaCosto, itemCosto, calcular } from '@/lib/costos/escandallo';
+import { fichaConsumoSku } from '@/lib/produccion/fichaConsumo';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +27,9 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
   const costoMinuto   = valorHora / 60;
 
   const datos = parseDatos(escandallo.datos);
+  // Consumo de la ficha de corte (tizada + metros por prenda), si la tela viene de ficha.
+  const fichaConsumo = datos.costoTelaFicha != null ? await fichaConsumoSku(escandallo.sku) : null;
+  const fmtM = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
   const telasCosts = datos.telas.map(t => {
     const { pMetro, pM2, costo, merma } = telaCosto(t);
@@ -78,6 +82,18 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
             <span className="text-stone-600">Tela (de la ficha de corte, incluye insumos del corte)</span>
             <span className="font-bold tabular-nums text-stone-900">{fmt$(costoTelas)}</span>
           </div>
+          {fichaConsumo && fichaConsumo.metrosTotal > 0 && fichaConsumo.cantidad > 0 && (
+            <>
+              <div className="flex justify-between text-sm border-b border-stone-100 py-2.5">
+                <span className="text-stone-600">Tizada</span>
+                <span className="tabular-nums text-stone-700">{fmtM(fichaConsumo.metrosTotal)} m × {fichaConsumo.cantidad} u</span>
+              </div>
+              <div className="flex justify-between text-sm border-b border-stone-100 py-2.5">
+                <span className="text-stone-600">Consumo de tela por prenda</span>
+                <span className="tabular-nums text-stone-700">{fmtM(fichaConsumo.metrosUnit)} m{fichaConsumo.kgUnit > 0 ? ` · ${fichaConsumo.kgUnit.toLocaleString('es-AR', { maximumFractionDigits: 3 })} kg` : ''}</span>
+              </div>
+            </>
+          )}
         </div>
         ) : (
         <div className="mb-8">
