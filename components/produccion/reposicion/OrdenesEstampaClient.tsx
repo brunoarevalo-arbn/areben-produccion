@@ -17,6 +17,7 @@ export function OrdenesEstampaClient() {
   const [confirmEdit, setConfirmEdit] = useState<Record<string, string>>({});
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [verHechas, setVerHechas] = useState(false);
+  const [abiertos, setAbiertos] = useState<Record<string, boolean>>({}); // liso colapsable: `${ordenId}::${liso}`
 
   const cargar = useCallback(async () => {
     const r = await fetch('/api/reposicion/orden-estampa');
@@ -79,30 +80,57 @@ export function OrdenesEstampaClient() {
             <button onClick={() => borrarOrden(o.id)} aria-label="Borrar" className="text-stone-300 hover:text-red-500 px-1 leading-none text-lg">×</button>
           </div>
         </div>
-        <div className="space-y-2">
-          {[...porLiso.entries()].map(([liso, items]) => (
-            <div key={liso}>
-              <span className="font-mono text-xs text-stone-500">{liso}</span>
-              <div className="ml-3 mt-1 space-y-1">
-                {items.map((it) => {
-                  const pend = it.cantidad - it.confirmado;
-                  const completo = pend <= 0;
-                  return (
-                  <div key={it.id} className="flex items-center gap-2 text-sm">
-                    <span className="text-stone-700 flex-1 truncate">{it.gnNombre || `Producto ${it.gnId}`} · <strong>{it.talle}</strong></span>
-                    <span className="text-xs text-stone-400">pedido {it.cantidad}</span>
-                    <span className="text-xs text-stone-500">{esProd ? 'producidas' : 'estampadas'} <strong className="text-stone-700">{it.confirmado}</strong></span>
-                    {!completo && o.estado !== 'hecha' && <span className="text-xs text-stone-400">+</span>}
-                    <NumInput value={parseInt(confirmEdit[it.id] ?? '') || 0} min="0"
-                      onChange={(n) => setConfirmEdit((p) => ({ ...p, [it.id]: String(Math.max(0, Math.min(n, it.cantidad - it.confirmado))) }))}
-                      disabled={o.estado === 'hecha' || completo} className={`w-14 text-right ${inp}`} />
-                    <span className={`text-xs font-semibold w-20 text-right ${completo ? 'text-emerald-600' : 'text-amber-600'}`}>{completo ? 'completo ✓' : `pend. ${pend}`}</span>
-                  </div>
-                  );
-                })}
-              </div>
+        <div className="space-y-1.5">
+          {[...porLiso.entries()].map(([liso, items]) => {
+            const lPed = items.reduce((s, i) => s + i.cantidad, 0);
+            const lConf = items.reduce((s, i) => s + i.confirmado, 0);
+            const lPend = lPed - lConf;
+            const key = `${o.id}::${liso}`;
+            const defOpen = lPend > 0 && o.estado !== 'hecha';
+            const open = abiertos[key] ?? defOpen;
+            return (
+            <div key={liso} className="rounded-lg border border-stone-100">
+              <button type="button" onClick={() => setAbiertos((p) => ({ ...p, [key]: !(p[key] ?? defOpen) }))}
+                className="w-full flex items-center justify-between gap-2 px-2.5 py-2 text-left">
+                <span className="font-mono text-xs text-stone-600">{liso}</span>
+                <span className="flex items-center gap-2 text-xs shrink-0">
+                  <span className="text-stone-500">{lConf}/{lPed}</span>
+                  {lPend > 0
+                    ? <span className="font-semibold text-amber-600">{lPend} pend.</span>
+                    : <span className="font-semibold text-emerald-600">✓</span>}
+                  <span className="text-stone-400">{open ? '▾' : '▸'}</span>
+                </span>
+              </button>
+              {open && (
+                <div className="px-2.5 pb-1.5 divide-y divide-stone-100">
+                  {items.map((it) => {
+                    const pend = it.cantidad - it.confirmado;
+                    const completo = pend <= 0;
+                    return (
+                    <div key={it.id} className="py-2">
+                      <p className="text-sm text-stone-800">{it.gnNombre || `Producto ${it.gnId}`} · <strong>{it.talle}</strong></p>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1">
+                        <span className="text-stone-400">pedido {it.cantidad}</span>
+                        <span className="text-stone-500">{esProd ? 'producidas' : 'estampadas'} <strong className="text-stone-700">{it.confirmado}</strong></span>
+                        <span className={`font-semibold ${completo ? 'text-emerald-600' : 'text-amber-600'}`}>{completo ? 'completo ✓' : `pend. ${pend}`}</span>
+                        <span className="flex-1" />
+                        {!completo && o.estado !== 'hecha' && (
+                          <span className="flex items-center gap-1">
+                            <span className="text-stone-400">+</span>
+                            <NumInput value={parseInt(confirmEdit[it.id] ?? '') || 0} min="0"
+                              onChange={(n) => setConfirmEdit((p) => ({ ...p, [it.id]: String(Math.max(0, Math.min(n, it.cantidad - it.confirmado))) }))}
+                              className={`w-16 text-right ${inp}`} />
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
         {o.estado !== 'hecha' && (
           <div className="mt-3 pt-2 border-t border-stone-100 flex justify-end">
