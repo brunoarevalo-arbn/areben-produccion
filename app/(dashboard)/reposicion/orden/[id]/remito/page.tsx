@@ -17,9 +17,12 @@ export default async function RemitoEstampaPage({ params }: { params: Promise<{ 
   const porLiso = new Map<string, typeof items>();
   for (const it of items) { if (!porLiso.has(it.skuLiso)) porLiso.set(it.skuLiso, []); porLiso.get(it.skuLiso)!.push(it); }
   const total = items.reduce((s, i) => s + i.confirmado, 0);
+  const totalPed = orden.items.reduce((s, i) => s + i.cantidad, 0);
+  const pendientes = totalPed - total;
+  const esParcial = orden.estado === 'parcial';
   const fecha = new Date(orden.creadoAt).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
   const esProd = orden.tipo === 'produccion';
-  const titulo = esProd ? 'Remito de producción' : 'Remito de estampa';
+  const titulo = (esProd ? 'Remito de producción' : 'Remito de estampa') + (esParcial ? ' (parcial)' : '');
 
   return (
     <div className="p-8 max-w-2xl mx-auto">
@@ -38,6 +41,7 @@ export default async function RemitoEstampaPage({ params }: { params: Promise<{ 
             <p>Fecha: {fecha}</p>
             <p>Orden: {orden.id.slice(0, 8)}</p>
             <p>Total: <strong className="text-stone-800">{total} prendas</strong></p>
+            {esParcial && pendientes > 0 && <p className="text-amber-600">Pendientes: {pendientes}</p>}
           </div>
         </div>
 

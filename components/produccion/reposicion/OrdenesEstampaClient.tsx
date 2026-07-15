@@ -74,8 +74,8 @@ export function OrdenesEstampaClient() {
           </span>
           <div className="flex items-center gap-2">
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${estadoColor}`}>{o.estado}</span>
-            {o.estado === 'hecha' && (
-              <a href={`/reposicion/orden/${o.id}/remito`} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 transition font-semibold">📄 Remito</a>
+            {totalConf > 0 && (
+              <a href={`/reposicion/orden/${o.id}/remito`} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 transition font-semibold">📄 Remito{o.estado === 'parcial' ? ' parcial' : ''}</a>
             )}
             <button onClick={() => borrarOrden(o.id)} aria-label="Borrar" className="text-stone-300 hover:text-red-500 px-1 leading-none text-lg">×</button>
           </div>
