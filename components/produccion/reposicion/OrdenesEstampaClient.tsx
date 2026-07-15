@@ -26,10 +26,11 @@ export function OrdenesEstampaClient() {
   useEffect(() => { cargar(); }, [cargar]);
 
   const confirmarOrden = async (o: OrdenEstampa) => {
+    // El input es una carga parcial ("cuántas ahora"); se suma a lo ya confirmado.
     const items = o.items
-      .filter((it) => confirmEdit[it.id] != null && (parseInt(confirmEdit[it.id]) || 0) !== it.confirmado)
-      .map((it) => ({ id: it.id, confirmado: parseInt(confirmEdit[it.id]) || 0 }));
-    if (items.length === 0) { toast.error('No cambiaste ninguna cantidad'); return; }
+      .filter((it) => (parseInt(confirmEdit[it.id] ?? '') || 0) > 0)
+      .map((it) => ({ id: it.id, confirmado: Math.min(it.cantidad, it.confirmado + (parseInt(confirmEdit[it.id]) || 0)) }));
+    if (items.length === 0) { toast.error('Cargá cuántas estampaste'); return; }
     setConfirmando(o.id);
     const r = await fetch(`/api/reposicion/orden-estampa/${o.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items }) });
     if (r.ok) {
@@ -54,8 +55,9 @@ export function OrdenesEstampaClient() {
     for (const it of o.items) { if (!porLiso.has(it.skuLiso)) porLiso.set(it.skuLiso, []); porLiso.get(it.skuLiso)!.push(it); }
     const totalPed = o.items.reduce((s, i) => s + i.cantidad, 0);
     const totalConf = o.items.reduce((s, i) => s + i.confirmado, 0);
+    const totalPend = totalPed - totalConf;
     const estadoColor = o.estado === 'hecha' ? 'bg-emerald-100 text-emerald-700' : o.estado === 'parcial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700';
-    const hayCambios = o.items.some((it) => confirmEdit[it.id] != null && (parseInt(confirmEdit[it.id]) || 0) !== it.confirmado);
+    const hayCambios = o.items.some((it) => (parseInt(confirmEdit[it.id] ?? '') || 0) > 0);
     const esProd = o.tipo === 'produccion';
     const hechas = esProd ? 'producidas' : 'estampadas';
     return (
@@ -65,6 +67,9 @@ export function OrdenesEstampaClient() {
             <span className={`text-xs font-semibold px-1.5 py-0.5 rounded mr-2 ${esProd ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'}`}>{esProd ? 'producción' : 'estampa'}</span>
             {new Date(o.creadoAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
             <span className="text-stone-400 font-normal"> · {o.creadoPor} · {totalConf}/{totalPed} {hechas}</span>
+            {totalPend > 0
+              ? <span className="text-xs font-semibold text-amber-600 ml-2">{totalPend} pendientes</span>
+              : <span className="text-xs font-semibold text-emerald-600 ml-2">completa ✓</span>}
           </span>
           <div className="flex items-center gap-2">
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${estadoColor}`}>{o.estado}</span>
@@ -79,17 +84,22 @@ export function OrdenesEstampaClient() {
             <div key={liso}>
               <span className="font-mono text-xs text-stone-500">{liso}</span>
               <div className="ml-3 mt-1 space-y-1">
-                {items.map((it) => (
+                {items.map((it) => {
+                  const pend = it.cantidad - it.confirmado;
+                  const completo = pend <= 0;
+                  return (
                   <div key={it.id} className="flex items-center gap-2 text-sm">
                     <span className="text-stone-700 flex-1 truncate">{it.gnNombre || `Producto ${it.gnId}`} · <strong>{it.talle}</strong></span>
                     <span className="text-xs text-stone-400">pedido {it.cantidad}</span>
-                    <span className="text-xs text-stone-500">{esProd ? 'producido' : 'estampado'}</span>
-                    <NumInput value={confirmEdit[it.id] != null ? (parseFloat(confirmEdit[it.id]) || 0) : it.confirmado} min="0"
-                      onChange={(n) => setConfirmEdit((p) => ({ ...p, [it.id]: String(Math.min(n, it.cantidad)) }))}
-                      disabled={o.estado === 'hecha'} className={`w-14 text-right ${inp}`} />
-                    <span className="text-xs text-stone-300">/ {it.cantidad}</span>
+                    <span className="text-xs text-stone-500">{esProd ? 'producidas' : 'estampadas'} <strong className="text-stone-700">{it.confirmado}</strong></span>
+                    {!completo && o.estado !== 'hecha' && <span className="text-xs text-stone-400">+</span>}
+                    <NumInput value={parseInt(confirmEdit[it.id] ?? '') || 0} min="0"
+                      onChange={(n) => setConfirmEdit((p) => ({ ...p, [it.id]: String(Math.max(0, Math.min(n, it.cantidad - it.confirmado))) }))}
+                      disabled={o.estado === 'hecha' || completo} className={`w-14 text-right ${inp}`} />
+                    <span className={`text-xs font-semibold w-20 text-right ${completo ? 'text-emerald-600' : 'text-amber-600'}`}>{completo ? 'completo ✓' : `pend. ${pend}`}</span>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}
