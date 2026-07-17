@@ -144,6 +144,7 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
               { label: 'Corte',    val: datos.costoCorte },
               { label: 'Tizada',   val: datos.costoTizada },
               { label: 'Lavadero', val: datos.costoLavadero },
+              ...(datos.costoSublimacionFicha ? [{ label: 'Sublimación', val: datos.costoSublimacionFicha }] : []),
             ].map(r => (
               <div key={r.label} className="flex justify-between">
                 <span className="text-stone-600">{r.label}</span>

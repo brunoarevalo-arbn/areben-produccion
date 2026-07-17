@@ -32,6 +32,7 @@ export async function GET(req: NextRequest) {
   const cant = orden.cantidad || 0;
   const costoTelaUnit = cant > 0 ? (Number(orden.costoTela) + Number(orden.costoInsumosSecundarios)) / cant : null;
   const costoCorteUnit = cant > 0 ? Number(orden.costoCorte) / cant : null;
+  const costoSublimacionUnit = cant > 0 ? Number(orden.costoSublimacion) / cant : null;
 
   // Avíos de la ficha con su costo por prenda (cantidad de OrdenAvio ya es por prenda).
   const avios = orden.avios.map((a) => {
@@ -45,6 +46,7 @@ export async function GET(req: NextRequest) {
     cantidad: cant,
     costoTelaUnit,
     costoCorteUnit,
+    costoSublimacionUnit,
     costoAviosUnit,
     metrosTotal: metros,
     kgTotal: kg,

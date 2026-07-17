@@ -90,7 +90,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const cantidad = talles.reduce((s, t) => s + t.cantidad, 0);
   if (cantidad <= 0) return NextResponse.json({ error: 'Cargá al menos un talle con cantidad' }, { status: 400 });
   const costoCorteTotal = (modoCosto === 'unidad' ? (costoCorte ?? 0) * cantidad : (costoCorte ?? 0));
-  const costoTotal = Number(orden.costoTela) + costoCorteTotal;
+  // La edición rápida no toca tela ni sublimación, pero recompone costoTotal a mano: si no
+  // se arrastran, cambiar un talle o el cortador los borraría del total.
+  const costoTotal = Number(orden.costoTela) + Number(orden.costoSublimacion) + costoCorteTotal;
 
   // Nombres de avíos para dejar el fichaCorteData consistente (la vista los muestra).
   const etqs = avios.length ? await prisma.etiquetaCatalogo.findMany({ where: { id: { in: avios.map((a) => a.etiquetaId) } }, select: { id: true, nombre: true } }) : [];

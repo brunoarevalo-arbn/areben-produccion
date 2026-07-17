@@ -340,6 +340,7 @@ model ConfigCostos {
   dtfAnchoCm       Float    @default(58) // ancho del rollo DTF
   dtfMermaDefault  Float    @default(0)  // % merma default de estampas
   estampadoValorHora Float  @default(0)  // $/hora de MO de estampería ($/min = /60)
+  sublimacionPrecioMetro Float @default(0) // $/m lineal de sublimación de tela (precio vigente)
   ivaVenta         Float    @default(21)  // % IVA de venta (para separar PVP del costo neto)
   markupVentaDefault Float  @default(130) // markup % s/ costo por defecto (simulador de precios)
   iibbPct          Float    @default(0)   // % Ingresos Brutos sobre venta
@@ -542,6 +543,11 @@ model OrdenProduccion {
   costoInsumosSecundarios Decimal   @default(0)
   costoManoObra           Decimal   @default(0)
   costoEstampa            Decimal   @default(0)
+  // Sublimación de tela: se cobra por metro lineal de los metros que se le piden al
+  // sublimador (no de los que se cortan). Rubro propio: no va en costoCorte (que es lo
+  // que se le paga al cortador) ni en costoTela (que reconcilia contra los rollos).
+  costoSublimacion        Decimal   @default(0)
+  metrosSublimados        Decimal   @default(0)
   costoTotal              Decimal   @default(0)
 
   transiciones            EstadoTransicion[]

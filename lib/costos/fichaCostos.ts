@@ -6,6 +6,7 @@ export interface OpCostosFicha {
   costoTela: unknown;
   costoInsumosSecundarios: unknown;
   costoCorte: unknown;
+  costoSublimacion?: unknown;
   cantidad: number;
 }
 
@@ -18,4 +19,8 @@ export function telaUnit(op: OpCostosFicha): number | null {
 
 export function corteUnit(op: OpCostosFicha): number | null {
   return op.fichaCorteCargada && op.cantidad > 0 ? Number(op.costoCorte) / op.cantidad : null;
+}
+
+export function sublimacionUnit(op: OpCostosFicha): number | null {
+  return op.fichaCorteCargada && op.cantidad > 0 ? Number(op.costoSublimacion ?? 0) / op.cantidad : null;
 }

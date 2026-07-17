@@ -125,10 +125,11 @@ export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen,
           </div>
         ) : null}
 
-        {(resumen.cortador || fichaData?.costoCorte) && (
+        {(resumen.cortador || fichaData?.costoCorte || fichaData?.metrosSublimados) && (
           <div className="flex gap-6 text-sm pt-2 border-t border-emerald-200">
             {resumen.cortador && <div><span className="text-emerald-600">Cortador:</span> <strong className="text-stone-800">{resumen.cortador}</strong></div>}
             {fichaData?.costoCorte ? <div><span className="text-emerald-600">Costo corte:</span> <strong className="text-stone-800">${fmt(Number(fichaData.costoCorte))}{fichaData.modoCosto === 'unidad' ? ' /u' : ''}</strong></div> : null}
+            {fichaData?.metrosSublimados ? <div><span className="text-emerald-600">Sublimado:</span> <strong className="text-stone-800">{fmt(Number(fichaData.metrosSublimados))} m</strong></div> : null}
           </div>
         )}
 

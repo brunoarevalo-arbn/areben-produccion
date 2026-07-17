@@ -32,6 +32,11 @@ interface Tizada {
   metros: string;
   unidades: string;
   rollos: ConsumoRollo[];
+  // Sublimación: si la tela de esta tizada se manda a sublimar, y cuántos metros se le
+  // piden al sublimador (por defecto los que consume la tizada, pero editable — se paga
+  // por lo pedido, no por lo cortado).
+  sublima?: boolean;
+  metrosSublimados?: string;
 }
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
@@ -47,6 +52,10 @@ export interface FichaData {
   costoCorte?: number | string;
   modoCosto?: 'total' | 'unidad';
   fechaCorte?: string; // YYYY-MM-DD
+  // Avisos no bloqueantes de faltante por rinde, guardados como constancia en la ficha.
+  faltantes?: { nombre: string; faltante: number }[];
+  // Metros sublimados en total (traza; el desglose por tizada está en cada Tizada).
+  metrosSublimados?: number;
 }
 
 const hoyISO = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD en hora local
@@ -72,6 +81,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
   const fd = prefill?.fichaData;
   const [rollosDisp, setRollosDisp] = useState<RolloDisp[]>([]);
   const [cortadores, setCortadores] = useState<CortadorOpt[]>([]);
+  const [subPrecioMetro, setSubPrecioMetro] = useState(0); // $/m de sublimación (config)
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -145,6 +155,11 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
       .then((r) => r.ok ? r.json() : [])
       .then((a) => { if (Array.isArray(a)) setAviosCatalogo(a.map((x) => ({ ...x, precio: Number(x.precio) }))); })
       .catch(() => {});
+
+    fetch('/api/costos/sublimacion')
+      .then((r) => r.ok ? r.json() : null)
+      .then((c) => { if (c && typeof c.sublimacionPrecioMetro === 'number') setSubPrecioMetro(c.sublimacionPrecioMetro); })
+      .catch(() => {});
   }, []);
 
   // Tizadas
@@ -154,6 +169,13 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
     setTizadas((prev) => prev.length > 1 ? prev.filter((t) => t.id !== id) : prev);
   const updTizada = (id: string, field: 'nombre' | 'modo' | 'metros' | 'unidades', val: string) =>
     setTizadas((prev) => prev.map((t) => t.id === id ? { ...t, [field]: val } : t));
+  // Al marcar "se sublima", precarga los metros que consume la tizada (editable después).
+  const toggleSublima = (id: string, metrosDefault: number) =>
+    setTizadas((prev) => prev.map((t) => t.id === id
+      ? { ...t, sublima: !t.sublima, metrosSublimados: !t.sublima && !t.metrosSublimados && metrosDefault > 0 ? String(Math.round(metrosDefault * 100) / 100) : t.metrosSublimados }
+      : t));
+  const updMetrosSublimados = (id: string, val: string) =>
+    setTizadas((prev) => prev.map((t) => t.id === id ? { ...t, metrosSublimados: val } : t));
   const toggleRolloTizada = (tizadaId: string, r: RolloDisp) =>
     setTizadas((prev) => prev.map((t) => {
       if (t.id !== tizadaId) return t;
@@ -195,7 +217,11 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
   const costoTela   = tizadasCalc.reduce((s, x) => s + x.costo, 0);
   const costoCorteInput = parseFloat(costoCorte) || 0;
   const costoCorteNum = modoCosto === 'unidad' ? costoCorteInput * totalUnidades : costoCorteInput;
-  const costoTotalAcum = costoTela + costoCorteNum;
+  // Sublimación: solo cuentan las tizadas marcadas. El $/m es el vigente (config); el server
+  // recalcula con el mismo criterio, esto es solo el preview.
+  const totalMetrosSublimados = tizadas.reduce((s, t) => s + (t.sublima ? (parseFloat(t.metrosSublimados || '') || 0) : 0), 0);
+  const costoSublimacion = totalMetrosSublimados * subPrecioMetro;
+  const costoTotalAcum = costoTela + costoCorteNum + costoSublimacion;
   const costoUnitario = totalUnidades > 0 ? costoTotalAcum / totalUnidades : 0;
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -260,6 +286,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
         cortesPorTalle: cortesArr,
         cortadorId: cortadorId || undefined,
         costoCorte: costoCorteNum > 0 ? costoCorteNum : undefined,
+        metrosSublimados: totalMetrosSublimados > 0 ? totalMetrosSublimados : undefined,
         notas: notas || undefined,
         fechaCorte: fechaCorte || undefined,
         // Estado del form tal cual, para ver/editar la ficha idéntica después.
@@ -272,6 +299,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
           modoCosto,
           fechaCorte,
           faltantes,
+          metrosSublimados: totalMetrosSublimados > 0 ? totalMetrosSublimados : undefined,
         },
       }),
     });
@@ -352,6 +380,29 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
                   )}
                 </div>
               )}
+
+              {/* Sublimación: esta tela se manda a sublimar. Metros = los que se le piden al
+                  sublimador (por defecto los de la tizada, editables — se paga lo pedido). */}
+              <div className="mb-3">
+                <label className="flex items-center gap-2 text-xs font-semibold text-stone-600 cursor-pointer select-none">
+                  <input type="checkbox" checked={!!t.sublima} onChange={() => toggleSublima(t.id, tc.metros)}
+                    className="w-4 h-4 rounded border-stone-300 text-fuchsia-600 focus:ring-fuchsia-400" />
+                  Esta tela se sublima
+                </label>
+                {t.sublima && (
+                  <div className="bg-fuchsia-50 border border-fuchsia-200 rounded-lg p-3 mt-2">
+                    <label className="text-xs font-semibold text-stone-600 mb-1 block">Metros a sublimar</label>
+                    <div className="flex items-center gap-2">
+                      <NumInput value={parseFloat(t.metrosSublimados || '') || 0} onChange={(n) => updMetrosSublimados(t.id, n ? String(n) : '')}
+                        min="0" step="0.01" placeholder={tc.metros > 0 ? fmt(tc.metros) : 'Ej: 24.5'} className={inpSm + ' w-32'} />
+                      {subPrecioMetro > 0
+                        ? <span className="text-xs text-stone-500">× ${fmt(subPrecioMetro)}/m = <strong className="text-stone-700">${fmt((parseFloat(t.metrosSublimados || '') || 0) * subPrecioMetro)}</strong></span>
+                        : <span className="text-xs text-amber-600">Cargá el precio por metro en Costos → Parámetros</span>}
+                    </div>
+                    <p className="text-xs text-stone-400 mt-1">Son los metros que le pedís al sublimador, no los que corta la tizada.</p>
+                  </div>
+                )}
+              </div>
 
               {/* Filtro por tela: elegís la tela y ves solo sus rollos (en vez de todos). */}
               {(() => {
@@ -541,7 +592,7 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
 
       {/* Resumen total */}
       <div className="bg-stone-50 rounded-2xl border border-stone-200 p-6">
-        <div className="grid grid-cols-4 gap-4 text-sm">
+        <div className={`grid ${costoSublimacion > 0 ? 'grid-cols-5' : 'grid-cols-4'} gap-4 text-sm`}>
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Tela</p>
             <p className="text-stone-800 tabular-nums">${fmt(costoTela)}</p>
@@ -550,6 +601,12 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Corte</p>
             <p className="text-stone-800 tabular-nums">${fmt(costoCorteNum)}</p>
           </div>
+          {costoSublimacion > 0 && (
+            <div>
+              <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Sublimación</p>
+              <p className="text-stone-800 tabular-nums">${fmt(costoSublimacion)}</p>
+            </div>
+          )}
           <div>
             <p className="text-xs text-stone-400 uppercase tracking-widest font-bold mb-1">Costo total</p>
             <p className="text-stone-900 font-bold text-lg tabular-nums">${fmt(costoTotalAcum)}</p>

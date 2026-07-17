@@ -39,6 +39,10 @@ export function Parametros() {
   const [savingE,      setSavingE]      = useState(false);
   const [savedE,       setSavedE]       = useState(false);
 
+  const [subPrecioMetro, setSubPrecioMetro] = useState('');
+  const [savingS,        setSavingS]        = useState(false);
+  const [savedS,         setSavedS]         = useState(false);
+
   const cargar = useCallback(async () => {
     setLoading(true);
     const [rG, rC] = await Promise.all([
@@ -61,9 +65,20 @@ export function Parametros() {
           setMargenFallas(String(c.margenFallas));
         }
         if (c && c.estampadoValorHora) setEstValorHora(String(c.estampadoValorHora));
+        if (c && c.sublimacionPrecioMetro) setSubPrecioMetro(String(c.sublimacionPrecioMetro));
       })
       .catch(() => {});
   }, []);
+
+  const guardarSublimacion = async () => {
+    setSavingS(true);
+    const r = await fetch('/api/costos/config', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sublimacionPrecioMetro: parseFloat(subPrecioMetro) || 0 }),
+    });
+    setSavingS(false);
+    if (r.ok) { setSavedS(true); setTimeout(() => setSavedS(false), 2000); }
+  };
 
   const guardarEstamperia = async () => {
     setSavingE(true);
@@ -197,6 +212,23 @@ export function Parametros() {
         <button onClick={guardarEstamperia} disabled={savingE}
           className={`mt-4 px-4 py-2 rounded-xl text-sm font-semibold transition ${savedE ? 'bg-emerald-600 text-white' : 'bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50'}`}>
           {savingE ? 'Guardando...' : savedE ? '✓ Guardado' : 'Guardar estampería'}
+        </button>
+      </Card>
+
+      {/* Sublimación */}
+      <Card padding="none" className="p-5">
+        <h3 className="text-sm font-bold text-stone-800 mb-1">Sublimación</h3>
+        <p className="text-xs text-stone-400 mb-4">Precio por metro lineal de tela sublimada. La ficha de corte lo aplica a los metros que se mandan a sublimar. Al cambiarlo, las fichas ya cargadas conservan el precio con el que se calcularon.</p>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="text-xs text-stone-400 mb-1 block">Precio por metro $</label>
+            <NumInput value={parseFloat(subPrecioMetro) || 0} onChange={(n) => setSubPrecioMetro(n ? String(n) : '')}
+              placeholder="0" min="0" className={inputCls} />
+          </div>
+        </div>
+        <button onClick={guardarSublimacion} disabled={savingS}
+          className={`mt-4 px-4 py-2 rounded-xl text-sm font-semibold transition ${savedS ? 'bg-emerald-600 text-white' : 'bg-stone-900 hover:bg-stone-800 text-white disabled:opacity-50'}`}>
+          {savingS ? 'Guardando...' : savedS ? '✓ Guardado' : 'Guardar sublimación'}
         </button>
       </Card>
 

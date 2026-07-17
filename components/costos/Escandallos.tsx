@@ -28,6 +28,7 @@ interface ProductoProd {
   descripcion: string | null;
   costoTelaUnit: number | null;
   costoCorteUnit: number | null;
+  costoSublimacionUnit: number | null;
   loteId: string | null;
   tieneFicha: boolean;
   tieneEscandallo: boolean;
@@ -131,7 +132,7 @@ export function Escandallos() {
   const [tiempoProduccion,   setTiempoProduccion]   = useState<{ minutos: number; registros: number; cantidadTotal: number } | null>(null);
   const [tiempoLote,         setTiempoLote]         = useState<{ minutos: number; colores: number; cantidadTotal: number } | null>(null);
   const [sinDatosProduccion, setSinDatosProduccion] = useState(false);
-  const [fichaResumen,       setFichaResumen]       = useState<{ costoTelaUnit: number | null; costoCorteUnit: number | null; costoAviosUnit: number; cantidad: number; metrosTotal: number; kgUnit: number; metrosUnit: number; avios: { nombre: string; cantidad: number; costo: number }[] } | null>(null);
+  const [fichaResumen,       setFichaResumen]       = useState<{ costoTelaUnit: number | null; costoCorteUnit: number | null; costoSublimacionUnit: number | null; costoAviosUnit: number; cantidad: number; metrosTotal: number; kgUnit: number; metrosUnit: number; avios: { nombre: string; cantidad: number; costo: number }[] } | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -164,6 +165,7 @@ export function Escandallos() {
               costoTelaFicha:  d.costoTelaUnit,
               costoCorteFicha: d.costoCorteUnit != null ? d.costoCorteUnit : prev.costoCorteFicha,
               costoCorte:      d.costoCorteUnit != null ? d.costoCorteUnit : prev.costoCorte,
+              costoSublimacionFicha: d.costoSublimacionUnit || undefined,
             };
           });
         }
@@ -307,6 +309,7 @@ export function Escandallos() {
       // Un solo corte por SKU: si la ficha tiene costo de corte, se trae y se bloquea.
       costoCorteFicha: p.costoCorteUnit != null ? p.costoCorteUnit : undefined,
       costoCorte: p.costoCorteUnit != null ? p.costoCorteUnit : prev.costoCorte,
+      costoSublimacionFicha: p.costoSublimacionUnit || undefined,
     }));
     setTiempoProduccion(null);
     setTiempoLote(null);
@@ -697,6 +700,13 @@ export function Escandallos() {
                 <div className="flex items-center justify-between text-sm pt-2 border-t border-violet-100">
                   <span className="text-stone-500">Costo de corte por prenda</span>
                   <span className="font-semibold font-mono tabular-nums text-stone-700">{fmt$(datos.costoCorteFicha)}</span>
+                </div>
+              )}
+
+              {datos.costoSublimacionFicha != null && datos.costoSublimacionFicha > 0 && (
+                <div className="flex items-center justify-between text-sm pt-2 border-t border-violet-100">
+                  <span className="text-stone-500">Sublimación por prenda</span>
+                  <span className="font-semibold font-mono tabular-nums text-stone-700">{fmt$(datos.costoSublimacionFicha)}</span>
                 </div>
               )}
 

@@ -66,6 +66,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         costoCorte: new Prisma.Decimal(0),
         costoTela: new Prisma.Decimal(0),
         costoInsumosSecundarios: new Prisma.Decimal(0),
+        costoSublimacion: new Prisma.Decimal(0),
+        metrosSublimados: new Prisma.Decimal(0),
         costoTotal: new Prisma.Decimal(0),
       },
     });

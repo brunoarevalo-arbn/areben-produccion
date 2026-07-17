@@ -56,6 +56,7 @@ export interface DatosEscandallo {
   costoTelaFicha?: number;
   costoCorteFicha?: number; // costo de corte por prenda traído de la ficha (un solo corte por SKU)
   costoAviosFicha?: number; // costo de avíos por prenda traído de la ficha (bloquea la carga manual)
+  costoSublimacionFicha?: number; // costo de sublimación por prenda traído de la ficha
 }
 
 export interface Margenes { margenDesarrollo: number; margenFallas: number; }
@@ -171,6 +172,7 @@ export function parseDatos(raw: string | null | undefined): DatosEscandallo {
     costoTelaFicha: typeof p.costoTelaFicha === 'number' ? p.costoTelaFicha : undefined,
     costoCorteFicha: typeof p.costoCorteFicha === 'number' ? p.costoCorteFicha : undefined,
     costoAviosFicha: typeof p.costoAviosFicha === 'number' ? p.costoAviosFicha : undefined,
+    costoSublimacionFicha: typeof p.costoSublimacionFicha === 'number' ? p.costoSublimacionFicha : undefined,
   };
 }
 
@@ -194,7 +196,8 @@ export function calcular(d: DatosEscandallo, costoMinuto: number, margenes: Marg
   const costoTelas = d.costoTelaFicha != null
     ? d.costoTelaFicha
     : d.telas.reduce((s, t) => s + telaCosto(t).costo, 0);
-  const costoServicios  = d.costoCorte + d.costoTizada + d.costoLavadero;
+  // La sublimación solo viene de la ficha real (no hay carga manual): es un servicio más.
+  const costoServicios  = d.costoCorte + d.costoTizada + d.costoLavadero + (d.costoSublimacionFicha ?? 0);
   const costoMO         = d.tiempoConfeccion * costoMinuto;
   const costoVarios     = d.varios.reduce((s, v) => s + itemCosto(v), 0);
   const costoEmbolsado  = d.avios.tiempoEmbolsado * costoMinuto;

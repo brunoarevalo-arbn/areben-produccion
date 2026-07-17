@@ -36,7 +36,7 @@ export async function registrarCorteOrden(
     throw new CorteError('La ficha ya fue cargada. Para corregirla, revertí el corte y volvé a cargarla.');
   }
 
-  const { consumoRollos, cortesPorTalle, avios, cortadorId, costoCorte, fichaFotoUrl, notas, fichaData, fechaCorte } = data;
+  const { consumoRollos, cortesPorTalle, avios, cortadorId, costoCorte, metrosSublimados, fichaFotoUrl, notas, fichaData, fechaCorte } = data;
 
   // Buscar cortador para guardar denormalizado
   let cortadorNombre: string | null = null;
@@ -80,6 +80,15 @@ export async function registrarCorteOrden(
     const rinde = Number(rollo.insumo.rinde);
     const kgConsumidos = new Prisma.Decimal(cr.metrosUsados).div(new Prisma.Decimal(rinde));
     costoTela = costoTela.add(kgConsumidos.mul(rollo.costoUnitario));
+  }
+
+  // Sublimación: el $/m sale de la config (precio vigente), no del cliente. Se persiste el
+  // costo ya resuelto, así un cambio de precio no re-valúa las fichas viejas.
+  const metrosSublimadosDec = new Prisma.Decimal(metrosSublimados || 0);
+  let costoSublimacion = new Prisma.Decimal(0);
+  if (metrosSublimadosDec.gt(0)) {
+    const cfg = await tx.configCostos.findUnique({ where: { id: 'singleton' } });
+    costoSublimacion = metrosSublimadosDec.mul(new Prisma.Decimal(cfg?.sublimacionPrecioMetro ?? 0));
   }
 
   // Cantidad total cortada = suma de talles → reemplaza la cantidad planificada
@@ -131,7 +140,7 @@ export async function registrarCorteOrden(
 
   // Actualizar OP
   const costoCorteDec = new Prisma.Decimal(costoCorte || 0);
-  const costoTotal = costoTela.add(costoCorteDec);
+  const costoTotal = costoTela.add(costoCorteDec).add(costoSublimacion);
   const updateData: Record<string, unknown> = {
     fichaCorteCargada: true,
     fichaFotoUrl: fichaFotoUrl || null,
@@ -140,6 +149,8 @@ export async function registrarCorteOrden(
     costoCorte: costoCorteDec,
     costoTela,
     costoInsumosSecundarios: new Prisma.Decimal(0),
+    costoSublimacion,
+    metrosSublimados: metrosSublimadosDec,
     costoTotal,
     cantidad: cantidadTotal,
     fichaCorteData: fichaData ?? Prisma.JsonNull, // para ver/editar la ficha idéntica
@@ -214,7 +225,9 @@ export async function revertirCorteOrden(
     data: {
       fichaCorteCargada: false, fichaFotoUrl: null, cortador: null, cortadorId: null,
       costoCorte: new Prisma.Decimal(0), costoTela: new Prisma.Decimal(0),
-      costoInsumosSecundarios: new Prisma.Decimal(0), costoTotal: new Prisma.Decimal(0),
+      costoInsumosSecundarios: new Prisma.Decimal(0),
+      costoSublimacion: new Prisma.Decimal(0), metrosSublimados: new Prisma.Decimal(0),
+      costoTotal: new Prisma.Decimal(0),
     },
   });
 }

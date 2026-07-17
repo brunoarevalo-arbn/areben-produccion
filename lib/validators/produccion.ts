@@ -79,6 +79,9 @@ export const RegistrarCorteSchema = z.object({
   avios:          z.array(AvioCorteSchema).optional(),
   cortadorId:     z.string().optional(),
   costoCorte:     z.number().min(0).optional(),
+  // Metros de tela mandados a sublimar (suma de las tizadas que se subliman). El $/m lo
+  // pone el server desde ConfigCostos: acá solo viajan los metros.
+  metrosSublimados: z.number().min(0).optional(),
   fichaFotoUrl:   z.string().optional(),
   notas:          z.string().optional(),
   fichaData:      z.any().optional(), // estado del form (tizadas/talles/avíos/…) para ver-editar idéntico
