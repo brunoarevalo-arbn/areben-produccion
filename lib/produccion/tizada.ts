@@ -9,6 +9,10 @@ export interface TizadaRollo {
   costoUnitario: number;
   rinde: number;
   nombre: string;
+  // Color del rollo al momento de cortar. Se persiste en la ficha para poder validar
+  // "una tizada, un color" al editarla aunque el rollo ya no exista en inventario.
+  // Las fichas viejas no lo tienen: ahí el color se recupera del rollo vivo.
+  color?: string | null;
 }
 
 export interface TizadaCalcInput {

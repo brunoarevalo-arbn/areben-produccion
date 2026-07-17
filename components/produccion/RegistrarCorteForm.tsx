@@ -120,9 +120,18 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
       // (el guardado, previo al consumo), porque al guardar el backend repone y re-registra
       // atómico. Tienen prioridad sobre el peso vivo; los demás rollos vivos se agregan.
       if (fd?.tizadas?.length) {
+        const vivos = new Map(allRollos.map((r) => [r.id, r]));
         const fichaRollos = new Map<string, RolloDisp>();
         for (const t of fd.tizadas) for (const c of t.rollos) {
-          fichaRollos.set(c.rolloId, { id: c.rolloId, codigo: c.codigo, pesoActual: String(c.pesoActual), costoUnitario: String(c.costoUnitario), insumo: { nombre: c.nombre, rinde: String(c.rinde) }, color: null });
+          const vivo = vivos.get(c.rolloId);
+          fichaRollos.set(c.rolloId, {
+            id: c.rolloId, codigo: c.codigo,
+            pesoActual: String(c.pesoActual), costoUnitario: String(c.costoUnitario),
+            insumo: { nombre: c.nombre, rinde: String(c.rinde) },
+            // De la ficha solo prevalece el peso repuesto: el color es del rollo vivo,
+            // y si ya no está vivo, del que guardó la ficha.
+            color: vivo?.color ?? (c.color ? { nombre: c.color } : null),
+          });
         }
         const merged = [...fichaRollos.values(), ...disp.filter((r) => !fichaRollos.has(r.id))];
         setRollosDisp(merged.sort((a, b) => a.codigo.localeCompare(b.codigo)));
@@ -153,7 +162,8 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
       return { ...t, rollos: [...t.rollos, {
         rolloId: r.id, metros: '', codigo: r.codigo,
         pesoActual: Number(r.pesoActual), costoUnitario: Number(r.costoUnitario),
-        rinde: Number(r.insumo.rinde), nombre: `${r.insumo.nombre} · ${r.color?.nombre ?? 's/color'}${r.compra?.proveedor ? ` · ${r.compra.proveedor.nombre}` : ''}`,
+        rinde: Number(r.insumo.rinde), color: r.color?.nombre ?? null,
+        nombre: `${r.insumo.nombre} · ${r.color?.nombre ?? 's/color'}${r.compra?.proveedor ? ` · ${r.compra.proveedor.nombre}` : ''}`,
       }] };
     }));
   const updRolloMetrosTizada = (tizadaId: string, rolloId: string, val: string) =>
@@ -199,8 +209,11 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
       if (tc.t.rollos.length === 0) continue;
       const etq = tc.t.nombre.trim() || 'sin nombre';
       if (tc.t.modo === 'tizada' && tc.metrosPorUnidad <= 0) { setError(`Tizada "${etq}": cargá los metros y unidades`); return; }
-      // Una tizada se corta de un solo color.
-      const colores = [...new Set(tc.t.rollos.map((c) => rollosDisp.find((r) => r.id === c.rolloId)?.color?.nombre ?? 's/color'))];
+      // Una tizada se corta de un solo color. Solo se comparan colores CONOCIDOS: un rollo
+      // sin color cargado no traba el guardado (un dato faltante no es un color distinto).
+      const colores = [...new Set(tc.t.rollos
+        .map((c) => rollosDisp.find((r) => r.id === c.rolloId)?.color?.nombre ?? c.color)
+        .filter((n): n is string => !!n))];
       if (colores.length > 1) { setError(`Tizada "${etq}": mezcla telas de distinto color (${colores.join(', ')}). Una tizada se corta de un solo color.`); return; }
       // Un rollo asignado tiene que cortar algo: no se permiten rollos con 0 m de consumo.
       const sinUso = tc.rollosCalc.find((c) => c.metrosEf <= 0.001);
