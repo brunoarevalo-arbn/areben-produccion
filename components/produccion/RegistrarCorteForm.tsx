@@ -420,7 +420,12 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
                 {rollosDisp.length === 0 ? (
                   <p className="text-sm text-stone-400 py-2">No hay rollos con rinde disponibles. Cargá el rinde en configuración.</p>
                 ) : (
-                  (filtroTela[t.id] ? rollosDisp.filter((r) => r.insumo.nombre === filtroTela[t.id]) : rollosDisp).map((r) => {
+                  (filtroTela[t.id]
+                    // Un rollo ya tildado en esta tizada se muestra SIEMPRE, aunque no sea de
+                    // la tela filtrada: si no, queda seleccionado pero invisible (y traba el
+                    // guardado por "mezcla de colores" sin que se vea el rollo culpable).
+                    ? rollosDisp.filter((r) => r.insumo.nombre === filtroTela[t.id] || t.rollos.some((c) => c.rolloId === r.id))
+                    : rollosDisp).map((r) => {
                     const selected = t.rollos.find((c) => c.rolloId === r.id);
                     const metrosDisp = Number(r.pesoActual) * Number(r.insumo.rinde);
                     const ef = efMap.get(r.id) ?? 0;
