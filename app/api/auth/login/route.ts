@@ -17,6 +17,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Usuario o contraseña incorrectos' }, { status: 401 });
     }
 
+    // Cuenta solo-Google (sin contraseña propia): no puede entrar por este camino.
+    if (!usuario.passwordHash) {
+      return NextResponse.json({ error: 'Esta cuenta ingresa con Google' }, { status: 401 });
+    }
+
     const ok = await verifyPassword(password, usuario.passwordHash);
     if (!ok) {
       return NextResponse.json({ error: 'Usuario o contraseña incorrectos' }, { status: 401 });

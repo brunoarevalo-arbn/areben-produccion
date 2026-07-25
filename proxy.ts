@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/usuarios'];
+// /auth/callback es la vuelta de Google: llega SIN sesión a propósito (trae el
+// code a canjear). Si no fuera pública, el proxy la mandaría al login y el
+// ingreso nunca cerraría (login → Google → callback → login → ...).
+const PUBLIC_PATHS = ['/login', '/auth/callback', '/api/auth/login', '/api/usuarios'];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;

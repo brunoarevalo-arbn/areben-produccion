@@ -298,7 +298,15 @@ model Usuario {
   id           String   @id @default(cuid())
   nombre       String
   username     String   @unique
-  passwordHash String
+  // Nullable: quien entra con Google no tiene contraseña propia (la identidad la
+  // valida Supabase). Sigue habiendo login por contraseña para quien no tiene
+  // casilla @arebensrl.com (cortador, costurera, genéricas).
+  passwordHash String?
+  // Vínculo con la cuenta de Google/Supabase. La unicidad la garantiza un índice
+  // parcial case-insensitive creado por SQL (usuarios_email_key sobre LOWER(email)
+  // WHERE email IS NOT NULL); NO se pone @unique acá para que `prisma db push` no
+  // intente reemplazar ese índice por uno propio.
+  email        String?
   rol          String   @default("admin")
   permisos     String[] @default([])
   activo       Boolean  @default(true)
