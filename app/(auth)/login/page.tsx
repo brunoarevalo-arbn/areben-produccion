@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createSupabaseBrowserClient } from '@/lib/supabase-client';
 
@@ -11,13 +11,24 @@ const ERRORES_GOOGLE: Record<string, string> = {
   'sin-codigo': 'El ingreso con Google quedó a medias. Probá de nuevo.',
 };
 
+/**
+ * Marca de que el ingreso en curso salió de un salto entre apps (`?sso=1`) y no
+ * de un click. Sirve para una sola cosa: si el salto no prospera, la vuelta trae
+ * `?error=` y ese error NO hay que mostrarlo — que falle es lo esperable cuando
+ * el navegador no tiene sesión de Google, y no es culpa de nadie.
+ */
+const CLAVE_SALTO = 'areben-sso-salto';
+
 export default function LoginPage() {
   const [username,  setUsername]  = useState('');
   const [password,  setPassword]  = useState('');
   const [error,     setError]     = useState('');
+  const [aviso,     setAviso]     = useState('');
   const [cargando,  setCargando]  = useState(false);
   const [googleCargando, setGoogleCargando] = useState(false);
+  const [saltando,  setSaltando]  = useState(false);
   const [sinUsers,  setSinUsers]  = useState<boolean | null>(null);
+  const saltoIniciado = useRef(false);
 
   // Bootstrap: new admin form
   const [setupNombre,   setSetupNombre]   = useState('');
@@ -43,16 +54,16 @@ export default function LoginPage() {
       .catch(() => setSinUsers(false));
   }, []);
 
-  // Mensaje de error con el que vuelve /auth/callback cuando el ingreso con
-  // Google no prospera (?error=sin-acceso|google|sin-codigo).
-  useEffect(() => {
-    const code = new URLSearchParams(window.location.search).get('error');
-    if (code) setError(ERRORES_GOOGLE[code] ?? ERRORES_GOOGLE.google);
-  }, []);
-
-  const handleGoogle = async () => {
+  /**
+   * Arranca el ingreso con Google. En modo `silencioso` suma `prompt=none`: si el
+   * navegador ya tiene sesión de Google —el caso de quien viene de otra app de
+   * Areben— Google responde sin mostrar ninguna pantalla y la vuelta es inmediata.
+   * Si NO la tiene, contesta con un error en vez de pedir credenciales, y ahí
+   * caemos al login de siempre.
+   */
+  const entrarConGoogle = async ({ silencioso = false } = {}) => {
     setError('');
-    setGoogleCargando(true);
+    if (!silencioso) setGoogleCargando(true);
     const supabase = createSupabaseBrowserClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -60,14 +71,54 @@ export default function LoginPage() {
         redirectTo: `${window.location.origin}/auth/callback`,
         // La pantalla de consentimiento ya es Interna (solo cuentas de la
         // organización); `hd` evita que el selector ofrezca cuentas personales.
-        queryParams: { hd: 'arebensrl.com' },
+        queryParams: silencioso
+          ? { hd: 'arebensrl.com', prompt: 'none' }
+          : { hd: 'arebensrl.com' },
       },
     });
     if (error) {
-      setError(ERRORES_GOOGLE.google);
-      setGoogleCargando(false);
+      if (silencioso) {
+        sessionStorage.removeItem(CLAVE_SALTO);
+        setSaltando(false);
+        setAviso('Entrá con Google para continuar.');
+      } else {
+        setError(ERRORES_GOOGLE.google);
+        setGoogleCargando(false);
+      }
     }
   };
+
+  // Vuelta de /auth/callback (?error=sin-acceso|google|sin-codigo) y salto
+  // silencioso desde otra app de Areben (?sso=1).
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const codigoError = params.get('error');
+
+    if (codigoError) {
+      const veniaDeSalto = sessionStorage.getItem(CLAVE_SALTO) === '1';
+      sessionStorage.removeItem(CLAVE_SALTO);
+      // `sin-acceso` sí se muestra aunque venga de un salto: ahí Google autenticó
+      // bien y lo que falta es el alta en ESTE sistema. Es información útil.
+      if (veniaDeSalto && codigoError !== 'sin-acceso') {
+        setAviso('Entrá con Google para continuar.');
+        return;
+      }
+      setError(ERRORES_GOOGLE[codigoError] ?? ERRORES_GOOGLE.google);
+      return;
+    }
+
+    if (params.get('sso') !== '1') {
+      sessionStorage.removeItem(CLAVE_SALTO); // visita normal al login: estado limpio
+      return;
+    }
+
+    if (saltoIniciado.current) return; // en dev React corre los efectos dos veces
+    saltoIniciado.current = true;
+    sessionStorage.setItem(CLAVE_SALTO, '1');
+    setSaltando(true);
+    entrarConGoogle({ silencioso: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -123,6 +174,19 @@ export default function LoginPage() {
       setSetupLoading(false);
     }
   };
+
+  // Salto desde otra app: se va a Google y vuelve, así que mostrar el formulario
+  // sería un parpadeo inútil.
+  if (saltando) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-stone-900">
+        <div className="text-center">
+          <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping mx-auto" />
+          <p className="text-stone-400 text-sm mt-6">Entrando…</p>
+        </div>
+      </div>
+    );
+  }
 
   // Loading state
   if (sinUsers === null) {
@@ -192,7 +256,7 @@ export default function LoginPage() {
 
         <button
           type="button"
-          onClick={handleGoogle}
+          onClick={() => entrarConGoogle()}
           disabled={googleCargando}
           className="w-full flex items-center justify-center gap-2.5 bg-white hover:bg-stone-100 disabled:opacity-60 text-stone-800 py-3 rounded-xl font-semibold text-sm transition-all"
         >
@@ -200,7 +264,11 @@ export default function LoginPage() {
           {googleCargando ? 'Redirigiendo...' : 'Entrar con Google'}
         </button>
         <p className="text-center text-xs text-stone-500 mt-2">
-          Si tenés mail <span className="text-stone-400">@arebensrl.com</span>, entrá con Google.
+          {aviso || (
+            <>
+              Si tenés mail <span className="text-stone-400">@arebensrl.com</span>, entrá con Google.
+            </>
+          )}
         </p>
 
         <div className="flex items-center gap-3 my-5">
