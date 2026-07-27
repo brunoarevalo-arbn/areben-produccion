@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { APPS, APP_ACTUAL, linkDe } from '@/lib/apps-areben';
+import { APPS, APP_ACTUAL } from '@/lib/apps-areben';
 
 /**
  * "Nuestras apps": el salto a los otros sistemas internos, en el pie del sidebar.
@@ -41,7 +41,7 @@ export function NuestrasApps({ onNavegar }: { onNavegar?: () => void }) {
                 </div>
               ) : (
                 <a
-                  href={linkDe(app)}
+                  href={app.href}
                   onClick={onNavegar}
                   className="block px-3 py-2 rounded-lg hover:bg-stone-800/60 transition group"
                 >
