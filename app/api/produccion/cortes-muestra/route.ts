@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { requirePermiso } from '@/lib/auth';
 
 // Muestras cargadas por los cortadores (para validar y pagar). Filtros: estado
-// ('pendiente'|'validado') y pago ('pendiente'|'pagado').
+// ('pendiente'|'validado') y pago ('pendiente'|'pagado'). Trae el pago asociado
+// (beneficiario incluido), así que va con `produccion` como la pantalla que la usa.
 export async function GET(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
+  const session = await requirePermiso(req, 'produccion');
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const url = new URL(req.url);
   const estado = url.searchParams.get('estado');

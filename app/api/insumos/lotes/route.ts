@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { getSession } from '@/lib/auth';
+import { requireAlguno } from '@/lib/auth';
 
+// Gemelo de /api/insumos/rollos para la pista de avíos: también devuelve
+// `costoUnitario`, así que no puede quedar en sesión pelada.
 export async function GET(req: NextRequest) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
+  const session = await requireAlguno(req, ['insumos', 'produccion']);
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const url = new URL(req.url);
   const insumoId = url.searchParams.get('insumoId');
