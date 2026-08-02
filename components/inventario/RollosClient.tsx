@@ -1,11 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
 import { Card } from '@/components/ui/Card';
+import { PopoverMenu } from '@/components/ui/PopoverMenu';
+import { RetiroTelaModal } from '@/components/muestras/RetiroTelaModal';
 
 interface Rollo {
   id: string;
@@ -39,6 +41,10 @@ const ESTADO_LABEL: Record<string, string> = {
 
 const fmt = (n: string | number) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
+// Solo tiene sentido retirar de un rollo que todavía tiene tela.
+const puedeRetirar = (r: Rollo) =>
+  r.estado !== 'AGOTADO' && r.estado !== 'DESCARTADO' && Number(r.pesoActual) > 0;
+
 export function RollosClient() {
   const [rollos, setRollos]   = useState<Rollo[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,14 +54,17 @@ export function RollosClient() {
   const [revaluando, setRevaluando] = useState(false);
   const [tc, setTc] = useState('');
   const [revalSaving, setRevalSaving] = useState(false);
+  const [retiro, setRetiro] = useState<Rollo | null>(null);
 
-  useEffect(() => {
+  const recargar = useCallback(() => {
     const params = filtroEstado ? `?estado=${filtroEstado}` : '';
     fetch(`/api/insumos/rollos${params}`)
       .then((r) => r.ok ? r.json() : [])
       .then(setRollos)
       .finally(() => setLoading(false));
   }, [filtroEstado]);
+
+  useEffect(() => { recargar(); }, [recargar]);
 
   useEffect(() => {
     fetch('/api/sku-catalogo?categoria=color').then((r) => r.ok ? r.json() : []).then(setColores).catch(() => {});
@@ -91,8 +100,7 @@ export function RollosClient() {
       const d = await r.json();
       toast.success(`Revaluados ${d.rollos} rollo(s)${d.lotes ? ` y ${d.lotes} lote(s)` : ''} a TC ${n}`);
       setRevaluando(false); setTc('');
-      const params = filtroEstado ? `?estado=${filtroEstado}` : '';
-      fetch(`/api/insumos/rollos${params}`).then((x) => x.ok ? x.json() : []).then(setRollos).catch(() => {});
+      recargar();
     } else {
       const d = await r.json().catch(() => ({}));
       toast.error(d.error || 'No se pudo revaluar');
@@ -107,6 +115,11 @@ export function RollosClient() {
 
   return (
     <div className="space-y-5">
+      {retiro && (
+        <RetiroTelaModal rolloId={retiro.id} codigo={retiro.codigo}
+          onClose={() => setRetiro(null)} onRegistrado={recargar} />
+      )}
+
       <div className="flex gap-2 items-center flex-wrap">
         {['', 'DISPONIBLE', 'EN_USO_PARCIAL', 'AGOTADO', 'DESCARTADO'].map((e) => (
           <button key={e} onClick={() => { setLoading(true); setFiltroEstado(e); }}
@@ -187,10 +200,15 @@ export function RollosClient() {
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${ESTADO_COLOR[r.estado] || ''}`}>
                 {r.estado.replace(/_/g, ' ')}
               </span>
-              <Link href={`/inventario/rollos/${r.id}`}
-                className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
-                Ver
-              </Link>
+              <div className="flex items-center gap-1.5">
+                <Link href={`/inventario/rollos/${r.id}`}
+                  className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
+                  Ver
+                </Link>
+                {puedeRetirar(r) && (
+                  <PopoverMenu items={[{ label: '✂ Retirar para muestra', onClick: () => setRetiro(r) }]} />
+                )}
+              </div>
             </div>
           ))
         )}

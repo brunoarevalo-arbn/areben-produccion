@@ -13,6 +13,7 @@ export const PERMISOS = [
   { key: 'diseno',        label: 'Diseño',        desc: 'Proyectos de diseño, molderías y telas' },
   { key: 'insumos',       label: 'Inventario',    desc: 'Telas, avíos, compras, rollos, lotes, movimientos y producto terminado' },
   { key: 'produccion',    label: 'Producción',    desc: 'Órdenes, cortes, reportes y pagos de corte' },
+  { key: 'muestras',      label: 'Retiro de tela', desc: 'Retirar metros de un rollo para muestras (descuenta stock, sin ver costos)' },
   { key: 'gastos',        label: 'Gastos',        desc: 'Gastos del taller' },
   { key: 'costos',        label: 'Costos',        desc: 'Escandallos, costos de costura y productividad' },
   { key: 'precios',       label: 'Precios',       desc: 'Lista de precios, márgenes, comisiones y descuentos' },

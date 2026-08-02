@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requirePermiso } from '@/lib/auth';
+import { requirePermiso, requireAlguno } from '@/lib/auth';
+import { MARCAS } from '@/lib/marcas';
 
+// El listado también lo consume el retiro de tela para muestras (para ligar el
+// retiro a un proyecto): sin esto, el desplegable le queda vacío en silencio.
 export async function GET(req: NextRequest) {
-  if (!(await requirePermiso(req, 'diseno'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!(await requireAlguno(req, ['diseno', 'muestras', 'produccion']))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   try {
     const { searchParams } = new URL(req.url);
     const marca = searchParams.get('marca') ?? undefined;
@@ -30,7 +33,7 @@ export async function PATCH(req: NextRequest) {
 
     const update: Record<string, unknown> = {};
     if (typeof data.archivado === 'boolean') update.archivado = data.archivado;
-    if (data.marca && ['Zattia', 'Stunned'].includes(data.marca)) update.marca = data.marca;
+    if (data.marca && (MARCAS as readonly string[]).includes(data.marca)) update.marca = data.marca;
 
     if (Object.keys(update).length === 0) {
       return NextResponse.json({ error: 'Sin cambios válidos' }, { status: 400 });

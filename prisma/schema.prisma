@@ -914,6 +914,9 @@ model MovimientoInsumo {
   proyecto         ProyectoDiseno?   @relation(fields: [proyectoId], references: [id])
   cantidad         Decimal
   motivo           String?
+  // Solo la escriben los retiros para muestra (tipo MUESTRA): es la marca a la
+  // que se le imputa el desarrollo. El resto de los movimientos la dejan null.
+  marca            String?
   motivoDescarteId String?
   motivoDescarte   MotivoDescarte?   @relation(fields: [motivoDescarteId], references: [id])
   fotoUrl          String?

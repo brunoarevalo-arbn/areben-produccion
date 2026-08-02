@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requirePermiso } from '@/lib/auth';
+import { requireAlguno, getPermisos, can } from '@/lib/auth';
 import { MuestraSchema } from '@/lib/validators/produccion';
 import { Prisma } from '@prisma/client';
 
-// Lista de muestras registradas (consumos de tela tipo MUESTRA). SIN costo: el costo
-// vive en Gastos/Costos, no acá (la diseñadora junior registra, no ve el costo).
+// Quién puede registrar un retiro de tela para muestra. `muestras` es el permiso
+// chico (la diseñadora): no abre Producción ni Inventario, solo esto.
+const PUEDE_RETIRAR = ['muestras', 'produccion'] as const;
+
+// Lista de retiros registrados (consumos de tela tipo MUESTRA). El costo se agrega
+// SOLO si la sesión tiene el permiso `gastos`: quien registra no ve la plata.
 export async function GET(req: NextRequest) {
-  const session = await requirePermiso(req, 'produccion');
+  const session = await requireAlguno(req, [...PUEDE_RETIRAR]);
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+
+  const veCosto = can(await getPermisos(session), 'gastos');
 
   const muestras = await prisma.movimientoInsumo.findMany({
     where: { tipo: 'MUESTRA' },
@@ -17,12 +23,14 @@ export async function GET(req: NextRequest) {
       id: true,
       cantidad: true,
       motivo: true,
+      marca: true,
       fecha: true,
       usuarioId: true,
       rollo: {
         select: {
           codigo: true,
           colorProveedor: true,
+          costoUnitario: veCosto,
           insumo: { select: { nombre: true, rinde: true } },
           color: { select: { nombre: true } },
         },
@@ -31,17 +39,31 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  return NextResponse.json(muestras);
+  if (!veCosto) return NextResponse.json({ veCosto, retiros: muestras });
+
+  // El costo se calcula acá y el costoUnitario del rollo NO viaja al cliente:
+  // que la lista muestre plata no significa exponer el precio de compra.
+  const retiros = muestras.map((m) => {
+    const { costoUnitario, ...rollo } = m.rollo ?? {};
+    return {
+      ...m,
+      rollo: m.rollo ? rollo : null,
+      // La cantidad está en kg (negativa) y el costo unitario es por kg.
+      costo: costoUnitario == null ? null : Number(costoUnitario) * Math.abs(Number(m.cantidad)),
+    };
+  });
+
+  return NextResponse.json({ veCosto, retiros });
 }
 
 export async function POST(req: NextRequest) {
-  const session = await requirePermiso(req, 'produccion');
+  const session = await requireAlguno(req, [...PUEDE_RETIRAR]);
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const parsed = MuestraSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-  const { rolloId, cantidad, proyectoId, descripcion } = parsed.data;
+  const { rolloId, cantidad, marca, proyectoId, descripcion } = parsed.data;
 
   const rollo = await prisma.rollo.findUnique({
     where: { id: rolloId },
@@ -80,7 +102,7 @@ export async function POST(req: NextRequest) {
     : nuevoPeso.lt(rollo.pesoInicial) ? 'EN_USO_PARCIAL' as const
     : 'DISPONIBLE' as const;
 
-  const costo = Number(rollo.costoUnitario) * kg; // para el Gasto (no se muestra en Muestras)
+  const costo = Number(rollo.costoUnitario) * kg; // para el Gasto (no lo ve quien registra)
   const concepto = `Muestra — ${rollo.insumo.nombre} · ${cantidad} m${descripcion ? ` (${descripcion})` : ''}${proyectoNombre ? ` · ${proyectoNombre}` : ''}`;
 
   const [movimiento] = await prisma.$transaction([
@@ -91,6 +113,7 @@ export async function POST(req: NextRequest) {
         proyectoId: proyectoId || null,
         cantidad: cant.neg(),
         motivo: descripcion?.trim() || 'Muestra',
+        marca,
         usuarioId: session.id,
       },
     }),
@@ -102,6 +125,7 @@ export async function POST(req: NextRequest) {
       data: {
         categoria: 'desarrollo',
         tipo:      'tela',
+        marca,
         monto:     costo,
         concepto,
         fecha:     new Date().toISOString().split('T')[0],

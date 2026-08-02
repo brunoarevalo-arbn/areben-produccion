@@ -1,6 +1,10 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/Card';
+import { Button } from '@/components/ui/Button';
+import { RetiroTelaModal } from '@/components/muestras/RetiroTelaModal';
 
 interface Movimiento {
   id: string;
@@ -34,16 +38,35 @@ const TIPO_COLOR: Record<string, string> = {
   AJUSTE:    'bg-amber-100 text-amber-700',
   DESCARTE:  'bg-red-100 text-red-600',
   REVERSION: 'bg-stone-100 text-stone-600',
+  MUESTRA:   'bg-violet-100 text-violet-700',
 };
 
 const fmt = (n: string | number) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
+const AGOTADO = ['AGOTADO', 'DESCARTADO'];
+
 export function RolloDetalle({ rollo }: { rollo: RolloFull }) {
+  const router = useRouter();
+  const [retirando, setRetirando] = useState(false);
   const fechaFmt = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   const valorActual = Number(rollo.pesoActual) * Number(rollo.costoUnitario);
+  const puedeRetirar = !AGOTADO.includes(rollo.estado) && Number(rollo.pesoActual) > 0;
 
   return (
     <div className="space-y-6">
+      {puedeRetirar && (
+        <div className="flex justify-end">
+          <Button variant="secondary" size="sm" onClick={() => setRetirando(true)}>
+            ✂ Retirar para muestra
+          </Button>
+        </div>
+      )}
+
+      {retirando && (
+        <RetiroTelaModal rolloId={rollo.id} codigo={rollo.codigo}
+          onClose={() => setRetirando(false)} onRegistrado={() => router.refresh()} />
+      )}
+
       <Card padding="none" className="p-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-8 text-sm">
           <div>

@@ -53,6 +53,15 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     ],
   },
   {
+    // Sección propia (y no un ítem de Producción) para que se pueda dar sola:
+    // quien retira tela para muestras no necesita ver órdenes ni cortes.
+    label: 'Retiro de tela',
+    href: '/muestras',
+    icon: '✂',
+    seccion: ['muestras', 'produccion'],
+    sub: [],
+  },
+  {
     label: 'Compras',
     href: '/compras',
     icon: '🛒',
@@ -71,7 +80,6 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
       { label: 'Órdenes',          href: '/produccion', seccion: 'produccion' },
       { label: 'Fichas de corte',  href: '/produccion/fichas', seccion: 'produccion' },
       { label: 'Tiempos',          href: '/tiempos', seccion: 'produccion' },
-      { label: 'Muestras',         href: '/produccion/muestras', seccion: 'produccion' },
       { label: 'Reportes',         href: '/produccion/reportes', seccion: 'produccion' },
       { label: 'Solicitudes de cambio', href: '/produccion/solicitudes-cambio', seccion: 'produccion' },
       { label: 'Cortes por cortador', href: '/produccion/cortadores', seccion: 'produccion' },

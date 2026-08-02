@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MARCAS } from '@/lib/marcas';
 
 export const ESTADOS_OP = [
   'PENDIENTE', 'CORTE', 'COSTURA', 'TERMINADO_SIN_ESTAMPA',
@@ -49,9 +50,11 @@ export const AjusteTerminadoSchema = z.object({
 });
 
 // Consumo de tela para una muestra (retiro chico de un rollo, opcionalmente ligado a un proyecto).
+// La marca es obligatoria: es lo que hace que el gasto de desarrollo caiga en Zattia o Stunned.
 export const MuestraSchema = z.object({
   rolloId:     z.string().min(1, 'Elegí un rollo'),
   cantidad:    z.number().positive('La cantidad debe ser positiva'),
+  marca:       z.enum(MARCAS, 'Elegí la marca'),
   proyectoId:  z.string().optional(),
   descripcion: z.string().optional(),
 });

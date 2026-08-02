@@ -1,17 +1,7 @@
-import { MuestrasClient } from '@/components/produccion/MuestrasClient';
-import { PageHeader } from '@/components/ui/PageHeader';
+import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
-export default function MuestrasPage() {
-  return (
-    <div className="p-8 max-w-4xl">
-      <PageHeader
-        eyebrow="Producción"
-        title="Muestras"
-        subtitle="Registrá la tela que se retira del stock para hacer una muestra. Se descuenta del rollo elegido."
-      />
-      <MuestrasClient />
-    </div>
-  );
+// La pantalla se mudó a /muestras (sección propia): el permiso `muestras` no
+// pasa por el layout de Producción. Se deja el redirect por los links viejos.
+export default function MuestrasRedirect() {
+  redirect('/muestras');
 }

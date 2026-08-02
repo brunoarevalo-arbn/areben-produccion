@@ -2,18 +2,18 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
+import { MARCAS } from '@/lib/marcas';
 
 export const dynamic = 'force-dynamic';
 
 const ACCESOS = [
   { label: '+ Nuevo proyecto',  href: '/diseno' },
+  { label: '✂ Retiro de tela',  href: '/muestras' },
   { label: '+ Escandallo',      href: '/costos' },
   { label: 'Registrar tiempos', href: '/tiempos' },
   { label: 'Reportes',          href: '/produccion/reportes' },
   { label: 'Molderías',         href: '/diseno/molderias' },
 ];
-
-const MARCAS = ['Zattia', 'Stunned'] as const;
 
 export default async function DashboardPage() {
   const hoy = new Date().toLocaleDateString('es-AR', {
