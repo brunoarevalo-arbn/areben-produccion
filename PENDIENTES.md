@@ -21,6 +21,11 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 
 ## 🔴 Pendiente
 
+- [ ] **`POST /api/upload-imagen` acepta cualquier sesión** (`app/api/upload-imagen/route.ts:10`),
+  o sea que la tablet de costureras puede subir al Blob. No expone datos, pero es la única
+  escritura que quedó sin permiso. Ojo antes de gatearla: la usan varios módulos vía `ImageDrop`,
+  así que el permiso tiene que ser una lista, no uno solo.
+
 - [ ] **Probar un retiro de tela real.** La escritura nunca se ejercitó: registrar un retiro
   descuenta tela y escribe un `Gasto` de verdad, así que se dejó a propósito para el primer
   retiro de la diseñadora. Si algo falla, aparece ahí.
@@ -39,6 +44,13 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
   para quien solo tiene `muestras`: la diseñadora registra el retiro sin ver plata, misma regla
   que `GET /api/produccion/muestras`. Ningún consumidor se rompe: `RetiroTelaForm` no lee costo;
   `RegistrarCorteForm` sí, pero va con `produccion`.
+
+- **Barrido de GET sin permiso (2026-08-02):** además de rollos, se cerraron `insumos/lotes`
+  (`insumos|produccion` — gemelo de rollos, con `costoUnitario`), `produccion/cortes-muestra`
+  (`produccion` — devuelve el pago con beneficiario) y `costos/etiquetas/[id]/movimientos`
+  (`insumos|costos` — `costoUnitario` por movimiento). **Los que siguen en `getSession` son a
+  propósito:** `tiempos/*` y `estampado/*` son la tablet (postea sin sesión admin) e
+  `insumos/movimientos` es dato de referencia cross-rol, decidido en la auditoría jun-2026.
 
 - **Permiso `muestras` otorgado a la diseñadora (2026-08-02).**
 
