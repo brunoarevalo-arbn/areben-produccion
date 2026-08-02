@@ -1,13 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
-import { getSession, requireInsumos } from '@/lib/auth';
+import { requireAlguno, requireInsumos } from '@/lib/auth';
 
 type Ctx = { params: Promise<{ id: string }> };
 
 export async function GET(req: NextRequest, { params }: Ctx) {
-  const session = await getSession(req);
-  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
+  // Ficha completa del rollo: costo + historial de movimientos. Solo Inventario y
+  // Producción; el permiso chico `muestras` no llega hasta acá.
+  const session = await requireAlguno(req, ['insumos', 'produccion']);
+  if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
   const rollo = await prisma.rollo.findUnique({

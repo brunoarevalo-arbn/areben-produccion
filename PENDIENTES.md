@@ -5,11 +5,10 @@
 
 _Última actualización: 2026-08-02_
 
-> **En esta sesión:** **Retiro de tela para muestras**. La tela que la diseñadora saca para
-> muestras no se descontaba de ningún rollo: la pantalla existía pero estaba enterrada en
-> Producción y exigía ese permiso. Ahora tiene permiso propio (`muestras`), sección propia
-> (`/muestras`), se puede retirar desde el rollo que estás mirando, y la marca es obligatoria
-> para que el gasto de desarrollo caiga en Zattia o Stunned.
+> **En esta sesión:** **Permisos en el listado de rollos**. El último hueco de "GET sin auth" de
+> la auditoría jun-2026: la lista y la ficha de rollos las podía leer *cualquier* sesión, incluida
+> la tablet de costureras y estampadores, con el costo por kg adentro. Ahora piden permiso, y el
+> costo no viaja a quien solo tiene `muestras`.
 
 ---
 
@@ -22,17 +21,26 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 
 ## 🔴 Pendiente
 
-- [ ] **Darle el permiso `muestras` a la diseñadora** en Configuración → Usuarios. Sin eso, el
-  retiro sigue dependiendo de que alguien con `produccion` lo cargue.
-- [ ] **`GET /api/insumos/rollos` sigue pidiendo solo sesión, sin permiso**
-  (`app/api/insumos/rollos/route.ts:6`). Es uno de los "GET sin auth" de la auditoría jun-2026;
-  quedó fuera del alcance del retiro de tela porque ya estaba abierto de antes.
+- [ ] **Probar un retiro de tela real.** La escritura nunca se ejercitó: registrar un retiro
+  descuenta tela y escribe un `Gasto` de verdad, así que se dejó a propósito para el primer
+  retiro de la diseñadora. Si algo falla, aparece ahí.
 
 ## 🟡 En progreso
 
 - _(nada activo ahora mismo)_
 
 ## ✅ Hecho (referencia)
+
+- **Permisos en el listado de rollos (2026-08-02):** `GET /api/insumos/rollos` y
+  `GET /api/insumos/rollos/[id]` pedían **solo sesión** — o sea que la tablet de costureras y
+  estampadores también los podía leer, con `costoUnitario` incluido. Ahora la lista exige
+  `requireAlguno(['insumos','produccion','muestras'])` y la ficha (costo + historial de
+  movimientos) `['insumos','produccion']`. El costo se **omite en la query** (`omit` de Prisma)
+  para quien solo tiene `muestras`: la diseñadora registra el retiro sin ver plata, misma regla
+  que `GET /api/produccion/muestras`. Ningún consumidor se rompe: `RetiroTelaForm` no lee costo;
+  `RegistrarCorteForm` sí, pero va con `produccion`.
+
+- **Permiso `muestras` otorgado a la diseñadora (2026-08-02).**
 
 - **Retiro de tela para muestras (2026-08-02):** permiso propio `muestras` (no obliga a dar todo
   Producción) · sección `/muestras` con guard `requirePaginaAlguno(['muestras','produccion'])`,
