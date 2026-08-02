@@ -3,10 +3,13 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-06-25_
+_Última actualización: 2026-08-02_
 
-> **En esta sesión:** se completó **Producción agrupada por molde** (las 3 fases). Ver detalle
-> abajo en "Hecho". El flujo ahora va de punta a punta agrupado por lote: crear → cortar → costura.
+> **En esta sesión:** **Retiro de tela para muestras**. La tela que la diseñadora saca para
+> muestras no se descontaba de ningún rollo: la pantalla existía pero estaba enterrada en
+> Producción y exigía ese permiso. Ahora tiene permiso propio (`muestras`), sección propia
+> (`/muestras`), se puede retirar desde el rollo que estás mirando, y la marca es obligatoria
+> para que el gasto de desarrollo caiga en Zattia o Stunned.
 
 ---
 
@@ -19,17 +22,26 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 
 ## 🔴 Pendiente
 
-- [ ] **Retomar `/tiempos` del worktree `sad-khorana-04cf1d`** (rama `claude/sad-khorana-04cf1d`)
-  - Cambios SIN commitear: `Cronometro.tsx` y `LogRegistros.tsx` (nuevos) + edits en
-    `app/api/tiempos/route.ts`, `app/tiempos/page.tsx`, `hooks/useTiempos.ts`.
-  - OJO: ese worktree está sobre una base distinta (parece experimento/sandbox). Decidir si se
-    integra o se descarta.
+- [ ] **Darle el permiso `muestras` a la diseñadora** en Configuración → Usuarios. Sin eso, el
+  retiro sigue dependiendo de que alguien con `produccion` lo cargue.
+- [ ] **`GET /api/insumos/rollos` sigue pidiendo solo sesión, sin permiso**
+  (`app/api/insumos/rollos/route.ts:6`). Es uno de los "GET sin auth" de la auditoría jun-2026;
+  quedó fuera del alcance del retiro de tela porque ya estaba abierto de antes.
 
 ## 🟡 En progreso
 
 - _(nada activo ahora mismo)_
 
 ## ✅ Hecho (referencia)
+
+- **Retiro de tela para muestras (2026-08-02):** permiso propio `muestras` (no obliga a dar todo
+  Producción) · sección `/muestras` con guard `requirePaginaAlguno(['muestras','produccion'])`,
+  la ruta vieja redirige · marca **obligatoria**, que ahora sí viaja al `Gasto` de desarrollo
+  (antes quedaba en `null`) y a una columna nueva `MovimientoInsumo.marca` (nullable, aplicada a
+  mano con `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, sin `db push`) · modal de retiro desde la
+  ficha y el listado de rollos + acceso rápido en el inicio · buscador de rollo por código/tela/
+  color · "guardar y seguir" manteniendo la marca · el costo lo manda el backend **solo con
+  permiso `gastos`**. Componentes en `components/muestras/`.
 
 - **Producción agrupada por molde — las 3 fases (jun-2026):**
   - **Fase 1 — Nueva producción:** `LoteProduccion` madre (por molde/prenda) + una `OrdenProduccion`
