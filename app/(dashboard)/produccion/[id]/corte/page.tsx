@@ -41,7 +41,14 @@ export default async function CortePage({ params, searchParams }: { params: Prom
   // Detalle guardado del form (para ver/editar idéntico). Puede faltar en fichas viejas.
   const fichaData = (orden.fichaCorteData ?? null) as FichaData | null;
   // Pre-carga del cortador (tizadas/talles/precio sin rollo) → la diseñadora asigna la tela.
-  const preCargaCortador = (orden.corteEstado === 'cargado' || orden.corteEstado === 'validado') && fichaData ? { fichaData } : undefined;
+  // El cortador ya asignado (desde la cola o por ser el predeterminado) viaja SIEMPRE:
+  // sin esto el select del form arrancaba vacío y había que reelegirlo a mano. Si además
+  // hay ficha guardada, el cortador de la ficha gana (el form resuelve fichaData primero).
+  const preCargaCortador = (orden.corteEstado === 'cargado' || orden.corteEstado === 'validado') && fichaData
+    ? { fichaData, cortadorId: orden.cortadorId }
+    : orden.cortadorId
+      ? { cortadorId: orden.cortadorId }
+      : undefined;
 
   // Hermanas del mismo lote que ya tienen ficha → se puede copiar la suya.
   const hermanas = orden.loteId

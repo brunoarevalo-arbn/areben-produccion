@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import { toast } from '@/components/ui/Toaster';
 import { openLightbox } from '@/components/ui/Lightbox';
+import { parseFotos } from '@/lib/diseno/fotos';
 
 interface ProyectoItem {
   id:          string;
@@ -87,10 +88,10 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
   const [over, setOver] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const moodArr = (() => {
-    if (proyecto.moodboard) { try { const a = JSON.parse(proyecto.moodboard); if (Array.isArray(a)) return a.map(String); } catch { /* ignore */ } }
-    return [] as string[];
-  })();
+  // Ojo: el moodboard puede venir en el formato viejo (array de URLs) o en el nuevo
+  // ({url, descripcion}); `parseFotos` unifica los dos. Sin él, un `String(item)` sobre
+  // el formato nuevo dejaría "[object Object]" como src.
+  const moodArr = parseFotos(proyecto.moodboard);
   const fotoPreview = moodArr[0] ?? null;
 
   const ir = () => router.push(`/diseno/${proyecto.id}`);
@@ -103,7 +104,7 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
     const r = await fetch('/api/upload-imagen', { method: 'POST', body: fd });
     if (r.ok) {
       const { url } = await r.json();
-      await fetch(`/api/proyectos/${proyecto.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moodboard: [...moodArr, url] }) });
+      await fetch(`/api/proyectos/${proyecto.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ moodboard: [...moodArr, { url, descripcion: null }] }) });
       router.refresh();
       toast.success('Foto agregada al moodboard');
     } else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo subir'); }
@@ -129,7 +130,7 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
             {fotoPreview ? (
               <>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={fotoPreview} alt="" title="Ver foto" onClick={(e) => { e.stopPropagation(); openLightbox(moodArr, 0); }}
+                <img src={fotoPreview.url} alt={fotoPreview.descripcion ?? ''} title={fotoPreview.descripcion || 'Ver foto'} onClick={(e) => { e.stopPropagation(); openLightbox(moodArr, 0); }}
                   className={`w-12 h-12 rounded-md object-cover border cursor-zoom-in ${over ? 'border-violet-400' : 'border-stone-200'}`} />
                 <button type="button" title="Agregar otra foto" onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
                   className="absolute -bottom-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-stone-300 text-stone-500 hover:text-violet-600 text-xs leading-none shadow-sm flex items-center justify-center">＋</button>

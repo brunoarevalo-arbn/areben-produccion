@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react';
 import { toast } from '@/components/ui/Toaster';
 import { openLightbox } from '@/components/ui/Lightbox';
+import type { Foto } from '@/lib/diseno/fotos';
 
 // Cuadrado para cargar una imagen: drag & drop o click, con preview y subida a
 // Vercel Blob (/api/upload-imagen). onChange recibe la URL pública (o null).
@@ -54,13 +55,14 @@ export function ImageDrop({ value, onChange }: { value: string | null; onChange:
 
 // Miniatura reutilizable (o placeholder gris si no hay imagen). Centraliza el <img>
 // crudo y, si tiene imagen, abre el lightbox al click (preview grande). `set`/`index`
-// permiten navegar un conjunto (ej. todas las fotos de un moodboard).
-export function Thumbnail({ src, size = 36, className = '', set, index = 0 }: { src?: string | null; size?: number; className?: string; set?: string[]; index?: number }) {
+// permiten navegar un conjunto (ej. todas las fotos de un moodboard); el set puede
+// traer descripciones, que el lightbox muestra al pie.
+export function Thumbnail({ src, size = 36, className = '', alt = '', set, index = 0 }: { src?: string | null; size?: number; className?: string; alt?: string; set?: (string | Foto)[]; index?: number }) {
   const style = { width: size, height: size };
   if (!src) return <div style={style} className={`rounded-md bg-stone-100 border border-stone-200 shrink-0 ${className}`} />;
   return (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" style={style}
+    <img src={src} alt={alt} style={style} title={alt || undefined}
       onClick={(e) => { e.stopPropagation(); openLightbox(set && set.length ? set : [src], set && set.length ? index : 0); }}
       className={`rounded-md object-cover border border-stone-200 shrink-0 cursor-zoom-in ${className}`} />
   );
@@ -79,9 +81,45 @@ async function subirImagen(file: File): Promise<string | null> {
   return null;
 }
 
+// Una celda de la grilla: miniatura + su descripción. El texto se edita en un buffer
+// local y se confirma al salir del campo (onBlur), porque los consumidores guardan en
+// el servidor en cada onChange y no queremos un PUT por tecla.
+function CeldaFoto({ foto, set, index, onDescripcion, onQuitar }: {
+  foto: Foto; set: Foto[]; index: number; onDescripcion: (texto: string) => void; onQuitar: () => void;
+}) {
+  // Sin efecto de resincronización a propósito: la grilla le pasa `key={url-index}`,
+  // así que si se quita una foto y los índices se corren, la celda se remonta sola.
+  const [texto, setTexto] = useState(foto.descripcion ?? '');
+
+  const confirmar = () => {
+    const limpio = texto.trim();
+    if (limpio !== (foto.descripcion ?? '')) onDescripcion(limpio);
+  };
+
+  return (
+    <div className="w-20">
+      <div className="relative group">
+        <Thumbnail src={foto.url} size={80} alt={foto.descripcion ?? ''} set={set} index={index} />
+        <button type="button" onClick={onQuitar} aria-label="Quitar foto"
+          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-stone-300 text-stone-500 hover:text-red-500 hover:border-red-300 text-xs leading-none shadow-sm flex items-center justify-center transition">×</button>
+      </div>
+      <input
+        value={texto}
+        onChange={(e) => setTexto(e.target.value)}
+        onBlur={confirmar}
+        onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur(); } }}
+        placeholder="descripción…"
+        title={texto || 'Qué te gusta (o no) de esta foto'}
+        className="mt-1 w-full px-1.5 py-1 text-[11px] leading-tight border border-stone-200 rounded-md text-stone-700 placeholder:text-stone-300 focus:outline-none focus:border-violet-400"
+      />
+    </div>
+  );
+}
+
 // Grilla multi-imagen para armar un moodboard: arrastrás VARIAS imágenes (o click),
-// se suben a Blob y se agregan; cada una con quitar; además se puede pegar una URL.
-export function MultiImageDrop({ value, onChange }: { value: string[]; onChange: (urls: string[]) => void }) {
+// se suben a Blob y se agregan; cada una con su descripción y su quitar; además se
+// puede pegar una URL. El formato es `Foto[]` — ver lib/diseno/fotos.ts.
+export function MultiImageDrop({ value, onChange }: { value: Foto[]; onChange: (fotos: Foto[]) => void }) {
   const [subiendo, setSubiendo] = useState(0);
   const [url, setUrl] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -92,26 +130,29 @@ export function MultiImageDrop({ value, onChange }: { value: string[]; onChange:
     setSubiendo((n) => n + arr.length);
     const urls = (await Promise.all(arr.map(subirImagen))).filter((u): u is string => !!u);
     setSubiendo((n) => Math.max(0, n - arr.length));
-    if (urls.length) onChange([...value, ...urls]);
+    if (urls.length) onChange([...value, ...urls.map((u) => ({ url: u, descripcion: null }))]);
   };
 
   const agregarUrl = () => {
     const u = url.trim();
     if (!u) return;
-    onChange([...value, u]);
+    onChange([...value, { url: u, descripcion: null }]);
     setUrl('');
   };
 
   return (
     <div className="space-y-3">
       {value.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {value.map((u, i) => (
-            <div key={`${u}-${i}`} className="relative group">
-              <Thumbnail src={u} size={80} set={value} index={i} />
-              <button type="button" onClick={() => onChange(value.filter((_, j) => j !== i))}
-                className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-white border border-stone-300 text-stone-500 hover:text-red-500 hover:border-red-300 text-xs leading-none shadow-sm flex items-center justify-center transition">×</button>
-            </div>
+        <div className="flex flex-wrap gap-2 items-start">
+          {value.map((f, i) => (
+            <CeldaFoto
+              key={`${f.url}-${i}`}
+              foto={f}
+              set={value}
+              index={i}
+              onDescripcion={(texto) => onChange(value.map((x, j) => j === i ? { ...x, descripcion: texto || null } : x))}
+              onQuitar={() => onChange(value.filter((_, j) => j !== i))}
+            />
           ))}
         </div>
       )}

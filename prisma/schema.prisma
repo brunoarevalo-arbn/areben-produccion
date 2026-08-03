@@ -609,9 +609,15 @@ model PagoCorte {
   comprobanteUrl String?
   creadoPor      String
   createdAt      DateTime          @default(now())
+  // Cortador al que se le pagó. Con ítems se infiere de ellos; SIN ítems es
+  // obligatorio, porque es lo único que ata el pago a cuenta a una cuenta corriente.
+  cortadorId     String?
+  cortador       Cortador?         @relation(fields: [cortadorId], references: [id])
+  // Un pago sin ordenes ni muestras es un PAGO A CUENTA: monto libre, no imputado.
   ordenes        OrdenProduccion[]
   muestras       CorteMuestra[]
 
+  @@index([cortadorId])
   @@map("pagos_cortes")
 }
 
@@ -624,8 +630,12 @@ model Cortador {
   notas         String?
   usuarioId     String?           @unique // usuario de login del cortador (panel propio)
   activo        Boolean           @default(true)
+  // Cortador que se asigna solo a cada OP nueva. Hay uno solo: marcar otro desmarca
+  // el anterior (lo garantiza la API, ver lib/produccion/cortador-default.ts).
+  predeterminado Boolean          @default(false)
   ordenes       OrdenProduccion[]
   muestras      CorteMuestra[]
+  pagos         PagoCorte[]
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 

@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { SkuChip } from '@/components/ui/SkuChip';
 import { MuestrasCortador } from '@/components/produccion/cortador/MuestrasCortador';
 import { EliminarCorteBtn } from '@/components/produccion/cortador/EliminarCorteBtn';
+import { pagosACuentaDe } from '@/lib/produccion/cuenta-cortador';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,7 +55,10 @@ export default async function CortadorPanelPage() {
   const unidadesPendientes = porCargar.reduce((s, o) => s + o.cantidad, 0);
   const cobroCortes   = ordenes.filter((o) => (o.fichaCorteCargada || esValidado(o)) && Number(o.costoCorte) > 0 && !o.pagoCorteId).reduce((s, o) => s + Number(o.costoCorte), 0);
   const cobroMuestras = muestras.filter((m) => m.estado === 'validado' && !m.pagoCorteId).reduce((s, m) => s + Number(m.valor), 0);
-  const pendienteCobro = cobroCortes + cobroMuestras;
+  // Los pagos a cuenta (montos que ya cobró sin imputar a un corte) también restan, o
+  // el número no coincidiría con el de Cuenta de cortadores.
+  const aCuenta = await pagosACuentaDe(cortador.id);
+  const pendienteCobro = cobroCortes + cobroMuestras - aCuenta;
 
   type Orden = (typeof ordenes)[number];
   const filaPendiente = (o: Orden, cargado: boolean) => (
@@ -91,11 +95,19 @@ export default async function CortadorPanelPage() {
           <p className="text-2xl font-bold text-stone-800 tabular-nums">{cargados.length}</p>
           <p className="text-xs text-stone-400">cargados, a validar</p>
         </Card>
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
-          <p className="text-xs text-amber-700 uppercase tracking-widest font-bold">Pendiente de cobro</p>
-          <p className="text-2xl font-bold text-amber-700 tabular-nums">{fmt$(pendienteCobro)}</p>
-          <p className="text-xs text-amber-600/80">cortes validados sin pagar</p>
-        </div>
+        {pendienteCobro < 0 ? (
+          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-xs text-emerald-700 uppercase tracking-widest font-bold">Cobrado de más</p>
+            <p className="text-2xl font-bold text-emerald-700 tabular-nums">{fmt$(-pendienteCobro)}</p>
+            <p className="text-xs text-emerald-600/80">a cuenta de próximos cortes</p>
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-xs text-amber-700 uppercase tracking-widest font-bold">Pendiente de cobro</p>
+            <p className="text-2xl font-bold text-amber-700 tabular-nums">{fmt$(pendienteCobro)}</p>
+            <p className="text-xs text-amber-600/80">cortes validados sin pagar{aCuenta > 0 ? `, ya descontado ${fmt$(aCuenta)} a cuenta` : ''}</p>
+          </div>
+        )}
       </div>
 
       {/* Pendientes por cargar */}

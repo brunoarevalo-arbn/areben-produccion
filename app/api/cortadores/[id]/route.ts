@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { CortadorSchema } from '@/lib/validators/produccion';
+import { dejarUnicoPredeterminado } from '@/lib/produccion/cortador-default';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -20,7 +21,14 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (d.notas !== undefined) data.notas = d.notas || null;
   if (d.activo !== undefined) data.activo = d.activo;
   if (d.usuarioId !== undefined) data.usuarioId = d.usuarioId || null;
+  if (d.predeterminado !== undefined) data.predeterminado = d.predeterminado;
+  // Un cortador dado de baja no puede quedar como predeterminado.
+  if (d.activo === false) data.predeterminado = false;
 
-  const cortador = await prisma.cortador.update({ where: { id }, data });
+  const cortador = await prisma.$transaction(async (tx) => {
+    const c = await tx.cortador.update({ where: { id }, data });
+    if (data.predeterminado === true) await dejarUnicoPredeterminado(tx, id);
+    return c;
+  });
   return NextResponse.json(cortador);
 }

@@ -1,12 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
+import { parseFotos, serializeFotos } from '@/lib/diseno/fotos';
 
-// fotos se guarda como JSON string de URLs (mismo formato que moodboard).
-function parseFotos(s: string | null): string[] {
-  if (!s) return [];
-  try { const a = JSON.parse(s); return Array.isArray(a) ? a.map(String) : []; } catch { return []; }
-}
+// fotos se guarda como JSON string de {url, descripcion} (mismo formato que moodboard).
 export const serializeIdea = (i: { fotos: string | null }) => ({ ...i, fotos: parseFotos(i.fotos) });
 
 export async function GET(req: NextRequest) {
@@ -23,7 +20,7 @@ export async function POST(req: NextRequest) {
     data: {
       nombre: nombre.trim(),
       marca,
-      fotos: Array.isArray(fotos) && fotos.length ? JSON.stringify(fotos) : null,
+      fotos: serializeFotos(fotos),
       notas: notas?.trim() || null,
     },
   });

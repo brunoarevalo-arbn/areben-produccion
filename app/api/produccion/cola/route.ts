@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { requirePermiso } from '@/lib/auth';
+import { cortadorPredeterminado } from '@/lib/produccion/cortador-default';
 
 async function getSession(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -40,6 +41,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { sku, descripcion, marca, cantidad, notas } = body;
 
+  // El cortador predeterminado se asigna solo; se puede cambiar desde la cola.
+  // Solo la FK: el string `cortador` es el snapshot que escribe la ficha/validación.
+  const pred = await cortadorPredeterminado();
+
   // SKU opcional: se puede crear la OP sin SKU y asignarlo al entrar a costura.
   const orden = await prisma.$transaction(async (tx) => {
     const op = await tx.ordenProduccion.create({
@@ -50,6 +55,8 @@ export async function POST(req: NextRequest) {
         cantidad:    Math.max(1, parseInt(cantidad) || 1),
         notas:       notas?.trim()       || null,
         creadoPor:   session.nombre,
+        cortadorId:  pred?.id ?? null,
+        corteEstado: pred ? 'asignado' : null,
       },
     });
     await tx.estadoTransicion.create({

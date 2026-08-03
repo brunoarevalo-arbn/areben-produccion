@@ -143,6 +143,7 @@ export const CortadorSchema = z.object({
   notas:         z.string().optional(),
   activo:        z.boolean().optional(),
   usuarioId:     z.string().nullable().optional(), // usuario de login del cortador (panel)
+  predeterminado: z.boolean().optional(),          // se asigna solo a cada OP nueva; hay uno solo
 });
 
 export const MotivoDescarteSchema = z.object({
@@ -151,11 +152,20 @@ export const MotivoDescarteSchema = z.object({
   activo:    z.boolean().optional(),
 });
 
+// Un pago de corte es de una de dos formas:
+//   · IMPUTADO   → trae cortes y/o muestras; el monto lo calcula el servidor sumándolos.
+//   · A CUENTA   → sin ítems; exige cortadorId + monto libre. Es el adelanto o el pago
+//                  suelto que no cierra con ningún corte: baja el saldo sin imputarse.
 export const PagoCorteSchema = z.object({
   fecha:          z.string().min(1, 'Fecha obligatoria'),
   beneficiario:   z.string().min(1, 'Beneficiario obligatorio'),
   ordenIds:       z.array(z.string().min(1)).default([]),
   muestraIds:     z.array(z.string().min(1)).default([]),
+  cortadorId:     z.string().min(1).optional(),
+  monto:          z.coerce.number().positive('El monto tiene que ser mayor a 0').optional(),
   notas:          z.string().optional(),
   comprobanteUrl: z.string().optional(),
-}).refine((d) => d.ordenIds.length + d.muestraIds.length > 0, { message: 'Selecciona al menos un corte o muestra' });
+}).refine(
+  (d) => d.ordenIds.length + d.muestraIds.length > 0 || (!!d.cortadorId && !!d.monto),
+  { message: 'Elegí al menos un corte o muestra, o cargá un pago a cuenta con cortador y monto' },
+);

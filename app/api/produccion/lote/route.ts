@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { siguienteNumeroSku, formatSku } from '@/lib/produccion/sku';
 import { retryOnUniqueConflict } from '@/lib/db/retry';
+import { cortadorPredeterminado } from '@/lib/produccion/cortador-default';
 import { z } from 'zod';
 
 const BodySchema = z.object({
@@ -46,6 +47,10 @@ export async function POST(req: NextRequest) {
   });
   const marcaNombre = marcaEntry?.nombre || marca;
 
+  // Mismo criterio que la OP suelta: el cortador predeterminado se asigna solo a
+  // cada color del lote (solo la FK, no el snapshot `cortador`).
+  const pred = await cortadorPredeterminado();
+
   const result = await retryOnUniqueConflict(() => prisma.$transaction(async (tx) => {
     const lote = await tx.loteProduccion.create({
       data: { marca: marcaNombre, prenda, descripcion, notas, creadoPor: session.nombre },
@@ -59,9 +64,11 @@ export async function POST(req: NextRequest) {
       const op = await tx.ordenProduccion.create({
         data: {
           sku, descripcion, notas, cantidad,
-          marca:     marcaNombre,
-          creadoPor: session.nombre,
-          loteId:    lote.id,
+          marca:       marcaNombre,
+          creadoPor:   session.nombre,
+          loteId:      lote.id,
+          cortadorId:  pred?.id ?? null,
+          corteEstado: pred ? 'asignado' : null,
         },
       });
       await tx.estadoTransicion.create({

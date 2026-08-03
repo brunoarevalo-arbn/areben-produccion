@@ -8,8 +8,9 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
 import { MultiImageDrop } from '@/components/ui/ImageDrop';
+import type { Foto } from '@/lib/diseno/fotos';
 
-interface Lanzamiento { id: string; nombre: string; marca: string; fotos: string[]; estado: string; fechaEstimada: string | null; notas: string | null; }
+interface Lanzamiento { id: string; nombre: string; marca: string; fotos: Foto[]; estado: string; fechaEstimada: string | null; notas: string | null; }
 
 const ESTADOS = ['Confirmado', 'En producción', 'Lanzado'] as const;
 const estadoClass: Record<string, string> = {
@@ -91,7 +92,7 @@ export function LanzamientosClient() {
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${item.marca === 'Zattia' ? 'bg-violet-100 text-violet-700' : 'bg-pink-100 text-pink-700'}`}>{item.marca}</span>
               </div>
 
-              <MultiImageDrop value={item.fotos} onChange={(urls) => guardar(item.id, { fotos: urls })} />
+              <MultiImageDrop value={item.fotos} onChange={(fotos) => guardar(item.id, { fotos })} />
 
               <div className="flex flex-wrap items-center gap-2">
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${estadoClass[item.estado] ?? 'bg-stone-100 text-stone-600'}`}>{item.estado}</span>

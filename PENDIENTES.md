@@ -3,12 +3,12 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-08-02_
+_Última actualización: 2026-08-03_
 
-> **En esta sesión:** **Permisos en el listado de rollos**. El último hueco de "GET sin auth" de
-> la auditoría jun-2026: la lista y la ficha de rollos las podía leer *cualquier* sesión, incluida
-> la tablet de costureras y estampadores, con el costo por kg adentro. Ahora piden permiso, y el
-> costo no viaja a quien solo tiene `muestras`.
+> **En esta sesión:** tres pedidos sueltos: **cortador predeterminado** (Fernando queda asignado
+> solo a cada OP nueva), **pago a cuenta** a cortadores (monto suelto sin imputar a un corte, con
+> la cuenta corriente restándolo) y **descripción por foto** en Moodboard / Lanzamientos / moodboard
+> de proyecto.
 
 ---
 
@@ -20,6 +20,15 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 ---
 
 ## 🔴 Pendiente
+
+- [ ] **Probar a mano lo de esta sesión.** Nada de los tres pedidos del 3-ago se ejercitó contra la
+  app corriendo: crear una OP y ver a Fernando preasignado, registrar un pago a cuenta y mirar que
+  el saldo baje en las tres pantallas, y escribirle una descripción a una foto vieja (formato
+  legado) para confirmar que se migra sola.
+
+- [ ] **No se puede anular un pago de corte.** No hay `DELETE` ni `PATCH` en
+  `/api/produccion/pagos-cortes`: un pago cargado por error solo se arregla por SQL. Ahora que se
+  pueden cargar pagos a cuenta a mano, es más fácil equivocarse en el monto.
 
 - [ ] **`POST /api/upload-imagen` acepta cualquier sesión** (`app/api/upload-imagen/route.ts:10`),
   o sea que la tablet de costureras puede subir al Blob. No expone datos, pero es la única
@@ -35,6 +44,38 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 - _(nada activo ahora mismo)_
 
 ## ✅ Hecho (referencia)
+
+- **Cortador predeterminado (2026-08-03):** flag `Cortador.predeterminado` (uno solo; marcarlo
+  desmarca al anterior, `lib/produccion/cortador-default.ts`), se elige en Configuración →
+  Cortadores. **Fernando ya quedó marcado.** Toda OP nueva —suelta (`POST /api/produccion/cola`) o
+  por lote (`POST /api/produccion/lote`)— nace con `cortadorId` y `corteEstado: 'asignado'`. Solo
+  la FK: el string `cortador` sigue siendo el snapshot que escriben la ficha y `validar-corte`.
+  Además se cerró un bug viejo: en `produccion/[id]/corte`, el cortador ya asignado no viajaba al
+  prefill salvo que la ficha estuviera cargada, así que el select arrancaba vacío. No hizo falta
+  backfill: había **0 OP sin cortador**. No se autocompleta la tarifa (decisión de
+  `RegistrarCorteForm.tsx:116-118`, sigue en pie).
+
+- **Pago a cuenta a cortadores (2026-08-03):** un `PagoCorte` **sin ítems** ahora es válido y es un
+  pago a cuenta: exige `cortadorId` (columna nueva) + monto libre. Los pagos con ítems no cambian
+  (el monto lo sigue calculando el servidor). La cuenta corriente pasó a ser
+  `pendiente por ítems − pagos a cuenta` (`lib/produccion/cuenta-cortador.ts`) y **puede quedar
+  negativa** = saldo a favor, mostrado en verde en el hub, el detalle y el panel del cortador.
+  No hay doble conteo ni backfill: un pago a cuenta nunca marca ítems, así que nunca se pisa con
+  uno imputado. El historial del detalle sumó `{ cortadorId: id }` al `OR` — sin eso los pagos a
+  cuenta no aparecían nunca. Las tarjetas de "Pagos de cortes" se renombraron a *Cortes pendientes
+  de pago* con link a la cuenta, para que dos pantallas no muestren dos números con el mismo nombre.
+  De paso se cerró el último GET de la auditoría: `GET /api/produccion/pagos-cortes` pedía solo
+  sesión y devuelve costos y beneficiarios; ahora pide `produccion`.
+
+- **Descripción por foto en el moodboard (2026-08-03):** las fotos pasaron de `string[]` a
+  `{ url, descripcion }[]` en `Idea.fotos`, `ProyectoDiseno.moodboard` y `Lanzamiento.fotos`.
+  **Sin migración**: `lib/diseno/fotos.ts` (`parseFotos`/`serializeFotos`/`urlsDeFotos`) lee las dos
+  formas y cada registro se pasa solo al formato nuevo al guardarse. Todos los `JSON.parse` sueltos
+  pasan por ahí — ojo con `KanbanDiseno`, que hacía `a.map(String)` y con objetos hubiera puesto
+  `"[object Object]"` de `src`. En la UI: input de descripción bajo cada miniatura de
+  `MultiImageDrop` (buffer local, confirma al `onBlur`, para no hacer un PUT por tecla) y pie con
+  la descripción en el `Lightbox`, que además alimenta el `alt`. `IteracionMuestra.fotos` queda
+  afuera: sigue siendo el textarea de links.
 
 - **Permisos en el listado de rollos (2026-08-02):** `GET /api/insumos/rollos` y
   `GET /api/insumos/rollos/[id]` pedían **solo sesión** — o sea que la tablet de costureras y

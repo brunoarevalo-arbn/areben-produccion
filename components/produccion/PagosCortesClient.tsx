@@ -152,7 +152,12 @@ export function PagosCortesClient() {
       {/* Stats por cortador */}
       {filtro === 'pendiente' && cortadores.length > 0 && (
         <Card padding="none" className="p-4">
-          <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">Pendiente por cortador</p>
+          {/* Ojo: esto es lo pendiente POR ÍTEMS, no el saldo. Los pagos a cuenta (montos
+              sin imputar a un corte) no se ven acá: para el saldo real está la cuenta corriente. */}
+          <div className="flex items-baseline justify-between mb-2 gap-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Cortes pendientes de pago</p>
+            <Link href="/produccion/cuenta-cortadores" className="text-xs text-amber-700 hover:underline shrink-0">Ver saldo con pagos a cuenta →</Link>
+          </div>
           <div className="flex flex-wrap gap-3">
             {cortadores.map((c) => {
               const cortes = ordenes.filter((o) => o.cortador === c && !o.pagoCorteId);

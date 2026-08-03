@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
+import { parseFotos, serializeFotos } from '@/lib/diseno/fotos';
 
 type Ctx = { params: Promise<{ id: string }> };
 
 function serializeProyecto(p: Record<string, unknown>) {
   return {
     ...p,
-    moodboard: p.moodboard ? JSON.parse(p.moodboard as string) : [],
+    moodboard: parseFotos(p.moodboard),
   };
 }
 
@@ -89,7 +90,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     if (typeof body.archivado === 'boolean') data.archivado = body.archivado;
 
     if (body.moodboard !== undefined) {
-      data.moodboard = JSON.stringify(body.moodboard);
+      data.moodboard = serializeFotos(body.moodboard);
     }
 
     if (body.fechaObjetivo !== undefined) {

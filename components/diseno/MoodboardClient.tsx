@@ -10,8 +10,9 @@ import { LoadingState } from '@/components/ui/LoadingState';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
 import { MultiImageDrop } from '@/components/ui/ImageDrop';
+import type { Foto } from '@/lib/diseno/fotos';
 
-interface Idea { id: string; nombre: string; marca: string; fotos: string[]; notas: string | null; proyectoId: string | null; }
+interface Idea { id: string; nombre: string; marca: string; fotos: Foto[]; notas: string | null; proyectoId: string | null; }
 
 const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-violet-400';
 
@@ -93,7 +94,7 @@ export function MoodboardClient() {
                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 ${idea.marca === 'Zattia' ? 'bg-violet-100 text-violet-700' : 'bg-pink-100 text-pink-700'}`}>{idea.marca}</span>
               </div>
 
-              <MultiImageDrop value={idea.fotos} onChange={(urls) => guardar(idea.id, { fotos: urls })} />
+              <MultiImageDrop value={idea.fotos} onChange={(fotos) => guardar(idea.id, { fotos })} />
 
               <input value={idea.notas ?? ''} onChange={(e) => setIdeas((prev) => prev.map((i) => i.id === idea.id ? { ...i, notas: e.target.value } : i))}
                 onBlur={(e) => guardar(idea.id, { notas: e.target.value })}

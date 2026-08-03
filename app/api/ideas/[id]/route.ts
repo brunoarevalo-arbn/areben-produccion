@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { serializeIdea } from '../route';
+import { serializeFotos } from '@/lib/diseno/fotos';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -12,7 +13,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   const data: Record<string, unknown> = {};
   if (b.nombre !== undefined) data.nombre = String(b.nombre).trim();
   if (b.marca !== undefined) data.marca = b.marca;
-  if (b.fotos !== undefined) data.fotos = Array.isArray(b.fotos) && b.fotos.length ? JSON.stringify(b.fotos) : null;
+  if (b.fotos !== undefined) data.fotos = serializeFotos(b.fotos);
   if (b.notas !== undefined) data.notas = b.notas?.trim() || null;
   if (b.archivado !== undefined) data.archivado = !!b.archivado;
   const idea = await prisma.idea.update({ where: { id }, data });

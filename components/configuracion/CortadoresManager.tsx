@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Checkbox } from '@/components/ui/Checkbox';
 
 interface Cortador {
   id: string;
@@ -14,8 +15,14 @@ interface Cortador {
   notas: string | null;
   activo: boolean;
   usuarioId: string | null;
+  predeterminado: boolean;
 }
 interface UsuarioOpt { id: string; nombre: string; username: string; permisos: string[]; activo: boolean }
+
+// El predeterminado es uno solo: el server desmarca al resto, así que el listado
+// local tiene que reflejarlo sin recargar.
+const aplicarPredeterminado = (fila: Cortador, guardado: Cortador) =>
+  guardado.predeterminado && fila.predeterminado ? { ...fila, predeterminado: false } : fila;
 
 export function CortadoresManager({ initial }: { initial: Cortador[] }) {
   const [cortadores, setCortadores] = useState(initial);
@@ -28,6 +35,7 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
   const [contacto, setContacto]           = useState('');
   const [notas, setNotas]                 = useState('');
   const [usuarioId, setUsuarioId]         = useState('');
+  const [predeterminado, setPredeterminado] = useState(false);
   const [usuarios, setUsuarios]           = useState<UsuarioOpt[]>([]);
 
   useEffect(() => {
@@ -35,13 +43,14 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
   }, []);
 
   const resetForm = () => {
-    setNombre(''); setContacto(''); setNotas(''); setUsuarioId(''); setError('');
+    setNombre(''); setContacto(''); setNotas(''); setUsuarioId(''); setPredeterminado(false); setError('');
   };
 
   const abrirNuevo = () => { resetForm(); setEditando(null); setShowForm(true); };
   const abrirEdicion = (c: Cortador) => {
     setNombre(c.nombre); setContacto(c.contacto || '');
     setNotas(c.notas || ''); setUsuarioId(c.usuarioId || '');
+    setPredeterminado(c.predeterminado);
     setEditando(c); setShowForm(true); setError('');
   };
 
@@ -55,6 +64,7 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
       contacto: contacto.trim() || undefined,
       notas: notas.trim() || undefined,
       usuarioId: usuarioId || null,
+      predeterminado,
     };
 
     const url = editando ? `/api/cortadores/${editando.id}` : '/api/cortadores';
@@ -62,9 +72,9 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
 
     const r = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
     if (r.ok) {
-      const item = await r.json();
-      if (editando) setCortadores((prev) => prev.map((p) => p.id === item.id ? item : p));
-      else setCortadores((prev) => [...prev, item].sort((a, b) => a.nombre.localeCompare(b.nombre)));
+      const item: Cortador = await r.json();
+      if (editando) setCortadores((prev) => prev.map((p) => p.id === item.id ? item : aplicarPredeterminado(p, item)));
+      else setCortadores((prev) => [...prev.map((p) => aplicarPredeterminado(p, item)), item].sort((a, b) => a.nombre.localeCompare(b.nombre)));
       setShowForm(false);
       resetForm();
     } else {
@@ -82,6 +92,17 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
     if (r.ok) {
       const item = await r.json();
       setCortadores((prev) => prev.map((x) => x.id === item.id ? item : x));
+    }
+  };
+
+  const hacerPredeterminado = async (c: Cortador) => {
+    const r = await fetch(`/api/cortadores/${c.id}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ predeterminado: true }),
+    });
+    if (r.ok) {
+      const item: Cortador = await r.json();
+      setCortadores((prev) => prev.map((x) => x.id === item.id ? item : aplicarPredeterminado(x, item)));
     }
   };
 
@@ -108,6 +129,10 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
               ))}
             </Select>
             <p className="text-xs text-stone-400 -mt-2">Creá antes el usuario con permiso “Cortador (panel)” en Configuración → Usuarios, y pasale el link de acceso.</p>
+            <div>
+              <Checkbox label="Cortador predeterminado" checked={predeterminado} onChange={(e) => setPredeterminado(e.target.checked)} />
+              <p className="text-xs text-stone-400 mt-1 ml-6">Se asigna solo a cada orden de producción nueva. Hay uno solo: al marcarlo, se desmarca el anterior.</p>
+            </div>
             {error && <p className="text-red-500 text-xs">{error}</p>}
             <div className="flex gap-2">
               <Button type="submit" disabled={saving} isLoading={saving}>
@@ -131,12 +156,20 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
           cortadores.map((c, i) => (
             <div key={c.id}
               className={`px-5 py-3 grid grid-cols-[1fr_auto_auto_auto] gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${!c.activo ? 'opacity-50' : ''}`}>
-              <p className="text-sm font-medium text-stone-800">{c.nombre}</p>
+              <p className="text-sm font-medium text-stone-800 flex items-center gap-2">
+                {c.nombre}
+                {c.predeterminado && (
+                  <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700" title="Se asigna solo a cada OP nueva">Predeterminado</span>
+                )}
+              </p>
               <span className="text-xs text-stone-500">{c.contacto || '--'}</span>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${c.activo ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
                 {c.activo ? 'Activo' : 'Inactivo'}
               </span>
               <div className="flex gap-1.5">
+                {c.activo && !c.predeterminado && (
+                  <Button variant="secondary" size="sm" onClick={() => hacerPredeterminado(c)} className="px-2.5 py-1 rounded-lg">Hacer predeterminado</Button>
+                )}
                 <Button variant="secondary" size="sm" onClick={() => abrirEdicion(c)} className="px-2.5 py-1 rounded-lg">Editar</Button>
                 <Button variant="secondary" size="sm" onClick={() => toggleActivo(c)} className="px-2.5 py-1 rounded-lg">{c.activo ? 'Desactivar' : 'Activar'}</Button>
               </div>
