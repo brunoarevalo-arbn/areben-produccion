@@ -57,7 +57,20 @@ export const MuestraSchema = z.object({
   marca:       z.enum(MARCAS, 'Elegí la marca'),
   proyectoId:  z.string().optional(),
   descripcion: z.string().optional(),
+  // Reintento explícito después del aviso de posible duplicado. El servidor
+  // avisa, no bloquea: con este flag el mismo retiro pasa igual.
+  confirmarDuplicado: z.boolean().optional(),
 });
+
+// Edición de un retiro ya cargado. El ROLLO no se puede cambiar: mover un retiro
+// de un rollo a otro no es una edición, son dos operaciones (eliminar y cargar).
+// `undefined` = no tocar el campo; `null` o vacío = limpiarlo.
+export const MuestraPatchSchema = z.object({
+  cantidad:    z.number().positive('La cantidad debe ser positiva').optional(),
+  marca:       z.enum(MARCAS, 'Elegí la marca').optional(),
+  proyectoId:  z.string().nullable().optional(),
+  descripcion: z.string().nullable().optional(),
+}).refine((d) => Object.values(d).some((v) => v !== undefined), 'No hay nada para cambiar');
 
 // Registrar corte: unifica ficha + consumo de tela + desglose por talle
 const ConsumoRolloSchema = z.object({

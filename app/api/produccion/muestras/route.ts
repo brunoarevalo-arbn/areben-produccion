@@ -3,10 +3,19 @@ import { prisma } from '@/lib/prisma';
 import { requireAlguno, getPermisos, can } from '@/lib/auth';
 import { MuestraSchema } from '@/lib/validators/produccion';
 import { Prisma } from '@prisma/client';
+import {
+  MuestraError, ajustarPesoRollo, conceptoMuestra, kgDesdeMetros, responderMuestraError,
+} from '@/lib/produccion/muestras';
 
 // Quién puede registrar un retiro de tela para muestra. `muestras` es el permiso
 // chico (la diseñadora): no abre Producción ni Inventario, solo esto.
 const PUEDE_RETIRAR = ['muestras', 'produccion'] as const;
+
+// Ventana del aviso de posible duplicado. Que la misma persona retire el mismo
+// metraje del mismo rollo dos veces en 10 minutos es rarísimo; que reenvíe el
+// formulario, no. El aviso no bloquea: pide confirmar.
+const VENTANA_DUPLICADO_MIN = 10;
+const EPS_DUP = new Prisma.Decimal('0.0001');
 
 // Lista de retiros registrados (consumos de tela tipo MUESTRA). El costo se agrega
 // SOLO si la sesión tiene el permiso `gastos`: quien registra no ve la plata.
@@ -26,6 +35,7 @@ export async function GET(req: NextRequest) {
       marca: true,
       fecha: true,
       usuarioId: true,
+      rolloId: true,
       rollo: {
         select: {
           codigo: true,
@@ -39,7 +49,16 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  if (!veCosto) return NextResponse.json({ veCosto, retiros: muestras });
+  // Quién puede editar/eliminar cada fila lo decide el servidor, no el cliente:
+  // así el gating de la UI y el del API salen de la misma fuente.
+  const editable = (usuarioId: string) => session.rol === 'admin' || usuarioId === session.id;
+
+  if (!veCosto) {
+    return NextResponse.json({
+      veCosto,
+      retiros: muestras.map((m) => ({ ...m, editable: editable(m.usuarioId) })),
+    });
+  }
 
   // El costo se calcula acá y el costoUnitario del rollo NO viaja al cliente:
   // que la lista muestre plata no significa exponer el precio de compra.
@@ -48,6 +67,7 @@ export async function GET(req: NextRequest) {
     return {
       ...m,
       rollo: m.rollo ? rollo : null,
+      editable: editable(m.usuarioId),
       // La cantidad está en kg (negativa) y el costo unitario es por kg.
       costo: costoUnitario == null ? null : Number(costoUnitario) * Math.abs(Number(m.cantidad)),
     };
@@ -63,76 +83,120 @@ export async function POST(req: NextRequest) {
   const parsed = MuestraSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-  const { rolloId, cantidad, marca, proyectoId, descripcion } = parsed.data;
+  const { rolloId, cantidad, marca, proyectoId, descripcion, confirmarDuplicado } = parsed.data;
 
+  try {
+    if (!confirmarDuplicado) await avisarSiParecePorDuplicado(rolloId, cantidad, session.id);
+
+    // Todo dentro de una transacción interactiva: el rollo se lee acá adentro y
+    // se descuenta de forma atómica, y el gasto necesita el id del movimiento.
+    const movimiento = await prisma.$transaction(async (tx) => {
+      const rollo = await tx.rollo.findUnique({
+        where: { id: rolloId },
+        include: { insumo: { select: { nombre: true, rinde: true } } },
+      });
+      if (!rollo) throw new MuestraError('Rollo no encontrado', 404);
+      if (rollo.estado === 'DESCARTADO') {
+        throw new MuestraError(`El rollo ${rollo.codigo} está descartado: no se puede retirar tela de ahí`);
+      }
+
+      const rinde = Number(rollo.insumo.rinde);
+      if (!rinde || rinde <= 0) {
+        throw new MuestraError(
+          `El insumo "${rollo.insumo.nombre}" no tiene rinde cargado: no se puede convertir metros a kg`,
+        );
+      }
+
+      // La cantidad se ingresa en METROS; se convierte a kg con el rinde.
+      const kg = kgDesdeMetros(cantidad, rinde);
+
+      let proyectoNombre: string | null = null;
+      if (proyectoId) {
+        const p = await tx.proyectoDiseno.findUnique({ where: { id: proyectoId }, select: { nombre: true } });
+        if (!p) throw new MuestraError('Proyecto no encontrado');
+        proyectoNombre = p.nombre;
+      }
+
+      await ajustarPesoRollo(tx, rolloId, kg, {
+        falta: (disp) =>
+          `No alcanza: el rollo ${rollo.codigo} tiene ~${(Number(disp) * rinde).toFixed(2)} m `
+          + `y querés retirar ${cantidad} m`,
+        sobra: (peso, inicial) =>
+          `El rollo ${rollo.codigo} quedaría en ${peso.toFixed(2)} kg, sobre su peso inicial `
+          + `(${inicial.toFixed(2)} kg)`,
+      });
+
+      const mov = await tx.movimientoInsumo.create({
+        data: {
+          tipo: 'MUESTRA',
+          rolloId,
+          proyectoId: proyectoId || null,
+          cantidad: kg.neg(),
+          motivo: descripcion?.trim() || 'Muestra',
+          marca,
+          usuarioId: session.id,
+        },
+      });
+
+      await tx.gasto.create({
+        data: {
+          categoria: 'desarrollo',
+          tipo:      'tela',
+          marca,
+          monto:     Number(rollo.costoUnitario) * Number(kg),
+          concepto:  conceptoMuestra({ insumo: rollo.insumo.nombre, metros: cantidad, descripcion, proyecto: proyectoNombre }),
+          fecha:     new Date().toISOString().split('T')[0],
+          creadoPor: session.nombre,
+          // El vínculo que permite después editar o borrar el gasto junto con el retiro.
+          movimientoId: mov.id,
+        },
+      });
+
+      return mov;
+    });
+
+    return NextResponse.json(movimiento, { status: 201 });
+  } catch (e) {
+    return responderMuestraError(e);
+  }
+}
+
+/**
+ * Si esta misma persona ya registró el mismo metraje del mismo rollo hace pocos
+ * minutos, corta con un 409 que la UI usa para preguntar. Es lectura pura y va
+ * fuera de la transacción para no alargarla.
+ */
+async function avisarSiParecePorDuplicado(rolloId: string, metros: number, usuarioId: string) {
   const rollo = await prisma.rollo.findUnique({
     where: { id: rolloId },
-    include: { insumo: { select: { nombre: true, rinde: true } } },
+    select: { codigo: true, insumo: { select: { rinde: true } } },
   });
-  if (!rollo) return NextResponse.json({ error: 'Rollo no encontrado' }, { status: 404 });
+  const rinde = Number(rollo?.insumo.rinde);
+  if (!rollo || !rinde || rinde <= 0) return; // el POST se encarga de estos casos
 
-  const rinde = Number(rollo.insumo.rinde);
-  if (!rinde || rinde <= 0) {
-    return NextResponse.json(
-      { error: `El insumo "${rollo.insumo.nombre}" no tiene rinde cargado: no se puede convertir metros a kg` },
-      { status: 400 },
-    );
-  }
+  // La cantidad se guarda NEGATIVA. El epsilon absorbe redondeos del rinde.
+  const kg = kgDesdeMetros(metros, rinde).neg();
+  const previo = await prisma.movimientoInsumo.findFirst({
+    where: {
+      tipo: 'MUESTRA',
+      rolloId,
+      usuarioId,
+      fecha: { gte: new Date(Date.now() - VENTANA_DUPLICADO_MIN * 60_000) },
+      cantidad: { gte: kg.sub(EPS_DUP), lte: kg.add(EPS_DUP) },
+    },
+    orderBy: { fecha: 'desc' },
+    select: { id: true, fecha: true },
+  });
+  if (!previo) return;
 
-  // La cantidad se ingresa en METROS; se convierte a kg con el rinde (metros por kg).
-  const kg = cantidad / rinde;
-  const cant = new Prisma.Decimal(kg);
-  const nuevoPeso = rollo.pesoActual.sub(cant);
-  if (nuevoPeso.lessThan(0)) {
-    const metrosDisp = Number(rollo.pesoActual) * rinde;
-    return NextResponse.json(
-      { error: `No alcanza: el rollo ${rollo.codigo} tiene ~${metrosDisp.toFixed(2)} m y querés retirar ${cantidad} m` },
-      { status: 400 },
-    );
-  }
-
-  let proyectoNombre: string | null = null;
-  if (proyectoId) {
-    const p = await prisma.proyectoDiseno.findUnique({ where: { id: proyectoId }, select: { nombre: true } });
-    if (!p) return NextResponse.json({ error: 'Proyecto no encontrado' }, { status: 400 });
-    proyectoNombre = p.nombre;
-  }
-
-  const nuevoEstado = nuevoPeso.lte(new Prisma.Decimal('0.01')) ? 'AGOTADO' as const
-    : nuevoPeso.lt(rollo.pesoInicial) ? 'EN_USO_PARCIAL' as const
-    : 'DISPONIBLE' as const;
-
-  const costo = Number(rollo.costoUnitario) * kg; // para el Gasto (no lo ve quien registra)
-  const concepto = `Muestra — ${rollo.insumo.nombre} · ${cantidad} m${descripcion ? ` (${descripcion})` : ''}${proyectoNombre ? ` · ${proyectoNombre}` : ''}`;
-
-  const [movimiento] = await prisma.$transaction([
-    prisma.movimientoInsumo.create({
-      data: {
-        tipo: 'MUESTRA',
-        rolloId,
-        proyectoId: proyectoId || null,
-        cantidad: cant.neg(),
-        motivo: descripcion?.trim() || 'Muestra',
-        marca,
-        usuarioId: session.id,
-      },
-    }),
-    prisma.rollo.update({
-      where: { id: rolloId },
-      data: { pesoActual: nuevoPeso, estado: nuevoEstado },
-    }),
-    prisma.gasto.create({
-      data: {
-        categoria: 'desarrollo',
-        tipo:      'tela',
-        marca,
-        monto:     costo,
-        concepto,
-        fecha:     new Date().toISOString().split('T')[0],
-        creadoPor: session.nombre,
-      },
-    }),
-  ]);
-
-  return NextResponse.json(movimiento, { status: 201 });
+  const hace = Math.max(1, Math.round((Date.now() - previo.fecha.getTime()) / 60_000));
+  throw new MuestraError(
+    `Hace ${hace} min ya registraste ${metros} m del rollo ${rollo.codigo}. `
+    + '¿Es un retiro nuevo o se envió dos veces?',
+    409,
+    {
+      code: 'POSIBLE_DUPLICADO',
+      duplicado: { id: previo.id, fecha: previo.fecha, metros, rolloCodigo: rollo.codigo },
+    },
+  );
 }

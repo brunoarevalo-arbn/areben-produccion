@@ -710,6 +710,12 @@ model Gasto {
   creadoPor String
   tiempoId  String?
 
+  // Retiro de tela para muestra (MovimientoInsumo tipo MUESTRA) que generó este
+  // gasto. FK suelta sin relación Prisma, mismo criterio que ordenId/tiempoId.
+  // Es lo que permite borrar o reajustar el gasto cuando se edita o elimina el
+  // retiro: sin este vínculo el gasto quedaba huérfano.
+  movimientoId String?
+
   // Compra a proveedor (cuando proveedorId != null, el gasto es una "compra" y
   // aparece en el módulo Compras). Los gastos automáticos van sin proveedor.
   proveedorId   String?
@@ -723,6 +729,7 @@ model Gasto {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([movimientoId])
   @@map("gastos")
 }
 

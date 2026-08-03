@@ -3,8 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PopoverMenu } from '@/components/ui/PopoverMenu';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { toast } from '@/components/ui/Toaster';
 import { RetiroTelaForm, fmt, colorRollo } from './RetiroTelaForm';
-import { MARCAS } from '@/lib/marcas';
+import { RetiroTelaModal } from './RetiroTelaModal';
+import { MARCAS, type Marca } from '@/lib/marcas';
 
 interface Retiro {
   id: string;
@@ -12,8 +16,11 @@ interface Retiro {
   motivo: string | null;
   marca: string | null;
   fecha: string;
+  rolloId: string | null;
   rollo: { codigo: string; colorProveedor: string | null; insumo: { nombre: string; rinde: string | null } | null; color: { nombre: string } | null } | null;
   proyecto: { id: string; nombre: string } | null;
+  // Lo decide el backend: es el autor del retiro o un admin.
+  editable: boolean;
   // Solo viene si la sesión tiene el permiso `gastos`: quien registra no ve plata.
   costo?: number | null;
 }
@@ -22,10 +29,16 @@ const fechaCorta = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { 
 const pesos = (n: number) => `$${n.toLocaleString('es-AR', { maximumFractionDigits: 0 })}`;
 
 // El movimiento se guarda en kg (negativo); el rinde lo devuelve a metros.
-const metros = (m: Retiro) => {
+// `metrosNum` es el número crudo (lo necesita el formulario de edición) y
+// `metros` su presentación con unidad.
+const metrosNum = (m: Retiro) => {
   const rinde = Number(m.rollo?.insumo?.rinde);
   const kg = Math.abs(Number(m.cantidad));
-  return rinde > 0 ? `${fmt(kg * rinde)} m` : `${fmt(kg)} kg`;
+  return rinde > 0 ? kg * rinde : kg;
+};
+const metros = (m: Retiro) => {
+  const rinde = Number(m.rollo?.insumo?.rinde);
+  return `${fmt(metrosNum(m))} ${rinde > 0 ? 'm' : 'kg'}`;
 };
 
 const mismoMes = (iso: string) => {
@@ -38,6 +51,8 @@ export function RetiroTelaClient() {
   // Lo decide el backend (permiso `gastos`), no el cliente: quien registra no ve plata.
   const [veCosto, setVeCosto] = useState(false);
   const [filtroMarca, setFiltroMarca] = useState('');
+  const [editando, setEditando]       = useState<Retiro | null>(null);
+  const [borrando, setBorrando]       = useState<string | null>(null);
 
   const cargar = useCallback(() => {
     fetch('/api/produccion/muestras')
@@ -47,6 +62,32 @@ export function RetiroTelaClient() {
   }, []);
   useEffect(() => { cargar(); }, [cargar]);
 
+  // Eliminar devuelve los metros al rollo y borra el gasto de desarrollo: por eso
+  // se confirma, y por eso el aviso dice exactamente qué se deshace.
+  const eliminar = async (m: Retiro) => {
+    if (borrando) return;
+    const ok = await confirmAsync({
+      title: 'Eliminar retiro',
+      message: `Se devuelven ${metros(m)} al rollo ${m.rollo?.codigo ?? ''} y se borra el gasto asociado. `
+        + 'No se puede deshacer.',
+      confirmLabel: 'Eliminar',
+      danger: true,
+    });
+    if (!ok) return;
+    setBorrando(m.id);
+    try {
+      const r = await fetch(`/api/produccion/muestras/${m.id}`, { method: 'DELETE' });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) { toast.error(d.error || 'No se pudo eliminar el retiro'); return; }
+      toast.success(d.gastoBorrado ? 'Retiro y gasto eliminados' : 'Retiro eliminado (no tenía gasto asociado)');
+      cargar();
+    } catch {
+      toast.error('No se pudo conectar. El retiro NO se eliminó.');
+    } finally {
+      setBorrando(null);
+    }
+  };
+
   const visibles = filtroMarca ? retiros.filter((r) => r.marca === filtroMarca) : retiros;
 
   const delMes = useMemo(() => {
@@ -55,6 +96,11 @@ export function RetiroTelaClient() {
   }, [retiros]);
 
   const nombreMes = new Date().toLocaleDateString('es-AR', { month: 'long' });
+
+  // Una sola definición: el header y las filas tienen que coincidir siempre.
+  const cols = veCosto
+    ? 'grid-cols-[auto_1fr_auto_auto_1fr_auto_auto_auto]'
+    : 'grid-cols-[auto_1fr_auto_auto_1fr_auto_auto]';
 
   return (
     <div className="space-y-6">
@@ -87,9 +133,8 @@ export function RetiroTelaClient() {
       </div>
 
       <Card padding="none" className="overflow-hidden">
-        <div className="overflow-x-auto"><div className={veCosto ? 'min-w-[720px]' : 'min-w-[620px]'}>
-          <div className={`px-5 py-3 bg-stone-50 border-b border-stone-100 grid gap-4 text-xs font-bold uppercase tracking-widest text-stone-400 ${
-            veCosto ? 'grid-cols-[auto_1fr_auto_auto_1fr_auto_auto]' : 'grid-cols-[auto_1fr_auto_auto_1fr_auto]'}`}>
+        <div className="overflow-x-auto"><div className={veCosto ? 'min-w-[768px]' : 'min-w-[668px]'}>
+          <div className={`px-5 py-3 bg-stone-50 border-b border-stone-100 grid gap-4 text-xs font-bold uppercase tracking-widest text-stone-400 ${cols}`}>
             <span>Fecha</span>
             <span>Tela / color</span>
             <span className="text-right">Metros</span>
@@ -97,13 +142,13 @@ export function RetiroTelaClient() {
             <span>Proyecto / nota</span>
             {veCosto && <span className="text-right">Costo</span>}
             <span>Rollo</span>
+            <span className="sr-only">Acciones</span>
           </div>
 
           {visibles.length === 0 ? (
             <EmptyState message="Sin retiros registrados todavía." />
           ) : visibles.map((m, i) => (
-            <div key={m.id} className={`px-5 py-3 grid gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${
-              veCosto ? 'grid-cols-[auto_1fr_auto_auto_1fr_auto_auto]' : 'grid-cols-[auto_1fr_auto_auto_1fr_auto]'}`}>
+            <div key={m.id} className={`px-5 py-3 grid gap-4 items-center ${i > 0 ? 'border-t border-stone-100' : ''} ${cols}`}>
               <span className="text-xs text-stone-500 whitespace-nowrap">{fechaCorta(m.fecha)}</span>
               <span className="text-sm text-stone-800 truncate">
                 {m.rollo?.insumo?.nombre ?? '—'}
@@ -120,10 +165,35 @@ export function RetiroTelaClient() {
                 </span>
               )}
               <span className="font-mono text-xs text-stone-500">{m.rollo?.codigo ?? '—'}</span>
+              {m.editable && m.rolloId ? (
+                <PopoverMenu items={[
+                  { label: 'Editar',   onClick: () => setEditando(m) },
+                  { label: 'Eliminar', onClick: () => eliminar(m), danger: true },
+                ]} />
+              ) : <span />}
             </div>
           ))}
         </div></div>
       </Card>
+
+      {editando?.rolloId && (
+        <RetiroTelaModal
+          rolloId={editando.rolloId}
+          codigo={editando.rollo?.codigo ?? ''}
+          retiro={{
+            id:          editando.id,
+            rolloId:     editando.rolloId,
+            metros:      metrosNum(editando),
+            marca:       (editando.marca ?? '') as Marca | '',
+            proyectoId:  editando.proyecto?.id ?? null,
+            // 'Muestra' es el motivo por defecto que pone el servidor cuando no
+            // hay nota: no lo mostramos como si el usuario lo hubiera escrito.
+            descripcion: editando.motivo === 'Muestra' ? null : editando.motivo,
+          }}
+          onClose={() => setEditando(null)}
+          onRegistrado={() => { setEditando(null); cargar(); }}
+        />
+      )}
     </div>
   );
 }

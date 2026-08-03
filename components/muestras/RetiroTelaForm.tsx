@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { toast } from '@/components/ui/Toaster';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { MARCAS, type Marca } from '@/lib/marcas';
 
 export interface RolloOpt {
@@ -32,10 +33,21 @@ export const restanteTxt = (r: RolloOpt) => {
 const disponible = (r: RolloOpt) =>
   r.estado !== 'AGOTADO' && r.estado !== 'DESCARTADO' && Number(r.pesoActual) > 0;
 
+/** Retiro ya cargado que se está editando. Sembra el formulario. */
+export interface RetiroEditable {
+  id: string;
+  rolloId: string;
+  metros: number;
+  marca: Marca | '';
+  proyectoId: string | null;
+  descripcion: string | null;
+}
+
 /**
- * Formulario de retiro de tela para muestras. Se usa en dos contextos:
- * la pantalla /muestras (con buscador de rollo) y el modal que se abre desde
- * un rollo concreto (`rolloIdFijo`, sin buscador).
+ * Formulario de retiro de tela para muestras. Se usa en tres contextos:
+ * la pantalla /muestras (con buscador de rollo), el modal que se abre desde
+ * un rollo concreto (`rolloIdFijo`, sin buscador) y la edición de un retiro
+ * ya cargado (`retiro`).
  *
  * Nota de diseño: el retiro es de METROS a granel, sin imputar prenda por prenda.
  * La marca sí es obligatoria: es lo que hace que el gasto de desarrollo caiga en
@@ -45,29 +57,38 @@ export function RetiroTelaForm({
   rolloIdFijo,
   onRegistrado,
   autoFocus,
+  retiro,
+  onCancelar,
 }: {
   rolloIdFijo?: string;
   onRegistrado?: () => void;
   autoFocus?: boolean;
+  retiro?: RetiroEditable;
+  onCancelar?: () => void;
 }) {
+  // En edición el rollo queda fijo: cambiarlo no es editar, son dos operaciones.
+  const rolloFijo = retiro?.rolloId ?? rolloIdFijo;
+
   const [rollos, setRollos]       = useState<RolloOpt[]>([]);
   const [proyectos, setProyectos] = useState<{ id: string; nombre: string }[]>([]);
 
-  const [rolloId, setRolloId]         = useState(rolloIdFijo ?? '');
+  const [rolloId, setRolloId]         = useState(rolloFijo ?? '');
   const [busqueda, setBusqueda]       = useState('');
-  const [cantidad, setCantidad]       = useState(0);
-  const [marca, setMarca]             = useState<Marca | ''>('');
-  const [proyectoId, setProyectoId]   = useState('');
-  const [descripcion, setDescripcion] = useState('');
+  const [cantidad, setCantidad]       = useState(retiro?.metros ?? 0);
+  const [marca, setMarca]             = useState<Marca | ''>(retiro?.marca ?? '');
+  const [proyectoId, setProyectoId]   = useState(retiro?.proyectoId ?? '');
+  const [descripcion, setDescripcion] = useState(retiro?.descripcion ?? '');
   const [saving, setSaving]           = useState(false);
   const [error, setError]             = useState('');
 
   useEffect(() => {
+    // El rollo fijo entra aunque esté agotado: si el retiro que se edita lo agotó,
+    // igual hay que poder mostrarlo y corregirlo.
     fetch('/api/insumos/rollos').then((r) => r.ok ? r.json() : []).then((rs: RolloOpt[]) =>
-      setRollos(rs.filter((r) => disponible(r) || r.id === rolloIdFijo))).catch(() => {});
+      setRollos(rs.filter((r) => disponible(r) || r.id === rolloFijo))).catch(() => {});
     fetch('/api/proyectos').then((r) => r.ok ? r.json() : []).then((ps: { id: string; nombre: string }[]) =>
       setProyectos(ps.map((p) => ({ id: p.id, nombre: p.nombre })))).catch(() => {});
-  }, [rolloIdFijo]);
+  }, [rolloFijo]);
 
   const rolloSel = rollos.find((r) => r.id === rolloId);
 
@@ -80,33 +101,74 @@ export function RetiroTelaForm({
       `${r.codigo} ${r.insumo?.nombre ?? ''} ${colorRollo(r)}`.toLowerCase().includes(q)).slice(0, 8);
   }, [rollos, busqueda]);
 
+  const enviar = (confirmado: boolean) => fetch(
+    retiro ? `/api/produccion/muestras/${retiro.id}` : '/api/produccion/muestras',
+    {
+      method: retiro ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        // El rollo no viaja al editar: el endpoint lo rechaza a propósito.
+        ...(retiro ? {} : { rolloId }),
+        cantidad, marca,
+        proyectoId:  retiro ? (proyectoId  || null) : (proyectoId  || undefined),
+        descripcion: retiro ? (descripcion || null) : (descripcion || undefined),
+        ...(confirmado ? { confirmarDuplicado: true } : {}),
+      }),
+    },
+  );
+
   const guardar = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Guarda dura contra el reenvío por cualquier vía (Enter repetido, evento
+    // sintético en touch), no solo por el botón deshabilitado.
+    if (saving) return;
     if (!rolloId || !cantidad || !marca) return;
     setSaving(true);
     setError('');
-    const r = await fetch('/api/produccion/muestras', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        rolloId, cantidad, marca,
-        proyectoId:  proyectoId || undefined,
-        descripcion: descripcion || undefined,
-      }),
-    });
-    if (!r.ok) {
-      const d = await r.json().catch(() => ({}));
-      setError(d.error || 'Error al registrar el retiro');
+    try {
+      let r = await enviar(false);
+
+      // El servidor avisa si esto parece un envío repetido; no bloquea, pregunta.
+      if (r.status === 409) {
+        const d = await r.json().catch(() => ({}));
+        if (d.code !== 'POSIBLE_DUPLICADO') { setError(d.error || 'No se pudo guardar'); return; }
+        const ok = await confirmAsync({
+          title: '¿Retiro repetido?',
+          message: d.error,
+          confirmLabel: 'Sí, cargarlo igual',
+          cancelLabel: 'No, cancelar',
+          danger: true,
+        });
+        if (!ok) return;
+        r = await enviar(true);
+      }
+
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        setError(d.error || (retiro ? 'Error al guardar los cambios' : 'Error al registrar el retiro'));
+        return;
+      }
+
+      toast.success(retiro
+        ? `Retiro actualizado: ${fmt(cantidad)} m de ${rolloSel?.codigo ?? 'el rollo'}`
+        : `Retirados ${fmt(cantidad)} m de ${rolloSel?.codigo ?? 'el rollo'}`);
+
+      // "Guardar y seguir": se mantiene la marca (un viaje suele ser de la misma
+      // marca) y se limpia el resto para cargar la tela siguiente. Al editar no
+      // se limpia nada: el modal se cierra.
+      if (!retiro) {
+        if (!rolloIdFijo) { setRolloId(''); setBusqueda(''); }
+        setCantidad(0); setProyectoId(''); setDescripcion('');
+      }
+      onRegistrado?.();
+    } catch {
+      // Sin esto, una caída de red dejaba el botón girando para siempre y sin
+      // mensaje: el usuario recargaba y volvía a cargar el retiro. Así se duplicó
+      // un retiro en producción.
+      setError('No se pudo conectar. El retiro NO se guardó: revisá la conexión y probá de nuevo.');
+    } finally {
       setSaving(false);
-      return;
     }
-    toast.success(`Retirados ${fmt(cantidad)} m de ${rolloSel?.codigo ?? 'el rollo'}`);
-    // "Guardar y seguir": se mantiene la marca (un viaje suele ser de la misma
-    // marca) y se limpia el resto para cargar la tela siguiente.
-    if (!rolloIdFijo) { setRolloId(''); setBusqueda(''); }
-    setCantidad(0); setProyectoId(''); setDescripcion('');
-    setSaving(false);
-    onRegistrado?.();
   };
 
   return (
@@ -121,7 +183,7 @@ export function RetiroTelaForm({
               {rolloSel.insumo?.nombre ?? '?'} · {colorRollo(rolloSel)}
             </span>
             <span className="text-xs text-stone-400 ml-auto whitespace-nowrap">quedan {restanteTxt(rolloSel)}</span>
-            {!rolloIdFijo && (
+            {!rolloFijo && (
               <button type="button" onClick={() => { setRolloId(''); setBusqueda(''); }}
                 className="text-xs text-amber-600 hover:text-amber-700 font-semibold underline">
                 cambiar
@@ -149,6 +211,11 @@ export function RetiroTelaForm({
             </div>
           </>
         )}
+        {retiro && (
+          <p className="text-xs text-stone-400 mt-1.5">
+            Para cambiar el rollo, eliminá el retiro y cargalo de nuevo.
+          </p>
+        )}
       </div>
 
       {/* Metros + marca */}
@@ -159,6 +226,11 @@ export function RetiroTelaForm({
           </label>
           <NumInput value={cantidad} onChange={setCantidad} min="0"
             placeholder={rolloSel ? `quedan ${restanteTxt(rolloSel)}` : 'en metros'} className={inp} />
+          {retiro && (
+            <p className="text-xs text-stone-400 mt-1.5">
+              Estaban cargados {fmt(retiro.metros)} m. El rollo se ajusta por la diferencia.
+            </p>
+          )}
         </div>
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">
@@ -201,10 +273,18 @@ export function RetiroTelaForm({
 
       {error && <p className="text-red-500 text-xs">{error}</p>}
 
-      <Button type="submit" variant="primary" size="lg" isLoading={saving}
-        disabled={!rolloId || !cantidad || !marca} className="w-full sm:w-auto">
-        {saving ? 'Registrando...' : 'Registrar retiro'}
-      </Button>
+      <div className="flex gap-2 flex-col sm:flex-row">
+        <Button type="submit" variant="primary" size="lg" isLoading={saving}
+          disabled={!rolloId || !cantidad || !marca} className="w-full sm:w-auto">
+          {saving ? 'Guardando...' : retiro ? 'Guardar cambios' : 'Registrar retiro'}
+        </Button>
+        {onCancelar && (
+          <Button type="button" variant="secondary" size="lg" onClick={onCancelar}
+            disabled={saving} className="w-full sm:w-auto">
+            Cancelar
+          </Button>
+        )}
+      </div>
     </form>
   );
 }
