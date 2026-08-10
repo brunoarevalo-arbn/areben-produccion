@@ -5,7 +5,9 @@
 // insumo tiene `rinde` (metros por unidad → m/kg para telas en kg).
 export interface MovConsumo { rolloId?: string | null; cantidad: number; unidadDefault: string | null; rinde: number | null }
 
-export interface ConsumoRollo { consumo: number; unidadDefault: string | null; rinde: number | null }
+// `consumo` va en la unidad del insumo (la que se muestra en la ficha); `metros` y `kg`
+// son ese mismo consumo ya convertido con el rinde, para no repetir la conversión afuera.
+export interface ConsumoRollo { consumo: number; unidadDefault: string | null; rinde: number | null; metros: number; kg: number }
 
 // Neto consumido por rollo (>0), más los totales kg/metros.
 export function consumoNetoPorRollo(movs: MovConsumo[]): { kg: number; metros: number; porRollo: Map<string, ConsumoRollo> } {
@@ -23,9 +25,11 @@ export function consumoNetoPorRollo(movs: MovConsumo[]): { kg: number; metros: n
     if (consumo <= 0.001) continue;
     const u = (v.unidadDefault || '').toLowerCase();
     const r = v.rinde || 0;
-    if (u.includes('kg')) { kg += consumo; metros += consumo * r; }
-    else { metros += consumo; if (r > 0) kg += consumo / r; }
-    porRollo.set(id, { consumo, unidadDefault: v.unidadDefault, rinde: v.rinde });
+    let mRollo: number, kgRollo: number;
+    if (u.includes('kg')) { kgRollo = consumo; mRollo = consumo * r; }
+    else { mRollo = consumo; kgRollo = r > 0 ? consumo / r : 0; }
+    kg += kgRollo; metros += mRollo;
+    porRollo.set(id, { consumo, unidadDefault: v.unidadDefault, rinde: v.rinde, metros: mRollo, kg: kgRollo });
   }
   return { kg, metros, porRollo };
 }
