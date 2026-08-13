@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { TALLES_DEFAULT, TALLES_COMUNES } from '@/lib/validators/produccion';
 import { calcTizada, type TizadaRollo } from '@/lib/produccion/tizada';
 import { AviosSelector, type AvioOpt, type AvioSel } from '@/components/produccion/AviosSelector';
+import { PegarDeMoldea } from '@/components/produccion/PegarDeMoldea';
+import type { FichaMoldea } from '@/lib/produccion/moldea';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -169,6 +171,21 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
     setTizadas((prev) => prev.length > 1 ? prev.filter((t) => t.id !== id) : prev);
   const updTizada = (id: string, field: 'nombre' | 'modo' | 'metros' | 'unidades', val: string) =>
     setTizadas((prev) => prev.map((t) => t.id === id ? { ...t, [field]: val } : t));
+  // Aplicar una tizada calculada por Moldea. Llega SIN rollos: los elige la
+  // persona abajo, contra el inventario real.
+  //
+  // Las tizadas que ya tienen algo cargado no se pisan — se agregan al final.
+  // Sí se descarta la tizada vacía que el form trae de arranque: dejarla haría
+  // que la ficha se guarde con una tizada fantasma sin metros ni rollos.
+  const aplicarMoldea = (f: FichaMoldea) =>
+    setTizadas((prev) => {
+      const vacia = (t: Tizada) => !t.nombre.trim() && !t.metros.trim() && t.rollos.length === 0;
+      const quedan = prev.filter((t) => !vacia(t));
+      const nuevas: Tizada[] = f.tizadas.map((t) => ({
+        id: `t${tizadaSeq.current++}`, nombre: t.nombre, modo: t.modo, metros: t.metros, unidades: t.unidades, rollos: [],
+      }));
+      return [...quedan, ...nuevas];
+    });
   // Al marcar "se sublima", precarga los metros que consume la tizada (editable después).
   const toggleSublima = (id: string, metrosDefault: number) =>
     setTizadas((prev) => prev.map((t) => t.id === id
@@ -472,10 +489,13 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
           );
         })}
 
-        <button type="button" onClick={addTizada}
-          className="text-xs px-3 py-1.5 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition">
-          + Agregar tizada
-        </button>
+        <div className="flex items-center flex-wrap">
+          <button type="button" onClick={addTizada}
+            className="text-xs px-3 py-1.5 border border-stone-200 rounded-lg text-stone-600 hover:border-stone-400 transition">
+            + Agregar tizada
+          </button>
+          <PegarDeMoldea onAplicar={aplicarMoldea} />
+        </div>
 
         {totalRollosSel > 0 && (
           <div className="mt-4 pt-3 border-t border-stone-200 grid grid-cols-3 gap-3 text-sm">
