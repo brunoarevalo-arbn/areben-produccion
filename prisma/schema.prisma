@@ -823,6 +823,8 @@ model Insumo {
   stockMinimo      Decimal?
   manejaColor      Boolean       @default(false)
   rinde            Decimal?
+  anchoCm          Decimal?                     // ancho útil habitual de la tela, en cm. Lo usa el tizador
+  tubular          Boolean?                     // null = sin definir · true = tubular · false = abierta
   activo           Boolean       @default(true)
   colores          InsumoColor[]
   rollos           Rollo[]
@@ -867,6 +869,7 @@ model Rollo {
   compraLinea   CompraLinea?       @relation(fields: [compraLineaId], references: [id], onDelete: SetNull)
   pesoInicial   Decimal
   pesoActual    Decimal
+  anchoCm       Decimal?           // ancho medido de ESTE rollo; pisa al del artículo cuando viene distinto
   costoUnitario Decimal
   moneda        String             @default("ARS") // 'ARS' | 'USD' — moneda original de la compra
   costoUnitarioUsd Decimal?         // costo unitario en USD (si moneda='USD'); para revaluar a un TC nuevo

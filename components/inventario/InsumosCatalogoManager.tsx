@@ -21,6 +21,8 @@ interface InsumoItem {
   stockMinimo: number | null;
   manejaColor: boolean;
   rinde: number | null;
+  anchoCm: number | null;
+  tubular: boolean | null;
   activo: boolean;
 }
 
@@ -54,6 +56,9 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
   const [stockMinimo, setStockMinimo]         = useState('');
   const [manejaColor, setManejaColor]         = useState(false);
   const [rinde, setRinde]                     = useState('');
+  const [anchoCm, setAnchoCm]                 = useState('');
+  // '' = sin definir · 'abierta' · 'tubular'. Se guarda como boolean|null.
+  const [tubular, setTubular]                 = useState('');
 
   // Catálogo de telas internas para sugerir nombres internos
   useEffect(() => {
@@ -65,7 +70,8 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
 
   const resetForm = () => {
     setNombre(''); setNombreInterno(''); setCategoria('tela'); setTipoTrazabilidad('rollo');
-    setUnidadDefault('kg'); setStockMinimo(''); setManejaColor(false); setRinde(''); setError('');
+    setUnidadDefault('kg'); setStockMinimo(''); setManejaColor(false); setRinde('');
+    setAnchoCm(''); setTubular(''); setError('');
   };
 
   const abrirNuevo = () => { resetForm(); setEditando(null); setShowForm(true); };
@@ -79,6 +85,8 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
     setStockMinimo(ins.stockMinimo != null ? String(ins.stockMinimo) : '');
     setManejaColor(ins.manejaColor);
     setRinde(ins.rinde != null ? String(ins.rinde) : '');
+    setAnchoCm(ins.anchoCm != null ? String(ins.anchoCm) : '');
+    setTubular(ins.tubular == null ? '' : ins.tubular ? 'tubular' : 'abierta');
     setEditando(ins);
     setShowForm(true);
     setError('');
@@ -99,6 +107,9 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
       stockMinimo: stockMinimo ? Number(stockMinimo) : undefined,
       manejaColor,
       rinde: rinde ? Number(rinde) : undefined,
+      // null explícito (no undefined): así vaciar el campo lo borra de verdad.
+      anchoCm: anchoCm ? Number(anchoCm) : null,
+      tubular: tubular === '' ? null : tubular === 'tubular',
     };
 
     const url = editando ? `/api/insumos/${editando.id}` : '/api/insumos';
@@ -205,6 +216,20 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
                 <NumInput value={parseFloat(rinde) || 0} onChange={(n) => setRinde(n ? String(n) : '')}
                   min="0" step="0.01" placeholder="Ej: 3.2" className={inp} />
                 <p className="text-xs text-stone-400 mt-1">Metros por kg. Solo para telas.</p>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Ancho de tela (cm)</label>
+                <NumInput value={parseFloat(anchoCm) || 0} onChange={(n) => setAnchoCm(n ? String(n) : '')}
+                  min="0" step="0.1" placeholder="Ej: 160" className={inp} />
+                <p className="text-xs text-stone-400 mt-1">El ancho habitual del rollo. Si uno viene distinto, se corrige en el rollo.</p>
+              </div>
+              <div>
+                <Select label="Presentación" fullWidth value={tubular} onChange={(e) => setTubular(e.target.value)}>
+                  <option value="">Sin definir</option>
+                  <option value="abierta">Abierta</option>
+                  <option value="tubular">Tubular</option>
+                </Select>
+                <p className="text-xs text-stone-400 mt-1">En tubular el ancho de arriba es el del tubo (la tela abierta mide el doble).</p>
               </div>
               <div className="flex items-end pb-1">
                 <label className="flex items-center gap-2 text-sm text-stone-700 cursor-pointer">

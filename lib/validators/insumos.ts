@@ -22,6 +22,12 @@ export const InsumoCatalogoSchema = z.object({
   stockMinimo:      z.number().min(0).optional(),
   manejaColor:      z.boolean().optional(),
   rinde:            z.number().positive().optional(),
+  // Ancho útil de la tela en cm y si viene tubular. Los usa el tizador: el ancho
+  // define cuántos paneles entran a lo ancho (pesa más que el algoritmo) y en
+  // tubular el ancho declarado es el del tubo, no el de la tela abierta.
+  // `nullish` a propósito: se tienen que poder vaciar, "sin cargar" es un estado real.
+  anchoCm:          z.number().positive().nullish(),
+  tubular:          z.boolean().nullish(),
   activo:           z.boolean().optional(),
 });
 

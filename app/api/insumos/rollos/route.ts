@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
     where,
     omit: veCosto ? {} : { costoUnitario: true, costoUnitarioUsd: true },
     include: {
-      insumo: { select: { nombre: true, categoria: true, unidadDefault: true, rinde: true } },
+      insumo: { select: { nombre: true, categoria: true, unidadDefault: true, rinde: true, anchoCm: true, tubular: true } },
       color: { select: { id: true, nombre: true, abreviatura: true } },
       compra: { select: { id: true, fecha: true, proveedor: { select: { nombre: true } } } },
     },

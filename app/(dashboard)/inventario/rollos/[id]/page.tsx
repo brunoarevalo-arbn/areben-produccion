@@ -11,7 +11,7 @@ export default async function RolloDetallePage({ params }: { params: Promise<{ i
   const rollo = await prisma.rollo.findUnique({
     where: { id },
     include: {
-      insumo: { select: { nombre: true, categoria: true, unidadDefault: true } },
+      insumo: { select: { nombre: true, categoria: true, unidadDefault: true, anchoCm: true, tubular: true } },
       color: { select: { nombre: true } },
       compra: { select: { id: true, fecha: true, numeroFactura: true, proveedor: { select: { nombre: true } } } },
       movimientos: { orderBy: { fecha: 'desc' } },

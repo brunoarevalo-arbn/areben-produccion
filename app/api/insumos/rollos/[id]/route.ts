@@ -15,7 +15,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const rollo = await prisma.rollo.findUnique({
     where: { id },
     include: {
-      insumo: { select: { nombre: true, categoria: true, unidadDefault: true, rinde: true } },
+      insumo: { select: { nombre: true, categoria: true, unidadDefault: true, rinde: true, anchoCm: true, tubular: true } },
       color: { select: { id: true, nombre: true, abreviatura: true } },
       compra: { select: { id: true, fecha: true, numeroFactura: true, proveedor: { select: { nombre: true } } } },
       movimientos: {
@@ -40,6 +40,17 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const c = Number(body.costoUnitario);
     if (!isFinite(c) || c < 0) return NextResponse.json({ error: 'Costo inválido' }, { status: 400 });
     data.costoUnitario = new Prisma.Decimal(c);
+  }
+  // Ancho medido de ESTE rollo. `null` lo vuelve a "sin medir" y manda otra vez el
+  // ancho del artículo; sin esto no habría forma de deshacer un ancho mal cargado.
+  if (body.anchoCm !== undefined) {
+    if (body.anchoCm === null || body.anchoCm === '') {
+      data.anchoCm = null;
+    } else {
+      const a = Number(body.anchoCm);
+      if (!isFinite(a) || a <= 0) return NextResponse.json({ error: 'Ancho inválido' }, { status: 400 });
+      data.anchoCm = new Prisma.Decimal(a);
+    }
   }
 
   const rollo = await prisma.rollo.update({ where: { id }, data });
