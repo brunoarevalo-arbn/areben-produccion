@@ -104,9 +104,9 @@ export function InsumosCatalogoManager({ initial }: { initial: InsumoItem[] }) {
       categoria,
       tipoTrazabilidad,
       unidadDefault,
-      stockMinimo: stockMinimo ? Number(stockMinimo) : undefined,
+      stockMinimo: stockMinimo ? Number(stockMinimo) : null,
       manejaColor,
-      rinde: rinde ? Number(rinde) : undefined,
+      rinde: rinde ? Number(rinde) : null,
       // null explícito (no undefined): así vaciar el campo lo borra de verdad.
       anchoCm: anchoCm ? Number(anchoCm) : null,
       tubular: tubular === '' ? null : tubular === 'tubular',

@@ -19,9 +19,12 @@ export const InsumoCatalogoSchema = z.object({
   categoria:        z.enum(['tela', 'vinilo', 'etiqueta', 'badana', 'hilo', 'aviso', 'packaging', 'otro']),
   tipoTrazabilidad: z.enum(['rollo', 'lote']),
   unidadDefault:    z.enum(['kg', 'metro', 'unidad']),
-  stockMinimo:      z.number().min(0).optional(),
+  // `nullish`, no `optional`: con `undefined` Prisma ignora el campo y un valor
+  // cargado por error no se puede borrar nunca más. Vaciar el campo tiene que
+  // poder volver a "sin cargar", que es un estado real y distinto de cero.
+  stockMinimo:      z.number().min(0).nullish(),
   manejaColor:      z.boolean().optional(),
-  rinde:            z.number().positive().optional(),
+  rinde:            z.number().positive().nullish(),
   // Ancho útil de la tela en cm y si viene tubular. Los usa el tizador: el ancho
   // define cuántos paneles entran a lo ancho (pesa más que el algoritmo) y en
   // tubular el ancho declarado es el del tubo, no el de la tela abierta.
