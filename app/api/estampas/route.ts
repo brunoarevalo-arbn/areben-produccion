@@ -44,7 +44,10 @@ export async function GET(req: NextRequest) {
     { sku: { contains: q, mode: 'insensitive' } },
   ];
 
-  const estampas = await prisma.estampa.findMany({ where, orderBy: { createdAt: 'desc' } });
+  // Desempate por código: las estampas cargadas en la misma tanda comparten `createdAt` al
+  // milisegundo, así que sin segundo criterio Postgres las devuelve en orden arbitrario y
+  // editar una la movía de lugar en la lista.
+  const estampas = await prisma.estampa.findMany({ where, orderBy: [{ createdAt: 'desc' }, { codigoInterno: 'asc' }] });
   return NextResponse.json(estampas);
 }
 

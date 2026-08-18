@@ -7,6 +7,7 @@ _Última actualización: 2026-08-18_
 
 > **En esta sesión (18-ago):** Estampería — **marca por estampa** (chip + filtro) y la **carga
 > masiva** ahora acepta **foto**, **marca** y el **2º tamaño**, con el costo a la vista por fila.
+> Además, el **orden de la lista dejó de moverse** al editar una estampa.
 >
 > **En la sesión del 3-ago:** tres pedidos sueltos: **cortador predeterminado** (Fernando queda asignado
 > solo a cada OP nueva), **pago a cuenta** a cortadores (monto suelto sin imputar a un corte, con
@@ -35,11 +36,6 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
   `skipDuplicates`: cargar dos veces la misma tanda duplica en silencio. Es preexistente, pero
   ahora la carga masiva es más cómoda (foto + marca + 2º tamaño) y se va a usar más.
 
-- [ ] **El orden de la lista de estampas es arbitrario entre las que comparten `createdAt`.** Las 19
-  viejas entraron juntas por carga masiva y tienen la MISMA fecha, así que el `orderBy: createdAt
-  desc` empata y Postgres las devuelve en cualquier orden — editar una la mueve de lugar sin motivo
-  visible. Se arregla con un desempate (`codigoInterno asc`).
-
 - [ ] **Probar a mano lo de esta sesión.** Nada de los tres pedidos del 3-ago se ejercitó contra la
   app corriendo: crear una OP y ver a Fernando preasignado, registrar un pago a cuenta y mirar que
   el saldo baje en las tres pantallas, y escribirle una descripción a una foto vieja (formato
@@ -63,6 +59,12 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 - _(nada activo ahora mismo)_
 
 ## ✅ Hecho (referencia)
+
+- **Orden estable de la lista de estampas (2026-08-18):** `GET /api/estampas` desempata con
+  `codigoInterno asc` después de `createdAt desc`. Las 19 estampas viejas entraron juntas por carga
+  masiva y comparten `createdAt` al milisegundo, así que el orden entre ellas lo decidía el heap de
+  Postgres: editar una la reescribía y la mandaba al final de la lista. Verificado leyendo el orden
+  completo antes y después de un PUT: idéntico (antes, EST-007 se iba de la posición 6 a la 18).
 
 - **Cortador predeterminado (2026-08-03):** flag `Cortador.predeterminado` (uno solo; marcarlo
   desmarca al anterior, `lib/produccion/cortador-default.ts`), se elige en Configuración →
