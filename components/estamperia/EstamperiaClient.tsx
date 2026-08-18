@@ -11,10 +11,11 @@ import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
 import { costoEstampa } from '@/lib/costos/estampaCosto';
 import { ImageDrop, ThumbUpload } from '@/components/ui/ImageDrop';
+import { MARCAS } from '@/lib/marcas';
 
 interface Estampa {
   id: string; codigoInterno: string; nombreComercial: string | null; coleccion: string | null;
-  imagenUrl: string | null; anchoCm: string | number; largoCm: string | number; mermaPercent: string | number;
+  marca: string | null; imagenUrl: string | null; anchoCm: string | number; largoCm: string | number; mermaPercent: string | number;
   ancho2Cm: string | number; largo2Cm: string | number; merma2Percent: string | number;
   estado: string; sku: string | null; notas: string | null;
 }
@@ -30,6 +31,18 @@ const ESTADOS = [
 const estadoInfo = (e: string) => ESTADOS.find((x) => x.value === e) ?? ESTADOS[0];
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400 focus:ring-2 focus:ring-amber-400/30';
 const inpSm = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400 w-full';
+// Una fila de la carga masiva. El 2º tamaño es la excepción, no la regla: se despliega
+// en una segunda línea con "+ tamaño" en vez de ocupar dos columnas vacías en cada fila.
+interface BulkRow {
+  id: number; codigo: string; marca: string; ancho: string; largo: string;
+  coleccion: string; imagenUrl: string; tiene2: boolean; ancho2: string; largo2: string;
+}
+const GRID_BULK = 'grid-cols-[2.5rem_1fr_7rem_4.5rem_4.5rem_1fr_5rem_auto]';
+const inpTam2 = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400 w-[4.5rem] text-center';
+const FILA_BULK_VACIA: Omit<BulkRow, 'id'> = {
+  codigo: '', marca: '', ancho: '', largo: '', coleccion: '', imagenUrl: '', tiene2: false, ancho2: '', largo2: '',
+};
+
 const fmt$ = (n: number) => `$${n.toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
 
 export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
@@ -37,6 +50,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const [loading, setLoading] = useState(true);
   const [cfg, setCfg] = useState<DtfCfg>({ dtfPrecioMetro: 0, dtfAnchoCm: 58, dtfMermaDefault: 0 });
   const [filtroEstado, setFiltroEstado] = useState('');
+  const [filtroMarca, setFiltroMarca] = useState('');
   const [soloSinNombre, setSoloSinNombre] = useState(false);
   const [q, setQ] = useState('');
 
@@ -46,6 +60,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const [codigoInterno, setCodigoInterno] = useState('');
   const [nombreComercial, setNombreComercial] = useState('');
   const [coleccion, setColeccion] = useState('');
+  const [marca, setMarca] = useState('');
   const [estado, setEstado] = useState('pensada');
   const [anchoCm, setAnchoCm] = useState('');
   const [largoCm, setLargoCm] = useState('');
@@ -69,7 +84,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   // Carga masiva
   const [bulk, setBulk] = useState(false);
   const seq = useRef(1);
-  const [bulkRows, setBulkRows] = useState<{ id: number; codigo: string; ancho: string; largo: string; coleccion: string }[]>([{ id: 0, codigo: '', ancho: '', largo: '', coleccion: '' }]);
+  const [bulkRows, setBulkRows] = useState<BulkRow[]>([{ ...FILA_BULK_VACIA, id: 0 }]);
   const [bulkSaving, setBulkSaving] = useState(false);
 
   // Edición masiva de tamaños (ancho/largo, + 2º tamaño opcional)
@@ -93,11 +108,12 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
     setLoading(true);
     const p = new URLSearchParams();
     if (filtroEstado) p.set('estado', filtroEstado);
+    if (filtroMarca) p.set('marca', filtroMarca);
     if (q.trim()) p.set('q', q.trim());
     const r = await fetch(`/api/estampas?${p}`);
     if (r.ok) setLista(await r.json());
     setLoading(false);
-  }, [filtroEstado, q]);
+  }, [filtroEstado, filtroMarca, q]);
   useEffect(() => { cargar(); }, [cargar]);
   useEffect(() => {
     fetch('/api/estampas/config').then((r) => r.ok ? r.json() : null).then((c) => { if (c) setCfg(c); }).catch(() => {});
@@ -139,7 +155,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
     costoEstampa({ anchoCm: Number(e.anchoCm), largoCm: Number(e.largoCm), mermaPercent: Number(e.mermaPercent) }, cfg);
 
   const resetForm = () => {
-    setEditId(null); setCodigoInterno(''); setNombreComercial(''); setColeccion('');
+    setEditId(null); setCodigoInterno(''); setNombreComercial(''); setColeccion(''); setMarca('');
     setEstado('pensada'); setAnchoCm(''); setLargoCm(''); setMermaPercent(String(cfg.dtfMermaDefault || ''));
     setAncho2Cm(''); setLargo2Cm(''); setMerma2Percent(''); setTiene2(false);
     setSku(''); setImagenUrl(''); setNotas(''); setError('');
@@ -147,7 +163,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const abrirNuevo = () => { resetForm(); setBulk(false); setShowForm(true); };
   const abrirEdicion = (e: Estampa) => {
     setEditId(e.id); setCodigoInterno(e.codigoInterno); setNombreComercial(e.nombreComercial ?? '');
-    setColeccion(e.coleccion ?? ''); setEstado(e.estado);
+    setColeccion(e.coleccion ?? ''); setMarca(e.marca ?? ''); setEstado(e.estado);
     setAnchoCm(String(Number(e.anchoCm) || '')); setLargoCm(String(Number(e.largoCm) || '')); setMermaPercent(String(Number(e.mermaPercent) || ''));
     const has2 = tiene2Tam(e);
     setTiene2(has2); setAncho2Cm(String(Number(e.ancho2Cm) || '')); setLargo2Cm(String(Number(e.largo2Cm) || '')); setMerma2Percent(String(Number(e.merma2Percent) || ''));
@@ -159,7 +175,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
     if (!codigoInterno.trim()) { setError('Poné el código interno'); return; }
     setSaving(true); setError('');
     const payload = {
-      codigoInterno: codigoInterno.trim(), nombreComercial: nombreComercial.trim() || null, coleccion: coleccion.trim() || null,
+      codigoInterno: codigoInterno.trim(), nombreComercial: nombreComercial.trim() || null, coleccion: coleccion.trim() || null, marca: marca || null,
       estado, anchoCm: parseFloat(anchoCm) || 0, largoCm: parseFloat(largoCm) || 0, mermaPercent: parseFloat(mermaPercent) || 0,
       ancho2Cm: tiene2 ? (parseFloat(ancho2Cm) || 0) : 0, largo2Cm: tiene2 ? (parseFloat(largo2Cm) || 0) : 0, merma2Percent: tiene2 ? (parseFloat(merma2Percent) || 0) : 0,
       sku: sku.trim() || null, imagenUrl: imagenUrl.trim() || null, notas: notas.trim() || null,
@@ -197,11 +213,27 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const abrirCfg = () => { setCfgPrecio(String(cfg.dtfPrecioMetro || '')); setCfgAncho(String(cfg.dtfAnchoCm || 58)); setCfgMerma(String(cfg.dtfMermaDefault || '')); setEditCfg(true); };
 
   // Carga masiva
-  const abrirBulk = () => { setBulkRows([{ id: 0, codigo: '', ancho: '', largo: '', coleccion: '' }]); seq.current = 1; setShowForm(false); setBulk(true); };
+  const abrirBulk = () => { setBulkRows([{ ...FILA_BULK_VACIA, id: 0 }]); seq.current = 1; setShowForm(false); setBulk(true); };
+  // Patch de una fila por id: SIEMPRE en forma funcional — el upload de la foto es asíncrono y
+  // un snapshot viejo pisaría lo que se esté tipeando en el mismo momento.
+  const setFila = (id: number, patch: Partial<BulkRow>) => setBulkRows((p) => p.map((r) => r.id === id ? { ...r, ...patch } : r));
+  // Cerrar la carga masiva avisando si hay fotos ya subidas que se perderían.
+  const cerrarBulk = async () => {
+    const conFoto = bulkRows.filter((r) => r.imagenUrl).length;
+    if (conFoto > 0 && !(await confirmAsync({
+      title: 'Cancelar la carga masiva',
+      message: `Hay ${conFoto} foto${conFoto !== 1 ? 's' : ''} ya subida${conFoto !== 1 ? 's' : ''} que se pierde${conFoto !== 1 ? 'n' : ''} si cancelás.`,
+      confirmLabel: 'Cancelar igual', cancelLabel: 'Seguir cargando',
+    }))) return;
+    setBulk(false);
+  };
   const guardarBulk = async () => {
     const filas = bulkRows.filter((r) => r.codigo.trim()).map((r) => ({
       codigoInterno: r.codigo.trim(), coleccion: r.coleccion.trim() || undefined,
+      marca: r.marca || undefined, imagenUrl: r.imagenUrl || undefined,
       anchoCm: parseFloat(r.ancho) || 0, largoCm: parseFloat(r.largo) || 0,
+      ancho2Cm: r.tiene2 ? (parseFloat(r.ancho2) || 0) : 0,
+      largo2Cm: r.tiene2 ? (parseFloat(r.largo2) || 0) : 0,
     }));
     if (filas.length === 0) { toast.error('Cargá al menos una fila con código'); return; }
     setBulkSaving(true);
@@ -269,6 +301,10 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
         {ESTADOS.map((e) => (
           <Button key={e.value} variant={filtroEstado === e.value ? 'primary' : 'secondary'} size="sm" onClick={() => setFiltroEstado(e.value)}>{e.label}</Button>
         ))}
+        <span className="w-px h-5 bg-stone-200 mx-1" />
+        {[{ v: '', l: 'Todas las marcas' }, ...MARCAS.map((m) => ({ v: m as string, l: m as string })), { v: 'sin', l: 'Sin marca' }].map((m) => (
+          <Button key={m.v || 'todas'} variant={filtroMarca === m.v ? 'primary' : 'secondary'} size="sm" onClick={() => setFiltroMarca(m.v)}>{m.l}</Button>
+        ))}
         <label className="flex items-center gap-1.5 text-xs text-stone-600 ml-2">
           <input type="checkbox" checked={soloSinNombre} onChange={(e) => setSoloSinNombre(e.target.checked)} className="rounded border-stone-300 accent-amber-500" />
           Sin nombre comercial
@@ -287,22 +323,56 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
         <div className="bg-white rounded-2xl border border-stone-200 p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-stone-800">Carga masiva de estampas</h3>
-            <button type="button" onClick={() => setBulk(false)} className="text-xs text-stone-400 hover:text-stone-700">✕ Cancelar</button>
+            <button type="button" onClick={cerrarBulk} className="text-xs text-stone-400 hover:text-stone-700">✕ Cancelar</button>
           </div>
-          <div className="grid grid-cols-[1fr_5rem_5rem_1fr_auto] gap-2 text-xs font-bold uppercase tracking-widest text-stone-400 px-1">
-            <span>Código *</span><span>Ancho cm</span><span>Largo cm</span><span>Colección</span><span />
-          </div>
-          {bulkRows.map((row, i) => (
-            <div key={row.id} className="grid grid-cols-[1fr_5rem_5rem_1fr_auto] gap-2 items-center">
-              <input value={row.codigo} onChange={(e) => setBulkRows((p) => p.map((r) => r.id === row.id ? { ...r, codigo: e.target.value } : r))} placeholder="EST-00X" className={inpSm} />
-              <NumInput value={parseFloat(row.ancho) || 0} onChange={(n) => setBulkRows((p) => p.map((r) => r.id === row.id ? { ...r, ancho: n ? String(n) : '' } : r))} min="0" className={inpSm} />
-              <NumInput value={parseFloat(row.largo) || 0} onChange={(n) => setBulkRows((p) => p.map((r) => r.id === row.id ? { ...r, largo: n ? String(n) : '' } : r))} min="0" className={inpSm} />
-              <input value={row.coleccion} onChange={(e) => setBulkRows((p) => p.map((r) => r.id === row.id ? { ...r, coleccion: e.target.value } : r))} placeholder="(opcional)" className={inpSm} />
-              <button type="button" onClick={() => setBulkRows((p) => p.length > 1 ? p.filter((r) => r.id !== row.id) : p)} className="text-stone-300 hover:text-red-400 text-xl leading-none px-1">×</button>
+          {/* 8 columnas no entran en el ancho de la página: la grilla scrollea sola. */}
+          <div className="overflow-x-auto">
+            <div className="min-w-[52rem] space-y-2">
+              <div className={`grid ${GRID_BULK} gap-2 text-xs font-bold uppercase tracking-widest text-stone-400 px-1`}>
+                <span>Foto</span><span>Código *</span><span>Marca</span><span className="text-center">Ancho</span><span className="text-center">Largo</span><span>Colección</span><span className="text-right">Costo</span><span />
+              </div>
+              {bulkRows.map((row) => {
+                const c1 = costo({ anchoCm: row.ancho, largoCm: row.largo, mermaPercent: cfg.dtfMermaDefault });
+                const c2 = costo({ anchoCm: row.ancho2, largoCm: row.largo2, mermaPercent: cfg.dtfMermaDefault });
+                return (
+                  <div key={row.id} className="space-y-1">
+                    <div className={`grid ${GRID_BULK} gap-2 items-center`}>
+                      <ThumbUpload src={row.imagenUrl || null} size={36} onUploaded={(url) => setFila(row.id, { imagenUrl: url })} />
+                      <input value={row.codigo} onChange={(e) => setFila(row.id, { codigo: e.target.value })} placeholder="EST-00X" className={inpSm} />
+                      <select value={row.marca} onChange={(e) => setFila(row.id, { marca: e.target.value })} className={inpSm}>
+                        <option value="">— marca —</option>
+                        {MARCAS.map((m) => <option key={m} value={m}>{m}</option>)}
+                      </select>
+                      <NumInput value={parseFloat(row.ancho) || 0} onChange={(n) => setFila(row.id, { ancho: n ? String(n) : '' })} min="0" className={`${inpSm} text-center`} />
+                      <NumInput value={parseFloat(row.largo) || 0} onChange={(n) => setFila(row.id, { largo: n ? String(n) : '' })} min="0" className={`${inpSm} text-center`} />
+                      <input value={row.coleccion} onChange={(e) => setFila(row.id, { coleccion: e.target.value })} placeholder="(opcional)" className={inpSm} />
+                      <span className="text-sm font-semibold tabular-nums text-stone-700 text-right">{fmt$(c1)}</span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        {!row.tiene2 && (
+                          <button type="button" title="Agregar un 2º tamaño (mismo diseño, otra medida)" onClick={() => setFila(row.id, { tiene2: true })}
+                            className="text-xs px-1.5 py-1 rounded-lg border border-stone-200 text-stone-500 hover:border-stone-400 transition leading-none whitespace-nowrap">+ tamaño</button>
+                        )}
+                        <button type="button" onClick={() => setBulkRows((p) => p.length > 1 ? p.filter((r) => r.id !== row.id) : p)} className="text-stone-300 hover:text-red-400 text-xl leading-none px-1">×</button>
+                      </div>
+                    </div>
+                    {row.tiene2 && (
+                      <div className="flex items-center gap-2 pl-[3.25rem] text-xs text-stone-500">
+                        <span className="font-semibold uppercase tracking-widest text-stone-400 whitespace-nowrap">Tam. 2</span>
+                        <NumInput value={parseFloat(row.ancho2) || 0} onChange={(n) => setFila(row.id, { ancho2: n ? String(n) : '' })} min="0" placeholder="ancho" className={inpTam2} />
+                        <span>×</span>
+                        <NumInput value={parseFloat(row.largo2) || 0} onChange={(n) => setFila(row.id, { largo2: n ? String(n) : '' })} min="0" placeholder="largo" className={inpTam2} />
+                        <span>cm</span>
+                        <span className="font-semibold tabular-nums text-violet-700">{fmt$(c2)}</span>
+                        <button type="button" onClick={() => setFila(row.id, { tiene2: false, ancho2: '', largo2: '' })} className="text-stone-400 hover:text-red-500">Quitar</button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          ))}
+          </div>
           <div className="flex items-center gap-2">
-            <Button size="sm" variant="secondary" onClick={() => setBulkRows((p) => [...p, { id: seq.current++, codigo: '', ancho: '', largo: '', coleccion: '' }])}>+ Fila</Button>
+            <Button size="sm" variant="secondary" onClick={() => setBulkRows((p) => [...p, { ...FILA_BULK_VACIA, id: seq.current++ }])}>+ Fila</Button>
             <Button size="sm" onClick={guardarBulk} isLoading={bulkSaving}>Guardar {bulkRows.filter((r) => r.codigo.trim()).length || ''}</Button>
           </div>
         </div>
@@ -319,6 +389,10 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
             <Input label="Código interno *" fullWidth value={codigoInterno} onChange={(e) => setCodigoInterno(e.target.value)} placeholder="Ej: EST-001 / girasol" />
             <Input label="Nombre comercial" fullWidth value={nombreComercial} onChange={(e) => setNombreComercial(e.target.value)} placeholder="(opcional, después)" />
             <Input label="Colección" fullWidth value={coleccion} onChange={(e) => setColeccion(e.target.value)} placeholder="(opcional)" />
+            <Select label="Marca" fullWidth value={marca} onChange={(e) => setMarca(e.target.value)}>
+              <option value="">— sin marca —</option>
+              {MARCAS.map((m) => <option key={m} value={m}>{m}</option>)}
+            </Select>
             <Select label="Estado" fullWidth value={estado} onChange={(e) => setEstado(e.target.value)}>
               {ESTADOS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
             </Select>
@@ -448,6 +522,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
               <div key={e.id} className={`flex items-center gap-3 px-4 md:px-5 py-3 transition ${sel.has(e.id) ? 'bg-amber-50' : 'hover:bg-stone-50'}`}>
                 <input type="checkbox" checked={sel.has(e.id)} onChange={() => toggleSel(e.id)} aria-label={`Seleccionar ${e.codigoInterno}`} className="rounded border-stone-300 accent-amber-500 shrink-0" />
                 <ThumbUpload src={e.imagenUrl} size={40} onUploaded={(url) => guardarFoto(e.id, url)} />
+                <div className="w-[4.5rem] shrink-0">{e.marca ? <MarcaChip marca={e.marca} /> : null}</div>
                 <span className="font-mono text-xs bg-stone-100 text-stone-700 px-2 py-0.5 rounded shrink-0">{e.codigoInterno}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm text-stone-800 truncate">
@@ -472,6 +547,16 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
         </div>
       )}
     </div>
+  );
+}
+
+// Marca de la estampa. Mismo código de color que el resto de la app (Diseño, Gastos,
+// Compras): Zattia violeta, Stunned rosa — se aprende una vez y vale en todas las pantallas.
+function MarcaChip({ marca }: { marca: string }) {
+  return (
+    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded-md leading-none ${marca === 'Zattia' ? 'bg-violet-100 text-violet-700' : 'bg-pink-100 text-pink-700'}`}>
+      {marca}
+    </span>
   );
 }
 

@@ -3,9 +3,12 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-08-03_
+_Última actualización: 2026-08-18_
 
-> **En esta sesión:** tres pedidos sueltos: **cortador predeterminado** (Fernando queda asignado
+> **En esta sesión (18-ago):** Estampería — **marca por estampa** (chip + filtro) y la **carga
+> masiva** ahora acepta **foto**, **marca** y el **2º tamaño**, con el costo a la vista por fila.
+>
+> **En la sesión del 3-ago:** tres pedidos sueltos: **cortador predeterminado** (Fernando queda asignado
 > solo a cada OP nueva), **pago a cuenta** a cortadores (monto suelto sin imputar a un corte, con
 > la cuenta corriente restándolo) y **descripción por foto** en Moodboard / Lanzamientos / moodboard
 > de proyecto.
@@ -20,6 +23,22 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 ---
 
 ## 🔴 Pendiente
+
+- [ ] **Blobs huérfanos en la carga masiva de estampas.** La foto se sube a Vercel Blob *antes* de
+  que exista la estampa (no hay id todavía), así que si se cancela el panel, se borra la fila o la
+  fila queda sin código, el archivo queda subido y sin dueño. Ya pasaba con el form individual; la
+  carga masiva multiplica la superficie. Mitigado a medias: al cancelar con fotos sin guardar avisa
+  y pide confirmación. El arreglo de fondo sería un sweeper que liste los blobs de `estampas/` y
+  borre los que ninguna fila referencia.
+
+- [ ] **`Estampa.codigoInterno` no tiene `@@unique`** y la carga masiva usa `createMany` sin
+  `skipDuplicates`: cargar dos veces la misma tanda duplica en silencio. Es preexistente, pero
+  ahora la carga masiva es más cómoda (foto + marca + 2º tamaño) y se va a usar más.
+
+- [ ] **El orden de la lista de estampas es arbitrario entre las que comparten `createdAt`.** Las 19
+  viejas entraron juntas por carga masiva y tienen la MISMA fecha, así que el `orderBy: createdAt
+  desc` empata y Postgres las devuelve en cualquier orden — editar una la mueve de lugar sin motivo
+  visible. Se arregla con un desempate (`codigoInterno asc`).
 
 - [ ] **Probar a mano lo de esta sesión.** Nada de los tres pedidos del 3-ago se ejercitó contra la
   app corriendo: crear una OP y ver a Fernando preasignado, registrar un pago a cuenta y mirar que

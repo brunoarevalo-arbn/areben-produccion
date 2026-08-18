@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
+import { MARCAS } from '@/lib/marcas';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 
@@ -10,6 +11,7 @@ const Schema = z.object({
   codigoInterno:   z.string().min(1, 'Poné un código interno'),
   nombreComercial: z.string().optional(),
   coleccion:       z.string().optional(),
+  marca:           z.enum(MARCAS).optional(),
   imagenUrl:       z.string().optional(),
   anchoCm:         z.number().min(0).optional(),
   largoCm:         z.number().min(0).optional(),
@@ -29,8 +31,12 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const estado = url.searchParams.get('estado');
   const q = url.searchParams.get('q')?.trim();
+  const marca = url.searchParams.get('marca');
   const where: Record<string, unknown> = {};
   if (estado) where.estado = estado;
+  // 'sin' = las que todavía no tienen marca asignada (es el filtro con el que se completan en tandas).
+  if (marca === 'sin') where.marca = null;
+  else if (marca) where.marca = marca;
   if (q) where.OR = [
     { codigoInterno: { contains: q, mode: 'insensitive' } },
     { nombreComercial: { contains: q, mode: 'insensitive' } },
@@ -59,6 +65,7 @@ export async function POST(req: NextRequest) {
       codigoInterno:   d.codigoInterno.trim(),
       nombreComercial: d.nombreComercial?.trim() || null,
       coleccion:       d.coleccion?.trim() || null,
+      marca:           d.marca ?? null,
       imagenUrl:       d.imagenUrl?.trim() || null,
       anchoCm:         new Prisma.Decimal(d.anchoCm ?? 0),
       largoCm:         new Prisma.Decimal(d.largoCm ?? 0),

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
+import { MARCAS } from '@/lib/marcas';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 
@@ -10,6 +11,7 @@ const Schema = z.object({
   codigoInterno:   z.string().min(1).optional(),
   nombreComercial: z.string().nullable().optional(),
   coleccion:       z.string().nullable().optional(),
+  marca:           z.enum(MARCAS).nullable().optional(),
   imagenUrl:       z.string().nullable().optional(),
   anchoCm:         z.number().min(0).optional(),
   largoCm:         z.number().min(0).optional(),
@@ -35,6 +37,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (d.codigoInterno !== undefined) data.codigoInterno = d.codigoInterno.trim();
   if (d.nombreComercial !== undefined) data.nombreComercial = d.nombreComercial?.trim() || null;
   if (d.coleccion !== undefined) data.coleccion = d.coleccion?.trim() || null;
+  if (d.marca !== undefined) data.marca = d.marca ?? null;
   if (d.imagenUrl !== undefined) data.imagenUrl = d.imagenUrl?.trim() || null;
   if (d.anchoCm !== undefined) data.anchoCm = new Prisma.Decimal(d.anchoCm);
   if (d.largoCm !== undefined) data.largoCm = new Prisma.Decimal(d.largoCm);

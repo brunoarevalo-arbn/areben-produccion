@@ -1127,6 +1127,7 @@ model Estampa {
   codigoInterno   String   // ref de la diseñadora (lo único obligatorio)
   nombreComercial String?  // diferido: se pone después, no bloquea la carga
   coleccion       String?
+  marca           String?  // 'Zattia' | 'Stunned' (lib/marcas.ts); null = sin asignar
   imagenUrl       String?  // opcional (URL; sin upload por ahora)
   precioMetroDtf  Decimal  @default(0) // (dormido) el precio ahora es global en ConfigCostos
   anchoCm         Decimal  @default(0) // ancho del diseño (cm)
