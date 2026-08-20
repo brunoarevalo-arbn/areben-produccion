@@ -5,12 +5,12 @@
 
 _Última actualización: 2026-08-20_
 
-> **En esta sesión (20-ago):** **Etapas 1 a 3 del plan de órdenes de estampa de lanzamiento.** Una
+> **En esta sesión (20-ago):** **El plan de órdenes de estampa de lanzamiento, entero de órdenes de estampa de lanzamiento.** Una
 > orden de estampa ya no necesita nacer de un producto de Gestión Nube (`gnId` nullable +
 > `estampaId` + `origen`), la **receta estampa↔liso ya no exige el escandallo**
 > (`lisoEscandalloId` nullable + `lisoSku`) y un **costo final ya conocido se puede cargar a mano,
-> con su fecha**. Faltan las Etapas 4 y 5, que son escrituras de datos en prod (cargar la orden de
-> 149 de Stunned y vincular las 13 estampas a su liso): esperan el OK de Bruno. Ver abajo.
+> con su fecha**. Con eso puesto entró **la orden real de Stunned: 149 prendas** y los 13 productos.
+> **El plan quedó cerrado entero.** Ver abajo.
 >
 > **En la sesión del 18-ago:** Estampería — **marca por estampa** (chip + filtro) y la **carga
 > masiva** ahora acepta **foto**, **marca** y el **2º tamaño**, con el costo a la vista por fila.
@@ -64,23 +64,24 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 
 ## 🟡 En progreso
 
-- [ ] **Etapas 4 y 5 del plan de lanzamiento: los scripts están escritos y probados en dry run,
-  falta el OK de Bruno para escribir.** Son escrituras de datos en producción, así que no se
-  corren solas.
-  - `prisma/migrate-orden-stunned-ago26.ts` → crea **la** orden de estampa de Stunned:
-    52 ítems, **149 prendas** (S 27 · M 48 · L 48 · XL 26), `origen: 'lanzamiento'`, en
-    `pendiente` con `confirmado = 0`. 🔴 **El liso NO se descuenta al crearla**: se descuenta al
-    confirmar en Reposición → Órdenes, así que se confirma sólo lo que realmente se estampó.
-    Verificado contra la base: el stock de liso alcanza en los 9 lisos y los 4 talles. Mueve las
-    13 estampas de `pensada` a `pedida`.
-  - `prisma/migrate-productos-stunned-ago26.ts` → crea los 13 `productos_estampados`:
-    **4 con escandallo** (BUZO MADE, BUZO FLECK, BUZO PHRASE, CAMPERA WEAR) y **9 sólo con
-    `lisoSku`**, que quedan sin costo hasta que se les haga el escandallo. El escandallo lo busca
-    **por SKU**, no por id pegado en el script.
-    ⚠ `tiempos_estampado` está vacío ⇒ los 13 nacen con **0 minutos** de estampería.
-  - Los dos son idempotentes y corren en dry run sin flag; escriben con `--aplicar`.
+- _(nada activo ahora mismo)_
 
 ## ✅ Hecho (referencia)
+
+- **La orden de Stunned y sus 13 productos, EN LA BASE — Etapas 4 y 5 (2026-08-20):**
+  `prisma/migrate-orden-stunned-ago26.ts` creó la orden `cmt1oj06c` — **52 ítems, 149 prendas**,
+  `origen: 'lanzamiento'`, y el número cierra contra la base: 149 total, **27 / 48 / 48 / 26** por
+  talle. 🔴 **`confirmado = 0` y cero `movimientos_terminado`: el liso no se descontó.** Se
+  descuenta al confirmar en Reposición → Órdenes, así que **confirmar sólo lo que se estampó de
+  verdad**. Las 13 estampas pasaron a `pedida` (las otras 19 siguen en `pensada`).
+  `prisma/migrate-productos-stunned-ago26.ts` creó los 13 `productos_estampados`: **4 con
+  escandallo** y **9 con `lisoSku`**, que en `/costos/estampados` aparecen diciendo "falta el
+  escandallo" en vez de un total incompleto. Los dos scripts se volvieron a correr con `--aplicar`
+  para comprobar que **no duplican**.
+  ⚠ Los 13 nacen con **0 minutos** de estampería: `tiempos_estampado` está vacío. Se completa
+  cargando una tanda real desde `/estamperia/tiempos` y después en Costos → Editar tiempos.
+  ⚠ Los 13 diseños **no existen en Gestión Nube**: cuando salgan a la venta hay que crearlos ahí y
+  mapearlos en `reposicion_mapeo`, o nunca entran al cálculo de reposición.
 
 - **Costo final cargado a mano, con fecha — Etapa 3 (2026-08-20):** `ProductoEstampado` sumó
   `costoFinalManual` / `costoFinalFecha` / `costoFinalFuente`, para los costos que ya se conocen de
