@@ -7,7 +7,7 @@ import { requireAlguno } from '@/lib/auth';
 // distinto del de escandallos, que es el universo de los que tienen costo.
 // Devuelve el stock por talle para poder pedir mirando lo que hay.
 export async function GET(req: NextRequest) {
-  const session = await requireAlguno(req, ['reposicion', 'estamperia']);
+  const session = await requireAlguno(req, ['reposicion', 'estamperia', 'costos']);
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const rows = await prisma.stockTerminado.findMany({

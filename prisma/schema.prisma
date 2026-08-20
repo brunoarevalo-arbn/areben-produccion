@@ -409,7 +409,12 @@ model ProductoEstampado {
   nombre           String
   sku              String?
   marca            String?
-  lisoEscandalloId String   // ref viva al escandallo del liso (se resuelve al calcular)
+  // La RECETA (qué estampa sobre qué liso) es un hecho de producción; el COSTEO es un
+  // hecho de plata. Antes `lisoEscandalloId` era NOT NULL, así que no se podía declarar
+  // lo primero sin tener lo segundo. Ahora va uno de los dos: el escandallo cuando
+  // existe (y de ahí sale el costo), o el SKU pelado del liso cuando todavía no.
+  lisoEscandalloId String?  // ref viva al escandallo del liso (se resuelve al calcular)
+  lisoSku          String?  // liso que sólo existe como SKU en stock_terminado
   estampas         Json     // [{ estampaId, tamano, minutosEstampado }] (legacy: costoEstampado $)
   notas            String?
   createdAt        DateTime @default(now())

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAlguno } from '@/lib/auth';
 import { z } from 'zod';
+import { lisoRefValida, ERROR_LISO } from '@/lib/costos/lisoRef';
 
 // Carga masiva de productos con estampa. La usan dos flujos:
 //  - Vincular desde el catálogo de Estampería (1 producto por estampa tildada).
@@ -11,7 +12,8 @@ const Schema = z.object({
     nombre:           z.string().min(1),
     sku:              z.string().nullish(),
     marca:            z.string().nullish(),
-    lisoEscandalloId: z.string().min(1),
+    lisoEscandalloId: z.string().nullish(),
+    lisoSku:          z.string().nullish(),
     estampas: z.array(z.object({
       estampaId:        z.string().min(1),
       tamano:           z.number().optional(),
@@ -19,6 +21,12 @@ const Schema = z.object({
     })).default([]),
     notas:            z.string().nullish(),
   })).min(1, 'Cargá al menos un producto'),
+}).superRefine((b, ctx) => {
+  b.productos.forEach((p, idx) => {
+    if (!lisoRefValida({ lisoEscandalloId: p.lisoEscandalloId ?? null, lisoSku: p.lisoSku ?? null })) {
+      ctx.addIssue({ code: 'custom', path: ['productos', idx], message: ERROR_LISO });
+    }
+  });
 });
 
 export async function POST(req: NextRequest) {
@@ -33,7 +41,8 @@ export async function POST(req: NextRequest) {
       nombre:           p.nombre.trim(),
       sku:              p.sku?.trim() || null,
       marca:            p.marca?.trim() || null,
-      lisoEscandalloId: p.lisoEscandalloId,
+      lisoEscandalloId: p.lisoEscandalloId || null,
+      lisoSku:          p.lisoSku || null,
       estampas:         p.estampas.map((e) => ({ estampaId: e.estampaId, tamano: e.tamano ?? 1, minutosEstampado: e.minutosEstampado ?? 0 })),
       notas:            p.notas?.trim() || null,
     })),

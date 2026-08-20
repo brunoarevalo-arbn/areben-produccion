@@ -5,10 +5,10 @@
 
 _Última actualización: 2026-08-20_
 
-> **En esta sesión (20-ago):** **Etapa 1 del plan de órdenes de estampa de lanzamiento.** Una orden
-> de estampa ya no necesita nacer de un producto de Gestión Nube: `OrdenEstampaItem.gnId` pasó a
-> nullable y se sumó `estampaId`, con `OrdenEstampa.origen` (`reposicion` | `lanzamiento`). El alta
-> por lanzamiento vive en Estampería (tildar estampas → "Pedir estampa"). Ver abajo, en Hecho.
+> **En esta sesión (20-ago):** **Etapas 1 y 2 del plan de órdenes de estampa de lanzamiento.** Una
+> orden de estampa ya no necesita nacer de un producto de Gestión Nube (`gnId` nullable +
+> `estampaId` + `origen`), y la **receta estampa↔liso ya no exige el escandallo**
+> (`lisoEscandalloId` nullable + `lisoSku`). Ver abajo, en Hecho.
 >
 > **En la sesión del 18-ago:** Estampería — **marca por estampa** (chip + filtro) y la **carga
 > masiva** ahora acepta **foto**, **marca** y el **2º tamaño**, con el costo a la vista por fila.
@@ -65,6 +65,27 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 - _(nada activo ahora mismo)_
 
 ## ✅ Hecho (referencia)
+
+- **La receta estampa↔liso ya no depende del escandallo — Etapa 2 (2026-08-20):**
+  `productos_estampados` mezclaba dos cosas: **la receta** (qué estampa sobre qué liso, un hecho de
+  producción) y **el costeo** (cuánto sale, un hecho de plata). El `NOT NULL` de `lisoEscandalloId`
+  obligaba a tener lo segundo para declarar lo primero, y de los 9 lisos de la orden de Stunned
+  sólo 4 tienen escandallo. Ahora va **uno de los dos**: `lisoEscandalloId` (trae el costo) o
+  `lisoSku` (el liso que sólo existe en `stock_terminado`). La regla vive en `lib/costos/lisoRef.ts`
+  y la usan las 3 rutas (`POST`, `PUT`, `bulk`) **y** las pantallas, que muestran un solo select con
+  dos grupos —"con escandallo" / "sin escandallo"— en vez de dos controles que se puedan
+  contradecir.
+  🔑 **Lo importante no es la columna, es que el costo dejó de mentir:** `desglose()` sumaba
+  `(liso ?? 0) + dtf + mo`, así que un liso sin costo salía como un **total incompleto con cara de
+  costo** —y eso ya pasaba cuando el escandallo no se encontraba—. Ahora `total` es `number | null`
+  y la fila **dice qué le falta** (`falta el escandallo` / `escandallo no encontrado` / `sin liso`),
+  igual en el detalle, en la grilla de tiempos y en el **CSV**, que es por donde el número se
+  escapaba de la pantalla sin la advertencia al lado. El encabezado cuenta cuántos están así.
+  El subtítulo de `/costos/estampados` afirmaba "Costo final = liso (escandallo) + …": corregido.
+  **Verificado en la app:** un producto con `lisoSku` y sin escandallo muestra "falta el escandallo"
+  en la fila y "sin costo · falta el escandallo" en el total, con el DTF y la MO que sí conoce a la
+  vista; los 8 productos que ya existían siguen mostrando su total. Las dos combinaciones inválidas
+  (los dos lisos juntos, ninguno) dan 400.
 
 - **Órdenes de estampa de lanzamiento — Etapa 1 (2026-08-20):** la premisa que bloqueaba era una
   columna: `ordenes_estampa_items.gnId` era `NOT NULL`, o sea que **toda orden de estampa nacía de

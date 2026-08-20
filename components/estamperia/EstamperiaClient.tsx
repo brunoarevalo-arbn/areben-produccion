@@ -13,6 +13,7 @@ import { costoEstampa } from '@/lib/costos/estampaCosto';
 import { ImageDrop, ThumbUpload } from '@/components/ui/ImageDrop';
 import { MARCAS } from '@/lib/marcas';
 import { PedirEstampaPanel } from './PedirEstampaPanel';
+import { parseLisoValue } from '@/lib/costos/lisoRef';
 
 interface Estampa {
   id: string; codigoInterno: string; nombreComercial: string | null; coleccion: string | null;
@@ -97,6 +98,9 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   // Vincular estampas ↔ liso (crea 1 producto con estampa por estampa tildada)
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [lisos, setLisos] = useState<{ id: string; nombre: string; nombreComercial: string | null; sku: string | null; marca: string | null }[]>([]);
+  // Los lisos que sólo existen como SKU: sin escandallo no hay costo, pero la receta
+  // (esta estampa sobre este liso) se puede declarar igual.
+  const [lisosSku, setLisosSku] = useState<{ sku: string }[]>([]);
   const [minGlobal, setMinGlobal] = useState(0);
   const [vincLisoId, setVincLisoId] = useState('');
   const [vincMin, setVincMin] = useState('');
@@ -121,6 +125,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   useEffect(() => {
     fetch('/api/estampas/config').then((r) => r.ok ? r.json() : null).then((c) => { if (c) setCfg(c); }).catch(() => {});
     fetch('/api/costos/escandallos').then((r) => r.ok ? r.json() : []).then((e) => { if (Array.isArray(e)) setLisos(e); }).catch(() => {});
+    fetch('/api/reposicion/lisos').then((r) => r.ok ? r.json() : []).then((l) => { if (Array.isArray(l)) setLisosSku(l); }).catch(() => {});
     fetch('/api/estampado/tiempo').then((r) => r.ok ? r.json() : null).then((c) => { if (c && c.minPorEstampa) { setMinGlobal(c.minPorEstampa); setVincMin(String(Math.round(c.minPorEstampa * 10) / 10)); } }).catch(() => {});
     cargarVinculos();
   }, []);
@@ -131,18 +136,21 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
 
   const toggleSel = (id: string) => setSel((p) => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const lisoLabel = (l: { nombre: string; sku: string | null }) => `${l.nombre}${l.sku ? ` · ${l.sku}` : ''}`;
+  // No ofrecer dos veces el mismo liso: si ya hay escandallo, ésa es la opción buena.
+  const lisosSoloSku = lisosSku.filter((x) => !lisos.some((l) => l.sku && l.sku === x.sku));
   const nombreAuto = (e: Estampa) => e.nombreComercial?.trim() || e.codigoInterno;
 
   const crearVinculos = async () => {
     if (!vincLisoId) { toast.error('Elegí el liso base'); return; }
-    const liso = lisos.find((l) => l.id === vincLisoId);
+    const ref = parseLisoValue(vincLisoId);
+    const liso = lisos.find((l) => l.id === ref.lisoEscandalloId);
     const min = parseFloat(vincMin) || 0;
     const productos = [...sel].map((id) => {
       const e = lista.find((x) => x.id === id);
       return {
         nombre: (vincNombres[id] ?? (e ? nombreAuto(e) : '')).trim() || (e?.codigoInterno ?? 'Producto'),
         marca: liso?.marca ?? null,
-        lisoEscandalloId: vincLisoId,
+        ...ref,
         estampas: [{ estampaId: id, tamano: 1, minutosEstampado: min }],
       };
     });
@@ -509,11 +517,21 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
           <p className="text-xs text-stone-500">Se crea un producto con estampa por cada estampa tildada, sobre el liso elegido. El nombre y los minutos se pueden editar después en Costos.</p>
           <div className="flex items-end gap-3 flex-wrap">
             <div className="flex-1 min-w-[14rem]">
-              <label className="text-xs text-stone-500 block mb-1">Liso base (escandallo)</label>
+              <label className="text-xs text-stone-500 block mb-1">Liso base</label>
               <Select fullWidth value={vincLisoId} onChange={(e) => setVincLisoId(e.target.value)}>
                 <option value="">— elegí el liso —</option>
-                {lisos.map((l) => <option key={l.id} value={l.id}>{lisoLabel(l)}</option>)}
+                <optgroup label="Con escandallo (traen el costo)">
+                  {lisos.map((l) => <option key={l.id} value={`esc:${l.id}`}>{lisoLabel(l)}</option>)}
+                </optgroup>
+                {lisosSoloSku.length > 0 && (
+                  <optgroup label="Sin escandallo (sin costo del liso)">
+                    {lisosSoloSku.map((l) => <option key={l.sku} value={`sku:${l.sku}`}>{l.sku}</option>)}
+                  </optgroup>
+                )}
               </Select>
+              {parseLisoValue(vincLisoId).lisoSku && (
+                <p className="text-[11px] text-amber-700 mt-1">Este liso no tiene escandallo: los productos quedan sin costo final hasta que se le haga.</p>
+              )}
             </div>
             <div className="w-28">
               <label className="text-xs text-stone-500 block mb-1">Min estampería</label>
