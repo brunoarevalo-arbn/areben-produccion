@@ -5,10 +5,12 @@
 
 _Última actualización: 2026-08-20_
 
-> **En esta sesión (20-ago):** **Etapas 1 y 2 del plan de órdenes de estampa de lanzamiento.** Una
+> **En esta sesión (20-ago):** **Etapas 1 a 3 del plan de órdenes de estampa de lanzamiento.** Una
 > orden de estampa ya no necesita nacer de un producto de Gestión Nube (`gnId` nullable +
-> `estampaId` + `origen`), y la **receta estampa↔liso ya no exige el escandallo**
-> (`lisoEscandalloId` nullable + `lisoSku`). Ver abajo, en Hecho.
+> `estampaId` + `origen`), la **receta estampa↔liso ya no exige el escandallo**
+> (`lisoEscandalloId` nullable + `lisoSku`) y un **costo final ya conocido se puede cargar a mano,
+> con su fecha**. Faltan las Etapas 4 y 5, que son escrituras de datos en prod (cargar la orden de
+> 149 de Stunned y vincular las 13 estampas a su liso): esperan el OK de Bruno. Ver abajo.
 >
 > **En la sesión del 18-ago:** Estampería — **marca por estampa** (chip + filtro) y la **carga
 > masiva** ahora acepta **foto**, **marca** y el **2º tamaño**, con el costo a la vista por fila.
@@ -65,6 +67,22 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 - _(nada activo ahora mismo)_
 
 ## ✅ Hecho (referencia)
+
+- **Costo final cargado a mano, con fecha — Etapa 3 (2026-08-20):** `ProductoEstampado` sumó
+  `costoFinalManual` / `costoFinalFecha` / `costoFinalFuente`, para los costos que ya se conocen de
+  la etapa en que no se hacían escandallos. La regla de lectura está en
+  `lib/costos/costoFinalEstampado.ts`: **si hay costo derivado manda el derivado** (es vivo: cambia
+  con el escandallo); si no, se usa el manual; si no hay ninguno, el costo es `null` y no se rellena
+  con 0. 🔑 **La pantalla dice SIEMPRE cuál de los dos está mostrando y de cuándo es el manual** —un
+  número sin fecha al lado se lee como si fuera de hoy, que es exactamente lo que hoy pasa con
+  `gn_ventas`, congelada al 16-jul y presentándose como "últimos 90 días"—. En la lista el derivado
+  va en verde y el manual en gris con `a mano · mar 26` debajo; sin fecha dice **`sin fecha`**, no se
+  calla. El CSV sumó una columna **Fuente** (`escandallo (vivo)` / `cargado a mano · <fecha> ·
+  <de dónde>`). Los campos del editor sólo aparecen cuando el liso no tiene escandallo, y el
+  servidor **no guarda** el manual si hay escandallo: si no, quedarían dos costos compitiendo por el
+  mismo nombre. **Verificado en la app:** con fecha muestra `a mano · mar 26`, sin fecha muestra
+  `a mano · sin fecha`, y un POST con escandallo + costo manual guarda el escandallo y descarta el
+  manual.
 
 - **La receta estampa↔liso ya no depende del escandallo — Etapa 2 (2026-08-20):**
   `productos_estampados` mezclaba dos cosas: **la receta** (qué estampa sobre qué liso, un hecho de

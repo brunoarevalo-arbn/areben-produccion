@@ -416,6 +416,12 @@ model ProductoEstampado {
   lisoEscandalloId String?  // ref viva al escandallo del liso (se resuelve al calcular)
   lisoSku          String?  // liso que sólo existe como SKU en stock_terminado
   estampas         Json     // [{ estampaId, tamano, minutosEstampado }] (legacy: costoEstampado $)
+  // Costo final ya conocido, de la etapa en que no se hacían escandallos. Se usa sólo
+  // cuando no hay costo derivado. La FECHA no es decorado: un costo sin fecha al lado
+  // se lee como si fuera de hoy.
+  costoFinalManual Decimal?
+  costoFinalFecha  DateTime?
+  costoFinalFuente String?   // de dónde salió (planilla, lista vieja, quién lo pasó)
   notas            String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt

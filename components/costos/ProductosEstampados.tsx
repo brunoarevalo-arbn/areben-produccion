@@ -12,13 +12,17 @@ import { parseDatos, calcular, type Margenes } from '@/lib/costos/escandallo';
 import { costoEstampa } from '@/lib/costos/estampaCosto';
 import { Thumbnail } from '@/components/ui/ImageDrop';
 import { lisoValue, parseLisoValue, type LisoRef } from '@/lib/costos/lisoRef';
+import { resolverCostoFinal, etiquetaCostoManual, type CostoFinal } from '@/lib/costos/costoFinalEstampado';
 
 interface Escandallo { id: string; nombre: string; sku: string | null; marca: string | null; datos: string | null; }
 interface EstampaOpt { id: string; codigoInterno: string; nombreComercial: string | null; imagenUrl: string | null; anchoCm: string | number; largoCm: string | number; mermaPercent: string | number; ancho2Cm: string | number; largo2Cm: string | number; merma2Percent: string | number; }
 interface LineaEstampa { id: number; estampaId: string; tamano: number; minutosEstampado: string; }
 interface BulkRow { id: number; nombre: string; liso: string; estampas: LineaEstampa[]; }
 interface EstampaProducto { estampaId: string; tamano?: number; minutosEstampado?: number; costoEstampado?: number }
-interface Producto extends LisoRef { id: string; nombre: string; sku: string | null; marca: string | null; estampas: EstampaProducto[]; notas: string | null; }
+interface Producto extends LisoRef {
+  id: string; nombre: string; sku: string | null; marca: string | null; estampas: EstampaProducto[]; notas: string | null;
+  costoFinalManual: string | null; costoFinalFecha: string | null; costoFinalFuente: string | null;
+}
 interface LisoStock { sku: string; total: number }
 
 const tiene2 = (e?: EstampaOpt) => !!e && (Number(e.ancho2Cm) || 0) > 0 && (Number(e.largo2Cm) || 0) > 0;
@@ -47,6 +51,9 @@ export function ProductosEstampados() {
   const [sku, setSku] = useState('');
   const [marca, setMarca] = useState('');
   const [lisoId, setLisoId] = useState(''); // value combinado: 'esc:<id>' | 'sku:<SKU>' | ''
+  const [costoManual, setCostoManual] = useState('');
+  const [costoFecha, setCostoFecha] = useState('');
+  const [costoFuente, setCostoFuente] = useState('');
   const [notas, setNotas] = useState('');
   const [lineas, setLineas] = useState<LineaEstampa[]>([{ id: 0, estampaId: '', tamano: 1, minutosEstampado: '' }]);
   const seq = useRef(1);
@@ -130,14 +137,15 @@ export function ProductosEstampados() {
     l.minutosEstampado != null ? (l.minutosEstampado * costoMinutoEst) : (l.costoEstampado || 0);
   const estampaLabel = (e: EstampaOpt) => `${e.codigoInterno}${e.nombreComercial ? ` · ${e.nombreComercial}` : ''}`;
 
-  // Sin costo de liso NO hay costo final: `total` queda en null en vez de sumar 0 y
-  // presentar un número incompleto como si fuera el costo del producto.
-  const desglose = (p: Producto): { liso: number | null; dtf: number; mo: number; min: number; total: number | null } => {
+  // Sin costo de liso NO hay costo derivado: no se suma 0 para presentar un número
+  // incompleto como si fuera el costo. Ahí entra el costo cargado a mano, si lo hay —
+  // y la pantalla dice cuál de los dos está mostrando.
+  const desglose = (p: Producto): { liso: number | null; dtf: number; mo: number; min: number; costo: CostoFinal } => {
     const liso = lisoTotal(p.lisoEscandalloId);
     const dtf = p.estampas.reduce((s, l) => s + costoDTF(l.estampaId, l.tamano ?? 1), 0);
     const mo = p.estampas.reduce((s, l) => s + moGuardado(l), 0);
     const min = p.estampas.reduce((s, l) => s + (Number(l.minutosEstampado) || 0), 0);
-    return { liso, dtf, mo, min, total: liso == null ? null : liso + dtf + mo };
+    return { liso, dtf, mo, min, costo: resolverCostoFinal({ derivado: liso == null ? null : liso + dtf + mo, ...p }) };
   };
   // Por qué a este producto le falta el costo del liso. Son dos causas distintas y la
   // pantalla las tiene que separar: una se arregla haciendo el escandallo, la otra es
@@ -150,10 +158,13 @@ export function ProductosEstampados() {
   const lisoNombre = (p: Producto): string =>
     escandallos.find((e) => e.id === p.lisoEscandalloId)?.nombre ?? p.lisoSku ?? '— liso —';
 
-  const resetForm = () => { setEditId(null); setNombre(''); setSku(''); setMarca(''); setLisoId(''); setNotas(''); setLineas([{ id: 0, estampaId: '', tamano: 1, minutosEstampado: '' }]); seq.current = 1; };
+  const resetForm = () => { setEditId(null); setNombre(''); setSku(''); setMarca(''); setLisoId(''); setNotas(''); setCostoManual(''); setCostoFecha(''); setCostoFuente(''); setLineas([{ id: 0, estampaId: '', tamano: 1, minutosEstampado: '' }]); seq.current = 1; };
   const abrirNuevo = () => { resetForm(); setShowForm(true); };
   const abrirEdicion = (p: Producto) => {
     setEditId(p.id); setNombre(p.nombre); setSku(p.sku ?? ''); setMarca(p.marca ?? ''); setLisoId(lisoValue(p)); setNotas(p.notas ?? '');
+    setCostoManual(p.costoFinalManual != null ? String(Math.round(Number(p.costoFinalManual))) : '');
+    setCostoFecha(p.costoFinalFecha ? p.costoFinalFecha.slice(0, 10) : '');
+    setCostoFuente(p.costoFinalFuente ?? '');
     setLineas(p.estampas.length ? p.estampas.map((l, i) => ({ id: i, estampaId: l.estampaId, tamano: l.tamano ?? 1, minutosEstampado: l.minutosEstampado ? String(l.minutosEstampado) : '' })) : [{ id: 0, estampaId: '', tamano: 1, minutosEstampado: '' }]);
     seq.current = p.estampas.length + 1;
     setShowForm(true);
@@ -169,7 +180,11 @@ export function ProductosEstampados() {
     if (!lisoId) { toast.error('Elegí el liso base'); return; }
     const estampasBody = lineas.filter((l) => l.estampaId).map((l) => ({ estampaId: l.estampaId, tamano: l.tamano ?? 1, minutosEstampado: parseFloat(l.minutosEstampado) || 0 }));
     setSaving(true);
-    const body = { nombre: nombre.trim(), sku: sku.trim() || null, marca: marca.trim() || null, ...parseLisoValue(lisoId), estampas: estampasBody, notas: notas.trim() || null };
+    const body = {
+      nombre: nombre.trim(), sku: sku.trim() || null, marca: marca.trim() || null, ...parseLisoValue(lisoId),
+      costoFinalManual: costoManual.trim() || null, costoFinalFecha: costoFecha || null, costoFinalFuente: costoFuente.trim() || null,
+      estampas: estampasBody, notas: notas.trim() || null,
+    };
     const r = await fetch(editId ? `/api/costos/productos-estampados/${editId}` : '/api/costos/productos-estampados', {
       method: editId ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
@@ -258,7 +273,7 @@ export function ProductosEstampados() {
   const totMinutos = Object.values(tiempos).flat().reduce((s, x) => s + (parseFloat(x) || 0), 0);
   const totMO = totMinutos * costoMinutoEst;
   const totFinal = productos.reduce((s, p) => s + (tiemposRowTotal(p) ?? 0), 0);
-  const nSinCosto = productos.filter((p) => faltaLiso(p)).length;
+  const nSinCosto = productos.filter((p) => desglose(p).costo.total == null).length;
 
   // Export CSV: nombre, marca, costo final (para importar en otro sistema).
   // Exporta los seleccionados; si no hay selección, exporta todos.
@@ -267,9 +282,10 @@ export function ProductosEstampados() {
     const csvCell = (v: string) => /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
     // Un costo incompleto no sale como número: sale diciendo qué le falta, o el CSV
     // lleva la mentira a donde nadie puede ver la advertencia de la pantalla.
-    const filas = [['Nombre', 'Marca', 'Costo final'], ...elegidos.map((p) => {
-      const t = desglose(p).total;
-      return [p.nombre, p.marca ?? '', t == null ? (faltaLiso(p) ?? 'sin costo') : String(Math.round(t))];
+    const filas = [['Nombre', 'Marca', 'Costo final', 'Fuente'], ...elegidos.map((p) => {
+      const c = desglose(p).costo;
+      if (c.total == null) return [p.nombre, p.marca ?? '', faltaLiso(p) ?? 'sin costo', ''];
+      return [p.nombre, p.marca ?? '', String(Math.round(c.total)), c.fuente === 'manual' ? etiquetaCostoManual(c) : 'escandallo (vivo)'];
     })];
     const csv = '﻿' + filas.map((f) => f.map((c) => csvCell(c)).join(',')).join('\n');
     const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
@@ -297,7 +313,12 @@ export function ProductosEstampados() {
   const lisoRefVivo = parseLisoValue(lisoId);
   const lisoVivo = lisoTotal(lisoRefVivo.lisoEscandalloId);
   const estVivo = lineas.reduce((s, l) => s + (l.estampaId ? costoDTF(l.estampaId, l.tamano) + moLinea(l) : 0), 0);
-  const totalVivo = lisoVivo == null ? null : lisoVivo + estVivo;
+  const costoVivo = resolverCostoFinal({
+    derivado: lisoVivo == null ? null : lisoVivo + estVivo,
+    costoFinalManual: costoManual.trim() || null,
+    costoFinalFecha: costoFecha || null,
+    costoFinalFuente: costoFuente.trim() || null,
+  });
 
   return (
     <div className="space-y-5 max-w-3xl">
@@ -352,7 +373,7 @@ export function ProductosEstampados() {
                         </div>
                       );
                     })}
-                    <span className={`text-xs font-semibold tabular-nums w-20 text-right ${tiemposRowTotal(p) == null ? 'text-stone-400' : 'text-emerald-700'}`}>{tiemposRowTotal(p) == null ? 's/ costo' : `= ${fmt$(tiemposRowTotal(p)!)}`}</span>
+                    <span className={`text-xs font-semibold tabular-nums w-20 text-right ${tiemposRowTotal(p) == null ? 'text-stone-400' : 'text-emerald-700'}`} title={tiemposRowTotal(p) == null ? 'Sin escandallo del liso no hay costo derivado; los minutos igual se guardan' : undefined}>{tiemposRowTotal(p) == null ? 's/ costo' : `= ${fmt$(tiemposRowTotal(p)!)}`}</span>
                   </div>
                 </div>
               );
@@ -463,8 +484,28 @@ export function ProductosEstampados() {
               <p className="text-xs mt-1">
                 {lisoVivo != null
                   ? <span className="text-stone-500">Costo del liso: <strong>{fmt$(lisoVivo)}</strong></span>
-                  : <span className="text-amber-700">{lisoRefVivo.lisoSku ? 'Este liso no tiene escandallo: el producto queda sin costo final hasta que se le haga.' : 'Liso no encontrado.'}</span>}
+                  : <span className="text-amber-700">{lisoRefVivo.lisoSku ? 'Este liso no tiene escandallo: el costo no se puede calcular. Si ya lo conocés, cargalo abajo con su fecha.' : 'Liso no encontrado.'}</span>}
               </p>
+            )}
+            {lisoVivo == null && (
+              <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 bg-stone-50 border border-stone-200 rounded-xl p-3">
+                <div>
+                  <label className="text-xs font-semibold text-stone-600 mb-1 block">Costo final ya conocido</label>
+                  <NumInput value={parseFloat(costoManual) || 0} onChange={(n) => setCostoManual(n ? String(n) : '')} min="0" placeholder="$" className={`${inp} w-full`} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-stone-600 mb-1 block">¿De cuándo es?</label>
+                  <input type="date" value={costoFecha} onChange={(e) => setCostoFecha(e.target.value)} className={`${inp} w-full`} />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-stone-600 mb-1 block">¿De dónde salió?</label>
+                  <input value={costoFuente} onChange={(e) => setCostoFuente(e.target.value)} placeholder="planilla, lista vieja…" className={`${inp} w-full`} />
+                </div>
+                <p className="text-[11px] text-stone-400 md:col-span-3">
+                  Sólo se usa mientras el liso no tenga escandallo: cuando lo tenga, manda el costo calculado.
+                  {costoManual.trim() && !costoFecha && <span className="text-amber-700 font-semibold"> Sin fecha, el número se lee como si fuera de hoy.</span>}
+                </p>
+              </div>
             )}
           </div>
 
@@ -514,10 +555,14 @@ export function ProductosEstampados() {
 
           <div className="flex items-center gap-4 bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5">
             <span className="text-xs text-stone-400">Total producto final:</span>
-            {totalVivo == null
-              ? <span className="text-sm font-semibold text-amber-700">falta el escandallo del liso</span>
-              : <span className="text-lg font-bold font-mono tabular-nums text-emerald-700">{fmt$(totalVivo)}</span>}
-            <span className="text-xs text-stone-400">{totalVivo == null ? `estampas ${fmt$(estVivo)}` : `= liso ${fmt$(lisoVivo!)} + estampas ${fmt$(estVivo)}`}</span>
+            {costoVivo.total == null
+              ? <span className="text-sm font-semibold text-amber-700">sin costo: falta el escandallo del liso o un costo cargado a mano</span>
+              : <span className={`text-lg font-bold font-mono tabular-nums ${costoVivo.fuente === 'manual' ? 'text-stone-700' : 'text-emerald-700'}`}>{fmt$(costoVivo.total)}</span>}
+            <span className="text-xs text-stone-400">
+              {costoVivo.fuente === 'escandallo' ? `= liso ${fmt$(lisoVivo!)} + estampas ${fmt$(estVivo)}`
+                : costoVivo.fuente === 'manual' ? etiquetaCostoManual(costoVivo)
+                : `estampas ${fmt$(estVivo)}`}
+            </span>
           </div>
 
           <input value={notas} onChange={(e) => setNotas(e.target.value)} placeholder="Notas (opcional)" className={`${inp} w-full`} />
@@ -557,9 +602,14 @@ export function ProductosEstampados() {
                       <p className="text-xs text-stone-400">{p.estampas.length} estampa{p.estampas.length !== 1 ? 's' : ''} · liso {lisoNombre(p)} {d.liso == null ? '' : `· ${fmt$(d.liso)}`}</p>
                     </div>
                     {sinTiempo(p) && <span className="text-[11px] px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-700 shrink-0" title="Falta el tiempo de estampería: el costo está incompleto">⚠ sin tiempo</span>}
-                    {d.total == null
-                      ? <span className="text-[11px] font-semibold text-amber-700 w-24 text-right leading-tight" title="Sin el escandallo del liso no hay costo final: se muestra lo que falta, no un total incompleto">{faltaLiso(p)}</span>
-                      : <span className="text-sm font-bold tabular-nums text-emerald-700 w-24 text-right">{fmt$(d.total)}</span>}
+                    {d.costo.total == null
+                      ? <span className="text-[11px] font-semibold text-amber-700 w-28 text-right leading-tight" title="Sin el escandallo del liso no hay costo final: se muestra lo que falta, no un total incompleto">{faltaLiso(p)}</span>
+                      : (
+                        <span className="w-28 text-right leading-tight">
+                          <span className={`text-sm font-bold tabular-nums block ${d.costo.fuente === 'manual' ? 'text-stone-700' : 'text-emerald-700'}`}>{fmt$(d.costo.total)}</span>
+                          {d.costo.fuente === 'manual' && <span className="text-[10px] text-stone-400 block" title={etiquetaCostoManual(d.costo)}>a mano · {d.costo.fecha ? new Date(`${d.costo.fecha}T00:00:00`).toLocaleDateString('es-AR', { month: 'short', year: '2-digit' }) : 'sin fecha'}</span>}
+                        </span>
+                      )}
                     <div className="flex gap-1.5 shrink-0">
                       <Button variant="secondary" size="sm" onClick={() => abrirEdicion(p)}>Editar</Button>
                       <button onClick={() => eliminar(p)} aria-label="Eliminar" className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>
@@ -570,7 +620,19 @@ export function ProductosEstampados() {
                       <div className="flex justify-between text-stone-500"><span>Liso ({p.lisoSku ? 'sin escandallo' : 'escandallo'})</span><span className="tabular-nums">{d.liso == null ? `— ${faltaLiso(p)}` : fmt$(d.liso)}</span></div>
                       <div className="flex justify-between text-stone-500"><span>Material DTF</span><span className="tabular-nums">{fmt$(d.dtf)}</span></div>
                       <div className="flex justify-between text-stone-500"><span>Estampería (MO){d.min ? ` · ${fmt1(d.min)} min` : ''}</span><span className="tabular-nums">{fmt$(d.mo)}</span></div>
-                      <div className="flex justify-between font-semibold text-stone-700 border-t border-stone-100 pt-1 mt-1"><span>Total</span>{d.total == null ? <span className="text-amber-700">sin costo · {faltaLiso(p)}</span> : <span className="tabular-nums text-emerald-700">{fmt$(d.total)}</span>}</div>
+                      <div className="flex justify-between font-semibold text-stone-700 border-t border-stone-100 pt-1 mt-1">
+                        <span>Total</span>
+                        {d.costo.total == null
+                          ? <span className="text-amber-700">sin costo · {faltaLiso(p)}</span>
+                          : <span className="tabular-nums text-emerald-700">{fmt$(d.costo.total)}</span>}
+                      </div>
+                      <p className="text-[10px] text-stone-400 pt-0.5">
+                        {d.costo.fuente === 'manual'
+                          ? etiquetaCostoManual(d.costo)
+                          : d.costo.fuente === 'escandallo'
+                            ? 'calculado del escandallo del liso (vivo)'
+                            : 'no hay ni escandallo ni costo cargado a mano'}
+                      </p>
                     </div>
                   )}
                 </div>
