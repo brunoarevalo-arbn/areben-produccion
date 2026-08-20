@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import { PrintButton } from '@/components/costos/PrintButton';
+import { nombreItemOrden } from '@/lib/produccion/ordenEstampa';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,7 +9,7 @@ export default async function RemitoEstampaPage({ params }: { params: Promise<{ 
   const { id } = await params;
   const orden = await prisma.ordenEstampa.findUnique({
     where: { id },
-    include: { items: { orderBy: [{ skuLiso: 'asc' }, { gnNombre: 'asc' }, { talle: 'asc' }] } },
+    include: { items: { orderBy: [{ skuLiso: 'asc' }, { gnNombre: 'asc' }, { talle: 'asc' }], include: { estampa: { select: { codigoInterno: true, nombreComercial: true } } } } },
   });
   if (!orden) notFound();
 
@@ -59,7 +60,7 @@ export default async function RemitoEstampaPage({ params }: { params: Promise<{ 
               <tbody>
                 {its.map((it) => (
                   <tr key={it.id} className="border-b border-stone-100">
-                    <td className="py-1.5 px-3">{it.gnNombre || `Producto ${it.gnId}`}</td>
+                    <td className="py-1.5 px-3">{nombreItemOrden(it)}</td>
                     <td className="py-1.5 px-3 font-semibold">{it.talle}</td>
                     <td className="py-1.5 px-3 text-right tabular-nums font-bold">{it.confirmado}</td>
                   </tr>

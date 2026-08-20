@@ -5,9 +5,10 @@ import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/components/ui/Toaster';
+import { nombreItemOrden } from '@/lib/produccion/ordenEstampa';
 
-interface OrdenItem { id: string; gnId: number; gnNombre: string | null; skuLiso: string; talle: string; cantidad: number; confirmado: number; }
-interface OrdenEstampa { id: string; creadoAt: string; creadoPor: string; estado: string; tipo: string; notas: string | null; items: OrdenItem[]; }
+interface OrdenItem { id: string; gnId: number | null; gnNombre: string | null; estampa: { codigoInterno: string; nombreComercial: string | null } | null; skuLiso: string; talle: string; cantidad: number; confirmado: number; }
+interface OrdenEstampa { id: string; creadoAt: string; creadoPor: string; estado: string; tipo: string; origen: string; notas: string | null; items: OrdenItem[]; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 
@@ -60,12 +61,14 @@ export function OrdenesEstampaClient() {
     const estadoColor = o.estado === 'hecha' ? 'bg-emerald-100 text-emerald-700' : o.estado === 'parcial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700';
     const hayCambios = o.items.some((it) => (parseInt(confirmEdit[it.id] ?? '') || 0) > 0);
     const esProd = o.tipo === 'produccion';
+    const esLanzamiento = o.origen === 'lanzamiento';
     const hechas = esProd ? 'producidas' : 'estampadas';
     return (
       <div key={o.id} className={`rounded-xl border p-4 ${o.estado === 'hecha' ? 'border-stone-200 bg-stone-50/50' : 'border-amber-200'}`}>
         <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
           <span className="text-sm font-semibold text-stone-800">
             <span className={`text-xs font-semibold px-1.5 py-0.5 rounded mr-2 ${esProd ? 'bg-purple-100 text-purple-700' : 'bg-sky-100 text-sky-700'}`}>{esProd ? 'producción' : 'estampa'}</span>
+            {esLanzamiento && <span className="text-xs font-semibold px-1.5 py-0.5 rounded mr-2 bg-fuchsia-100 text-fuchsia-700">lanzamiento</span>}
             {new Date(o.creadoAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
             <span className="text-stone-400 font-normal"> · {o.creadoPor} · {totalConf}/{totalPed} {hechas}</span>
             {totalPend > 0
@@ -108,7 +111,7 @@ export function OrdenesEstampaClient() {
                     const completo = pend <= 0;
                     return (
                     <div key={it.id} className="py-2">
-                      <p className="text-sm text-stone-800">{it.gnNombre || `Producto ${it.gnId}`} · <strong>{it.talle}</strong></p>
+                      <p className="text-sm text-stone-800">{nombreItemOrden(it)} · <strong>{it.talle}</strong></p>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1">
                         <span className="text-stone-400">pedido {it.cantidad}</span>
                         <span className="text-stone-500">{esProd ? 'producidas' : 'estampadas'} <strong className="text-stone-700">{it.confirmado}</strong></span>

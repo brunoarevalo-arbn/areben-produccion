@@ -3,9 +3,14 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-08-18_
+_Última actualización: 2026-08-20_
 
-> **En esta sesión (18-ago):** Estampería — **marca por estampa** (chip + filtro) y la **carga
+> **En esta sesión (20-ago):** **Etapa 1 del plan de órdenes de estampa de lanzamiento.** Una orden
+> de estampa ya no necesita nacer de un producto de Gestión Nube: `OrdenEstampaItem.gnId` pasó a
+> nullable y se sumó `estampaId`, con `OrdenEstampa.origen` (`reposicion` | `lanzamiento`). El alta
+> por lanzamiento vive en Estampería (tildar estampas → "Pedir estampa"). Ver abajo, en Hecho.
+>
+> **En la sesión del 18-ago:** Estampería — **marca por estampa** (chip + filtro) y la **carga
 > masiva** ahora acepta **foto**, **marca** y el **2º tamaño**, con el costo a la vista por fila.
 > Además, el **orden de la lista dejó de moverse** al editar una estampa.
 >
@@ -32,9 +37,10 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
   y pide confirmación. El arreglo de fondo sería un sweeper que liste los blobs de `estampas/` y
   borre los que ninguna fila referencia.
 
-- [ ] **`Estampa.codigoInterno` no tiene `@@unique`** y la carga masiva usa `createMany` sin
-  `skipDuplicates`: cargar dos veces la misma tanda duplica en silencio. Es preexistente, pero
-  ahora la carga masiva es más cómoda (foto + marca + 2º tamaño) y se va a usar más.
+- [ ] **La carga masiva de estampas usa `createMany` sin `skipDuplicates`.** El `@@unique` en
+  `Estampa.codigoInterno` ya está puesto (20-ago), así que cargar dos veces la misma tanda ya no
+  duplica en silencio — pero ahora **falla entera** con el error crudo de Prisma en vez de decir
+  qué código está repetido. Falta el mensaje.
 
 - [ ] **Probar a mano lo de esta sesión.** Nada de los tres pedidos del 3-ago se ejercitó contra la
   app corriendo: crear una OP y ver a Fernando preasignado, registrar un pago a cuenta y mirar que
@@ -59,6 +65,33 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 - _(nada activo ahora mismo)_
 
 ## ✅ Hecho (referencia)
+
+- **Órdenes de estampa de lanzamiento — Etapa 1 (2026-08-20):** la premisa que bloqueaba era una
+  columna: `ordenes_estampa_items.gnId` era `NOT NULL`, o sea que **toda orden de estampa nacía de
+  algo que ya se vende**. Ahora `gnId` es nullable, hay `estampaId` con FK a `Estampa`, y
+  `OrdenEstampa.origen` (`'reposicion'` por defecto | `'lanzamiento'`). La regla de "exactamente uno
+  de los dos, y coherente con el origen" vive en el `superRefine` del POST, no repartida en las
+  pantallas; el nombre del ítem sale de `lib/produccion/ordenEstampa.ts` (`nombreItemOrden`), que
+  usan el listado, el remito **y** el `motivo` del `movimientos_terminado` —así el movimiento dice
+  `Estampa EST-020 · STARRY` y no un `undefined` ni el `gnId` pelado—. Ciclo de la estampa: crear
+  una orden de lanzamiento mueve las que están en `pensada` → `pedida`, y cuando la orden queda
+  `hecha` pasan a `recibida` (ese ciclo existía y no lo movía nadie). El alta está en Estampería:
+  con estampas tildadas aparecen dos caminos, "Vincular a un liso" (el de antes) y **"Pedir
+  estampa"** (`components/estamperia/PedirEstampaPanel.tsx`), que elige liso **por diseño** —una
+  tanda de lanzamiento mezcla lisos— contra `GET /api/reposicion/lisos` (los SKU que existen en
+  `stock_terminado`, que es el universo que después se descuenta, no el de escandallos). Las
+  columnas de talle salen de los lisos elegidos y cada celda muestra el stock que hay.
+  **El liso se sigue descontando al confirmar, no al crear.** Ojo con `api/reposicion/reporte`: un
+  ítem de lanzamiento no descuenta de ningún sugerido (no tiene producto GN) pero **sí reserva el
+  liso**. Esquema aplicado con `db push --accept-data-loss` (el `@@unique` en `Estampa.codigoInterno`
+  lo pedía; verificado antes contra la base: 32 estampas, 32 códigos distintos).
+  **Verificado ejerciendo el camino contra la app corriendo, sobre datos sintéticos** (estampa y
+  liso de prueba, borrados después): la fila queda con `gnId NULL` + `estampaId` + `origen`;
+  confirmar 1 bajó el stock del liso exactamente de 5 a 4 y escribió el movimiento con el código de
+  estampa; la orden completa dejó la estampa en `recibida`; el camino con `gnId` sigue descontando
+  igual (4 → 3) y nombrando por `gnNombre`; las 5 combinaciones inválidas dan 400. Las dos órdenes
+  reales de reposición quedaron intactas (10/10 y 49/48) y el remito de lanzamiento dice el diseño,
+  no `Producto null`.
 
 - **Orden estable de la lista de estampas (2026-08-18):** `GET /api/estampas` desempata con
   `codigoInterno asc` después de `createdAt desc`. Las 19 estampas viejas entraron juntas por carga

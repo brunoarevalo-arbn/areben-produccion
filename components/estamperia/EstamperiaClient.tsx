@@ -12,6 +12,7 @@ import { toast } from '@/components/ui/Toaster';
 import { costoEstampa } from '@/lib/costos/estampaCosto';
 import { ImageDrop, ThumbUpload } from '@/components/ui/ImageDrop';
 import { MARCAS } from '@/lib/marcas';
+import { PedirEstampaPanel } from './PedirEstampaPanel';
 
 interface Estampa {
   id: string; codigoInterno: string; nombreComercial: string | null; coleccion: string | null;
@@ -103,6 +104,8 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const [vincSaving, setVincSaving] = useState(false);
   const [productosPorEstampa, setProductosPorEstampa] = useState<Record<string, { id: string; nombre: string }[]>>({});
   const [soloSinProducto, setSoloSinProducto] = useState(false);
+  // Qué se hace con las tildadas: vincularlas a un liso (receta/costo) o pedir el DTF.
+  const [accionSel, setAccionSel] = useState<'vincular' | 'pedir'>('vincular');
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -472,8 +475,32 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
         </div>
       )}
 
-      {/* Vincular con liso → crea 1 producto con estampa por estampa tildada */}
+      {/* Con estampas tildadas hay dos caminos: vincularlas a un liso (receta + costo) o
+          pedirles el DTF (orden de estampa de lanzamiento). */}
       {sel.size > 0 && !bulk && !showForm && !editTam && (
+        <div className="flex gap-2">
+          <button type="button" onClick={() => setAccionSel('vincular')}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${accionSel === 'vincular' ? 'border-amber-300 bg-amber-50 text-amber-800' : 'border-stone-200 text-stone-500 hover:bg-stone-50'}`}>
+            Vincular a un liso
+          </button>
+          <button type="button" onClick={() => setAccionSel('pedir')}
+            className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${accionSel === 'pedir' ? 'border-fuchsia-300 bg-fuchsia-50 text-fuchsia-800' : 'border-stone-200 text-stone-500 hover:bg-stone-50'}`}>
+            Pedir estampa
+          </button>
+        </div>
+      )}
+
+      {sel.size > 0 && !bulk && !showForm && !editTam && accionSel === 'pedir' && (
+        <PedirEstampaPanel
+          estampas={[...sel].map((id) => lista.find((x) => x.id === id)).filter((e): e is Estampa => !!e)
+            .map((e) => ({ id: e.id, codigoInterno: e.codigoInterno, nombreComercial: e.nombreComercial }))}
+          onCreada={() => { setSel(new Set()); setAccionSel('vincular'); cargar(); }}
+          onCancelar={() => setSel(new Set())}
+        />
+      )}
+
+      {/* Vincular con liso → crea 1 producto con estampa por estampa tildada */}
+      {sel.size > 0 && !bulk && !showForm && !editTam && accionSel === 'vincular' && (
         <div className="bg-white rounded-2xl border border-amber-200 p-5 space-y-3">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold text-stone-800">Vincular {sel.size} estampa{sel.size !== 1 ? 's' : ''} a un liso</h3>

@@ -44,7 +44,9 @@ export async function GET(req: NextRequest) {
   for (const it of itemsAbiertos) {
     const pend = it.cantidad - it.confirmado;
     if (pend <= 0) continue;
-    (pendByGnId[it.gnId] ??= {})[it.talle] = (pendByGnId[it.gnId]?.[it.talle] || 0) + pend;
+    // Un ítem de lanzamiento no tiene producto en GN, así que no descuenta de ningún
+    // sugerido — pero el liso lo reserva igual: está apartado para estamparse.
+    if (it.gnId != null) (pendByGnId[it.gnId] ??= {})[it.talle] = (pendByGnId[it.gnId]?.[it.talle] || 0) + pend;
     (reservByLiso[it.skuLiso] ??= {})[it.talle] = (reservByLiso[it.skuLiso]?.[it.talle] || 0) + pend;
   }
   // Liso disponible = stock − reservado.

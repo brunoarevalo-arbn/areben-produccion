@@ -1078,6 +1078,7 @@ model OrdenEstampa {
   creadoAt  DateTime           @default(now())
   estado    String             @default("pendiente") // 'pendiente' | 'parcial' | 'hecha'
   tipo      String             @default("estampa")   // 'estampa' (descuenta liso) | 'produccion' (informativa)
+  origen    String             @default("reposicion") // 'reposicion' (nace de un producto GN) | 'lanzamiento' (nace de una estampa)
   notas     String?
   items     OrdenEstampaItem[]
 
@@ -1088,8 +1089,12 @@ model OrdenEstampaItem {
   id         String       @id @default(cuid())
   ordenId    String
   orden      OrdenEstampa @relation(fields: [ordenId], references: [id], onDelete: Cascade)
-  gnId       Int
+  // Reposición: el ítem apunta a un producto de GestiónNube que ya se vende.
+  // Lanzamiento: todavía no existe en GN, así que apunta a la Estampa. Exactamente uno de los dos.
+  gnId       Int?
   gnNombre   String?      // nombre del estampado (print)
+  estampaId  String?
+  estampa    Estampa?     @relation(fields: [estampaId], references: [id])
   skuLiso    String       // liso base
   talle      String
   cantidad   Int          // pedido
@@ -1097,6 +1102,7 @@ model OrdenEstampaItem {
 
   @@index([ordenId])
   @@index([skuLiso])
+  @@index([estampaId])
   @@map("ordenes_estampa_items")
 }
 
@@ -1143,5 +1149,8 @@ model Estampa {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
+  ordenItems      OrdenEstampaItem[]
+
+  @@unique([codigoInterno])
   @@map("estampas")
 }

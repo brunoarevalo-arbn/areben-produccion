@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { z } from 'zod';
+import { nombreItemOrden } from '@/lib/produccion/ordenEstampa';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -18,7 +19,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const parsed = PatchSchema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
 
-  const orden = await prisma.ordenEstampa.findUnique({ where: { id }, include: { items: true } });
+  const orden = await prisma.ordenEstampa.findUnique({ where: { id }, include: { items: { include: { estampa: true } } } });
   if (!orden) return NextResponse.json({ error: 'Orden no encontrada' }, { status: 404 });
   const byId = new Map(orden.items.map((i) => [i.id, i]));
 
@@ -40,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
           update: { cantidad: nuevoStock },
         });
         await tx.movimientoTerminado.create({
-          data: { sku: it.skuLiso, talle: it.talle, tipo: 'liso', cantidad: -delta, origen: 'estampa', ordenId: id, motivo: `Estampa ${it.gnNombre ?? it.gnId}`, creadoPor: session.nombre },
+          data: { sku: it.skuLiso, talle: it.talle, tipo: 'liso', cantidad: -delta, origen: 'estampa', ordenId: id, motivo: `Estampa ${nombreItemOrden(it)}`, creadoPor: session.nombre },
         });
       }
       await tx.ordenEstampaItem.update({ where: { id: it.id }, data: { confirmado: nuevo } });
@@ -52,9 +53,16 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     const totalPed = items.reduce((s, i) => s + i.cantidad, 0);
     const estado = totalConf >= totalPed ? 'hecha' : totalConf > 0 ? 'parcial' : 'pendiente';
     await tx.ordenEstampa.update({ where: { id }, data: { estado } });
+    // Orden de lanzamiento completa = el DTF ya está en la mano: cierra el ciclo de la estampa.
+    if (estado === 'hecha' && orden.origen === 'lanzamiento') {
+      const estampaIds = [...new Set(items.map((i) => i.estampaId).filter((x): x is string => !!x))];
+      if (estampaIds.length > 0) {
+        await tx.estampa.updateMany({ where: { id: { in: estampaIds }, estado: { not: 'recibida' } }, data: { estado: 'recibida' } });
+      }
+    }
   });
 
-  const actualizada = await prisma.ordenEstampa.findUnique({ where: { id }, include: { items: { orderBy: [{ skuLiso: 'asc' }, { gnNombre: 'asc' }, { talle: 'asc' }] } } });
+  const actualizada = await prisma.ordenEstampa.findUnique({ where: { id }, include: { items: { orderBy: [{ skuLiso: 'asc' }, { gnNombre: 'asc' }, { talle: 'asc' }], include: { estampa: { select: { codigoInterno: true, nombreComercial: true } } } } } });
   return NextResponse.json(actualizada);
 }
 
