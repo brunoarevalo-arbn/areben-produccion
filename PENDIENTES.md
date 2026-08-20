@@ -64,7 +64,21 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 
 ## 🟡 En progreso
 
-- _(nada activo ahora mismo)_
+- [ ] **Etapas 4 y 5 del plan de lanzamiento: los scripts están escritos y probados en dry run,
+  falta el OK de Bruno para escribir.** Son escrituras de datos en producción, así que no se
+  corren solas.
+  - `prisma/migrate-orden-stunned-ago26.ts` → crea **la** orden de estampa de Stunned:
+    52 ítems, **149 prendas** (S 27 · M 48 · L 48 · XL 26), `origen: 'lanzamiento'`, en
+    `pendiente` con `confirmado = 0`. 🔴 **El liso NO se descuenta al crearla**: se descuenta al
+    confirmar en Reposición → Órdenes, así que se confirma sólo lo que realmente se estampó.
+    Verificado contra la base: el stock de liso alcanza en los 9 lisos y los 4 talles. Mueve las
+    13 estampas de `pensada` a `pedida`.
+  - `prisma/migrate-productos-stunned-ago26.ts` → crea los 13 `productos_estampados`:
+    **4 con escandallo** (BUZO MADE, BUZO FLECK, BUZO PHRASE, CAMPERA WEAR) y **9 sólo con
+    `lisoSku`**, que quedan sin costo hasta que se les haga el escandallo. El escandallo lo busca
+    **por SKU**, no por id pegado en el script.
+    ⚠ `tiempos_estampado` está vacío ⇒ los 13 nacen con **0 minutos** de estampería.
+  - Los dos son idempotentes y corren en dry run sin flag; escriben con `--aplicar`.
 
 ## ✅ Hecho (referencia)
 
