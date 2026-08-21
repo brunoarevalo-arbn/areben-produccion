@@ -22,6 +22,8 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (d.activo !== undefined) data.activo = d.activo;
   if (d.usuarioId !== undefined) data.usuarioId = d.usuarioId || null;
   if (d.predeterminado !== undefined) data.predeterminado = d.predeterminado;
+  if (d.tarifaDefault !== undefined) data.tarifaDefault = d.tarifaDefault;
+  if (d.tarifaModo !== undefined) data.tarifaModo = d.tarifaModo || null;
   // Un cortador dado de baja no puede quedar como predeterminado.
   if (d.activo === false) data.predeterminado = false;
 

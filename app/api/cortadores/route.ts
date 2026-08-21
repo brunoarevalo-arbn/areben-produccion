@@ -8,7 +8,14 @@ export async function GET(req: NextRequest) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
 
-  const cortadores = await prisma.cortador.findMany({ orderBy: { nombre: 'asc' } });
+  // Sale con `getSession` a propósito (lo consume medio módulo de producción), así que
+  // NO devuelve la tarifa: es plata pactada y un cortador logueado leería la de todos.
+  // Quien la necesita la lee server-side (carga-tizada) o la recibe del POST/PUT, que
+  // sí exigen permiso `cortadores`.
+  const cortadores = await prisma.cortador.findMany({
+    orderBy: { nombre: 'asc' },
+    select: { id: true, nombre: true, contacto: true, activo: true, usuarioId: true, predeterminado: true },
+  });
   return NextResponse.json(cortadores);
 }
 
@@ -28,6 +35,8 @@ export async function POST(req: NextRequest) {
         notas: data.notas || null,
         usuarioId: data.usuarioId || null,
         predeterminado: data.predeterminado ?? false,
+        tarifaDefault: data.tarifaDefault ?? null,
+        tarifaModo: data.tarifaModo ?? null,
       },
     });
     if (data.predeterminado) await dejarUnicoPredeterminado(tx, c.id);

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { CargaTizadaBtn } from '@/components/produccion/CargaTizadaBtn';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
 import { LoadingState } from '@/components/ui/LoadingState';
@@ -554,6 +555,10 @@ export function ColaAdmin() {
               className="text-xs px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">
               Validar
             </button>
+          )}
+          {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
+            <CargaTizadaBtn ordenId={orden.id} cortadorId={orden.cortadorId} corteEstado={orden.corteEstado}
+              fichaCorteCargada={orden.fichaCorteCargada} onGuardado={cargar} size="sm" />
           )}
           {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
             <Link href={`/produccion/${orden.id}/corte`}

@@ -7,6 +7,7 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Checkbox } from '@/components/ui/Checkbox';
+import { NumInput } from '@/components/ui/NumInput';
 
 interface Cortador {
   id: string;
@@ -16,6 +17,9 @@ interface Cortador {
   activo: boolean;
   usuarioId: string | null;
   predeterminado: boolean;
+  // Decimal de Prisma: llega serializado como string desde el server component.
+  tarifaDefault: string | number | null;
+  tarifaModo: string | null;
 }
 interface UsuarioOpt { id: string; nombre: string; username: string; permisos: string[]; activo: boolean }
 
@@ -36,6 +40,8 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
   const [notas, setNotas]                 = useState('');
   const [usuarioId, setUsuarioId]         = useState('');
   const [predeterminado, setPredeterminado] = useState(false);
+  const [tarifa, setTarifa]               = useState('');
+  const [tarifaModo, setTarifaModo]       = useState<'total' | 'unidad'>('unidad');
   const [usuarios, setUsuarios]           = useState<UsuarioOpt[]>([]);
 
   useEffect(() => {
@@ -43,7 +49,8 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
   }, []);
 
   const resetForm = () => {
-    setNombre(''); setContacto(''); setNotas(''); setUsuarioId(''); setPredeterminado(false); setError('');
+    setNombre(''); setContacto(''); setNotas(''); setUsuarioId(''); setPredeterminado(false);
+    setTarifa(''); setTarifaModo('unidad'); setError('');
   };
 
   const abrirNuevo = () => { resetForm(); setEditando(null); setShowForm(true); };
@@ -51,6 +58,8 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
     setNombre(c.nombre); setContacto(c.contacto || '');
     setNotas(c.notas || ''); setUsuarioId(c.usuarioId || '');
     setPredeterminado(c.predeterminado);
+    setTarifa(c.tarifaDefault != null ? String(c.tarifaDefault) : '');
+    setTarifaModo(c.tarifaModo === 'total' ? 'total' : 'unidad');
     setEditando(c); setShowForm(true); setError('');
   };
 
@@ -65,6 +74,8 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
       notas: notas.trim() || undefined,
       usuarioId: usuarioId || null,
       predeterminado,
+      tarifaDefault: tarifa.trim() ? parseFloat(tarifa) : null,
+      tarifaModo: tarifa.trim() ? tarifaModo : null,
     };
 
     const url = editando ? `/api/cortadores/${editando.id}` : '/api/cortadores';
@@ -130,6 +141,20 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
             </Select>
             <p className="text-xs text-stone-400 -mt-2">Creá antes el usuario con permiso “Cortador (panel)” en Configuración → Usuarios, y pasale el link de acceso.</p>
             <div>
+              <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Tarifa de corte</label>
+              <div className="flex gap-2">
+                <NumInput value={parseFloat(tarifa) || 0} onChange={(n) => setTarifa(n ? String(n) : '')} min="0"
+                  className="px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400 flex-1 min-w-0" />
+                <div className="flex rounded-xl border border-stone-200 overflow-hidden shrink-0">
+                  {(['unidad', 'total'] as const).map((m) => (
+                    <button key={m} type="button" onClick={() => setTarifaModo(m)}
+                      className={`px-3 text-xs font-semibold ${tarifaModo === m ? 'bg-stone-900 text-white' : 'bg-white text-stone-500'}`}>{m}</button>
+                  ))}
+                </div>
+              </div>
+              <p className="text-xs text-stone-400 mt-1">Prellena el precio cuando el taller carga la tizada por él. No cobra sola: siempre se puede editar en el momento.</p>
+            </div>
+            <div>
               <Checkbox label="Cortador predeterminado" checked={predeterminado} onChange={(e) => setPredeterminado(e.target.checked)} />
               <p className="text-xs text-stone-400 mt-1 ml-6">Se asigna solo a cada orden de producción nueva. Hay uno solo: al marcarlo, se desmarca el anterior.</p>
             </div>
@@ -162,7 +187,12 @@ export function CortadoresManager({ initial }: { initial: Cortador[] }) {
                   <span className="text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-700" title="Se asigna solo a cada OP nueva">Predeterminado</span>
                 )}
               </p>
-              <span className="text-xs text-stone-500">{c.contacto || '--'}</span>
+              <span className="text-xs text-stone-500">
+                {c.contacto || '--'}
+                {c.tarifaDefault != null && (
+                  <span className="ml-2 text-stone-400">· ${Number(c.tarifaDefault).toLocaleString('es-AR')}/{c.tarifaModo === 'total' ? 'total' : 'u'}</span>
+                )}
+              </span>
               <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${c.activo ? 'bg-emerald-100 text-emerald-700' : 'bg-stone-100 text-stone-500'}`}>
                 {c.activo ? 'Activo' : 'Inactivo'}
               </span>

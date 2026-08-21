@@ -5,6 +5,13 @@
 
 _Última actualización: 2026-08-20_
 
+> **En esta sesión (20-ago), 2º tramo:** **carga rápida de tizada por el taller.** Un botón
+> **"+ Tizada"** debajo del cortador asignado (en el detalle de la OP y en la fila de la Cola) abre
+> **el mismo formulario que ve el cortador** y lo carga el taller, para los cortadores que no cargan
+> nunca. A diferencia de la carga del cortador, ésta **es cobrable al instante**: hace lo mismo que
+> "Validar corte" y suma al saldo pendiente. El precio **se prellena con la tarifa del cortador**,
+> que hasta ahora estaba en la base y **no la leía ni la escribía nadie**. Ver abajo.
+>
 > **En esta sesión (20-ago):** **El plan de órdenes de estampa de lanzamiento, entero de órdenes de estampa de lanzamiento.** Una
 > orden de estampa ya no necesita nacer de un producto de Gestión Nube (`gnId` nullable +
 > `estampaId` + `origen`), la **receta estampa↔liso ya no exige el escandallo**
@@ -31,6 +38,15 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 ---
 
 ## 🔴 Pendiente
+
+- [ ] **El predicado "cobrable" está copiado en cuatro lugares.**
+  `OR: [{ fichaCorteCargada: true }, { corteEstado: 'validado' }]` + `costoCorte > 0` +
+  `pagoCorteId: null` es la definición de qué le debemos a un cortador, y vive textual en
+  `app/(dashboard)/produccion/cuenta-cortadores/page.tsx`, `.../cuenta-cortadores/[id]/page.tsx`,
+  `app/api/produccion/pagos-cortes/route.ts` y `app/(dashboard)/cortador/page.tsx`. No está
+  factorizado en `lib/produccion/cuenta-cortador.ts`, que sí tiene el resto de la cuenta. Cualquier
+  estado nuevo de corte hay que acordarse de agregarlo en los cuatro: ahí se va a esconder el
+  próximo descuadre.
 
 - [ ] **Blobs huérfanos en la carga masiva de estampas.** La foto se sube a Vercel Blob *antes* de
   que exista la estampa (no hay id todavía), así que si se cancela el panel, se borra la fila o la
@@ -67,6 +83,31 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 - _(nada activo ahora mismo)_
 
 ## ✅ Hecho (referencia)
+
+- **Carga rápida de tizada por el taller (2026-08-20):** botón **"+ Tizada"** debajo del cortador
+  asignado, en el detalle de la OP (`app/(dashboard)/produccion/[id]/page.tsx`) y en la fila de la
+  Cola. Abre **el mismo componente** que usa el cortador (`CargaCorteForm`, con `modo='interno'`),
+  no una copia: lo que ve el taller es literalmente lo que ve el cortador.
+  `POST /api/produccion/cola/[id]/carga-tizada` guarda la ficha **y valida en el mismo paso** (lo
+  de `validar-corte`): escribe la columna `costoCorte`, deja `corteEstado='validado'` y el corte
+  **suma al saldo pendiente al instante**. No toca stock ni rollos — la ficha de tela sigue siendo
+  un paso aparte, y la abre precargada.
+  - **No pisa la carga del cortador**: si él ya cargó (`corteEstado='cargado'`), el botón no
+    aparece y el camino sigue siendo "Validar". La ficha interna se marca con `cargaInterna` +
+    `cargadaPor` dentro del `fichaCorteData` (sin migración), y el cartel de la ficha de corte dice
+    quién la cargó en vez de mentir "el cortador ya cargó".
+  - **`DELETE` deshace**: borra la ficha, `costoCorte` a 0, vuelve a `'asignado'` y **restaura la
+    `cantidad` planificada** (se guarda en `cantidadPrevia`), el nombre del cortador y la fecha.
+    Bloqueado si ya se pagó o si el taller ya hizo la ficha de tela. Sólo cargas internas.
+  - **La tarifa del cortador entró en uso.** `Cortador.tarifaDefault` / `tarifaModo` estaban en el
+    schema desde siempre y **no las leía ni las escribía nadie** (ni la pantalla que se anuncia
+    "con sus tarifas"). Ahora se cargan en Configuración → Cortadores y **prellenan el precio** de
+    la carga interna, siempre editable. De paso, `GET /api/cortadores` (que sale con `getSession`,
+    sin permiso, porque lo consume medio módulo) **dejó de devolver la tarifa**: es plata pactada y
+    un cortador logueado leería la de todos.
+  - Verificado a mano contra la base: tarifa 1234/unidad × 15 u → `costoCorte = 18.510`,
+    `corteEstado='validado'`, y **"Cortes pendientes" en `/produccion/cuenta-cortadores/[id]` pasó
+    de $22.500 a $41.010**; deshacer lo devolvió a $22.500 y la OP quedó idéntica a como estaba.
 
 - **La orden de Stunned y sus 13 productos, EN LA BASE — Etapas 4 y 5 (2026-08-20):**
   `prisma/migrate-orden-stunned-ago26.ts` creó la orden `cmt1oj06c` — **52 ítems, 149 prendas**,

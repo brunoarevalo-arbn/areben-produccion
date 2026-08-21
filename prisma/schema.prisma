@@ -546,7 +546,9 @@ model OrdenProduccion {
   fichaFotoUrl            String?
   fichaCorteData          Json?     // estado del form de corte tal cual se cargó (para ver/editar idéntico)
   fechaCorte              DateTime? // fecha en que se hizo el corte (para coordinar pagos al cortador)
-  corteEstado             String?   // panel cortador: null | 'asignado' | 'cargado' (falta que la diseñadora asigne rollo y valide)
+  // null | 'asignado' (esperando que cargue) | 'cargado' (cargó el cortador, falta validar)
+  // | 'validado' (cobrable: costoCorte ya escrito, con o sin ficha de tela).
+  corteEstado             String?
 
   avios                   OrdenAvio[]
   aviosDescontados        Boolean   @default(false) // guard: el stock de avíos se descuenta una sola vez

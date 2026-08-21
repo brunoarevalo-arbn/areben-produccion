@@ -4,16 +4,10 @@ import Link from 'next/link';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { CargaCorteForm, type CargaCortePrefill, type HermanaTizadas } from '@/components/produccion/cortador/CargaCorteForm';
+import { CargaCorteForm } from '@/components/produccion/cortador/CargaCorteForm';
+import { prefillDeOrden, hermanasConTizadas } from '@/lib/produccion/cargaCorte';
 
 export const dynamic = 'force-dynamic';
-
-// Tizadas de un fichaCorteData (propio o de una hermana) → forma del form del cortador.
-function tizadasDeFicha(fd: Record<string, unknown> | null): { nombre: string; metros: string; unidades: string }[] {
-  return Array.isArray(fd?.tizadas)
-    ? (fd.tizadas as Record<string, unknown>[]).map((t) => ({ nombre: String(t.nombre ?? ''), metros: String(t.metros ?? ''), unidades: String(t.unidades ?? '1') }))
-    : [];
-}
 
 export default async function CortadorCargaPage({ params }: { params: Promise<{ ordenId: string }> }) {
   const token = (await cookies()).get(SESSION_COOKIE)?.value;
@@ -30,28 +24,10 @@ export default async function CortadorCargaPage({ params }: { params: Promise<{ 
   });
   if (!orden || orden.cortadorId !== cortador.id) notFound();
 
-  // Al editar (corteEstado 'cargado'), reabrir lo ya guardado en fichaCorteData.
-  const fd = orden.corteEstado === 'cargado' ? (orden.fichaCorteData as Record<string, unknown> | null) : null;
-  const prefill: CargaCortePrefill | undefined = fd ? {
-    tizadas: tizadasDeFicha(fd),
-    talles: (fd.talles && typeof fd.talles === 'object') ? fd.talles as Record<string, string> : {},
-    costoCorte: Number(fd.costoCorte) || 0,
-    modoCosto: fd.modoCosto === 'unidad' ? 'unidad' : 'total',
-    fechaCorte: typeof fd.fechaCorte === 'string' ? fd.fechaCorte : undefined,
-  } : undefined;
-
-  // Hermanas del mismo lote con tizadas ya cargadas (validadas por taller o cargadas
-  // por otro cortador) para poder copiarlas si la moldería es parecida.
-  const hermanasRaw = orden.loteId && !orden.fichaCorteCargada
-    ? await prisma.ordenProduccion.findMany({
-        where: { loteId: orden.loteId, id: { not: orden.id }, OR: [{ fichaCorteCargada: true }, { corteEstado: 'cargado' }] },
-        select: { id: true, sku: true, fichaCorteData: true },
-        orderBy: { createdAt: 'asc' },
-      })
-    : [];
-  const hermanas: HermanaTizadas[] = hermanasRaw
-    .map((h) => ({ id: h.id, sku: h.sku ?? 'S/SKU', tizadas: tizadasDeFicha(h.fichaCorteData as Record<string, unknown> | null).filter((t) => (parseFloat(t.metros) || 0) > 0) }))
-    .filter((h) => h.tizadas.length > 0);
+  // Al editar (corteEstado 'cargado'), reabrir lo ya guardado en fichaCorteData. El
+  // cortador NO reabre lo que el taller ya validó: eso lo corrige el taller.
+  const prefill = prefillDeOrden(orden, { estados: ['cargado'] });
+  const hermanas = orden.fichaCorteCargada ? [] : await hermanasConTizadas(orden.loteId, orden.id);
 
   return (
     <div className="p-8 max-w-3xl">

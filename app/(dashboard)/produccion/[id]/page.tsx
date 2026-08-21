@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Card } from '@/components/ui/Card';
 import { resumenConsumoTela } from '@/lib/produccion/consumo';
 import { AsignarCortador } from '@/components/produccion/AsignarCortador';
+import { CargaTizadaBtn } from '@/components/produccion/CargaTizadaBtn';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,8 +89,11 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
 
       {/* Asignar cortador (para que cargue desde su panel) */}
       {!orden.fichaCorteCargada && (
-        <Card padding="none" className="p-4 mb-6">
+        <Card padding="none" className="p-4 mb-6 space-y-3">
           <AsignarCortador ordenId={orden.id} cortadorId={orden.cortadorId} corteEstado={orden.corteEstado} />
+          {/* Carga rápida de la tizada por el taller, para el cortador que no carga solo. */}
+          <CargaTizadaBtn ordenId={orden.id} cortadorId={orden.cortadorId} corteEstado={orden.corteEstado}
+            fichaCorteCargada={orden.fichaCorteCargada} />
         </Card>
       )}
 
@@ -98,7 +102,9 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
         {!orden.fichaCorteCargada ? (
           <Link href={`/produccion/${orden.id}/corte`}
             className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
-            {orden.corteEstado === 'cargado' ? 'Asignar tela y validar corte' : 'Cargar ficha de corte'}{orden.estado === 'CERRADA' ? ' (orden cerrada)' : ''}
+            {orden.corteEstado === 'cargado' ? 'Asignar tela y validar corte'
+              : orden.corteEstado === 'validado' ? 'Asignar tela y cerrar ficha'
+              : 'Cargar ficha de corte'}{orden.estado === 'CERRADA' ? ' (orden cerrada)' : ''}
           </Link>
         ) : (
           <>

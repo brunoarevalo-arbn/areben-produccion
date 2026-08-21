@@ -144,6 +144,10 @@ export const CortadorSchema = z.object({
   activo:        z.boolean().optional(),
   usuarioId:     z.string().nullable().optional(), // usuario de login del cortador (panel)
   predeterminado: z.boolean().optional(),          // se asigna solo a cada OP nueva; hay uno solo
+  // Tarifa de corte pactada. No cobra sola: prellena el precio de la carga interna de
+  // tizada (CargaTizadaBtn), que siempre queda editable a mano.
+  tarifaDefault: z.number().min(0).nullable().optional(),
+  tarifaModo:    z.enum(['total', 'unidad']).nullable().optional(),
 });
 
 export const MotivoDescarteSchema = z.object({

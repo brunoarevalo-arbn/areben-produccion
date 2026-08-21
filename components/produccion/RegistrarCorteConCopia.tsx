@@ -79,7 +79,9 @@ export function RegistrarCorteConCopia({ ordenId, sku, cantidadPlanificada, marc
     <div className="space-y-4">
       {initialPrefill?.fichaData && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-sm text-blue-900">
-          El cortador ya cargó las tizadas, talles y precio. <strong>Asigná la tela (rollo)</strong> de cada tizada y guardá.
+          {initialPrefill.fichaData.cargaInterna
+            ? <>Las tizadas, talles y precio los cargó el taller{initialPrefill.fichaData.cargadaPor ? ` (${initialPrefill.fichaData.cargadaPor})` : ''}. <strong>Asigná la tela (rollo)</strong> de cada tizada y guardá.</>
+            : <>El cortador ya cargó las tizadas, talles y precio. <strong>Asigná la tela (rollo)</strong> de cada tizada y guardá.</>}
         </div>
       )}
       {hermanas.length > 0 && (

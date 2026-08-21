@@ -24,7 +24,16 @@ const hoyISO = () => new Date().toLocaleDateString('en-CA');
 // Form del cortador para cargar su corte de una OP: tizadas (nombre/metros/unidades),
 // talles y precio. Sin rollos (los asigna la diseñadora). Guarda en estado 'cargado'.
 // Con `prefill` reabre lo ya cargado (botón "Editar" del panel).
-export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill, hermanas = [] }: { ordenId: string; cantidadPlanificada: number; prefill?: CargaCortePrefill; hermanas?: HermanaTizadas[] }) {
+//
+// `modo='interno'` es EL MISMO formulario abierto por el taller (CargaTizadaBtn) para
+// cargar la tizada por un cortador que no carga. Cambia a dónde postea y qué pasa después;
+// los campos son idénticos a propósito: lo que ve el taller es lo que ve el cortador.
+export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill, hermanas = [], modo = 'cortador', cortadorNombre, onGuardado, onCancelar }: {
+  ordenId: string; cantidadPlanificada: number; prefill?: CargaCortePrefill; hermanas?: HermanaTizadas[];
+  modo?: 'cortador' | 'interno'; cortadorNombre?: string | null;
+  onGuardado?: () => void; onCancelar?: () => void;
+}) {
+  const interno = modo === 'interno';
   const router = useRouter();
   const seq = useRef((prefill?.tizadas.length ?? 1) + 1);
   const [copiarDe, setCopiarDe] = useState(hermanas[0]?.id ?? '');
@@ -62,12 +71,18 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill, hermanas
     if (tizadasValidas.length === 0) { toast.error('Cargá al menos una tizada con metros'); return; }
     const tallesArr = Object.entries(talles).map(([talle, v]) => ({ talle, cantidad: parseInt(v) || 0 })).filter((t) => t.cantidad > 0);
     if (tallesArr.length === 0) { toast.error('Cargá los talles'); return; }
+    // En la carga interna el precio ES el saldo del cortador: sin precio no hay nada que sumar.
+    if (interno && (parseFloat(costoCorte) || 0) <= 0) { toast.error('Cargá el precio del corte'); return; }
     setSaving(true);
-    const r = await fetch(`/api/cortador/carga/${ordenId}`, {
+    const url = interno ? `/api/produccion/cola/${ordenId}/carga-tizada` : `/api/cortador/carga/${ordenId}`;
+    const r = await fetch(url, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tizadas: tizadasValidas.map((t) => ({ nombre: t.nombre, metros: t.metros, unidades: t.unidades })), talles: tallesArr, costoCorte: parseFloat(costoCorte) || 0, modoCosto, fechaCorte: fecha || undefined }),
     });
-    if (r.ok) { toast.success('Corte confirmado — el taller asigna la tela'); router.push('/cortador'); router.refresh(); }
+    if (r.ok) {
+      if (interno) { toast.success(`Tizada cargada — suma al saldo de ${cortadorNombre ?? 'el cortador'}`); onGuardado?.(); router.refresh(); }
+      else { toast.success('Corte confirmado — el taller asigna la tela'); router.push('/cortador'); router.refresh(); }
+    }
     else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo guardar'); }
     setSaving(false);
   };
@@ -159,10 +174,14 @@ export function CargaCorteForm({ ordenId, cantidadPlanificada, prefill, hermanas
       </Card>
 
       <div className="space-y-2">
-        <p className="text-xs text-stone-500">Al confirmar, tu corte queda listo y pasa al taller para que asigne la tela. No hace falta nada más de tu parte.</p>
+        <p className="text-xs text-stone-500">
+          {interno
+            ? `Al guardar, el corte queda cobrable: suma al saldo pendiente de ${cortadorNombre ?? 'el cortador'}. La tela se asigna después, en la ficha.`
+            : 'Al confirmar, tu corte queda listo y pasa al taller para que asigne la tela. No hace falta nada más de tu parte.'}
+        </p>
         <div className="flex gap-2">
-          <Button variant="primary" onClick={guardar} isLoading={saving}>Confirmar corte</Button>
-          <Button variant="secondary" onClick={() => router.push('/cortador')}>Cancelar</Button>
+          <Button variant="primary" onClick={guardar} isLoading={saving}>{interno ? 'Guardar tizada' : 'Confirmar corte'}</Button>
+          <Button variant="secondary" onClick={() => (interno ? onCancelar?.() : router.push('/cortador'))}>Cancelar</Button>
         </div>
       </div>
     </div>

@@ -58,6 +58,9 @@ export interface FichaData {
   faltantes?: { nombre: string; faltante: number }[];
   // Metros sublimados en total (traza; el desglose por tizada está en cada Tizada).
   metrosSublimados?: number;
+  // La cargó el taller por el cortador (botón "+ Tizada"), no el cortador desde su panel.
+  cargaInterna?: boolean;
+  cargadaPor?: string;
 }
 
 const hoyISO = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD en hora local
