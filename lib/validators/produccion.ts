@@ -166,8 +166,8 @@ export const PagoCorteSchema = z.object({
   beneficiario:   z.string().min(1, 'Beneficiario obligatorio'),
   ordenIds:       z.array(z.string().min(1)).default([]),
   muestraIds:     z.array(z.string().min(1)).default([]),
-  cortadorId:     z.string().min(1, 'Decí a qué cortador se le paga'),
-  monto:          z.coerce.number().positive('El monto tiene que ser mayor a 0'),
+  cortadorId:     z.string({ error: 'Decí a qué cortador se le paga' }).min(1, 'Decí a qué cortador se le paga'),
+  monto:          z.coerce.number({ error: 'Poné el monto del pago' }).positive('El monto tiene que ser mayor a 0'),
   notas:          z.string().optional(),
   comprobanteUrl: z.string().optional(),
 });
