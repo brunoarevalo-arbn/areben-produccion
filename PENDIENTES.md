@@ -114,10 +114,17 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
     DELETE de pagos, "está imputado" era un callejón sin salida.
   - **Datos reparados**: `prisma/migrate-pago-cortador-ago26.ts` le puso dueño a los 2 pagos que se
     ataban a Fernando sólo por sus ítems ($127.200 que la fórmula nueva habría perdido — por eso va
-    ANTES de deployar), y se anuló el pago duplicado de $130.200 desde el DELETE nuevo.
+    ANTES de deployar), y se anularon **DOS** pagos duplicados con el DELETE nuevo: el de $130.200
+    «saldado con pagos a cuenta», y uno de **$6.000 «descuento baby tee»** del 16-jul, cuando el
+    corte `ZAT-REM-CH-001` («Baby tee con puños rosas», $6.000) ya estaba cobrado dentro del pago
+    del 7-jul — ése era el hueco que dejaba ese pago en $78.300 con ítems por $72.300.
+    🔑 El mismo error apareció dos veces a distinta escala: **conviene mirar los pagos sueltos cuyo
+    concepto ya está cobrado como corte.**
+    La cuenta de Fernando quedó **en cero hasta el 19-ago** ($251.400 cortados contra $251.400
+    pagados) y debiendo **$22.500**: los 3 cortes del 20-ago (`ZAT-TOP-NG-013/015/016`).
   - **Verificado contra la base** con `prisma/check-cuenta-cortadores.ts`, que va en **SQL crudo y
-    no importa el núcleo** a propósito. Deuda 273.900 (38 cortes) · pagos 257.400 (6) · **saldo
-    16.500**, y las pantallas dicen "Saldo pendiente: $16.500". Ejercido a mano: un pago de $1 baja
+    no importa el núcleo** a propósito. Deuda 273.900 (38 cortes) · pagos 251.400 (5) · **saldo
+    22.500**, y las pantallas dicen "Saldo pendiente: $22.500". Ejercido a mano: un pago de $1 baja
     el saldo $1 **tilde cortes o no** (con un corte de $7.500 tildado la deuda no se movió),
     anularlo lo devuelve exacto, la request vieja sin monto ahora da 400, y los cuatro guards dan
     400. El rojo se vio: con el código viejo, revertir un corte imputado lo dejó en `costoCorte 0`
