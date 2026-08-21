@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { z } from 'zod';
+import { SELECT_COBRABLE, esCorteCobrable } from '@/lib/produccion/cuenta-cortador';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -16,9 +17,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const parsed = Schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: 'cortadorId inválido' }, { status: 400 });
 
-  const orden = await prisma.ordenProduccion.findUnique({ where: { id }, select: { fichaCorteCargada: true, corteEstado: true } });
+  const orden = await prisma.ordenProduccion.findUnique({ where: { id }, select: { ...SELECT_COBRABLE, pagoCorteId: true } });
   if (!orden) return NextResponse.json({ error: 'OP no encontrada' }, { status: 404 });
   if (orden.fichaCorteCargada) return NextResponse.json({ error: 'La ficha ya está cargada' }, { status: 400 });
+  // Un corte ya cobrable es DEUDA de su cortador: reasignarlo se la lleva a otra cuenta y
+  // deja el pago —si lo hubo— en la primera.
+  if (orden.pagoCorteId) return NextResponse.json({ error: 'Este corte está imputado a un pago: anulá el pago antes de reasignarlo.' }, { status: 400 });
+  if (esCorteCobrable(orden)) return NextResponse.json({ error: 'Este corte ya es cobrable: para cambiar de cortador hay que deshacer la carga primero.' }, { status: 400 });
 
   const { cortadorId } = parsed.data;
   if (cortadorId) {

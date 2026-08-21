@@ -193,6 +193,10 @@ export async function revertirCorteOrden(
   if (!orden) throw new CorteError('OP no encontrada');
   if (!orden.fichaCorteCargada) return;
   if (orden.terminadoAt && !permitirTerminada) throw new CorteError('La orden ya está terminada. Retrocedela a Costura antes de editar o revertir la ficha.');
+  // Revertir pone `costoCorte` en 0 y suelta el cortador: eso es DEUDA en la cuenta
+  // corriente, y el pago que la cubría quedaría parado, inventando saldo a favor. Vale
+  // también para la edición de ficha, que reescribe el costo.
+  if (orden.pagoCorteId) throw new CorteError('Este corte está imputado a un pago: anulá el pago en Cuenta de cortadores antes de tocar la ficha.');
 
   // Neto por rollo / lote (con signo). El consumo pendiente a reponer = −neto.
   const netRollo = new Map<string, Prisma.Decimal>();

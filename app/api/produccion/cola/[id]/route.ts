@@ -62,6 +62,10 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
   if (!(await requirePermiso(req, 'produccion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
 
   const { id } = await params;
+  // Borrar la OP baja la deuda del cortador y deja el pago que la cubría intacto: saldo a
+  // favor inventado. El camino es anular el pago primero.
+  const imputada = await prisma.ordenProduccion.findUnique({ where: { id }, select: { pagoCorteId: true } });
+  if (imputada?.pagoCorteId) return NextResponse.json({ error: 'Este corte está imputado a un pago: anulá el pago en Cuenta de cortadores antes de borrar la OP.' }, { status: 400 });
   // Antes de borrar la OP hay que deshacer su impacto en stock: reponer lo que
   // ingresó a terminados + los avíos, y devolver la tela consumida en el corte.
   // Si no, eliminar deja stock inflado y rollos sin reponer.

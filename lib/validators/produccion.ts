@@ -156,20 +156,18 @@ export const MotivoDescarteSchema = z.object({
   activo:    z.boolean().optional(),
 });
 
-// Un pago de corte es de una de dos formas:
-//   · IMPUTADO   → trae cortes y/o muestras; el monto lo calcula el servidor sumándolos.
-//   · A CUENTA   → sin ítems; exige cortadorId + monto libre. Es el adelanto o el pago
-//                  suelto que no cierra con ningún corte: baja el saldo sin imputarse.
+// Un pago de corte tiene UNA sola forma: cortador + monto. Los cortes y muestras que
+// vengan son TRAZABILIDAD —qué cubrió ese pago— y no cambian ningún número: en la cuenta
+// corriente la deuda son todos los cortes y el haber son todos los pagos.
+// Antes había dos formas y la imputada DERIVABA el monto de los ítems: por ahí entraba la
+// misma plata dos veces (el adelanto ya cargado, más el pago que inventaba la imputación).
 export const PagoCorteSchema = z.object({
   fecha:          z.string().min(1, 'Fecha obligatoria'),
   beneficiario:   z.string().min(1, 'Beneficiario obligatorio'),
   ordenIds:       z.array(z.string().min(1)).default([]),
   muestraIds:     z.array(z.string().min(1)).default([]),
-  cortadorId:     z.string().min(1).optional(),
-  monto:          z.coerce.number().positive('El monto tiene que ser mayor a 0').optional(),
+  cortadorId:     z.string().min(1, 'Decí a qué cortador se le paga'),
+  monto:          z.coerce.number().positive('El monto tiene que ser mayor a 0'),
   notas:          z.string().optional(),
   comprobanteUrl: z.string().optional(),
-}).refine(
-  (d) => d.ordenIds.length + d.muestraIds.length > 0 || (!!d.cortadorId && !!d.monto),
-  { message: 'Elegí al menos un corte o muestra, o cargá un pago a cuenta con cortador y monto' },
-);
+});

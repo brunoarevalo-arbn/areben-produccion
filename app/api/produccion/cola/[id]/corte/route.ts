@@ -83,6 +83,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const orden = await prisma.ordenProduccion.findUnique({ where: { id } });
   if (!orden) return NextResponse.json({ error: 'OP no encontrada' }, { status: 404 });
   if (!orden.fichaCorteCargada) return NextResponse.json({ error: 'La ficha todavía no está cargada' }, { status: 400 });
+  // Esta edición reescribe `costoCorte` y `cortadorId`: con la cuenta corriente eso mueve
+  // el saldo en silencio, y cambiar el cortador MUEVE la deuda a otra cuenta dejando el
+  // pago en la primera — descuadre en dos cuentas de un saque.
+  if (orden.pagoCorteId) return NextResponse.json({ error: 'Este corte está imputado a un pago: anulá el pago en Cuenta de cortadores antes de editarlo.' }, { status: 400 });
 
   const cortador = cortadorId ? await prisma.cortador.findUnique({ where: { id: cortadorId } }) : null;
   if (cortadorId && !cortador) return NextResponse.json({ error: 'Cortador no encontrado' }, { status: 400 });

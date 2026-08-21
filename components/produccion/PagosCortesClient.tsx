@@ -13,6 +13,7 @@ interface OrdenCorte {
   sku: string;
   cantidad: number;
   cortador: string | null;
+  cortadorId: string | null;
   costoCorte: string;
   pagoCorteId: string | null;
   createdAt: string;
@@ -23,7 +24,7 @@ interface OrdenCorte {
 
 interface Muestra {
   id: string; descripcion: string; valor: string; estado: string; pagoCorteId: string | null;
-  fecha: string; cortador: { nombre: string } | null; consumo: string; unidad: string;
+  fecha: string; cortadorId: string; cortador: { nombre: string } | null; consumo: string; unidad: string;
 }
 
 const inp = 'w-full px-3 py-2.5 border border-stone-200 rounded-xl text-sm focus:outline-none focus:border-amber-400';
@@ -33,7 +34,7 @@ function fechaCorta(iso: string) {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' });
 }
 
-export function PagosCortesClient() {
+export function PagosCortesClient({ saldos }: { saldos: { id: string; nombre: string; saldo: number }[] }) {
   const [ordenes, setOrdenes]   = useState<OrdenCorte[]>([]);
   const [loading, setLoading]   = useState(true);
   const [filtro, setFiltro]     = useState<'pendiente' | 'pagado' | 'todos'>('pendiente');
@@ -46,6 +47,8 @@ export function PagosCortesClient() {
   const [showForm, setShowForm] = useState(false);
   const [fecha, setFecha]       = useState(new Date().toISOString().slice(0, 10));
   const [beneficiario, setBeneficiario] = useState('');
+  // El monto es del pago, no de lo tildado: tildar cortes es trazabilidad y no crea plata.
+  const [monto, setMonto] = useState(0);
   const [notas, setNotas]       = useState('');
   const [saving, setSaving]     = useState(false);
   const [error, setError]       = useState('');
@@ -104,9 +107,15 @@ export function PagosCortesClient() {
   // Sugerir beneficiario del cortador de lo seleccionado si es un solo cortador.
   const cortadoresUnicos = [...new Set([...seleccionadas.map((o) => o.cortador), ...muestrasSel.map((m) => m.cortador?.nombre ?? null)].filter(Boolean))];
 
+  // Un pago es de UN cortador: la selección no puede cruzar dos, o la plata se atribuiría
+  // a una cuenta y la traza a otra.
+  const idsCortadorSel = [...new Set([...seleccionadas.map((o) => o.cortadorId), ...muestrasSel.map((m) => m.cortadorId)].filter(Boolean) as string[])];
+
   const abrirPago = () => {
     if (seleccion.size + selMuestras.size === 0) return;
+    if (idsCortadorSel.length > 1) { setError('La selección mezcla cortadores: registrá un pago por cortador'); return; }
     if (cortadoresUnicos.length === 1) setBeneficiario(cortadoresUnicos[0]!);
+    setMonto(Math.round(totalSeleccionado));
     setShowForm(true);
     setError('');
   };
@@ -115,6 +124,8 @@ export function PagosCortesClient() {
     e.preventDefault();
     if (!beneficiario.trim()) { setError('Beneficiario obligatorio'); return; }
     if (!fecha) { setError('Fecha obligatoria'); return; }
+    if (idsCortadorSel.length !== 1) { setError('Elegí cortes de un solo cortador'); return; }
+    if (monto <= 0) { setError('El monto tiene que ser mayor a 0'); return; }
 
     setSaving(true);
     setError('');
@@ -124,6 +135,8 @@ export function PagosCortesClient() {
       body: JSON.stringify({
         fecha,
         beneficiario: beneficiario.trim(),
+        cortadorId: idsCortadorSel[0],
+        monto,
         ordenIds: [...seleccion],
         muestraIds: [...selMuestras],
         notas: notas || undefined,
@@ -152,28 +165,29 @@ export function PagosCortesClient() {
       {/* Stats por cortador */}
       {filtro === 'pendiente' && cortadores.length > 0 && (
         <Card padding="none" className="p-4">
-          {/* Ojo: esto es lo pendiente POR ÍTEMS, no el saldo. Los pagos a cuenta (montos
-              sin imputar a un corte) no se ven acá: para el saldo real está la cuenta corriente. */}
+          {/* El número grande es EL SALDO de la cuenta corriente, el mismo que muestran
+              /produccion/cuenta-cortadores y el panel del cortador. Antes acá vivía otro
+              número con nombre parecido —lo pendiente por ítems, sin restar los pagos— y
+              tener dos "pendientes" distintos es lo que hacía ilegible la cuenta. */}
           <div className="flex items-baseline justify-between mb-2 gap-3">
-            <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Cortes pendientes de pago</p>
-            <Link href="/produccion/cuenta-cortadores" className="text-xs text-amber-700 hover:underline shrink-0">Ver saldo con pagos a cuenta →</Link>
+            <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Saldo por cortador</p>
+            <Link href="/produccion/cuenta-cortadores" className="text-xs text-amber-700 hover:underline shrink-0">Ver la cuenta corriente →</Link>
           </div>
           <div className="flex flex-wrap gap-3">
-            {cortadores.map((c) => {
-              const cortes = ordenes.filter((o) => o.cortador === c && !o.pagoCorteId);
-              const ms = muestraPend(c);
-              const total = cortes.reduce((s, o) => s + Number(o.costoCorte), 0) + ms.reduce((s, m) => s + Number(m.valor), 0);
+            {saldos.map((s) => {
+              const cortes = ordenes.filter((o) => o.cortadorId === s.id && !o.pagoCorteId);
+              const ms = muestras.filter((m) => m.cortadorId === s.id && m.estado === 'validado' && !m.pagoCorteId);
               return (
-                <div key={c} className="bg-stone-50 rounded-xl px-3 py-2 text-sm border border-stone-100">
-                  <p className="text-xs text-stone-500">{c}</p>
-                  <p className="text-stone-900 font-bold tabular-nums">${fmt(total)}</p>
-                  <p className="text-xs text-stone-400">{cortes.length} corte(s){ms.length > 0 ? ` · ${ms.length} muestra(s)` : ''}</p>
+                <div key={s.id} className="bg-stone-50 rounded-xl px-3 py-2 text-sm border border-stone-100">
+                  <p className="text-xs text-stone-500">{s.nombre}</p>
+                  <p className={`font-bold tabular-nums ${s.saldo < 0 ? 'text-emerald-600' : 'text-stone-900'}`}>${fmt(Math.abs(s.saldo))}{s.saldo < 0 ? ' a favor' : ''}</p>
+                  <p className="text-xs text-stone-400">{cortes.length + ms.length} ítem(s) sin imputar</p>
                 </div>
               );
             })}
             <div className="bg-stone-900 text-white rounded-xl px-3 py-2 text-sm ml-auto">
-              <p className="text-xs opacity-70">Total pendiente</p>
-              <p className="font-bold tabular-nums text-lg">${fmt(totalPendiente)}</p>
+              <p className="text-xs opacity-70">Se debe en total</p>
+              <p className="font-bold tabular-nums text-lg">${fmt(saldos.reduce((t, s) => t + Math.max(0, s.saldo), 0))}</p>
             </div>
           </div>
         </Card>
@@ -307,6 +321,14 @@ export function PagosCortesClient() {
                   <input type="text" value={beneficiario} onChange={(e) => setBeneficiario(e.target.value)} required
                     placeholder="A quien se le paga" className={inp} />
                 </div>
+                <div>
+                  <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Monto pagado *</label>
+                  <input type="number" value={monto || ''} onChange={(e) => setMonto(Number(e.target.value) || 0)} required
+                    min={1} className={inp} />
+                  {monto !== Math.round(totalSeleccionado) && (
+                    <p className="text-xs text-amber-700 mt-1">Imputás ${fmt(totalSeleccionado)} de ${fmt(monto)} pagados.</p>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Notas</label>
@@ -316,7 +338,7 @@ export function PagosCortesClient() {
               {error && <p className="text-red-500 text-xs">{error}</p>}
               <div className="flex gap-2 pt-1">
                 <Button type="submit" variant="primary" size="lg" isLoading={saving} className="flex-1">
-                  {saving ? 'Registrando...' : `Registrar pago de $${fmt(totalSeleccionado)}`}
+                  {saving ? 'Registrando...' : `Registrar pago de $${fmt(monto)}`}
                 </Button>
                 <Button type="button" variant="secondary" size="lg" onClick={() => setShowForm(false)}>Cancelar</Button>
               </div>
