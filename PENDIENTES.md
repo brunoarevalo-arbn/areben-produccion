@@ -3,9 +3,16 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-08-20_
+_Última actualización: 2026-08-21_
 
-> **En esta sesión (20-ago), 2º tramo:** **carga rápida de tizada por el taller.** Un botón
+> **En esta sesión (21-ago):** **la cuenta del cortador pasa a ser una cuenta corriente.** El saldo
+> era "cortes cobrables sin imputar menos los pagos sin ítems", así que cargar un adelanto y después
+> marcar como pagados los cortes que ese adelanto cubría descontaba la misma plata dos veces. Le
+> pasó a Fernando por $130.200. Ahora: **todos los cortes menos todos los pagos**, y `pagoCorteId`
+> es trazabilidad, no plata. Se puede **anular un pago**, y hay guards en los cuatro caminos que
+> borraban deuda dejando el pago parado. Ver abajo.
+>
+> **En la sesión del 20-ago, 2º tramo:** **carga rápida de tizada por el taller.** Un botón
 > **"+ Tizada"** debajo del cortador asignado (en el detalle de la OP y en la fila de la Cola) abre
 > **el mismo formulario que ve el cortador** y lo carga el taller, para los cortadores que no cargan
 > nunca. A diferencia de la carga del cortador, ésta **es cobrable al instante**: hace lo mismo que
@@ -39,15 +46,6 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 
 ## 🔴 Pendiente
 
-- [ ] **El predicado "cobrable" está copiado en cuatro lugares.**
-  `OR: [{ fichaCorteCargada: true }, { corteEstado: 'validado' }]` + `costoCorte > 0` +
-  `pagoCorteId: null` es la definición de qué le debemos a un cortador, y vive textual en
-  `app/(dashboard)/produccion/cuenta-cortadores/page.tsx`, `.../cuenta-cortadores/[id]/page.tsx`,
-  `app/api/produccion/pagos-cortes/route.ts` y `app/(dashboard)/cortador/page.tsx`. No está
-  factorizado en `lib/produccion/cuenta-cortador.ts`, que sí tiene el resto de la cuenta. Cualquier
-  estado nuevo de corte hay que acordarse de agregarlo en los cuatro: ahí se va a esconder el
-  próximo descuadre.
-
 - [ ] **Blobs huérfanos en la carga masiva de estampas.** La foto se sube a Vercel Blob *antes* de
   que exista la estampa (no hay id todavía), así que si se cancela el panel, se borra la fila o la
   fila queda sin código, el archivo queda subido y sin dueño. Ya pasaba con el form individual; la
@@ -65,9 +63,12 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
   el saldo baje en las tres pantallas, y escribirle una descripción a una foto vieja (formato
   legado) para confirmar que se migra sola.
 
-- [ ] **No se puede anular un pago de corte.** No hay `DELETE` ni `PATCH` en
-  `/api/produccion/pagos-cortes`: un pago cargado por error solo se arregla por SQL. Ahora que se
-  pueden cargar pagos a cuenta a mano, es más fácil equivocarse en el monto.
+- [ ] **No se puede re-imputar un pago ya cargado.** Con la cuenta corriente eso no mueve ningún
+  número —el vínculo es sólo la traza de qué cubrió cada pago—, pero el flujo que causó el
+  descuadre de Fernando fue justamente "ya pagué, ahora quiero decir qué cortes cubría". Hoy la
+  única forma es anular el pago y volver a cargarlo con los cortes tildados. Un `PATCH` limitado a
+  `{ ordenIds, muestraIds }`, con monto y fecha inmutables, no podría mover plata por construcción.
+  Los 17 cortes que quedaron sueltos al anular el pago duplicado son el caso de prueba.
 
 - [ ] **`POST /api/upload-imagen` acepta cualquier sesión** (`app/api/upload-imagen/route.ts:10`),
   o sea que la tablet de costureras puede subir al Blob. No expone datos, pero es la única
@@ -83,6 +84,44 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 - _(nada activo ahora mismo)_
 
 ## ✅ Hecho (referencia)
+
+- **La cuenta del cortador es una cuenta corriente (2026-08-21):**
+  `saldo = TODOS los cortes cobrables + TODAS las muestras validadas − TODOS los pagos`.
+  Antes la deuda eran sólo los cortes SIN `pagoCorteId` y sólo se restaban los pagos sin ítems: el
+  invariante que lo sostenía —"un adelanto jamás cubre un corte que después se imputa"— no lo
+  garantizaba ni una línea de código. 🔑 **Vincular un corte a un pago ya no mueve ningún número**,
+  y de ahí sale el resto: la plata entra UNA sola vez, por el `monto`.
+  - `lib/produccion/cuenta-cortador.ts` es el único lugar donde vive la regla. Exporta las dos
+    puntas del predicado (`CORTE_COBRABLE` para el `where` y `esCorteCobrable(o)` para el filtro en
+    memoria, con **parámetro obligatorio tipado**: si el `select` no trae los campos, no compila),
+    `cuentaDe` / `cuentaPorCortador`, `movimientosDe` (el extracto) y `pagosSinCortador`.
+    Las cuatro copias del predicado murieron con esto.
+  - **POST de pagos-cortes: una sola rama**, con `monto` y `cortadorId` obligatorios. Se borró la
+    que recalculaba el monto sumando los ítems — era el camino por el que la plata se inventaba.
+    Los ítems se siguen validando (mismo cortador, sin pago previo, cobrables) porque una traza
+    mentirosa es peor que no tener traza.
+  - **`DELETE /api/produccion/pagos-cortes/[id]`**: anula el pago y desvincula sus ítems en la
+    misma transacción (el `delete` explota por la FK si quedan colgados).
+  - El detalle de la cuenta es un **extracto** (debe / haber / saldo acumulado, ascendente, con el
+    corte imputado marcado "pagado dd/mm") y el formulario pasó de **dos cajas a una**: monto,
+    fecha, nota y cortes tildables opcionales, **nada pre-tildado** (el pre-tildado convertía el
+    botón en un "saldar todo" con monto inventado). Hub, panel del cortador y `PagosCortesClient`
+    muestran **el mismo saldo, del mismo núcleo**: antes eran tres números distintos con nombres
+    parecidos.
+  - **Guards** en los cuatro caminos que borraban o movían deuda dejando el pago parado: revertir
+    la ficha (`lib/produccion/corte.ts`, que cubre también la edición), el PATCH de edición rápida,
+    el DELETE de la OP y la reasignación de cortador. Recién se pueden bloquear ahora: sin el
+    DELETE de pagos, "está imputado" era un callejón sin salida.
+  - **Datos reparados**: `prisma/migrate-pago-cortador-ago26.ts` le puso dueño a los 2 pagos que se
+    ataban a Fernando sólo por sus ítems ($127.200 que la fórmula nueva habría perdido — por eso va
+    ANTES de deployar), y se anuló el pago duplicado de $130.200 desde el DELETE nuevo.
+  - **Verificado contra la base** con `prisma/check-cuenta-cortadores.ts`, que va en **SQL crudo y
+    no importa el núcleo** a propósito. Deuda 273.900 (38 cortes) · pagos 257.400 (6) · **saldo
+    16.500**, y las pantallas dicen "Saldo pendiente: $16.500". Ejercido a mano: un pago de $1 baja
+    el saldo $1 **tilde cortes o no** (con un corte de $7.500 tildado la deuda no se movió),
+    anularlo lo devuelve exacto, la request vieja sin monto ahora da 400, y los cuatro guards dan
+    400. El rojo se vio: con el código viejo, revertir un corte imputado lo dejó en `costoCorte 0`
+    con el pago intacto.
 
 - **Carga rápida de tizada por el taller (2026-08-20):** botón **"+ Tizada"** debajo del cortador
   asignado, en el detalle de la OP (`app/(dashboard)/produccion/[id]/page.tsx`) y en la fila de la
