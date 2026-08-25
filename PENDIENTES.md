@@ -3,8 +3,20 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-08-21_
+_Última actualización: 2026-08-25_
 
+> **En esta sesión (25-ago):** cuatro pedidos. **(1) Las listas dejan de perder el filtro**: el
+> estado de las 11 listas del repo pasó de `useState` a la URL (`lib/hooks/useParamState.ts`) y los
+> detalles vuelven con `?volverA=` (`lib/volverA.ts`). El síntoma era "entro a un costo listo y al
+> salir me vuelve a Pendientes de costear": el `← Volver` del PDF tiraba a `/costos` y el componente
+> se remontaba. **(2) El costo de tela se ve POR TELA y por prenda**: `costoTelaFicha` era un escalar
+> que mezclaba todas las telas. Ahora el editor y el PDF muestran una fila por tela (medido:
+> ZAT-TOP-NG-013 = Encaje $753,74 + Microfibra $612,68 = los $1.366,42 de la OP, diferencia $0,00) y
+> el PDF sumó columna **$/prenda** al lado de la del corte. **(3) Un corte imputado a un pago se
+> puede editar** salvo el cortador, con aviso antes del formulario y traza (`EdicionCorte`).
+> **(4) Pasajes a la marca**: `/costos/pasajes` junta las salidas de producto terminado, las valoriza
+> al escandallo y cierra el total **sin IVA** que hay que cargar en el dashboard. Ver abajo.
+>
 > **En esta sesión (21-ago):** **la cuenta del cortador pasa a ser una cuenta corriente.** El saldo
 > era "cortes cobrables sin imputar menos los pagos sin ítems", así que cargar un adelanto y después
 > marcar como pagados los cortes que ese adelanto cubría descontaba la misma plata dos veces. Le
@@ -45,6 +57,29 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 ---
 
 ## 🔴 Pendiente
+
+- [ ] 🔴 **El pasaje a la marca arranca VACÍO y depende de una mano.** Medido el 25-ago: de los 121
+  `movimientos_terminado`, **cero** tienen `origen='venta'` (son estampa, produccion, inicial y
+  ajuste). O sea que `/costos/pasajes` no va a mostrar nada hasta que alguien cargue las salidas a
+  Zattia en *Inventario → Producto terminado* con origen «Venta». **El pasaje no inventa las salidas:
+  las junta.** ✅ El circuito **sí quedó ejercido end-to-end** el 25-ago con una salida de prueba de
+  1 unidad (STU-BUZ-AZ-001 XL): la pantalla la levantó sola, la asignó a **Stunned** leyendo la marca
+  de la OP del SKU, la valorizó en **$21.600,03** (el costo del escandallo), se cerró el pasaje, la
+  salida **dejó de listarse** (el sello anduvo), salió el documento imprimible, se anuló el pasaje y
+  la salida **volvió** a pendientes. Todo deshecho después: stock de vuelta en 2, cero movimientos
+  `venta`, cero pasajes.
+
+- [ ] 🔴 **Fase B: que el número entre al dashboard.** Es otro repo (`areben-dashboard`), lo toca
+  Darío y **hay un doble conteo real esperando**: `calcularReposicion` (`app/actions/finanzas.ts`)
+  suma *a la vez* las compras con `negocio` de la marca y las de `negocio='PRODUCCION'` con
+  `marca_pasaje` de la marca — y hoy el costo de producción ya entra a Zattia por
+  `marcarProduccionPasada`, que es un traslado a costo **a propósito** (`057_marca_pasaje.sql`).
+  Meter además una compra a "Areben" sin sacar el pasaje viejo **cuenta la mercadería dos veces**.
+  Bruno lo dijo como *"subir el saldo compras y bajar el saldo producción"*. Dos cosas más de ese
+  lado: no hay dimensión de EMPRESA (`marca` es un enum de marcas y `configuracion_empresa` es
+  `CHECK (id = 1)`), y cargar el neto directo obliga a `porcentaje_facturacion = 0`, que le miente a
+  los reportes de facturación/AFIP que se apoyan en ese campo. **Hablarlo con Darío antes de tocar.**
+
 
 - [ ] **Blobs huérfanos en la carga masiva de estampas.** La foto se sube a Vercel Blob *antes* de
   que exista la estampa (no hay id todavía), así que si se cancela el panel, se borra la fila o la
@@ -261,6 +296,72 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
   de pago* con link a la cuenta, para que dos pantallas no muestren dos números con el mismo nombre.
   De paso se cerró el último GET de la auditoría: `GET /api/produccion/pagos-cortes` pedía solo
   sesión y devuelve costos y beneficiarios; ahora pide `produccion`.
+
+
+- **Las listas ya no pierden el filtro al volver (2026-08-25):** no había **ni un** `useSearchParams`
+  en todo el repo, así que cualquier ida a otra ruta desmontaba el componente y el filtro volvía a su
+  default. Hook nuevo `lib/hooks/useParamState.ts` (`useParamState` / `useParamBool` / `useParamSet` /
+  `useParamTexto` con debounce para los buscadores / `useVolverA`) y **11 listas** migradas:
+  Escandallos, Cola de producción, Pagos de cortes, Fichas de corte, Rollos, Insumos, Compras, Kanban
+  de diseño, Producto terminado, Movimientos y Qué estampar. Cada page que las usa quedó envuelta en
+  `<Suspense>` — sin eso el build falla con *"useSearchParams() should be wrapped in a suspense
+  boundary"*. La segunda mitad es el regreso: `?volverA=` (la convención que ya existía en
+  `/produccion/[id]/corte`) se extendió al PDF del escandallo, al detalle de gasto, al proyecto de
+  diseño, y se le **agregó un `← Volver` que no existía** al detalle de OP, al de rollo y al de compra.
+  `lib/volverA.ts` valida el destino: un `//otro-host` también empieza con `/`, y sin ese filtro el
+  botón era un redirect abierto. ⚠️ La selección múltiple con checkboxes NO va a la URL a propósito
+  (es transitoria y ya se limpiaba al cambiar de filtro); `QueEstamparClient.modo` tampoco, porque es
+  un paso de flujo a medio hacer y restaurarlo con los edits vacíos sería peor que no restaurarlo.
+
+- **El costo de tela, por tela y por prenda (2026-08-25):** cuando el costo viene de la ficha,
+  `datos.costoTelaFicha` es **un escalar** que ya mezcla todas las telas: en un top de encaje +
+  microfibra no se podía saber cuánto pone cada una. El desglose por rollo existía sólo en el PDF y
+  ahí la columna de plata era **la del corte entero**. Ahora: `agruparPorArticulo()` en
+  `lib/produccion/fichaConsumo.ts` (la agrupación que estaba inline en la page del PDF, ahora
+  compartida), `/api/costos/ficha-resumen` devuelve `telas[]` con `metrosUnit`/`costoUnit` y pasó a
+  reusar `fichaDetalleSku` en vez de repetir su query, el editor muestra una fila por tela y el PDF
+  sumó **`$/prenda`** (la vieja `Costo` se llama ahora **`$ corte`**). 🔑 **El desglose CIERRA contra
+  el total o dice por qué no**: lo que no salió de un rollo (insumos secundarios del corte, redondeo)
+  aparece como *"Otros insumos del corte"* en vez de esconderse. Medido el 25-ago sobre 3 SKU reales
+  de dos telas: diferencia $0,00 en los tres. La tabla quedó en 9 columnas y **entra** (608px de 608
+  disponibles, y en impresión el texto es más chico).
+
+- **Editar un corte ya pagado (2026-08-25):** seis guards bloqueaban tocar un corte imputado y el
+  aviso aparecía **recién al guardar**. Con la cuenta corriente de hoy (todo lo cortado − todo lo
+  pagado) cambiar el monto es aritméticamente seguro: el saldo se mueve por la diferencia. **Lo único
+  que descuadra es cambiar de cortador** — la deuda se muda a otra cuenta y el pago se queda en la
+  primera. Entonces: el PATCH y el POST de ficha rechazan **sólo** el cambio de cortador (400),
+  `revertirCorteOrden` tomó un parámetro `permitirImputado` que **sólo** usa la edición (el revert
+  suelto sigue bloqueado: dejaría el corte en $0 con el pago restando ⇒ inventa saldo a favor), y
+  `asignar-cortador` y `carga-tizada` **no se tocaron**. El aviso va arriba del formulario con el
+  monto y la fecha del pago y link a la cuenta; el select de cortador queda deshabilitado con su
+  motivo. Traza en el modelo nuevo `EdicionCorte` (se escribe **sólo** si hay pago), visible en el
+  detalle de la OP y como chip *"editado después"* en el extracto del cortador.
+  ⚠️ **De paso se tapó un agujero que la edición habilitaba:** `CorteEditRapido` prellenaba la fecha
+  de corte con **hoy** cuando la ficha no la tenía guardada (las viejas no la tienen). Antes daba
+  igual porque no se podía guardar; ahora guardar le habría escrito la fecha de hoy a un corte de
+  junio — y la fecha del corte es por donde se ordena el extracto. Ahora va vacía y no se manda.
+  **Ejercido en vivo el 25-ago** sobre ZAT-REM-NG-001 (Fernando, imputado al pago del 25/06 por
+  $48.900): guardar sin cambiar plata dio 200 donde antes daba 400, el saldo quedó en **$0,00 antes y
+  después**, `fechaCorte` siguió en `null` y quedó la fila de traza; pedirle al server que le sacara
+  el cortador dio **400** con el mensaje correcto.
+
+- **Pasajes a la marca — «Zattia le compra a Areben» (2026-08-25):** lo que sale del stock terminado
+  del taller, para la marca es una **compra**, y su total **sin IVA** es lo que había que poder cargar
+  en `areben-dashboard` — información que hoy allá **no existe**. Modelos nuevos `Pasaje` /
+  `PasajeItem` + `MovimientoTerminado.pasajeId`. Pantalla `/costos/pasajes` (permiso `costos`): junta
+  las salidas con `origen='venta'` **todavía sin pasaje**, las agrupa por SKU+talle, las valoriza al
+  **costo del escandallo** y cierra el mes. Tres cosas que sostienen el número:
+  🔑 **el total es neto por construcción** (el escandallo se arma con precios netos: no hay ninguna
+  división por 1,21 en ningún lado) · 🔑 **el costo se congela en los ítems al cerrar** (un escandallo
+  que cambie después no mueve un pasaje ya cerrado) · 🔴 **`pasajeId` es el guard contra el doble
+  conteo**: el `UPDATE ... WHERE pasajeId IS NULL` hace que dos cierres simultáneos no puedan llevarse
+  el mismo movimiento. **Sin escandallo no hay total**: el SKU sin costear se lista como faltante y
+  **bloquea** el cierre. Un pasaje no se edita: se **anula** (suelta los movimientos) y se rehace.
+  El costo por SKU se extrajo a `lib/costos/costoSku.ts`, que estaba escrito en tres lados — ⚠️ y ahí
+  apareció una divergencia real: **Precios usa los márgenes GLOBALES y la lista/PDF los CONGELADOS en
+  el escandallo**; el helper la toma por parámetro para no cambiarle el número a Precios sin querer.
+  El pasaje usa los congelados, que es lo que corresponde a un documento.
 
 - **Descripción por foto en el moodboard (2026-08-03):** las fotos pasaron de `string[]` a
   `{ url, descripcion }[]` en `Idea.fotos`, `ProyectoDiseno.moodboard` y `Lanzamiento.fotos`.
