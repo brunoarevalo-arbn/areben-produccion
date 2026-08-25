@@ -117,6 +117,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     sub: [
       { label: 'Escandallos',           href: '/costos' },
       { label: 'Productos con estampa', href: '/costos/estampados' },
+      { label: 'Pasajes a la marca',    href: '/costos/pasajes' },
       { label: 'Parámetros de costo',   href: '/costos/parametros' },
       { label: 'Catálogos',             href: '/costos/catalogos' },
     ],

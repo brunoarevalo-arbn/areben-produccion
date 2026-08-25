@@ -3,7 +3,7 @@
 // del escandallo cuando el producto está vinculado (ReposicionMapeo → skuLiso).
 // Reusado por la API y el export.
 import { prisma } from '@/lib/prisma';
-import { calcular, parseDatos } from '@/lib/costos/escandallo';
+import { costoPorSku } from '@/lib/costos/costoSku';
 import { calcularCostoMinuto } from '@/lib/costoMinuto';
 import { calcularMargen } from '@/lib/costos/precios';
 
@@ -45,29 +45,20 @@ export async function construirFilasPrecios(): Promise<PreciosResult> {
   const mapeoPorId = new Map(mapeos.map((m) => [m.gnId, m]));
   const skus = [...new Set(mapeos.map((m) => m.skuLiso).filter(Boolean))];
 
-  const [escandallos, overrides] = await Promise.all([
-    prisma.escandallo.findMany({ where: { sku: { in: skus } }, orderBy: { updatedAt: 'desc' } }),
+  const margenes = { margenDesarrollo: cfg.margenDesarrollo, margenFallas: cfg.margenFallas };
+  const [costos, overrides] = await Promise.all([
+    // Precios mira el costo contra el PVP de hoy ⇒ márgenes globales, no los congelados.
+    costoPorSku(skus, 'config', { costoMinuto, margenesConfig: margenes }),
     prisma.precioProducto.findMany(),
   ]);
 
   const overridePorId = new Map(overrides.map((o) => [o.gnId, o]));
-  const margenes = { margenDesarrollo: cfg.margenDesarrollo, margenFallas: cfg.margenFallas };
-
-  // Costo por SKU (el más reciente si hay varios escandallos con el mismo sku).
-  const costoPorSku = new Map<string, number>();
-  for (const e of escandallos) {
-    if (!e.sku) continue;
-    if (costoPorSku.has(e.sku)) continue; // findMany viene por updatedAt desc en la práctica; primero gana
-    try {
-      costoPorSku.set(e.sku, calcular(parseDatos(e.datos), costoMinuto, margenes).costoTotal);
-    } catch { /* escandallo con datos inválidos: sin costo */ }
-  }
 
   const filas: FilaPrecio[] = [];
   for (const p of productos) {
     const m = mapeoPorId.get(p.gnId);                   // vinculación (opcional)
     const ov = overridePorId.get(p.gnId);
-    const costoAuto = m?.skuLiso ? costoPorSku.get(m.skuLiso) ?? null : null;
+    const costoAuto = m?.skuLiso ? costos.get(m.skuLiso) ?? null : null;
     const costoManual = ov?.costoManual ?? null;
     const costoNeto = costoManual ?? costoAuto;
     const pvpGN = p.precioRetail ?? null;
