@@ -81,7 +81,10 @@ export interface CortePrefill {
   fichaData?: FichaData;
 }
 
-export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, prefill, volverA }: { ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; prefill?: CortePrefill; volverA?: string }) {
+// `cortadorBloqueado`: el corte está imputado a un pago. Cambiar de cortador mudaría la
+// deuda a otra cuenta dejando el pago en la primera, así que el server lo rechaza; acá se
+// deshabilita para que no se descubra al guardar.
+export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, prefill, volverA, cortadorBloqueado = false }: { ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null; prefill?: CortePrefill; volverA?: string; cortadorBloqueado?: boolean }) {
   const router = useRouter();
   const fd = prefill?.fichaData;
   const [rollosDisp, setRollosDisp] = useState<RolloDisp[]>([]);
@@ -571,10 +574,11 @@ export function RegistrarCorteForm({ ordenId, sku, cantidadPlanificada, marca, p
         <div className="grid grid-cols-3 gap-4">
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cortador</label>
-            <select value={cortadorId} onChange={(e) => onCortadorChange(e.target.value)} className={inp}>
+            <select value={cortadorId} onChange={(e) => onCortadorChange(e.target.value)} className={inp} disabled={cortadorBloqueado}>
               <option value="">-- Seleccionar --</option>
               {cortadores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
             </select>
+            {cortadorBloqueado && <p className="text-xs text-amber-700 mt-1">Bloqueado: el corte está imputado a un pago.</p>}
           </div>
           <div>
             <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Fecha de corte</label>

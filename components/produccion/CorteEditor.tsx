@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { RegistrarCorteForm, type CortePrefill, type FichaData } from './RegistrarCorteForm';
 import { CorteEditRapido } from './CorteEditRapido';
 import { CorteRevertir } from './CorteRevertir';
+import { PagoImputadoAviso, type PagoImputado } from './PagoImputadoAviso';
 
 const fmt = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
@@ -25,20 +26,22 @@ const fmtFecha = (iso: string) => new Date(`${iso}T12:00:00Z`).toLocaleDateStrin
 // editarla en el lugar. "Editar" abre el mismo formulario pre-cargado; al Guardar, el
 // backend repone y re-registra en una sola transacción (impacto neto = la diferencia).
 // Nada se toca hasta guardar.
-export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen, fichaData, consumidoPorRollo, prefill }: {
+export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen, fichaData, consumidoPorRollo, prefill, pago, volverA }: {
   ordenId: string; sku: string; cantidadPlanificada: number; marca: string | null;
   resumen: Resumen; fichaData: FichaData | null; consumidoPorRollo?: Record<string, number>; prefill: CortePrefill;
+  pago?: PagoImputado | null; volverA?: string;
 }) {
   const [modo, setModo] = useState<'ver' | 'rapido' | 'completo'>('ver');
 
   if (modo === 'completo') {
     return (
       <div className="space-y-3">
+        {pago && <PagoImputadoAviso pago={pago} />}
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5 text-sm text-amber-800">
           Editando la <strong>tela</strong> de la ficha. Ajustá y <strong>Guardá</strong> — recién ahí se aplican los cambios a los rollos.
           <button onClick={() => setModo('ver')} className="underline font-semibold ml-2">Cancelar</button>
         </div>
-        <RegistrarCorteForm ordenId={ordenId} sku={sku} cantidadPlanificada={cantidadPlanificada} marca={marca} prefill={prefill} />
+        <RegistrarCorteForm ordenId={ordenId} sku={sku} cantidadPlanificada={cantidadPlanificada} marca={marca} prefill={prefill} volverA={volverA} cortadorBloqueado={!!pago} />
       </div>
     );
   }
@@ -48,6 +51,7 @@ export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen,
       <CorteEditRapido
         ordenId={ordenId}
         marca={marca}
+        pago={pago}
         onCancel={() => setModo('ver')}
         inicial={{
           cortadorId: fichaData?.cortadorId ?? prefill.cortadorId ?? null,
@@ -63,6 +67,7 @@ export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen,
 
   return (
     <>
+      {pago && <div className="mb-4"><PagoImputadoAviso pago={pago} /></div>}
       <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-6 mb-6 space-y-4">
         <h3 className="text-sm font-bold text-emerald-800">Corte registrado</h3>
 
@@ -146,7 +151,7 @@ export function CorteEditor({ ordenId, sku, cantidadPlanificada, marca, resumen,
           Editar ficha (tela)
         </button>
         <CorteRevertir ordenId={ordenId} />
-        <Link href={`/produccion/${ordenId}`} className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
+        <Link href={volverA || `/produccion/${ordenId}`} className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
           Volver al detalle
         </Link>
       </div>

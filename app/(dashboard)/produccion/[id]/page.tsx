@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/Card';
 import { resumenConsumoTela } from '@/lib/produccion/consumo';
 import { AsignarCortador } from '@/components/produccion/AsignarCortador';
 import { CargaTizadaBtn } from '@/components/produccion/CargaTizadaBtn';
+import { volverASeguro } from '@/lib/volverA';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,15 +23,19 @@ const ESTADO_BADGE: Record<string, 'success' | 'warning' | 'default' | 'amber' |
 
 const fmt = (n: unknown) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
-export default async function OrdenDetallePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrdenDetallePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ volverA?: string }> }) {
   const { id } = await params;
+  // De dónde se vino (la cola con su filtro y su búsqueda). Sin esto, el Atrás del
+  // navegador era la única salida y la cola volvía a "Activos".
+  const volver = volverASeguro((await searchParams).volverA, '/produccion');
 
   const orden = await prisma.ordenProduccion.findUnique({
     where: { id },
     include: {
       transiciones: { orderBy: { fecha: 'desc' } },
       cortesPorTalle: { orderBy: { talle: 'asc' } },
-      pagoCorte: { select: { id: true, fecha: true, beneficiario: true, montoTotal: true } },
+      pagoCorte: { select: { id: true, fecha: true, beneficiario: true, montoTotal: true, cortadorId: true } },
+      edicionesCorte: { orderBy: { createdAt: 'desc' } },
       movimientosInsumo: {
         include: {
           rollo: { select: { codigo: true, insumo: { select: { nombre: true, unidadDefault: true, rinde: true } }, color: { select: { nombre: true } } } },
@@ -52,8 +57,14 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
   const metrosPorU = totalCortado > 0 ? metrosTotal / totalCortado : 0;
   const kgPorU = totalCortado > 0 ? kgTotal / totalCortado : 0;
 
+  // Las sub-pantallas (ficha, corte) vuelven ACÁ, y esta página ya sabe volver a la cola:
+  // el `volverA` se anida en vez de saltearse un escalón.
+  const aquiConVuelta = `/produccion/${orden.id}?volverA=${encodeURIComponent(volver)}`;
+  const qs = `?volverA=${encodeURIComponent(aquiConVuelta)}`;
+
   return (
     <div className="p-8 max-w-4xl">
+      <Link href={volver} className="text-sm text-stone-500 hover:text-stone-800 transition">← Volver</Link>
       <PageHeader
         eyebrow="Producción / Orden"
         title={orden.sku ?? 'S/SKU'}
@@ -108,11 +119,11 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
           </Link>
         ) : (
           <>
-            <Link href={`/produccion/${orden.id}/ficha`}
+            <Link href={`/produccion/${orden.id}/ficha${qs}`}
               className="bg-stone-900 hover:bg-stone-800 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">
               📋 Ver ficha de corte
             </Link>
-            <Link href={`/produccion/${orden.id}/corte`}
+            <Link href={`/produccion/${orden.id}/corte${qs}`}
               className="px-4 py-2.5 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">
               Editar
             </Link>
@@ -135,6 +146,31 @@ export default async function OrdenDetallePage({ params }: { params: Promise<{ i
               <span className="opacity-70 mr-2">Total</span>
               <strong className="text-lg tabular-nums">{orden.cortesPorTalle.reduce((s, c) => s + c.cantidad, 0)}</strong>
             </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Ediciones del corte con el pago ya imputado. Solo se escriben en ese caso: editar un
+          corte sin pagar no necesita explicación, editarlo con pago mueve el saldo del cortador. */}
+      {orden.edicionesCorte.length > 0 && (
+        <Card padding="none" className="p-6 mb-6">
+          <h3 className="text-sm font-bold text-stone-800 mb-1">Ediciones con el pago imputado</h3>
+          <p className="text-xs text-stone-400 mb-3">
+            Cada edición mueve el saldo del cortador por la diferencia; el pago nunca se toca.
+            {orden.pagoCorte?.cortadorId && (
+              <> <Link href={`/produccion/cuenta-cortadores/${orden.pagoCorte.cortadorId}`} className="text-amber-600 hover:underline">Ver la cuenta</Link></>
+            )}
+          </p>
+          <div className="space-y-2">
+            {orden.edicionesCorte.map((e) => (
+              <div key={e.id} className="flex items-baseline gap-3 text-sm">
+                <span className="text-xs text-stone-400 whitespace-nowrap w-36">
+                  {new Date(e.createdAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <span className="text-stone-700">{e.detalle}</span>
+                <span className="text-xs text-stone-400 ml-auto whitespace-nowrap">{e.usuario}</span>
+              </div>
+            ))}
           </div>
         </Card>
       )}

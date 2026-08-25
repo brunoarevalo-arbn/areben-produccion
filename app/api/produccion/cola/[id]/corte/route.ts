@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession, requirePermiso } from '@/lib/auth';
 import { RegistrarCorteSchema } from '@/lib/validators/produccion';
-import { registrarCorteOrden, revertirCorteOrden, CorteError } from '@/lib/produccion/corte';
+import { registrarCorteOrden, revertirCorteOrden, trazarEdicion, CorteError } from '@/lib/produccion/corte';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 
@@ -54,14 +54,29 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
   }
 
+  // Un corte imputado a un pago SE PUEDE editar: con la cuenta corriente el saldo se mueve
+  // por la diferencia. Lo único que descuadra es cambiar de cortador — la deuda se muda a
+  // otra cuenta y el pago se queda en la primera — así que eso sigue pidiendo anular el pago.
+  const previo = await prisma.ordenProduccion.findUnique({
+    where: { id },
+    select: { pagoCorteId: true, cortadorId: true, costoCorte: true, cantidad: true },
+  });
+  if (!previo) return NextResponse.json({ error: 'OP no encontrada' }, { status: 404 });
+  if (previo.pagoCorteId && (parsed.data.cortadorId ?? null) !== previo.cortadorId) {
+    return NextResponse.json({ error: 'Este corte está imputado a un pago: no se puede cambiar de cortador sin anular el pago en Cuenta de cortadores.' }, { status: 400 });
+  }
+
   try {
     // Si la ficha ya estaba cargada, es una EDICIÓN: revierte y re-registra en la misma
     // transacción (el impacto neto en rollos es la diferencia). Nada se toca si algo falla.
     const result = await prisma.$transaction(async (tx) => {
       // permitirTerminada: editar la ficha (incl. tela) aun con costura terminada.
       // Solo cambia consumo de rollos; el stock de prendas terminadas no se toca.
-      await revertirCorteOrden(tx, id, session, true);
-      return registrarCorteOrden(tx, id, parsed.data, session);
+      // permitirImputado: el revert intermedio no se ve desde afuera (misma transacción).
+      await revertirCorteOrden(tx, id, session, true, !!previo.pagoCorteId);
+      const orden = await registrarCorteOrden(tx, id, parsed.data, session);
+      if (previo.pagoCorteId) await trazarEdicion(tx, id, previo, orden, session.nombre);
+      return orden;
     }, { timeout: 30000, maxWait: 15000 });
     return NextResponse.json(result, { status: 201 });
   } catch (e) {
@@ -83,10 +98,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const orden = await prisma.ordenProduccion.findUnique({ where: { id } });
   if (!orden) return NextResponse.json({ error: 'OP no encontrada' }, { status: 404 });
   if (!orden.fichaCorteCargada) return NextResponse.json({ error: 'La ficha todavía no está cargada' }, { status: 400 });
-  // Esta edición reescribe `costoCorte` y `cortadorId`: con la cuenta corriente eso mueve
-  // el saldo en silencio, y cambiar el cortador MUEVE la deuda a otra cuenta dejando el
-  // pago en la primera — descuadre en dos cuentas de un saque.
-  if (orden.pagoCorteId) return NextResponse.json({ error: 'Este corte está imputado a un pago: anulá el pago en Cuenta de cortadores antes de editarlo.' }, { status: 400 });
+  // Esta edición reescribe `costoCorte` y `cortadorId`. Con la cuenta corriente, cambiar el
+  // costo es seguro (el saldo se mueve por la diferencia y queda la traza de EdicionCorte);
+  // cambiar el CORTADOR no lo es: mueve la deuda a otra cuenta y deja el pago en la primera.
+  if (orden.pagoCorteId && (cortadorId ?? null) !== orden.cortadorId) {
+    return NextResponse.json({ error: 'Este corte está imputado a un pago: no se puede cambiar de cortador sin anular el pago en Cuenta de cortadores.' }, { status: 400 });
+  }
 
   const cortador = cortadorId ? await prisma.cortador.findUnique({ where: { id: cortadorId } }) : null;
   if (cortadorId && !cortador) return NextResponse.json({ error: 'Cortador no encontrado' }, { status: 400 });
@@ -131,6 +148,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         ...(notas?.trim() ? { notas: (orden.notas ? orden.notas + '\n' : '') + `[Corte] ${notas.trim()}` } : {}),
       },
     });
+    if (orden.pagoCorteId) {
+      await trazarEdicion(tx, id, orden, { costoCorte: costoCorteTotal, cantidad }, session.nombre);
+    }
   });
 
   return NextResponse.json({ ok: true });

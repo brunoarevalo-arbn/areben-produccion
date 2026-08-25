@@ -125,6 +125,11 @@ export interface Movimiento {
   imputadoEl: Date | null;
   /** Sólo en pagos: cuántos ítems vincula. */
   nItems: number;
+  /**
+   * Sólo en cortes: el corte se editó DESPUÉS de quedar imputado. El "pagado dd/mm" sigue
+   * siendo cierto, pero el importe de esta fila puede no ser el que se pagó ese día.
+   */
+  editadoDespues?: boolean;
   saldo: number;
 }
 
@@ -136,7 +141,7 @@ export async function movimientosDe(cortadorId: string): Promise<Movimiento[]> {
   const [cortes, muestras, pagos] = await Promise.all([
     prisma.ordenProduccion.findMany({
       where: { cortadorId, ...CORTE_COBRABLE },
-      select: { id: true, sku: true, descripcion: true, costoCorte: true, fechaCorte: true, createdAt: true, pagoCorte: { select: { fecha: true } } },
+      select: { id: true, sku: true, descripcion: true, costoCorte: true, fechaCorte: true, createdAt: true, pagoCorte: { select: { fecha: true } }, _count: { select: { edicionesCorte: true } } },
     }),
     prisma.corteMuestra.findMany({
       where: { cortadorId, ...MUESTRA_COBRABLE },
@@ -155,6 +160,7 @@ export async function movimientosDe(cortadorId: string): Promise<Movimiento[]> {
       tipo: 'corte' as const, id: c.id, fecha: c.fechaCorte ?? c.createdAt,
       concepto: c.sku ?? 'S/SKU', detalle: c.descripcion, debe: num(c.costoCorte), haber: 0,
       imputadoEl: c.pagoCorte?.fecha ?? null, nItems: 0, saldo: 0, orden: c.createdAt.getTime(),
+      editadoDespues: c._count.edicionesCorte > 0,
     })),
     ...muestras.map((m) => ({
       tipo: 'muestra' as const, id: m.id, fecha: m.fecha,

@@ -17,6 +17,8 @@ export default async function CortePage({ params, searchParams }: { params: Prom
     include: {
       cortesPorTalle: { orderBy: { talle: 'asc' } },
       avios: { select: { etiquetaId: true, cantidad: true } },
+      // Si el corte está imputado, el aviso va ANTES del formulario (no al guardar).
+      pagoCorte: { select: { id: true, fecha: true, montoTotal: true, cortadorId: true, cortador: { select: { nombre: true } } } },
       movimientosInsumo: {
         where: { rolloId: { not: null } },
         include: { rollo: { select: { insumo: { select: { unidadDefault: true, rinde: true } } } } },
@@ -75,6 +77,14 @@ export default async function CortePage({ params, searchParams }: { params: Prom
             talles: orden.cortesPorTalle.map((c) => ({ talle: c.talle, cantidad: c.cantidad })),
           }}
           fichaData={fichaData}
+          volverA={volverA}
+          pago={orden.pagoCorte ? {
+            id: orden.pagoCorte.id,
+            fecha: orden.pagoCorte.fecha.toISOString(),
+            monto: Number(orden.pagoCorte.montoTotal),
+            cortador: orden.pagoCorte.cortador?.nombre ?? orden.cortador,
+            cortadorId: orden.pagoCorte.cortadorId ?? orden.cortadorId,
+          } : null}
           consumidoPorRollo={consumidoPorRollo}
           prefill={fichaData
             ? { fichaData }

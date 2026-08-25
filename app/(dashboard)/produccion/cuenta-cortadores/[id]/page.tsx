@@ -88,6 +88,7 @@ export default async function CuentaCortadorPage({ params }: { params: Promise<{
                         {m.tipo === 'pago' && <span className="text-xs font-semibold text-emerald-700">Pago</span>}
                         <span className="text-xs text-stone-400 truncate max-w-[18rem]">{m.detalle ?? (m.tipo === 'corte' ? 'corte' : '')}</span>
                         {m.imputadoEl && <span className="text-[10px] text-stone-400 border border-stone-200 rounded px-1.5 py-0.5">pagado {fechaCorta(m.imputadoEl)}</span>}
+                        {m.editadoDespues && <span title="El corte se editó después de quedar imputado: el importe puede no ser el que se pagó ese día." className="text-[10px] text-amber-700 border border-amber-200 bg-amber-50 rounded px-1.5 py-0.5">editado después</span>}
                         {m.tipo === 'pago' && m.nItems > 0 && <span className="text-[10px] text-stone-400 border border-stone-200 rounded px-1.5 py-0.5">{m.nItems} ítem(s)</span>}
                       </span>
                     </td>

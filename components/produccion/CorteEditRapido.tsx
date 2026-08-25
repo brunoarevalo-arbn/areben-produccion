@@ -8,6 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { AviosSelector, type AvioOpt, type AvioSel } from '@/components/produccion/AviosSelector';
 import { TALLES_DEFAULT, TALLES_COMUNES } from '@/lib/validators/produccion';
 import { toast } from '@/components/ui/Toaster';
+import { PagoImputadoAviso, type PagoImputado } from '@/components/produccion/PagoImputadoAviso';
 
 interface CortadorOpt { id: string; nombre: string; activo: boolean; }
 
@@ -22,12 +23,10 @@ export interface EdicionRapidaInicial {
   fechaCorte?: string | null;
 }
 
-const hoyISO = () => new Date().toLocaleDateString('en-CA');
-
 // Edición rápida de la ficha: campos que NO mueven stock (cortador, costo de corte,
 // talles, avíos, notas). Guarda directo sin revertir.
-export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
-  ordenId: string; marca: string | null; inicial: EdicionRapidaInicial; onCancel: () => void;
+export function CorteEditRapido({ ordenId, marca, inicial, onCancel, pago }: {
+  ordenId: string; marca: string | null; inicial: EdicionRapidaInicial; onCancel: () => void; pago?: PagoImputado | null;
 }) {
   const router = useRouter();
   const [cortadores, setCortadores] = useState<CortadorOpt[]>([]);
@@ -38,7 +37,11 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
   const [talles, setTalles] = useState<Record<string, string>>(() => Object.fromEntries(inicial.talles.map((t) => [t.talle, String(t.cantidad)])));
   const [aviosSel, setAviosSel] = useState<AvioSel[]>(() => inicial.avios.map((a) => ({ etiquetaId: a.etiquetaId, cantidad: String(a.cantidad) })));
   const [notas, setNotas] = useState('');
-  const [fechaCorte, setFechaCorte] = useState<string>(inicial.fechaCorte || hoyISO());
+  // Vacío, NO "hoy": esto es una EDICIÓN de una ficha que ya existe. Si la ficha no tiene
+  // fecha guardada (las viejas no la tienen), prellenar con hoy la inventa, y al guardar le
+  // escribiría la fecha de hoy a un corte de hace meses — que es por dónde se ordena el
+  // extracto del cortador. Vacío ⇒ el body no la manda y el server la deja como estaba.
+  const [fechaCorte, setFechaCorte] = useState<string>(inicial.fechaCorte || '');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -78,6 +81,7 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
 
   return (
     <div className="space-y-4">
+      {pago && <PagoImputadoAviso pago={pago} />}
       <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-sm text-blue-900">
         Edición rápida: no toca la tela ni los rollos. Para cambiar tela/rollos/tizadas usá <strong>Editar ficha (tela)</strong>.
       </div>
@@ -86,10 +90,12 @@ export function CorteEditRapido({ ordenId, marca, inicial, onCancel }: {
       <Card padding="none" className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Cortador</label>
-          <select value={cortadorId} onChange={(e) => onCortador(e.target.value)} className={inp}>
+          <select value={cortadorId} onChange={(e) => onCortador(e.target.value)} className={inp}
+            disabled={!!pago} aria-describedby={pago ? 'cortador-bloqueado' : undefined}>
             <option value="">— Sin cortador —</option>
             {cortadores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
+          {pago && <p id="cortador-bloqueado" className="text-xs text-amber-700 mt-1">Bloqueado: el corte está imputado a un pago.</p>}
         </div>
         <div>
           <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Fecha de corte</label>

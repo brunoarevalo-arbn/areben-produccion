@@ -181,6 +181,11 @@ export async function revertirCorteOrden(
   // Por eso permite terminada. El "revertir" suelto sí queda bloqueado (dejaría la orden
   // terminada sin ficha).
   permitirTerminada = false,
+  // La edición de ficha de un corte YA IMPUTADO a un pago también es segura: el revert y
+  // el re-registro corren en la MISMA transacción, así que el `costoCorte = 0` y el
+  // `cortadorId = null` intermedios nunca se ven desde afuera, y con la cuenta corriente
+  // el saldo se mueve por la diferencia. El "revertir" suelto sigue bloqueado (ver abajo).
+  permitirImputado = false,
 ) {
   const orden = await tx.ordenProduccion.findUnique({
     where: { id: ordenId },
@@ -193,10 +198,10 @@ export async function revertirCorteOrden(
   if (!orden) throw new CorteError('OP no encontrada');
   if (!orden.fichaCorteCargada) return;
   if (orden.terminadoAt && !permitirTerminada) throw new CorteError('La orden ya está terminada. Retrocedela a Costura antes de editar o revertir la ficha.');
-  // Revertir pone `costoCorte` en 0 y suelta el cortador: eso es DEUDA en la cuenta
-  // corriente, y el pago que la cubría quedaría parado, inventando saldo a favor. Vale
-  // también para la edición de ficha, que reescribe el costo.
-  if (orden.pagoCorteId) throw new CorteError('Este corte está imputado a un pago: anulá el pago en Cuenta de cortadores antes de tocar la ficha.');
+  // Revertir DE VERDAD pone `costoCorte` en 0 y suelta el cortador: eso saca la deuda de
+  // la cuenta corriente mientras el pago que la cubría sigue restando ⇒ inventa saldo a
+  // favor. Por eso el revert suelto sigue bloqueado cuando hay pago imputado.
+  if (orden.pagoCorteId && !permitirImputado) throw new CorteError('Este corte está imputado a un pago: anulá el pago en Cuenta de cortadores antes de revertir la ficha.');
 
   // Neto por rollo / lote (con signo). El consumo pendiente a reponer = −neto.
   const netRollo = new Map<string, Prisma.Decimal>();
@@ -233,5 +238,30 @@ export async function revertirCorteOrden(
       costoSublimacion: new Prisma.Decimal(0), metrosSublimados: new Prisma.Decimal(0),
       costoTotal: new Prisma.Decimal(0),
     },
+  });
+}
+
+// ─── Traza de edición de un corte imputado ────────────────────────────────────
+// Editar un corte pagado mueve el saldo del cortador por la diferencia. El extracto sigue
+// diciendo "imputado el dd/mm", así que sin esta fila no queda registro de contra qué
+// importe se pagó realmente. Solo se escribe cuando HAY pago: editar un corte sin imputar
+// no necesita explicación.
+type ValorCorte = { costoCorte: unknown; cantidad: number };
+
+export async function trazarEdicion(
+  tx: Prisma.TransactionClient,
+  ordenId: string,
+  antes: ValorCorte & { pagoCorteId: string | null },
+  despues: ValorCorte,
+  usuario: string,
+) {
+  const $ = (v: unknown) => `$${Number(v).toLocaleString('es-AR', { maximumFractionDigits: 2 })}`;
+  const partes: string[] = [];
+  if (Number(antes.costoCorte) !== Number(despues.costoCorte)) partes.push(`costo ${$(antes.costoCorte)} → ${$(despues.costoCorte)}`);
+  if (antes.cantidad !== despues.cantidad) partes.push(`cantidad ${antes.cantidad} → ${despues.cantidad}`);
+  // Sin cambios en plata ni en unidades no hay nada que explicar (se tocaron talles o notas).
+  if (partes.length === 0) partes.push('se editó la ficha sin cambiar el costo ni la cantidad');
+  await tx.edicionCorte.create({
+    data: { ordenId, pagoCorteId: antes.pagoCorteId, detalle: partes.join(' · '), usuario },
   });
 }
