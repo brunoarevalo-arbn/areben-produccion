@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParamState } from '@/lib/hooks/useParamState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Card } from '@/components/ui/Card';
 
@@ -33,7 +34,8 @@ function fechaFmt(iso: string) {
 export function MovimientosClient() {
   const [movimientos, setMovimientos] = useState<Movimiento[]>([]);
   const [loading, setLoading]         = useState(true);
-  const [filtroTipo, setFiltroTipo]   = useState('');
+  // En la URL: el filtro dispara el fetch, así que al volver se recargaba todo sin filtrar.
+  const [filtroTipo, setFiltroTipo]   = useParamState('tipo', '');
 
   useEffect(() => {
     const params = filtroTipo ? `?tipo=${filtroTipo}` : '';

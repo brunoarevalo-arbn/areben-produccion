@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useParamBool, useVolverA } from '@/lib/hooks/useParamState';
 import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
@@ -29,7 +30,8 @@ export function QueEstamparClient() {
   const [modo, setModo] = useState<Modo>('');
   const [estamparEdit, setEstamparEdit] = useState<Record<string, string>>({});
   const [generando, setGenerando] = useState(false);
-  const [soloFaltantes, setSoloFaltantes] = useState(false);
+  const [soloFaltantes, setSoloFaltantes] = useParamBool('faltantes');
+  const volverA = useVolverA();
 
   const cargar = useCallback(async () => {
     const r = await fetch('/api/reposicion/reporte');
@@ -227,7 +229,7 @@ export function QueEstamparClient() {
         <p className="text-sm text-stone-400">Cargando…</p>
       ) : !reporte || (reporte.lisos.length === 0 && reporte.produccion.length === 0) ? (
         <Card padding="none" className="p-8 text-center text-sm text-stone-400">
-          No hay productos vinculados. Andá a <Link href="/reposicion/vincular" className="text-amber-600 font-semibold">Vinculación</Link> para asociar tus productos de Gestión Nube.
+          No hay productos vinculados. Andá a <Link href={`/reposicion/vincular?volverA=${encodeURIComponent(volverA)}`} className="text-amber-600 font-semibold">Vinculación</Link> para asociar tus productos de Gestión Nube.
         </Card>
       ) : (
         <>

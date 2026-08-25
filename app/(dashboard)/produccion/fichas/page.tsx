@@ -1,4 +1,6 @@
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { FichasCorteClient } from '@/components/produccion/FichasCorteClient';
 
@@ -20,7 +22,10 @@ export default async function FichasPage() {
         title="Fichas de corte"
         subtitle="Buscá cualquier SKU y ver o cargar su ficha. Filtrá por con/sin ficha."
       />
-      <FichasCorteClient ordenes={ordenes} />
+      {/* Búsqueda y filtro en la query (useSearchParams) → Suspense obligatorio. */}
+      <Suspense fallback={<LoadingState />}>
+        <FichasCorteClient ordenes={ordenes} />
+      </Suspense>
     </div>
   );
 }

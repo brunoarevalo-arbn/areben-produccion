@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useParamBool, useVolverA } from '@/lib/hooks/useParamState';
 import { useRouter } from 'next/navigation';
 import { KANBAN_COLUMNAS, ESTADO_LABEL, type EstadoProyecto } from '@/lib/diseno/estado';
 import { Button } from '@/components/ui/Button';
@@ -32,7 +33,8 @@ const COLUMNA_COLOR: Record<EstadoProyecto, { header: string; body: string }> = 
 };
 
 export function KanbanDiseno({ proyectos }: { proyectos: ProyectoItem[] }) {
-  const [mostrarArchivados, setMostrarArchivados] = useState(false);
+  // En la URL: al volver de un proyecto la columna de archivados se cerraba sola.
+  const [mostrarArchivados, setMostrarArchivados] = useParamBool('archivados');
   const [showNuevo,         setShowNuevo]         = useState(false);
 
   const activos     = proyectos.filter((p) => !p.archivado);
@@ -42,7 +44,7 @@ export function KanbanDiseno({ proyectos }: { proyectos: ProyectoItem[] }) {
     <div>
       <div className="flex items-center justify-between mb-3">
         <Button onClick={() => setShowNuevo(true)}>+ Nuevo proyecto</Button>
-        <button onClick={() => setMostrarArchivados((v) => !v)}
+        <button onClick={() => setMostrarArchivados(!mostrarArchivados)}
           className="text-xs text-stone-500 hover:text-stone-800 transition">
           {mostrarArchivados ? 'Ocultar archivados' : `Mostrar archivados (${archivados.length})`}
         </button>
@@ -84,6 +86,7 @@ export function KanbanDiseno({ proyectos }: { proyectos: ProyectoItem[] }) {
 }
 
 function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
+  const volverA = useVolverA();
   const router = useRouter();
   const [over, setOver] = useState(false);
   const [subiendo, setSubiendo] = useState(false);
@@ -94,7 +97,7 @@ function ProyectoCard({ proyecto }: { proyecto: ProyectoItem }) {
   const moodArr = parseFotos(proyecto.moodboard);
   const fotoPreview = moodArr[0] ?? null;
 
-  const ir = () => router.push(`/diseno/${proyecto.id}`);
+  const ir = () => router.push(`/diseno/${proyecto.id}?volverA=${encodeURIComponent(volverA)}`);
 
   // Subir una imagen y agregarla al moodboard del proyecto.
   const agregarFoto = async (file?: File | null) => {

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useParamState, useParamTexto, useVolverA } from '@/lib/hooks/useParamState';
 import Link from 'next/link';
 import { Card } from '@/components/ui/Card';
 import { SkuChip } from '@/components/ui/SkuChip';
@@ -20,8 +21,11 @@ const inp = 'px-3 py-2 border border-stone-200 rounded-xl text-sm focus:outline-
 const norm = (s: string) => s.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 export function FichasCorteClient({ ordenes }: { ordenes: Orden[] }) {
-  const [q, setQ] = useState('');
-  const [filtro, setFiltro] = useState<'todas' | 'sin' | 'con'>('todas');
+  // Búsqueda y filtro en la URL: se entra a una OP desde acá todo el tiempo y al volver
+  // la lista arrancaba vacía y en "Todas".
+  const [q, setQ] = useParamTexto('q');
+  const [filtro, setFiltro] = useParamState<'todas' | 'sin' | 'con'>('filtro', 'todas');
+  const volverA = useVolverA();
 
   const sinFicha = ordenes.filter((o) => !o.fichaCorteCargada).length;
 
@@ -60,7 +64,7 @@ export function FichasCorteClient({ ordenes }: { ordenes: Orden[] }) {
         <Card padding="none" className="divide-y divide-stone-100">
           {lista.map((o) => (
             <div key={o.id} className="flex items-center gap-3 px-5 py-3">
-              <Link href={`/produccion/${o.id}`} className="flex-1 min-w-0 group">
+              <Link href={`/produccion/${o.id}?volverA=${encodeURIComponent(volverA)}`} className="flex-1 min-w-0 group">
                 <div className="flex items-center gap-2 flex-wrap">
                   {o.sku
                     ? <SkuChip sku={o.sku} className="text-stone-700 group-hover:bg-stone-200" />
@@ -72,9 +76,9 @@ export function FichasCorteClient({ ordenes }: { ordenes: Orden[] }) {
               </Link>
               <span className="text-xs text-stone-400 tabular-nums shrink-0">{o.cantidad} u</span>
               {o.fichaCorteCargada ? (
-                <Link href={`/produccion/${o.id}/ficha`} className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-semibold transition">📋 Ver ficha</Link>
+                <Link href={`/produccion/${o.id}/ficha?volverA=${encodeURIComponent(volverA)}`} className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-stone-900 hover:bg-stone-800 text-white font-semibold transition">📋 Ver ficha</Link>
               ) : (
-                <Link href={`/produccion/${o.id}/corte`} className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">Cargar ficha</Link>
+                <Link href={`/produccion/${o.id}/corte?volverA=${encodeURIComponent(volverA)}`} className="shrink-0 text-xs px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-semibold transition">Cargar ficha</Link>
               )}
             </div>
           ))}

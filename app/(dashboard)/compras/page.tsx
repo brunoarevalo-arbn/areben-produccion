@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { ComprasUnificadasClient } from '@/components/compras/ComprasUnificadasClient';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,7 +26,10 @@ export default function ComprasPage() {
           </div>
         }
       />
-      <ComprasUnificadasClient />
+      {/* El filtro va en la query (useSearchParams) → Suspense obligatorio. */}
+      <Suspense fallback={<LoadingState />}>
+        <ComprasUnificadasClient />
+      </Suspense>
     </div>
   );
 }

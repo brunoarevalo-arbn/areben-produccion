@@ -2,11 +2,13 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { calcularEstado } from '@/lib/diseno/estado';
 import { ProyectoView } from '@/components/diseno/ProyectoView';
+import { volverASeguro } from '@/lib/volverA';
 
 export const dynamic = 'force-dynamic';
 
-export default async function ProyectoPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function ProyectoPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ volverA?: string }> }) {
   const { id } = await params;
+  const volver = volverASeguro((await searchParams).volverA, '/diseno');
   const [proyecto, catalogoFases] = await Promise.all([
     prisma.proyectoDiseno.findUnique({
       where: { id },
@@ -24,6 +26,7 @@ export default async function ProyectoPage({ params }: { params: Promise<{ id: s
 
   return (
     <ProyectoView
+      volver={volver}
       proyecto={{
         id:          proyecto.id,
         nombre:      proyecto.nombre,

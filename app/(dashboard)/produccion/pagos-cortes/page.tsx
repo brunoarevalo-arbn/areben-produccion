@@ -1,3 +1,5 @@
+import { Suspense } from 'react';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { PagosCortesClient } from '@/components/produccion/PagosCortesClient';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { prisma } from '@/lib/prisma';
@@ -23,7 +25,10 @@ export default async function PagosCortesPage() {
         title="Pagos de cortes"
         subtitle="Registrá pagos a cortadores. Tildar cortes deja la traza de qué cubre el pago; el saldo lo mueve el monto."
       />
-      <PagosCortesClient saldos={saldos} />
+      {/* Filtros en la query (useSearchParams) → Suspense obligatorio. */}
+      <Suspense fallback={<LoadingState />}>
+        <PagosCortesClient saldos={saldos} />
+      </Suspense>
     </div>
   );
 }

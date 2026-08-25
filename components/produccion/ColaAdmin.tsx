@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useParamState, useParamTexto, useParamSet, useVolverA } from '@/lib/hooks/useParamState';
 import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
 import { Button } from '@/components/ui/Button';
@@ -100,8 +101,10 @@ const GRID = 'grid grid-cols-[auto_1fr_auto_auto_auto] md:grid-cols-[auto_1fr_au
 export function ColaAdmin() {
   const [ordenes, setOrdenes]   = useState<Orden[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [filtro, setFiltro]     = useState<string>('activos');
-  const [busqueda, setBusqueda] = useState('');
+  // Filtro y búsqueda en la URL: entrar a una OP y volver con Atrás tiene que devolver la
+  // cola como estaba, no la vista "Activos" sin buscar.
+  const [filtro, setFiltro]     = useParamState<string>('filtro', 'activos');
+  const [busqueda, setBusqueda] = useParamTexto('q');
   const [showForm, setShowForm] = useState(false);
   const [editando, setEditando] = useState<Orden | null>(null);
   const [editDescripcion, setEditDescripcion] = useState('');
@@ -145,12 +148,9 @@ export function ColaAdmin() {
   const [agrupSaving,  setAgrupSaving]  = useState(false);
 
   // Lotes colapsados por defecto; se despliegan con el chevron.
-  const [lotesAbiertos, setLotesAbiertos] = useState<Set<string>>(new Set());
-  const toggleLote = (id: string) => setLotesAbiertos((prev) => {
-    const n = new Set(prev);
-    n.has(id) ? n.delete(id) : n.add(id);
-    return n;
-  });
+  const [lotesAbiertos, toggleLote] = useParamSet('lotes');
+
+  const volverA = useVolverA();
 
   const marcas  = catalogo.filter((c) => c.categoria === 'marca' && c.activo);
   const prendas = catalogo.filter((c) => c.categoria === 'prenda' && c.activo);
@@ -510,7 +510,7 @@ export function ColaAdmin() {
             <input type="checkbox" checked={seleccionadas.has(orden.id)} onChange={() => toggleSel(orden.id)}
               aria-label={`Seleccionar ${orden.sku ?? orden.id}`} className="rounded border-stone-300 accent-amber-500" />
           )}
-          <Link href={`/produccion/${orden.id}`}
+          <Link href={`/produccion/${orden.id}?volverA=${encodeURIComponent(volverA)}`}
             className={`font-mono font-bold text-sm px-2 py-0.5 rounded-lg transition ${orden.sku ? 'bg-stone-100 text-stone-700 hover:text-amber-600' : 'bg-amber-50 text-amber-600 hover:text-amber-700'}`}>
             {orden.sku ?? 'S/SKU'}
           </Link>
@@ -561,7 +561,7 @@ export function ColaAdmin() {
               fichaCorteCargada={orden.fichaCorteCargada} onGuardado={cargar} size="sm" />
           )}
           {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
-            <Link href={`/produccion/${orden.id}/corte`}
+            <Link href={`/produccion/${orden.id}/corte?volverA=${encodeURIComponent(volverA)}`}
               className="text-xs px-2.5 py-1 rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 transition">
               Ficha
             </Link>

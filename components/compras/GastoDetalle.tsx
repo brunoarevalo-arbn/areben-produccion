@@ -13,10 +13,10 @@ interface GastoDetalleProps {
 
 const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
 
-export function GastoDetalle({ gasto: g }: GastoDetalleProps) {
+export function GastoDetalle({ gasto: g, volver = '/compras' }: GastoDetalleProps & { volver?: string }) {
   return (
     <div className="max-w-2xl">
-      <Link href="/compras" className="text-sm text-stone-500 hover:text-stone-800 transition">← Volver a Compras</Link>
+      <Link href={volver} className="text-sm text-stone-500 hover:text-stone-800 transition">← Volver a Compras</Link>
 
       <Card padding="none" className="p-6 mt-4">
         <div className="flex items-start justify-between mb-4">

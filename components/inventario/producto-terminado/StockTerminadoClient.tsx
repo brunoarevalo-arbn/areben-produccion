@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useParamState, useParamTexto } from '@/lib/hooks/useParamState';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Card } from '@/components/ui/Card';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -14,8 +15,8 @@ const norm = (s: string) => s.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,
 export function StockTerminadoClient() {
   const [items, setItems]     = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
-  const [q, setQ]             = useState('');
-  const [filtroTipo, setFiltroTipo] = useState<'todos' | 'liso' | 'estampado'>('todos');
+  const [q, setQ]             = useParamTexto('q');
+  const [filtroTipo, setFiltroTipo] = useParamState<'todos' | 'liso' | 'estampado'>('tipo', 'todos');
 
   useEffect(() => {
     fetch('/api/produccion/stock-terminado')

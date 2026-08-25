@@ -1,7 +1,9 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { prisma } from '@/lib/prisma';
 import { KanbanDiseno } from '@/components/diseno/KanbanDiseno';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { LoadingState } from '@/components/ui/LoadingState';
 import { calcularEstado, faseActual } from '@/lib/diseno/estado';
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +49,10 @@ export default async function DisenoPage() {
         }
       />
 
-      <KanbanDiseno proyectos={items} />
+      {/* La columna de archivados vive en la query (useSearchParams) → Suspense. */}
+      <Suspense fallback={<LoadingState />}>
+        <KanbanDiseno proyectos={items} />
+      </Suspense>
     </div>
   );
 }

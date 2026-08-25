@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { InsumosClient } from '@/components/inventario/InsumosClient';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,9 +16,7 @@ const ACCESOS = [
   { label: 'Ajustes',            desc: 'Corregir stock o costo a mano (sin compra).',     href: '/inventario/ajustes' },
 ];
 
-export default async function InventarioPage({ searchParams }: { searchParams: Promise<{ cat?: string }> }) {
-  const { cat } = await searchParams;
-
+export default function InventarioPage() {
   return (
     <div className="p-8 max-w-5xl">
       <PageHeader eyebrow="Inventario" title="Inventario" subtitle="Telas, avíos y producto terminado, todo en un solo lugar." />
@@ -31,7 +31,10 @@ export default async function InventarioPage({ searchParams }: { searchParams: P
         ))}
       </div>
 
-      <InsumosClient categoriaInicial={cat ?? ''} />
+      {/* La categoría (?cat=) y qué insumo está abierto viven en la query → Suspense. */}
+      <Suspense fallback={<LoadingState />}>
+        <InsumosClient />
+      </Suspense>
     </div>
   );
 }

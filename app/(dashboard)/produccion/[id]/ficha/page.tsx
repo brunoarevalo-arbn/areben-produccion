@@ -3,13 +3,16 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { PrintButton } from '@/components/costos/PrintButton';
 import { consumoNetoPorRollo } from '@/lib/produccion/consumo';
+import { volverASeguro } from '@/lib/volverA';
 
 export const dynamic = 'force-dynamic';
 
 const fmt = (n: unknown) => Number(n).toLocaleString('es-AR', { maximumFractionDigits: 2 });
 
-export default async function FichaCortePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function FichaCortePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ volverA?: string }> }) {
   const { id } = await params;
+  const volver = volverASeguro((await searchParams).volverA, `/produccion/${id}`);
+  const qs = `?volverA=${encodeURIComponent(volver)}`;
   const orden = await prisma.ordenProduccion.findUnique({
     where: { id },
     include: {
@@ -50,7 +53,8 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
     return (
       <div className="p-8 max-w-2xl mx-auto text-center">
         <p className="text-stone-500 mb-4">Esta orden todavía no tiene ficha de corte cargada.</p>
-        <Link href={`/produccion/${orden.id}/corte`} className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">Cargar ficha de corte</Link>
+        <Link href={volver} className="block text-sm text-stone-500 hover:text-stone-800 transition mb-4">← Volver</Link>
+        <Link href={`/produccion/${orden.id}/corte${qs}`} className="bg-amber-500 hover:bg-amber-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition">Cargar ficha de corte</Link>
       </div>
     );
   }
@@ -58,9 +62,12 @@ export default async function FichaCortePage({ params }: { params: Promise<{ id:
   return (
     <div className="p-8 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6 print:hidden">
-        <h1 className="text-lg font-bold text-stone-800">Ficha de corte</h1>
+        <div className="flex items-baseline gap-4">
+          <Link href={volver} className="text-sm text-stone-500 hover:text-stone-800 transition">← Volver</Link>
+          <h1 className="text-lg font-bold text-stone-800">Ficha de corte</h1>
+        </div>
         <div className="flex gap-2">
-          <Link href={`/produccion/${orden.id}/corte`} className="px-4 py-2 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">Editar</Link>
+          <Link href={`/produccion/${orden.id}/corte${qs}`} className="px-4 py-2 rounded-xl text-sm border border-stone-200 text-stone-600 hover:border-stone-400 transition">Editar</Link>
           <PrintButton />
         </div>
       </div>

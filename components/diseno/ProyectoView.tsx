@@ -53,7 +53,7 @@ export interface Proyecto {
 
 interface Props { proyecto: Proyecto; catalogoFases: CatalogoFase[]; estadoActual: EstadoProyecto; }
 
-export function ProyectoView({ proyecto, catalogoFases, estadoActual }: Props) {
+export function ProyectoView({ proyecto, catalogoFases, estadoActual, volver = '/diseno' }: Props & { volver?: string }) {
   const router = useRouter();
 
   const refresh = () => router.refresh();
@@ -98,7 +98,7 @@ export function ProyectoView({ proyecto, catalogoFases, estadoActual }: Props) {
 
   return (
     <div className="p-6 max-w-3xl space-y-5">
-      <Link href="/diseno" className="text-xs text-stone-500 hover:text-stone-800 transition">
+      <Link href={volver} className="text-xs text-stone-500 hover:text-stone-800 transition">
         ← Volver al Kanban
       </Link>
 

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParamState, useVolverA } from '@/lib/hooks/useParamState';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/Badge';
 import { EstadoPagoBadge } from '@/components/ui/EstadoPagoBadge';
@@ -27,7 +28,9 @@ const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
 export function ComprasUnificadasClient() {
   const [filas, setFilas] = useState<Fila[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtro, setFiltro] = useState<'todas' | 'compra' | 'gasto' | 'pendientes' | 'revertidas'>('todas');
+  // En la URL: cada fila se va a un detalle y al volver la lista caía siempre en "Activas".
+  const [filtro, setFiltro] = useParamState<'todas' | 'compra' | 'gasto' | 'pendientes' | 'revertidas'>('filtro', 'todas');
+  const volverA = useVolverA();
 
   useEffect(() => {
     fetch('/api/compras-unificadas').then((r) => r.ok ? r.json() : []).then(setFilas).finally(() => setLoading(false));
@@ -60,7 +63,7 @@ export function ComprasUnificadasClient() {
       <Card padding="none" className="divide-y divide-stone-100">
         {visibles.length === 0 && <EmptyState message="Sin compras todavía" />}
         {visibles.map((f) => (
-          <Link key={`${f.origen}-${f.id}`} href={f.href} className={`flex items-center gap-3 px-4 py-3 hover:bg-stone-50 transition ${f.revertida ? 'opacity-60' : ''}`}>
+          <Link key={`${f.origen}-${f.id}`} href={`${f.href}?volverA=${encodeURIComponent(volverA)}`} className={`flex items-center gap-3 px-4 py-3 hover:bg-stone-50 transition ${f.revertida ? 'opacity-60' : ''}`}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-semibold text-stone-800">{f.proveedorNombre}</span>

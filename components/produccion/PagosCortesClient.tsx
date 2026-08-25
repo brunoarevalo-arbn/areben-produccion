@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useParamState, useVolverA } from '@/lib/hooks/useParamState';
 import Link from 'next/link';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -37,8 +38,10 @@ function fechaCorta(iso: string) {
 export function PagosCortesClient({ saldos }: { saldos: { id: string; nombre: string; saldo: number }[] }) {
   const [ordenes, setOrdenes]   = useState<OrdenCorte[]>([]);
   const [loading, setLoading]   = useState(true);
-  const [filtro, setFiltro]     = useState<'pendiente' | 'pagado' | 'todos'>('pendiente');
-  const [filtroCortador, setFiltroCortador] = useState('');
+  // En la URL: entrar a una OP y volver tiene que devolver el mismo filtro, no "Pendiente".
+  const [filtro, setFiltro]     = useParamState<'pendiente' | 'pagado' | 'todos'>('filtro', 'pendiente');
+  const [filtroCortador, setFiltroCortador] = useParamState('cortador', '');
+  const volverA = useVolverA();
   const [seleccion, setSeleccion] = useState<Set<string>>(new Set());
   const [muestras, setMuestras]   = useState<Muestra[]>([]);
   const [selMuestras, setSelMuestras] = useState<Set<string>>(new Set());
@@ -251,7 +254,7 @@ export function PagosCortesClient({ saldos }: { saldos: { id: string; nombre: st
                   onChange={() => toggleSel(o.id)}
                   disabled={pagado}
                   className="rounded border-stone-300" />
-                <Link href={`/produccion/${o.id}`}
+                <Link href={`/produccion/${o.id}?volverA=${encodeURIComponent(volverA)}`}
                   className="font-mono font-bold text-xs bg-stone-100 px-2 py-1 rounded-lg text-stone-700 hover:text-amber-600 transition">
                   {o.sku}
                 </Link>
@@ -266,7 +269,7 @@ export function PagosCortesClient({ saldos }: { saldos: { id: string; nombre: st
                 <span className="text-stone-600 tabular-nums text-right">{o.cantidad}</span>
                 <span className="text-stone-900 font-bold tabular-nums text-right">${fmt(o.costoCorte)}</span>
                 <span className="text-stone-400 text-xs">{fechaCorte ? fechaCorta(fechaCorte) : '--'}</span>
-                <Link href={`/produccion/${o.id}`} className="text-xs text-stone-500 hover:text-stone-800">Ver</Link>
+                <Link href={`/produccion/${o.id}?volverA=${encodeURIComponent(volverA)}`} className="text-xs text-stone-500 hover:text-stone-800">Ver</Link>
               </div>
             );
           })

@@ -12,6 +12,7 @@ import {
   DEFAULT_DATOS, TELA_EMPTY, TIRA_EMPTY,
   deepClone, parseDatos, calcular, itemCosto, telaCosto, mermaPorVuelta,
 } from '@/lib/costos/escandallo';
+import { useParamState, useParamBool, useVolverA } from '@/lib/hooks/useParamState';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -55,10 +56,13 @@ export function Escandallos() {
   const [etiquetas, setEtiquetas] = useState<EtiquetaOpt[]>([]);
   const [costosCorte, setCostosCorte] = useState<CostoCorteOpt[]>([]);
   const [telasCatalogo, setTelasCatalogo] = useState<TelaOpt[]>([]);
-  const [subTab, setSubTab] = useState<'pendientes' | 'listos'>('pendientes');
+  // Solapa y filtros van en la URL: "Ver PDF" se va a otra ruta y al volver el componente
+  // se remonta — con el estado en `useState` la lista caía siempre en "Pendientes".
+  const [subTab, setSubTab] = useParamState<'pendientes' | 'listos'>('tab', 'pendientes');
   const [formTab, setFormTab] = useState<'producto' | 'materiales' | 'procesos'>('producto');
-  const [verDescartados, setVerDescartados] = useState(false);
-  const [soloSinDesc, setSoloSinDesc] = useState(false);
+  const [verDescartados, setVerDescartados] = useParamBool('desc');
+  const [soloSinDesc, setSoloSinDesc] = useParamBool('sinDesc');
+  const volverA = useVolverA();
 
   useEffect(() => {
     Promise.all([
@@ -132,7 +136,7 @@ export function Escandallos() {
   const [tiempoProduccion,   setTiempoProduccion]   = useState<{ minutos: number; registros: number; cantidadTotal: number } | null>(null);
   const [tiempoLote,         setTiempoLote]         = useState<{ minutos: number; colores: number; cantidadTotal: number } | null>(null);
   const [sinDatosProduccion, setSinDatosProduccion] = useState(false);
-  const [fichaResumen,       setFichaResumen]       = useState<{ costoTelaUnit: number | null; costoCorteUnit: number | null; costoSublimacionUnit: number | null; costoAviosUnit: number; cantidad: number; metrosTotal: number; kgUnit: number; metrosUnit: number; avios: { nombre: string; cantidad: number; costo: number }[] } | null>(null);
+  const [fichaResumen,       setFichaResumen]       = useState<{ costoTelaUnit: number | null; costoCorteUnit: number | null; costoSublimacionUnit: number | null; costoAviosUnit: number; cantidad: number; metrosTotal: number; kgUnit: number; metrosUnit: number; telas: { articulo: string; color: string | null; metrosUnit: number; kgUnit: number; costoUnit: number }[]; avios: { nombre: string; cantidad: number; costo: number }[] } | null>(null);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -151,7 +155,8 @@ export function Escandallos() {
       .then((r) => r.ok ? r.json() : null)
       .then((d) => {
         if (cancel || !d?.encontrado) return;
-        setFichaResumen(d);
+        // `telas` puede faltar si la respuesta viene de una versión vieja en caché.
+        setFichaResumen({ ...d, telas: Array.isArray(d.telas) ? d.telas : [] });
         // Si el SKU ya tiene ficha de corte cargada y el escandallo no tiene telas
         // propias ni un costo de ficha aplicado, traemos el costo de la ficha
         // automáticamente. Antes esto solo pasaba al elegir en "Producto producido",
@@ -480,7 +485,7 @@ export function Escandallos() {
                 {/* Descartados */}
                 {descartados.length > 0 && (
                   <div className="pt-2">
-                    <button onClick={() => setVerDescartados(v => !v)}
+                    <button onClick={() => setVerDescartados(!verDescartados)}
                       className="text-xs font-semibold text-stone-400 hover:text-stone-600 transition">
                       {verDescartados ? '▾' : '▸'} Descartados ({descartados.length})
                     </button>
@@ -566,7 +571,7 @@ export function Escandallos() {
                             ``,
                             `💵 Costo unitario: $${Math.round(c?.costoTotal ?? 0).toLocaleString('es-AR')}`,
                           ].filter((l) => l !== null).join('\n')} />
-                          <button onClick={() => router.push(`/costos/escandallos/${e.id}`)}
+                          <button onClick={() => router.push(`/costos/escandallos/${e.id}?volverA=${encodeURIComponent(volverA)}`)}
                             className="text-xs px-3 py-1.5 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-50 transition">
                             Ver PDF
                           </button>
@@ -669,6 +674,26 @@ export function Escandallos() {
           <Card padding="none" className="p-5">
             <p className={`${sec} mb-3`}>Telas — resumen de la ficha de corte</p>
             <div className="rounded-xl bg-violet-50 border border-violet-100 p-4 space-y-2">
+              {/* Una fila por tela: en una prenda de dos telas (encaje + microfibra) el total
+                  solo no dice cuánto pone cada una. Todo por PRENDA, la unidad que se costea. */}
+              {fichaResumen && fichaResumen.telas.length > 0 && (
+                <div className="space-y-1.5 pb-2 border-b border-violet-100">
+                  {fichaResumen.telas.map((t, i) => (
+                    <div key={i} className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="text-stone-600 min-w-0">
+                        {t.articulo}{t.color ? <span className="text-stone-400"> · {t.color}</span> : null}
+                        {t.metrosUnit > 0 && (
+                          <span className="text-xs text-stone-400 ml-2 tabular-nums">
+                            {t.metrosUnit.toLocaleString('es-AR', { maximumFractionDigits: 3 })} m/prenda
+                          </span>
+                        )}
+                      </span>
+                      <span className="font-semibold font-mono tabular-nums text-stone-700 shrink-0">{fmt$(t.costoUnit)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               <div className="flex items-center justify-between">
                 <span className="text-sm text-stone-600">Costo de tela (incluye insumos del corte)</span>
                 <span className="text-base font-bold font-mono tabular-nums text-violet-700">

@@ -1,6 +1,8 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { ColaAdmin } from '@/components/produccion/ColaAdmin';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { LoadingState } from '@/components/ui/LoadingState';
 
 export const dynamic = 'force-dynamic';
 
@@ -34,7 +36,10 @@ export default function ProduccionPage() {
         <p className="text-stone-500 text-sm mb-5">
           Agregá órdenes por SKU. Las costureras las ven en tiempo real y marcan cuando terminan.
         </p>
-        <ColaAdmin />
+        {/* Filtro/búsqueda/lotes viven en la query (useSearchParams) → Suspense obligatorio. */}
+        <Suspense fallback={<LoadingState />}>
+          <ColaAdmin />
+        </Suspense>
       </div>
     </div>
   );

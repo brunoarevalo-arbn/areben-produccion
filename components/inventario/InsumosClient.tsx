@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useParamState, useVolverA } from '@/lib/hooks/useParamState';
 import Link from 'next/link';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { Card } from '@/components/ui/Card';
@@ -27,12 +28,16 @@ const ESTADO_COLOR: Record<string, string> = {
   DESCARTADO:      'bg-red-100 text-red-600',
 };
 
-export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: string } = {}) {
+// La categoría ya venía por `?cat=` desde la page; ahora la lee (y la escribe) el propio
+// componente, junto con qué insumo está desplegado, para que volver de un rollo no colapse
+// todo y no pierda el filtro.
+export function InsumosClient() {
   const [insumos, setInsumos]   = useState<InsumoConStock[]>([]);
   const [coloresMap, setColoresMap] = useState<Map<string, string>>(new Map());
   const [loading, setLoading]   = useState(true);
-  const [expandido, setExpandido] = useState<string | null>(null);
-  const [filtroCategoria, setFiltroCategoria] = useState(categoriaInicial);
+  const [expandido, setExpandido] = useParamState('abierto', '');
+  const [filtroCategoria, setFiltroCategoria] = useParamState('cat', '');
+  const volverA = useVolverA();
 
   useEffect(() => {
     Promise.all([
@@ -79,7 +84,7 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
             return (
               <Card key={ins.id} padding="none" className="overflow-hidden">
                 <button
-                  onClick={() => setExpandido(open ? null : ins.id)}
+                  onClick={() => setExpandido(open ? '' : ins.id)}
                   className="w-full px-5 py-4 flex items-center gap-4 text-left hover:bg-stone-50 transition"
                 >
                   <div className="flex-1 min-w-0">
@@ -156,7 +161,7 @@ export function InsumosClient({ categoriaInicial = '' }: { categoriaInicial?: st
                             {ins.rollos.map((r) => (
                               <tr key={r.id} className="border-t border-stone-50">
                                 <td className="py-1.5">
-                                  <Link href={`/inventario/rollos/${r.id}`} className="font-mono text-stone-700 hover:text-amber-600 transition">
+                                  <Link href={`/inventario/rollos/${r.id}?volverA=${encodeURIComponent(volverA)}`} className="font-mono text-stone-700 hover:text-amber-600 transition">
                                     {r.codigo}
                                   </Link>
                                 </td>

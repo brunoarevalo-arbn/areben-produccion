@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useParamState, useVolverA } from '@/lib/hooks/useParamState';
 import Link from 'next/link';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { NumInput } from '@/components/ui/NumInput';
@@ -48,7 +49,10 @@ const puedeRetirar = (r: Rollo) =>
 export function RollosClient() {
   const [rollos, setRollos]   = useState<Rollo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filtroEstado, setFiltroEstado] = useState('');
+  // En la URL: el filtro además dispara el fetch, así que al volver de un rollo la lista
+  // se recargaba entera y sin filtrar.
+  const [filtroEstado, setFiltroEstado] = useParamState('estado', '');
+  const volverA = useVolverA();
   const [colores, setColores] = useState<{ id: string; nombre: string }[]>([]);
   const [savingColor, setSavingColor] = useState<Record<string, boolean>>({});
   const [revaluando, setRevaluando] = useState(false);
@@ -201,7 +205,7 @@ export function RollosClient() {
                 {r.estado.replace(/_/g, ' ')}
               </span>
               <div className="flex items-center gap-1.5">
-                <Link href={`/inventario/rollos/${r.id}`}
+                <Link href={`/inventario/rollos/${r.id}?volverA=${encodeURIComponent(volverA)}`}
                   className="text-xs px-2.5 py-1 rounded-lg border border-stone-200 text-stone-600 hover:bg-stone-50 transition">
                   Ver
                 </Link>
