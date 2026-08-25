@@ -25,7 +25,7 @@ model TiemposProduccion {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  solicitudes        SolicitudCambioTiempo[]
+  solicitudes SolicitudCambioTiempo[]
 
   @@map("tiempos_produccion")
 }
@@ -36,10 +36,10 @@ model SolicitudCambioTiempo {
   id              String            @id @default(cuid())
   tiempoId        String
   tiempo          TiemposProduccion @relation(fields: [tiempoId], references: [id], onDelete: Cascade)
-  solicitadaPor   String            // nombre de la costurera
+  solicitadaPor   String // nombre de la costurera
   skuAnterior     String?
   maquinaAnterior String?
-  skuNuevo        String?           // null = ese campo no se cambia
+  skuNuevo        String? // null = ese campo no se cambia
   maquinaNueva    String?
   estado          String            @default("pendiente") // 'pendiente' | 'aprobada' | 'rechazada'
   resueltaPor     String?
@@ -55,8 +55,8 @@ model SolicitudCambioTiempo {
 // un solo tiempo) con cuántas estampas se aplicaron. Estándar = minutosNetos / cantidad.
 model TiemposEstampado {
   id           String   @id @default(cuid())
-  usuario      String   // estampador (nombre)
-  fecha        String   // YYYY-MM-DD
+  usuario      String // estampador (nombre)
+  fecha        String // YYYY-MM-DD
   cantidad     Int      @default(0) // estampas aplicadas en la tanda
   minutosNetos Float    @default(0) // tiempo total de la tanda
   horaInicio   String?
@@ -71,7 +71,7 @@ model TiemposEstampado {
 
 model SkuCatalogo {
   id            String        @id @default(cuid())
-  categoria     String        // 'marca' | 'prenda' | 'color' (extensible)
+  categoria     String // 'marca' | 'prenda' | 'color' (extensible)
   nombre        String
   abreviatura   String
   orden         Int           @default(0)
@@ -160,9 +160,9 @@ model Idea {
   id         String   @id @default(cuid())
   nombre     String
   marca      String
-  fotos      String?  // JSON array de URLs (mismo formato que ProyectoDiseno.moodboard)
+  fotos      String? // JSON array de URLs (mismo formato que ProyectoDiseno.moodboard)
   notas      String?
-  proyectoId String?  // set al convertir
+  proyectoId String? // set al convertir
   archivado  Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -177,7 +177,7 @@ model Lanzamiento {
   id            String    @id @default(cuid())
   nombre        String
   marca         String
-  fotos         String?   // JSON array de URLs (mismo formato que Idea.fotos)
+  fotos         String? // JSON array de URLs (mismo formato que Idea.fotos)
   estado        String    @default("Confirmado") // Confirmado | En producción | Lanzado
   fechaEstimada DateTime?
   notas         String?
@@ -227,8 +227,8 @@ model IteracionMuestra {
   tipo            String          @default("muestra")
   estado          String          @default("en_confeccion")
   fotos           String?
-  notas           String?         // qué falló / qué falta de la muestra física
-  ajustesMolderia String?         // qué se cambió / se va a cambiar en la molderia
+  notas           String? // qué falló / qué falta de la muestra física
+  ajustesMolderia String? // qué se cambió / se va a cambiar en la molderia
   ajustes         AjusteMuestra[]
   insumos         InsumoMuestra[]
   createdAt       DateTime        @default(now())
@@ -317,48 +317,48 @@ model Usuario {
 }
 
 model GastoFijoTaller {
-  id          String   @id @default(cuid())
-  nombre      String
-  monto       Float    @default(0)
-  categoria   String   @default("otro")
-  activo      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  nombre    String
+  monto     Float    @default(0)
+  categoria String   @default("otro")
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("gastos_fijos_taller")
 }
 
 model CostoCosturera {
-  id              String   @id @default(cuid())
-  usuarioId       String   @unique
-  sueldoBruto     Float    @default(0)
-  cargasSociales  Float    @default(0)
-  horasMes        Float    @default(160)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  usuarioId      String   @unique
+  sueldoBruto    Float    @default(0)
+  cargasSociales Float    @default(0)
+  horasMes       Float    @default(160)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@map("costos_costureras")
 }
 
 model ConfigCostos {
-  id               String   @id @default("singleton")
-  margenDesarrollo Float    @default(10)
-  margenFallas     Float    @default(5)
-  dtfPrecioMetro   Float    @default(0)  // precio fijo del DTF por metro (rollo)
-  dtfAnchoCm       Float    @default(58) // ancho del rollo DTF
-  dtfMermaDefault  Float    @default(0)  // % merma default de estampas
-  estampadoValorHora Float  @default(0)  // $/hora de MO de estampería ($/min = /60)
-  sublimacionPrecioMetro Float @default(0) // $/m lineal de sublimación de tela (precio vigente)
-  ivaVenta         Float    @default(21)  // % IVA de venta (para separar PVP del costo neto)
-  markupVentaDefault Float  @default(130) // markup % s/ costo por defecto (simulador de precios)
-  iibbPct          Float    @default(0)   // % Ingresos Brutos sobre venta
-  dreiPct          Float    @default(0)   // % DREI (derecho de registro e inspección) sobre venta
-  gananciasPct     Float    @default(0)   // % Impuesto a las ganancias
-  saldoIvaFavor    Boolean  @default(false) // si hay saldo de IVA a favor (afecta el margen neto en Sale)
-  redondeoActivo      Boolean @default(true) // redondear los precios promo de Sale
-  redondeoTerminacion Int     @default(90)   // los precios promo terminan en este número (90, 99, 990…)
-  redondeoModo        String  @default("cercano") // cercano | arriba | abajo
-  updatedAt        DateTime @updatedAt
+  id                     String   @id @default("singleton")
+  margenDesarrollo       Float    @default(10)
+  margenFallas           Float    @default(5)
+  dtfPrecioMetro         Float    @default(0) // precio fijo del DTF por metro (rollo)
+  dtfAnchoCm             Float    @default(58) // ancho del rollo DTF
+  dtfMermaDefault        Float    @default(0) // % merma default de estampas
+  estampadoValorHora     Float    @default(0) // $/hora de MO de estampería ($/min = /60)
+  sublimacionPrecioMetro Float    @default(0) // $/m lineal de sublimación de tela (precio vigente)
+  ivaVenta               Float    @default(21) // % IVA de venta (para separar PVP del costo neto)
+  markupVentaDefault     Float    @default(130) // markup % s/ costo por defecto (simulador de precios)
+  iibbPct                Float    @default(0) // % Ingresos Brutos sobre venta
+  dreiPct                Float    @default(0) // % DREI (derecho de registro e inspección) sobre venta
+  gananciasPct           Float    @default(0) // % Impuesto a las ganancias
+  saldoIvaFavor          Boolean  @default(false) // si hay saldo de IVA a favor (afecta el margen neto en Sale)
+  redondeoActivo         Boolean  @default(true) // redondear los precios promo de Sale
+  redondeoTerminacion    Int      @default(90) // los precios promo terminan en este número (90, 99, 990…)
+  redondeoModo           String   @default("cercano") // cercano | arriba | abajo
+  updatedAt              DateTime @updatedAt
 
   @@map("config_costos")
 }
@@ -368,7 +368,7 @@ model ConfigCostos {
 model CanalVenta {
   id            String         @id @default(cuid())
   nombre        String
-  costoPorVenta Float          @default(0)     // costo del canal por venta
+  costoPorVenta Float          @default(0) // costo del canal por venta
   costoEsPct    Boolean        @default(false) // true: % sobre la venta · false: $ fijo
   orden         Int            @default(0)
   activo        Boolean        @default(true)
@@ -383,7 +383,7 @@ model ComisionPago {
   id                 String     @id @default(cuid())
   canalId            String
   canal              CanalVenta @relation(fields: [canalId], references: [id], onDelete: Cascade)
-  nombre             String     // Efectivo, Transferencia, Débito, Crédito 3 cuotas…
+  nombre             String // Efectivo, Transferencia, Débito, Crédito 3 cuotas…
   comisionPct        Float      @default(0)
   costoFinancieroPct Float      @default(0)
   descuentoPct       Float      @default(0)
@@ -405,7 +405,7 @@ model CostoSkuDescartado {
 // Producto final con estampa: liso (escandallo referenciado, vivo) + estampa(s) del
 // catálogo. Total = costo del liso + Σ (material DTF + estampería: minutos × valor hora).
 model ProductoEstampado {
-  id               String   @id @default(cuid())
+  id               String    @id @default(cuid())
   nombre           String
   sku              String?
   marca            String?
@@ -413,18 +413,18 @@ model ProductoEstampado {
   // hecho de plata. Antes `lisoEscandalloId` era NOT NULL, así que no se podía declarar
   // lo primero sin tener lo segundo. Ahora va uno de los dos: el escandallo cuando
   // existe (y de ahí sale el costo), o el SKU pelado del liso cuando todavía no.
-  lisoEscandalloId String?  // ref viva al escandallo del liso (se resuelve al calcular)
-  lisoSku          String?  // liso que sólo existe como SKU en stock_terminado
-  estampas         Json     // [{ estampaId, tamano, minutosEstampado }] (legacy: costoEstampado $)
+  lisoEscandalloId String? // ref viva al escandallo del liso (se resuelve al calcular)
+  lisoSku          String? // liso que sólo existe como SKU en stock_terminado
+  estampas         Json // [{ estampaId, tamano, minutosEstampado }] (legacy: costoEstampado $)
   // Costo final ya conocido, de la etapa en que no se hacían escandallos. Se usa sólo
   // cuando no hay costo derivado. La FECHA no es decorado: un costo sin fecha al lado
   // se lee como si fuera de hoy.
   costoFinalManual Decimal?
   costoFinalFecha  DateTime?
-  costoFinalFuente String?   // de dónde salió (planilla, lista vieja, quién lo pasó)
+  costoFinalFuente String? // de dónde salió (planilla, lista vieja, quién lo pasó)
   notas            String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   @@map("productos_estampados")
 }
@@ -433,14 +433,14 @@ model Escandallo {
   id              String   @id @default(cuid())
   nombre          String
   nombreComercial String?
-  sku         String?
-  marca       String?
-  tipoPrenda  String?
-  proyectoId  String?
-  notas       String?
-  datos       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  sku             String?
+  marca           String?
+  tipoPrenda      String?
+  proyectoId      String?
+  notas           String?
+  datos           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@map("escandallos")
 }
@@ -450,22 +450,22 @@ model Escandallo {
 // Avío. El escandallo elige el avío y autocompleta el precio (snapshot).
 // Es el sistema liviano que reemplazó al pesado (Insumo+Lote) para avíos.
 model EtiquetaCatalogo {
-  id        String   @id @default(cuid())
-  nombre    String
-  tipo      String?  // 'principal' | 'composicion' | 'otro'
-  categoria String?  // 'etiqueta' | 'badana' | 'boton' | 'cierre' | 'tacha' | 'hilo' | 'otro'
-  frecuencia String  @default("habitual") // 'habitual' (va siempre) | 'ocasional' (según la prenda)
-  unidad    String?  // 'etiqueta' | 'unidad'
-  marca     String?  // 'Zattia' | 'Stunned' | null
-  precio    Decimal  @default(0)
-  stock     Int?     // null = sin seguimiento / ilimitado. Se descuenta al terminar producción.
-  activo    Boolean  @default(true)
+  id          String           @id @default(cuid())
+  nombre      String
+  tipo        String? // 'principal' | 'composicion' | 'otro'
+  categoria   String? // 'etiqueta' | 'badana' | 'boton' | 'cierre' | 'tacha' | 'hilo' | 'otro'
+  frecuencia  String           @default("habitual") // 'habitual' (va siempre) | 'ocasional' (según la prenda)
+  unidad      String? // 'etiqueta' | 'unidad'
+  marca       String? // 'Zattia' | 'Stunned' | null
+  precio      Decimal          @default(0)
+  stock       Int? // null = sin seguimiento / ilimitado. Se descuenta al terminar producción.
+  activo      Boolean          @default(true)
   proveedorId String?
-  proveedor   Proveedor? @relation(fields: [proveedorId], references: [id])
-  ordenAvios OrdenAvio[]
+  proveedor   Proveedor?       @relation(fields: [proveedorId], references: [id])
+  ordenAvios  OrdenAvio[]
   movimientos AvioMovimiento[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@map("etiqueta_catalogo")
 }
@@ -477,12 +477,12 @@ model AvioMovimiento {
   id            String           @id @default(cuid())
   etiquetaId    String
   etiqueta      EtiquetaCatalogo @relation(fields: [etiquetaId], references: [id], onDelete: Cascade)
-  tipo          String           // 'INGRESO' | 'EGRESO' | 'AJUSTE'
-  cantidad      Int              // + ingreso / - egreso
+  tipo          String // 'INGRESO' | 'EGRESO' | 'AJUSTE'
+  cantidad      Int // + ingreso / - egreso
   costoUnitario Decimal?
   gastoId       String?
   proveedorId   String?
-  ordenId       String?          // para egresos al terminar producción
+  ordenId       String? // para egresos al terminar producción
   motivo        String?
   creadoPor     String
   fecha         DateTime         @default(now())
@@ -532,54 +532,55 @@ enum EstadoOP {
 }
 
 model OrdenProduccion {
-  id                      String    @id @default(cuid())
-  sku                     String?   @unique
-  descripcion             String?
-  marca                   String    @default("Zattia")
-  cantidad                Int       @default(1)
-  estado                  EstadoOP  @default(PENDIENTE)
-  notas                   String?
-  creadoPor               String    @default("admin")
-  terminadoAt             DateTime?
+  id          String    @id @default(cuid())
+  sku         String?   @unique
+  descripcion String?
+  marca       String    @default("Zattia")
+  cantidad    Int       @default(1)
+  estado      EstadoOP  @default(PENDIENTE)
+  notas       String?
+  creadoPor   String    @default("admin")
+  terminadoAt DateTime?
 
-  fichaCorteCargada       Boolean   @default(false)
-  fichaFotoUrl            String?
-  fichaCorteData          Json?     // estado del form de corte tal cual se cargó (para ver/editar idéntico)
-  fechaCorte              DateTime? // fecha en que se hizo el corte (para coordinar pagos al cortador)
+  fichaCorteCargada Boolean   @default(false)
+  fichaFotoUrl      String?
+  fichaCorteData    Json? // estado del form de corte tal cual se cargó (para ver/editar idéntico)
+  fechaCorte        DateTime? // fecha en que se hizo el corte (para coordinar pagos al cortador)
   // null | 'asignado' (esperando que cargue) | 'cargado' (cargó el cortador, falta validar)
   // | 'validado' (cobrable: costoCorte ya escrito, con o sin ficha de tela).
-  corteEstado             String?
+  corteEstado       String?
 
-  avios                   OrdenAvio[]
-  aviosDescontados        Boolean   @default(false) // guard: el stock de avíos se descuenta una sola vez
+  avios            OrdenAvio[]
+  aviosDescontados Boolean     @default(false) // guard: el stock de avíos se descuenta una sola vez
 
-  cortador                String?
-  cortadorId              String?
-  cortadorRef             Cortador? @relation(fields: [cortadorId], references: [id])
-  costoCorte              Decimal   @default(0)
-  pagoCorteId             String?
-  pagoCorte               PagoCorte? @relation(fields: [pagoCorteId], references: [id])
+  cortador    String?
+  cortadorId  String?
+  cortadorRef Cortador?  @relation(fields: [cortadorId], references: [id])
+  costoCorte  Decimal    @default(0)
+  pagoCorteId String?
+  pagoCorte   PagoCorte? @relation(fields: [pagoCorteId], references: [id])
 
-  costoTela               Decimal   @default(0)
-  costoInsumosSecundarios Decimal   @default(0)
-  costoManoObra           Decimal   @default(0)
-  costoEstampa            Decimal   @default(0)
+  costoTela               Decimal @default(0)
+  costoInsumosSecundarios Decimal @default(0)
+  costoManoObra           Decimal @default(0)
+  costoEstampa            Decimal @default(0)
   // Sublimación de tela: se cobra por metro lineal de los metros que se le piden al
   // sublimador (no de los que se cortan). Rubro propio: no va en costoCorte (que es lo
   // que se le paga al cortador) ni en costoTela (que reconcilia contra los rollos).
-  costoSublimacion        Decimal   @default(0)
-  metrosSublimados        Decimal   @default(0)
-  costoTotal              Decimal   @default(0)
+  costoSublimacion        Decimal @default(0)
+  metrosSublimados        Decimal @default(0)
+  costoTotal              Decimal @default(0)
 
-  transiciones            EstadoTransicion[]
-  movimientosInsumo       MovimientoInsumo[]
-  cortesPorTalle          CortePorTalle[]
+  transiciones      EstadoTransicion[]
+  movimientosInsumo MovimientoInsumo[]
+  cortesPorTalle    CortePorTalle[]
+  edicionesCorte    EdicionCorte[]
 
-  loteId                  String?
-  lote                    LoteProduccion? @relation(fields: [loteId], references: [id], onDelete: SetNull)
+  loteId String?
+  lote   LoteProduccion? @relation(fields: [loteId], references: [id], onDelete: SetNull)
 
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([loteId])
   @@map("ordenes_produccion")
@@ -590,7 +591,7 @@ model OrdenProduccion {
 model LoteProduccion {
   id          String            @id @default(cuid())
   marca       String            @default("Zattia")
-  prenda      String?           // abreviatura de la prenda (molde)
+  prenda      String? // abreviatura de la prenda (molde)
   descripcion String?
   notas       String?
   creadoPor   String            @default("admin")
@@ -611,6 +612,23 @@ model CortePorTalle {
 
   @@unique([ordenId, talle])
   @@map("cortes_por_talle")
+}
+
+// Traza de las ediciones de un corte YA IMPUTADO a un pago. Editarlo es legítimo (con la
+// cuenta corriente el saldo se mueve por la diferencia, no se duplica), pero el extracto
+// del cortador dice "imputado el dd/mm" sobre un importe que puede haber cambiado: sin esta
+// tabla no queda registro de cuánto se pagó realmente contra cuánto dice hoy el corte.
+model EdicionCorte {
+  id          String          @id @default(cuid())
+  ordenId     String
+  orden       OrdenProduccion @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  pagoCorteId String? // el pago que estaba imputado al momento de editar
+  detalle     String // "costoCorte $22.500 → $25.000 · cantidad 30 → 32"
+  usuario     String
+  createdAt   DateTime        @default(now())
+
+  @@index([ordenId])
+  @@map("ediciones_corte")
 }
 
 model PagoCorte {
@@ -635,40 +653,40 @@ model PagoCorte {
 }
 
 model Cortador {
-  id            String            @id @default(cuid())
-  nombre        String            @unique
-  contacto      String?
-  tarifaDefault Decimal?
-  tarifaModo    String?           // 'total' | 'unidad'
-  notas         String?
-  usuarioId     String?           @unique // usuario de login del cortador (panel propio)
-  activo        Boolean           @default(true)
+  id             String            @id @default(cuid())
+  nombre         String            @unique
+  contacto       String?
+  tarifaDefault  Decimal?
+  tarifaModo     String? // 'total' | 'unidad'
+  notas          String?
+  usuarioId      String?           @unique // usuario de login del cortador (panel propio)
+  activo         Boolean           @default(true)
   // Cortador que se asigna solo a cada OP nueva. Hay uno solo: marcar otro desmarca
   // el anterior (lo garantiza la API, ver lib/produccion/cortador-default.ts).
-  predeterminado Boolean          @default(false)
-  ordenes       OrdenProduccion[]
-  muestras      CorteMuestra[]
-  pagos         PagoCorte[]
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  predeterminado Boolean           @default(false)
+  ordenes        OrdenProduccion[]
+  muestras       CorteMuestra[]
+  pagos          PagoCorte[]
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   @@map("cortadores")
 }
 
 // Corte de muestra cargado por el cortador (aparte de la producción): consumo y valor.
 model CorteMuestra {
-  id         String   @id @default(cuid())
-  cortadorId String
-  cortador   Cortador @relation(fields: [cortadorId], references: [id])
+  id          String     @id @default(cuid())
+  cortadorId  String
+  cortador    Cortador   @relation(fields: [cortadorId], references: [id])
   descripcion String
-  consumo    Decimal  @default(0) // metros/kg de la tizada de muestra
-  unidad     String   @default("m")
-  valor      Decimal  @default(0) // valor del corte de muestra (cobro)
-  estado     String   @default("pendiente") // 'pendiente' | 'validado'
+  consumo     Decimal    @default(0) // metros/kg de la tizada de muestra
+  unidad      String     @default("m")
+  valor       Decimal    @default(0) // valor del corte de muestra (cobro)
+  estado      String     @default("pendiente") // 'pendiente' | 'validado'
   pagoCorteId String?
-  pagoCorte  PagoCorte? @relation(fields: [pagoCorteId], references: [id])
-  fecha      DateTime @default(now())
-  createdAt  DateTime @default(now())
+  pagoCorte   PagoCorte? @relation(fields: [pagoCorteId], references: [id])
+  fecha       DateTime   @default(now())
+  createdAt   DateTime   @default(now())
 
   @@index([cortadorId])
   @@map("cortes_muestra")
@@ -677,7 +695,7 @@ model CorteMuestra {
 model MotivoDescarte {
   id          String             @id @default(cuid())
   nombre      String             @unique
-  categoria   String             // 'proveedor' | 'corte' | 'costura' | 'estampa' | 'otro'
+  categoria   String // 'proveedor' | 'corte' | 'costura' | 'estampa' | 'otro'
   activo      Boolean            @default(true)
   movimientos MovimientoInsumo[]
   createdAt   DateTime           @default(now())
@@ -687,12 +705,12 @@ model MotivoDescarte {
 }
 
 model EstadoTransicion {
-  id             String           @id @default(cuid())
+  id             String          @id @default(cuid())
   ordenId        String
-  orden          OrdenProduccion  @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  orden          OrdenProduccion @relation(fields: [ordenId], references: [id], onDelete: Cascade)
   estadoAnterior EstadoOP?
   estadoNuevo    EstadoOP
-  fecha          DateTime         @default(now())
+  fecha          DateTime        @default(now())
   usuarioId      String
   notas          String?
 
@@ -710,24 +728,24 @@ model MolderiaCatalogo {
 }
 
 model TelaCatalogo {
-  id          String   @id @default(cuid())
-  nombre      String   @unique
-  activo      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  nombre    String   @unique
+  activo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@map("tela_catalogo")
 }
 
 model Gasto {
-  id        String   @id @default(cuid())
-  categoria String   // 'desarrollo' | 'produccion'
-  tipo      String   // 'tela' | 'insumos' | 'periodo'
-  marca     String?  // 'Zattia' | 'Stunned' — para desarrollo
+  id        String  @id @default(cuid())
+  categoria String // 'desarrollo' | 'produccion'
+  tipo      String // 'tela' | 'insumos' | 'periodo'
+  marca     String? // 'Zattia' | 'Stunned' — para desarrollo
   sku       String?
-  ordenId   String?  // FK a OrdenProduccion — para produccion
+  ordenId   String? // FK a OrdenProduccion — para produccion
   minutos   Int?
-  monto     Float    @default(0)
+  monto     Float   @default(0)
   concepto  String?
   fecha     String
   creadoPor String
@@ -759,18 +777,18 @@ model Gasto {
 // ─── Capital de Producción — Fase 1 ────────────────────────────────
 
 model Proveedor {
-  id           String   @id @default(cuid())
+  id           String             @id @default(cuid())
   nombre       String
   cuit         String?
   condicionIva String?
   contacto     String?
   notas        String?
-  activo       Boolean  @default(true)
+  activo       Boolean            @default(true)
   compras      Compra[]
   gastos       Gasto[]
   etiquetas    EtiquetaCatalogo[]
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
 
   @@map("proveedores")
 }
@@ -782,30 +800,30 @@ enum EstadoPago {
 }
 
 model Compra {
-  id            String     @id @default(cuid())
-  proveedorId   String
-  proveedor     Proveedor  @relation(fields: [proveedorId], references: [id])
-  fecha         DateTime
-  numeroFactura String?
-  conIva        Boolean    @default(true)
-  totalBruto    Decimal
-  totalNeto     Decimal
-  costoEnvio    Decimal    @default(0) // flete/envío en pesos, prorrateado al costo de los rollos/lotes (si fleteModo='porcentaje', es el equivalente calculado)
-  fleteModo     String     @default("monto")  // 'monto' (pesos) | 'porcentaje'
+  id              String        @id @default(cuid())
+  proveedorId     String
+  proveedor       Proveedor     @relation(fields: [proveedorId], references: [id])
+  fecha           DateTime
+  numeroFactura   String?
+  conIva          Boolean       @default(true)
+  totalBruto      Decimal
+  totalNeto       Decimal
+  costoEnvio      Decimal       @default(0) // flete/envío en pesos, prorrateado al costo de los rollos/lotes (si fleteModo='porcentaje', es el equivalente calculado)
+  fleteModo       String        @default("monto") // 'monto' (pesos) | 'porcentaje'
   fletePorcentaje Decimal? // % ingresado cuando fleteModo='porcentaje' (para recordarlo al editar)
-  formaPago     String?
-  estadoPago    EstadoPago @default(PENDIENTE)
-  montoPagado   Decimal    @default(0)
-  fechaPago     DateTime?
-  notas         String?
-  revertida     Boolean    @default(false)
-  revertidaAt   DateTime?
-  revertidaPor  String?
-  creadoPor     String
-  creadoAt      DateTime   @default(now())
-  lineas        CompraLinea[]
-  rollos        Rollo[]
-  lotes         Lote[]
+  formaPago       String?
+  estadoPago      EstadoPago    @default(PENDIENTE)
+  montoPagado     Decimal       @default(0)
+  fechaPago       DateTime?
+  notas           String?
+  revertida       Boolean       @default(false)
+  revertidaAt     DateTime?
+  revertidaPor    String?
+  creadoPor       String
+  creadoAt        DateTime      @default(now())
+  lineas          CompraLinea[]
+  rollos          Rollo[]
+  lotes           Lote[]
 
   @@map("compras")
 }
@@ -828,16 +846,16 @@ model CompraLinea {
 
 model Insumo {
   id               String        @id @default(cuid())
-  nombre           String                       // nombre del artículo (suele ser el del proveedor)
-  nombreInterno    String?                      // nombre interno opcional (ref al catálogo de telas)
+  nombre           String // nombre del artículo (suele ser el del proveedor)
+  nombreInterno    String? // nombre interno opcional (ref al catálogo de telas)
   categoria        String
   tipoTrazabilidad String
   unidadDefault    String
   stockMinimo      Decimal?
   manejaColor      Boolean       @default(false)
   rinde            Decimal?
-  anchoCm          Decimal?                     // ancho útil habitual de la tela, en cm. Lo usa el tizador
-  tubular          Boolean?                     // null = sin definir · true = tubular · false = abierta
+  anchoCm          Decimal? // ancho útil habitual de la tela, en cm. Lo usa el tizador
+  tubular          Boolean? // null = sin definir · true = tubular · false = abierta
   activo           Boolean       @default(true)
   colores          InsumoColor[]
   rollos           Rollo[]
@@ -850,12 +868,12 @@ model Insumo {
 }
 
 model InsumoColor {
-  id             String      @id @default(cuid())
-  insumoId       String
-  insumo         Insumo      @relation(fields: [insumoId], references: [id], onDelete: Cascade)
-  skuCatalogoId  String
-  skuCatalogo    SkuCatalogo @relation(fields: [skuCatalogoId], references: [id])
-  activo         Boolean     @default(true)
+  id            String      @id @default(cuid())
+  insumoId      String
+  insumo        Insumo      @relation(fields: [insumoId], references: [id], onDelete: Cascade)
+  skuCatalogoId String
+  skuCatalogo   SkuCatalogo @relation(fields: [skuCatalogoId], references: [id])
+  activo        Boolean     @default(true)
 
   @@unique([insumoId, skuCatalogoId])
   @@map("insumo_colores")
@@ -869,28 +887,28 @@ enum EstadoRollo {
 }
 
 model Rollo {
-  id            String             @id @default(cuid())
-  codigo        String             @unique
-  insumoId      String
-  insumo        Insumo             @relation(fields: [insumoId], references: [id])
-  colorId       String?
-  color         SkuCatalogo?       @relation("RolloColor", fields: [colorId], references: [id])
-  colorProveedor String?           // nombre comercial del color que pone el proveedor (ej. "Lindt")
-  compraId      String
-  compra        Compra             @relation(fields: [compraId], references: [id])
-  compraLineaId String?
-  compraLinea   CompraLinea?       @relation(fields: [compraLineaId], references: [id], onDelete: SetNull)
-  pesoInicial   Decimal
-  pesoActual    Decimal
-  anchoCm       Decimal?           // ancho medido de ESTE rollo; pisa al del artículo cuando viene distinto
-  costoUnitario Decimal
-  moneda        String             @default("ARS") // 'ARS' | 'USD' — moneda original de la compra
-  costoUnitarioUsd Decimal?         // costo unitario en USD (si moneda='USD'); para revaluar a un TC nuevo
-  estado        EstadoRollo        @default(DISPONIBLE)
-  ubicacion     String?
-  fotoUrl       String?
-  movimientos   MovimientoInsumo[]
-  createdAt     DateTime           @default(now())
+  id               String             @id @default(cuid())
+  codigo           String             @unique
+  insumoId         String
+  insumo           Insumo             @relation(fields: [insumoId], references: [id])
+  colorId          String?
+  color            SkuCatalogo?       @relation("RolloColor", fields: [colorId], references: [id])
+  colorProveedor   String? // nombre comercial del color que pone el proveedor (ej. "Lindt")
+  compraId         String
+  compra           Compra             @relation(fields: [compraId], references: [id])
+  compraLineaId    String?
+  compraLinea      CompraLinea?       @relation(fields: [compraLineaId], references: [id], onDelete: SetNull)
+  pesoInicial      Decimal
+  pesoActual       Decimal
+  anchoCm          Decimal? // ancho medido de ESTE rollo; pisa al del artículo cuando viene distinto
+  costoUnitario    Decimal
+  moneda           String             @default("ARS") // 'ARS' | 'USD' — moneda original de la compra
+  costoUnitarioUsd Decimal? // costo unitario en USD (si moneda='USD'); para revaluar a un TC nuevo
+  estado           EstadoRollo        @default(DISPONIBLE)
+  ubicacion        String?
+  fotoUrl          String?
+  movimientos      MovimientoInsumo[]
+  createdAt        DateTime           @default(now())
 
   @@map("rollos")
 }
@@ -902,25 +920,25 @@ enum EstadoLote {
 }
 
 model Lote {
-  id              String             @id @default(cuid())
-  codigo          String             @unique
-  insumoId        String
-  insumo          Insumo             @relation(fields: [insumoId], references: [id])
-  colorId         String?
-  color           SkuCatalogo?       @relation("LoteColor", fields: [colorId], references: [id])
-  colorProveedor  String?            // nombre comercial del color que pone el proveedor (ej. "Lindt")
-  compraId        String
-  compra          Compra             @relation(fields: [compraId], references: [id])
-  compraLineaId   String?
-  compraLinea     CompraLinea?       @relation(fields: [compraLineaId], references: [id], onDelete: SetNull)
-  cantidadInicial Decimal
-  cantidadActual  Decimal
-  costoUnitario   Decimal
-  moneda          String             @default("ARS") // 'ARS' | 'USD'
-  costoUnitarioUsd Decimal?          // costo unitario en USD (si moneda='USD'); para revaluar a un TC nuevo
-  estado          EstadoLote         @default(DISPONIBLE)
-  movimientos     MovimientoInsumo[]
-  createdAt       DateTime           @default(now())
+  id               String             @id @default(cuid())
+  codigo           String             @unique
+  insumoId         String
+  insumo           Insumo             @relation(fields: [insumoId], references: [id])
+  colorId          String?
+  color            SkuCatalogo?       @relation("LoteColor", fields: [colorId], references: [id])
+  colorProveedor   String? // nombre comercial del color que pone el proveedor (ej. "Lindt")
+  compraId         String
+  compra           Compra             @relation(fields: [compraId], references: [id])
+  compraLineaId    String?
+  compraLinea      CompraLinea?       @relation(fields: [compraLineaId], references: [id], onDelete: SetNull)
+  cantidadInicial  Decimal
+  cantidadActual   Decimal
+  costoUnitario    Decimal
+  moneda           String             @default("ARS") // 'ARS' | 'USD'
+  costoUnitarioUsd Decimal? // costo unitario en USD (si moneda='USD'); para revaluar a un TC nuevo
+  estado           EstadoLote         @default(DISPONIBLE)
+  movimientos      MovimientoInsumo[]
+  createdAt        DateTime           @default(now())
 
   @@map("lotes")
 }
@@ -935,26 +953,26 @@ enum TipoMovimiento {
 }
 
 model MovimientoInsumo {
-  id               String            @id @default(cuid())
+  id               String           @id @default(cuid())
   tipo             TipoMovimiento
   rolloId          String?
-  rollo            Rollo?            @relation(fields: [rolloId], references: [id])
+  rollo            Rollo?           @relation(fields: [rolloId], references: [id])
   loteId           String?
-  lote             Lote?             @relation(fields: [loteId], references: [id])
+  lote             Lote?            @relation(fields: [loteId], references: [id])
   ordenId          String?
-  orden            OrdenProduccion?  @relation(fields: [ordenId], references: [id])
+  orden            OrdenProduccion? @relation(fields: [ordenId], references: [id])
   proyectoId       String?
-  proyecto         ProyectoDiseno?   @relation(fields: [proyectoId], references: [id])
+  proyecto         ProyectoDiseno?  @relation(fields: [proyectoId], references: [id])
   cantidad         Decimal
   motivo           String?
   // Solo la escriben los retiros para muestra (tipo MUESTRA): es la marca a la
   // que se le imputa el desarrollo. El resto de los movimientos la dejan null.
   marca            String?
   motivoDescarteId String?
-  motivoDescarte   MotivoDescarte?   @relation(fields: [motivoDescarteId], references: [id])
+  motivoDescarte   MotivoDescarte?  @relation(fields: [motivoDescarteId], references: [id])
   fotoUrl          String?
   usuarioId        String
-  fecha            DateTime          @default(now())
+  fecha            DateTime         @default(now())
   revertidoPor     String?
   reversionNota    String?
 
@@ -984,25 +1002,70 @@ model MovimientoTerminado {
   sku       String
   talle     String
   tipo      String   @default("liso")
-  cantidad  Int      // + ingreso / - egreso
-  origen    String   // 'produccion' | 'estampa' | 'venta' | 'ajuste'
+  cantidad  Int // + ingreso / - egreso
+  origen    String // 'produccion' | 'estampa' | 'venta' | 'ajuste'
   ordenId   String?
   motivo    String?
   creadoPor String
   fecha     DateTime @default(now())
 
+  // Pasaje a la marca en el que entró esta salida. Es el GUARD que impide valorizar la
+  // misma mercadería dos veces: un movimiento entra a un pasaje y a ninguno más.
+  pasajeId String?
+  pasaje   Pasaje? @relation(fields: [pasajeId], references: [id])
+
   @@index([sku])
+  @@index([pasajeId])
   @@map("movimientos_terminado")
+}
+
+// Lo que el taller (Areben) le entrega a una marca en un período: la mercadería sale del
+// stock terminado y para la marca es una COMPRA. Se cierra una vez por mes y su total es
+// NETO (sin IVA) por construcción: el costo del escandallo se arma con precios netos.
+//
+// El costo se CONGELA en los ítems al cerrar: un escandallo que cambie el mes que viene no
+// puede mover un pasaje ya cerrado.
+model Pasaje {
+  id          String                @id @default(cuid())
+  marca       String                @default("Zattia")
+  periodo     String // 'YYYY-MM'
+  desde       DateTime // fecha del primer movimiento incluido
+  hasta       DateTime // fecha del último
+  unidades    Int                   @default(0)
+  totalNeto   Decimal               @default(0)
+  notas       String?
+  creadoPor   String
+  createdAt   DateTime              @default(now())
+  items       PasajeItem[]
+  movimientos MovimientoTerminado[]
+
+  @@index([marca, periodo])
+  @@map("pasajes")
+}
+
+model PasajeItem {
+  id            String  @id @default(cuid())
+  pasajeId      String
+  pasaje        Pasaje  @relation(fields: [pasajeId], references: [id], onDelete: Cascade)
+  sku           String
+  talle         String
+  tipo          String  @default("liso")
+  cantidad      Int
+  costoUnitario Decimal // snapshot del escandallo al momento de cerrar
+  costoTotal    Decimal
+
+  @@index([pasajeId])
+  @@map("pasaje_items")
 }
 
 // Reposición: vincula un producto de Gestión Nube (código) con un liso de areben.
 // Muchos productos finales (estampados) pueden mapear a un mismo liso.
 model ReposicionMapeo {
   id        String   @id @default(cuid())
-  gnId      Int      @unique          // id del producto en Gestión Nube (clave real)
-  gnCode    String?                   // código de GN, solo display
-  gnNombre  String?                   // nombre denormalizado (para mostrar)
-  skuLiso   String                    // estampa: SKU del liso base · produccion: SKU/molde a producir
+  gnId      Int      @unique // id del producto en Gestión Nube (clave real)
+  gnCode    String? // código de GN, solo display
+  gnNombre  String? // nombre denormalizado (para mostrar)
+  skuLiso   String // estampa: SKU del liso base · produccion: SKU/molde a producir
   tipo      String   @default("estampa") // 'estampa' (desde liso) | 'produccion' (directa)
   activo    Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -1014,14 +1077,14 @@ model ReposicionMapeo {
 // Copia local de los productos de producción propia (Zattia/Areben) de Gestión Nube,
 // para listarlos al vincular sin pegarle a la API en cada uso. Se refresca con "Sincronizar".
 model GnProducto {
-  gnId     Int      @id            // id numérico del producto en Gestión Nube (único de verdad)
-  code     String?                 // "código" de GN (NO es único: suele venir vacío/repetido), solo display
-  name     String
-  provider String
-  category String?
-  precioRetail     Float?          // retailer_price de GN: PVP minorista (IVA incluido)
-  precioMayorista  Float?          // wholesaler_price de GN: precio mayorista
-  syncedAt DateTime @default(now()) @updatedAt
+  gnId            Int      @id // id numérico del producto en Gestión Nube (único de verdad)
+  code            String? // "código" de GN (NO es único: suele venir vacío/repetido), solo display
+  name            String
+  provider        String
+  category        String?
+  precioRetail    Float? // retailer_price de GN: PVP minorista (IVA incluido)
+  precioMayorista Float? // wholesaler_price de GN: precio mayorista
+  syncedAt        DateTime @default(now()) @updatedAt
 
   @@map("gn_productos")
 }
@@ -1029,12 +1092,12 @@ model GnProducto {
 // Override manual del PVP por producto GN (correción o cuando GN no trae precio).
 // Separado de GnProducto para que la sync no lo pise. PVP efectivo = pvpManual ?? GnProducto.precioRetail.
 model PrecioProducto {
-  gnId              Int       @id     // id del producto en Gestión Nube
-  pvpManual         Float?            // override manual del PVP minorista (IVA incluido)
-  costoManual       Float?            // costo neto cargado a mano (cuando el SKU no matchea un escandallo)
-  precioPromo       Float?            // precio promocional confirmado en Sale (c/IVA); null = sin promo
-  promoDescuentoPct Float?            // % de descuento con el que se confirmó la promo
-  promoAt           DateTime?         // cuándo se confirmó la promo
+  gnId              Int       @id // id del producto en Gestión Nube
+  pvpManual         Float? // override manual del PVP minorista (IVA incluido)
+  costoManual       Float? // costo neto cargado a mano (cuando el SKU no matchea un escandallo)
+  precioPromo       Float? // precio promocional confirmado en Sale (c/IVA); null = sin promo
+  promoDescuentoPct Float? // % de descuento con el que se confirmó la promo
+  promoAt           DateTime? // cuándo se confirmó la promo
   updatedAt         DateTime  @updatedAt
 
   @@map("precios_producto")
@@ -1047,7 +1110,7 @@ model GnSyncEstado {
   lastPage  Int      @default(0)
   total     Int      @default(0)
   completo  Boolean  @default(false)
-  updatedAt DateTime @updatedAt @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
 
   @@map("gn_sync_estado")
 }
@@ -1059,7 +1122,7 @@ model GnStock {
   gnId     Int
   talle    String
   cantidad Int      @default(0)
-  syncedAt DateTime @updatedAt @default(now())
+  syncedAt DateTime @default(now()) @updatedAt
 
   @@unique([gnId, talle])
   @@index([gnId])
@@ -1076,7 +1139,7 @@ model GnVentas {
   v7       Int      @default(0)
   v30      Int      @default(0)
   v90      Int      @default(0)
-  syncedAt DateTime @updatedAt @default(now())
+  syncedAt DateTime @default(now()) @updatedAt
 
   @@unique([gnId, talle])
   @@index([gnId])
@@ -1090,7 +1153,7 @@ model OrdenEstampa {
   creadoPor String
   creadoAt  DateTime           @default(now())
   estado    String             @default("pendiente") // 'pendiente' | 'parcial' | 'hecha'
-  tipo      String             @default("estampa")   // 'estampa' (descuenta liso) | 'produccion' (informativa)
+  tipo      String             @default("estampa") // 'estampa' (descuenta liso) | 'produccion' (informativa)
   origen    String             @default("reposicion") // 'reposicion' (nace de un producto GN) | 'lanzamiento' (nace de una estampa)
   notas     String?
   items     OrdenEstampaItem[]
@@ -1105,12 +1168,12 @@ model OrdenEstampaItem {
   // Reposición: el ítem apunta a un producto de GestiónNube que ya se vende.
   // Lanzamiento: todavía no existe en GN, así que apunta a la Estampa. Exactamente uno de los dos.
   gnId       Int?
-  gnNombre   String?      // nombre del estampado (print)
+  gnNombre   String? // nombre del estampado (print)
   estampaId  String?
   estampa    Estampa?     @relation(fields: [estampaId], references: [id])
-  skuLiso    String       // liso base
+  skuLiso    String // liso base
   talle      String
-  cantidad   Int          // pedido
+  cantidad   Int // pedido
   confirmado Int          @default(0) // estampado/confirmado (descuenta liso); pendiente = cantidad - confirmado
 
   @@index([ordenId])
@@ -1143,11 +1206,11 @@ model ReposicionMinimo {
 
 model Estampa {
   id              String   @id @default(cuid())
-  codigoInterno   String   // ref de la diseñadora (lo único obligatorio)
-  nombreComercial String?  // diferido: se pone después, no bloquea la carga
+  codigoInterno   String // ref de la diseñadora (lo único obligatorio)
+  nombreComercial String? // diferido: se pone después, no bloquea la carga
   coleccion       String?
-  marca           String?  // 'Zattia' | 'Stunned' (lib/marcas.ts); null = sin asignar
-  imagenUrl       String?  // opcional (URL; sin upload por ahora)
+  marca           String? // 'Zattia' | 'Stunned' (lib/marcas.ts); null = sin asignar
+  imagenUrl       String? // opcional (URL; sin upload por ahora)
   precioMetroDtf  Decimal  @default(0) // (dormido) el precio ahora es global en ConfigCostos
   anchoCm         Decimal  @default(0) // ancho del diseño (cm)
   largoCm         Decimal  @default(0) // largo del diseño (cm)
@@ -1156,13 +1219,13 @@ model Estampa {
   largo2Cm        Decimal  @default(0)
   merma2Percent   Decimal  @default(0)
   estado          String   @default("pensada") // 'pensada' | 'pedida' | 'recibida'
-  sku             String?  // producto vinculado (diferido)
+  sku             String? // producto vinculado (diferido)
   notas           String?
   creadoPor       String   @default("admin")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  ordenItems      OrdenEstampaItem[]
+  ordenItems OrdenEstampaItem[]
 
   @@unique([codigoInterno])
   @@map("estampas")
