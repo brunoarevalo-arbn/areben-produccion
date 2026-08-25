@@ -17,6 +17,16 @@ export interface FichaTelaFila {
   costo: number;         // consumo neto × costo unitario del rollo
 }
 
+// Una tela (artículo) de la ficha, ya en plata POR PRENDA: es lo que se mira para costear.
+// Con varios rollos del mismo artículo el dato útil es el subtotal, no cada rollo suelto.
+export interface FichaTelaArticulo {
+  articulo: string;
+  color: string | null;   // el del primer rollo; null si los rollos no coinciden
+  filas: FichaTelaFila[];
+  metros: number; kg: number; costo: number;          // del corte entero
+  metrosUnit: number; kgUnit: number; costoUnit: number; // por prenda
+}
+
 export interface FichaDetalle {
   orden: { id: string; sku: string | null; marca: string; descripcion: string | null; cantidad: number; fechaCorte: Date | null; cortador: string | null };
   telas: FichaTelaFila[];
@@ -100,4 +110,26 @@ export async function fichaDetalleSku(sku: string | null | undefined): Promise<F
       return { nombre: a.etiqueta.nombre, cantidad: a.cantidad, precio, costo: precio * a.cantidad };
     }),
   };
+}
+
+/**
+ * Agrupa las telas de la ficha por artículo y divide por las unidades cortadas.
+ * Vive acá y no en la page del PDF porque lo consumen los dos: el PDF y el resumen que
+ * el editor de escandallos pide por API. `telas` ya viene ordenado por artículo.
+ */
+export function agruparPorArticulo(ficha: FichaDetalle | null): FichaTelaArticulo[] {
+  if (!ficha) return [];
+  const uds = ficha.orden.cantidad > 0 ? ficha.orden.cantidad : 0;
+  const grupos: FichaTelaArticulo[] = [];
+  for (const t of ficha.telas) {
+    const ult = grupos[grupos.length - 1];
+    const g = ult?.articulo === t.articulo
+      ? ult
+      : (grupos.push({ articulo: t.articulo, color: t.color, filas: [], metros: 0, kg: 0, costo: 0, metrosUnit: 0, kgUnit: 0, costoUnit: 0 }), grupos[grupos.length - 1]);
+    // Dos rollos del mismo artículo en colores distintos: el color deja de identificar al grupo.
+    if (g.color !== t.color) g.color = g.filas.length === 0 ? t.color : null;
+    g.filas.push(t); g.metros += t.metros; g.kg += t.kg; g.costo += t.costo;
+  }
+  if (uds > 0) for (const g of grupos) { g.metrosUnit = g.metros / uds; g.kgUnit = g.kg / uds; g.costoUnit = g.costo / uds; }
+  return grupos;
 }

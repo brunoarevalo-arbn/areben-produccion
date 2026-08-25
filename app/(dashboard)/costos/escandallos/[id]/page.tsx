@@ -3,14 +3,17 @@ import Link from 'next/link';
 import { prisma } from '@/lib/prisma';
 import { PrintButton } from '@/components/costos/PrintButton';
 import { parseDatos, telaCosto, itemCosto, calcular } from '@/lib/costos/escandallo';
-import { fichaDetalleSku, type FichaTelaFila } from '@/lib/produccion/fichaConsumo';
+import { fichaDetalleSku, agruparPorArticulo } from '@/lib/produccion/fichaConsumo';
+import { volverASeguro } from '@/lib/volverA';
 
 export const dynamic = 'force-dynamic';
 
 function fmt$(n: number) { return `$${n.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; }
 
-export default async function EscandalloPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function EscandalloPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ volverA?: string }> }) {
   const { id } = await params;
+  // `volverA` conserva la solapa y los filtros de la lista de la que se vino.
+  const { volverA } = await searchParams;
 
   const [escandallo, gastos, costureras] = await Promise.all([
     prisma.escandallo.findUnique({ where: { id } }),
@@ -37,14 +40,10 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
 
   // Los rollos se agrupan por artículo para poder leer cuánta tela de CADA uno lleva la
   // prenda (una remera ≈ 1 m): con varios rollos del mismo artículo, el dato útil es el
-  // subtotal, no cada rollo por separado. `telas` ya viene ordenado por artículo.
+  // subtotal, no cada rollo por separado. La agrupación vive en `fichaConsumo` porque el
+  // editor de escandallos muestra el mismo desglose.
   const uds = ficha && ficha.orden.cantidad > 0 ? ficha.orden.cantidad : 1;
-  const gruposTela: { articulo: string; filas: FichaTelaFila[]; metros: number; kg: number; costo: number }[] = [];
-  for (const t of ficha?.telas ?? []) {
-    const ult = gruposTela[gruposTela.length - 1];
-    const g = ult?.articulo === t.articulo ? ult : (gruposTela.push({ articulo: t.articulo, filas: [], metros: 0, kg: 0, costo: 0 }), gruposTela[gruposTela.length - 1]);
-    g.filas.push(t); g.metros += t.metros; g.kg += t.kg; g.costo += t.costo;
-  }
+  const gruposTela = agruparPorArticulo(ficha);
 
   const telasCosts = datos.telas.map(t => {
     const { pMetro, pM2, costo, merma } = telaCosto(t);
@@ -104,7 +103,7 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
     <div>
       {/* Barra de acción */}
       <div className="print:hidden sticky top-0 z-10 bg-white border-b border-stone-200 px-6 py-3 flex items-center gap-4">
-        <Link href="/costos" className="text-sm text-stone-500 hover:text-stone-800 transition">← Volver</Link>
+        <Link href={volverASeguro(volverA, '/costos')} className="text-sm text-stone-500 hover:text-stone-800 transition">← Volver</Link>
         <div className="flex-1" />
         <PrintButton />
       </div>
@@ -154,7 +153,8 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
                     <th className="text-right py-2 font-semibold text-stone-600 w-20">kg</th>
                     <th className="text-right py-2 font-semibold text-stone-600 w-24">$/kg</th>
                     <th className="text-right py-2 font-semibold text-stone-600 w-24">$/metro</th>
-                    <th className="text-right py-2 font-semibold text-stone-600 w-24">Costo</th>
+                    <th className="text-right py-2 font-semibold text-stone-600 w-24">$/prenda</th>
+                    <th className="text-right py-2 font-semibold text-stone-600 w-24">$ corte</th>
                   </tr>
                 </thead>
                 {gruposTela.map((g) => (
@@ -168,7 +168,8 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
                         <td className="py-2.5 text-right tabular-nums text-stone-500">{fmtKg(t.kg)}</td>
                         <td className="py-2.5 text-right tabular-nums text-stone-700">{fmt$(t.precioKg)}</td>
                         <td className="py-2.5 text-right tabular-nums text-stone-700">{fmt$(t.precioMetro)}</td>
-                        <td className="py-2.5 text-right font-semibold tabular-nums text-stone-900">{fmt$(t.costo)}</td>
+                        <td className="py-2.5 text-right font-semibold tabular-nums text-stone-900">{fmt$(t.costo / uds)}</td>
+                        <td className="py-2.5 text-right tabular-nums text-stone-500">{fmt$(t.costo)}</td>
                       </tr>
                     ))}
                     {/* Con varios rollos del mismo artículo, lo que importa es cuánto lleva
@@ -177,10 +178,11 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
                       <tr className="border-b border-stone-200 bg-stone-50">
                         <td colSpan={2} className="py-1.5 pr-4 text-stone-600 italic">Total {g.articulo}</td>
                         <td className="py-1.5 text-right tabular-nums font-semibold text-stone-700">{fmtM(g.metros)}</td>
-                        <td className="py-1.5 text-right tabular-nums font-semibold text-stone-700">{fmtMU(g.metros / uds)}</td>
+                        <td className="py-1.5 text-right tabular-nums font-semibold text-stone-700">{fmtMU(g.metrosUnit)}</td>
                         <td className="py-1.5 text-right tabular-nums text-stone-500">{fmtKg(g.kg)}</td>
                         <td colSpan={2} />
-                        <td className="py-1.5 text-right tabular-nums font-semibold text-stone-700">{fmt$(g.costo)}</td>
+                        <td className="py-1.5 text-right tabular-nums font-bold text-stone-900">{fmt$(g.costoUnit)}</td>
+                        <td className="py-1.5 text-right tabular-nums text-stone-500">{fmt$(g.costo)}</td>
                       </tr>
                     )}
                   </tbody>
@@ -192,10 +194,20 @@ export default async function EscandalloPage({ params }: { params: Promise<{ id:
                     <td className="pt-3 text-right font-bold tabular-nums text-stone-700">{fmtMU(ficha.totales.metrosUnit)}</td>
                     <td className="pt-3 text-right font-bold tabular-nums text-stone-500">{fmtKg(ficha.totales.kg)}</td>
                     <td colSpan={2} />
-                    <td className="pt-3 text-right font-bold tabular-nums text-stone-900">{fmt$(ficha.totales.costo)}</td>
+                    <td className="pt-3 text-right font-bold tabular-nums text-stone-900">{fmt$(ficha.totales.costo / uds)}</td>
+                    <td className="pt-3 text-right font-bold tabular-nums text-stone-500">{fmt$(ficha.totales.costo)}</td>
                   </tr>
                 </tfoot>
               </table></div>
+              {/* El costo que manda es el de la OP e incluye los insumos secundarios del corte,
+                  que no salen de ningún rollo: si hay diferencia con la suma de la tabla, se
+                  muestra en vez de esconderla — el desglose tiene que cerrar contra el total. */}
+              {Math.abs(costoTelas - ficha.totales.costo / uds) > 0.01 && (
+                <div className="flex justify-between text-sm border-t border-stone-100 mt-2 pt-2">
+                  <span className="text-stone-500">Otros insumos del corte (por prenda)</span>
+                  <span className="tabular-nums text-stone-600">{fmt$(costoTelas - ficha.totales.costo / uds)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm border-t border-stone-200 mt-2 pt-2">
                 <span className="text-stone-600">Tela por prenda{ficha.orden.cantidad > 0 ? ` (÷ ${ficha.orden.cantidad} u)` : ''} · {fmtM(ficha.totales.metrosUnit)} m{ficha.totales.kgUnit > 0 ? ` · ${fmtKg(ficha.totales.kgUnit)} kg` : ''}</span>
                 <span className="font-bold tabular-nums text-stone-900">{fmt$(costoTelas)}</span>
