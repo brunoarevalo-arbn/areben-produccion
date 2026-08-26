@@ -7,6 +7,7 @@ import { Cronometro } from './Cronometro';
 import { LogRegistros } from './LogRegistros';
 import { FormTiempos } from './FormTiempos';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import Link from 'next/link';
 
 interface OrdenActiva {
   id: string;
@@ -32,6 +33,16 @@ interface Props {
 export function TiemposClient({ usuario, ordenesIniciales }: Props) {
   const router  = useRouter();
   const tiempos = useTiempos(usuario.nombre);
+
+  // La corrida de muestra encendida para esta costurera, si hay alguna. Es la
+  // única puerta a la calculadora desde la tablet: no se navega por URL.
+  const [corrida, setCorrida] = useState<{ id: string; nombre: string; talle: string; modo: string } | null>(null);
+  useEffect(() => {
+    fetch('/api/tiempos/corrida')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setCorrida(d))
+      .catch(() => { /* la tablet sigue funcionando sin corrida */ });
+  }, []);
 
   // Registros propios con una solicitud de cambio pendiente (para badge / evitar dupes).
   const [pendientes, setPendientes] = useState<Set<string>>(new Set());
@@ -82,6 +93,20 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
       </header>
 
       <div className="flex-1 flex flex-col overflow-hidden">
+        {corrida && (
+          <div className="px-4 pt-4 shrink-0">
+            <Link href={`/tiempos/corrida/${corrida.id}`}
+              className="block bg-amber-50 border-2 border-amber-400 rounded-xl px-4 py-3.5 transition active:scale-95">
+              <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
+                📐 {corrida.modo === 'relevamiento' ? 'Relevamiento' : 'Corrida de muestra'}
+              </p>
+              <p className="font-semibold text-stone-900 text-sm mt-0.5">
+                {corrida.nombre} · {corrida.talle} <span className="text-amber-600">→</span>
+              </p>
+            </Link>
+          </div>
+        )}
+
         <div className="px-4 pt-4 pb-2 shrink-0">
           <Cronometro
             tiempoDisplay={tiempos.tiempoDisplay}

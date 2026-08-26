@@ -1,0 +1,303 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useCronometro } from '@/lib/hooks/useCronometro';
+import { NumInput } from '@/components/ui/NumInput';
+import { confirmAsync } from '@/components/ui/ConfirmProvider';
+import { MAQUINAS } from '@/lib/constants/maquinas';
+import { MOTIVOS_PARADA } from '@/lib/constants/paradas';
+
+interface Paso { id: string; orden: number; nombre: string; maquina: string; nacidoEnCorrida: boolean }
+interface Ribete { id: string; orden: number; nombre: string; anchoCm: number; largoCm: number }
+export interface CorridaVista {
+  id: string; nombre: string; tipoPrenda: string; marca: string; modo: string;
+  talle: string; costurera: string; estado: string;
+  unidadesObjetivo: number; unidadActual: number;
+  pasos: Paso[]; ribetes: Ribete[];
+  abierto: { id: string; tipo: string; pasoId: string | null; maquina: string | null; motivo: string | null } | null;
+  resumen: {
+    porPaso: { pasoId: string; nombre: string; maquina: string; porUnidad: { unidad: number; minutos: number }[] }[];
+    unidades: { unidad: number; trabajo: number; paradas: number }[];
+  };
+}
+
+interface Siguiente {
+  tipo: 'paso' | 'parada';
+  pasoId?: string;
+  nuevoPaso?: { nombre: string; maquina: string };
+  maquina?: string;
+  motivo?: string;
+}
+
+const fmt = (n: number) => n.toString().replace('.', ',');
+
+export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: CorridaVista }) {
+  const router = useRouter();
+  const [c, setC] = useState(inicial);
+  const [error, setError] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+
+  // Namespace propio: en esta misma tablet corre el cronómetro de costura.
+  const cron = useCronometro(usuario, 'corrida');
+
+  const [nuevoNombre, setNuevoNombre] = useState('');
+  const [nuevaMaquina, setNuevaMaquina] = useState<string>(MAQUINAS[0]);
+  const [abrirNuevo, setAbrirNuevo] = useState(false);
+  const [abrirParada, setAbrirParada] = useState(false);
+  const [ribetes, setRibetes] = useState<{ nombre: string; anchoCm: number; largoCm: number }[]>(
+    inicial.ribetes.map((r) => ({ nombre: r.nombre, anchoCm: r.anchoCm, largoCm: r.largoCm })),
+  );
+  const [ribetesGuardados, setRibetesGuardados] = useState(true);
+
+  /**
+   * El único gesto: cerrar el tramo que corre y abrir el que sigue. Los botones
+   * de máquina, de paso, de parada y de fin de prenda son todos esto. El
+   * cronómetro se reinicia acá y no lo toca la costurera.
+   */
+  const accion = async (siguiente: Siguiente | null, avanzarUnidad = false) => {
+    if (ocupado) return;
+    setOcupado(true); setError(null);
+
+    const foto = cron.obtenerTiempos(2);
+    const res = await fetch(`/api/tiempos/corrida/${c.id}/tramo`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        minutos: foto?.minutosNetos ?? 0,
+        horaInicio: foto?.horaInicio,
+        horaFin: foto?.horaFin,
+        siguiente,
+        avanzarUnidad,
+      }),
+    });
+    setOcupado(false);
+
+    if (!res.ok) { setError((await res.json()).error ?? 'No se pudo guardar'); return; }
+    setC(await res.json());
+    cron.descartar();
+    if (siguiente) cron.iniciar();
+    setAbrirNuevo(false); setAbrirParada(false); setNuevoNombre('');
+  };
+
+  const guardarRibetes = async () => {
+    setOcupado(true); setError(null);
+    const res = await fetch(`/api/tiempos/corrida/${c.id}/ribete`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ribetes: ribetes.filter((r) => r.nombre.trim() !== '') }),
+    });
+    setOcupado(false);
+    if (!res.ok) { setError((await res.json()).error ?? 'No se pudo guardar el ribete'); return; }
+    setC(await res.json());
+    setRibetesGuardados(true);
+  };
+
+  const terminar = async () => {
+    const ok = await confirmAsync({
+      message: '¿Terminar la corrida? No se van a poder medir más prendas.',
+      confirmLabel: 'Terminar',
+    });
+    if (!ok) return;
+    const foto = cron.obtenerTiempos(2);
+    setOcupado(true);
+    const res = await fetch(`/api/tiempos/corrida/${c.id}/terminar`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutos: foto?.minutosNetos ?? 0, horaFin: foto?.horaFin }),
+    });
+    setOcupado(false);
+    if (!res.ok) { setError((await res.json()).error ?? 'No se pudo terminar'); return; }
+    cron.descartar();
+    router.push('/tiempos');
+  };
+
+  const abierto = c.abierto;
+  const pasoAbierto = abierto?.pasoId ? c.pasos.find((p) => p.id === abierto.pasoId) : undefined;
+  const minutosDe = (pasoId: string, unidad: number) =>
+    c.resumen.porPaso.find((p) => p.pasoId === pasoId)?.porUnidad.find((u) => u.unidad === unidad)?.minutos ?? null;
+
+  const relevamiento = c.modo === 'relevamiento';
+  const corriendo = cron.estado === 'corriendo';
+
+  return (
+    <div className="flex flex-col h-screen bg-stone-50">
+      <header className="bg-stone-900 px-4 py-3 flex items-center justify-between shrink-0">
+        <div className="min-w-0">
+          <p className="text-amber-400 text-xs font-bold uppercase tracking-widest">
+            {relevamiento ? 'Relevamiento' : 'Corrida de muestra'}
+          </p>
+          <p className="text-white font-semibold text-sm leading-tight truncate">{c.nombre} · {c.talle}</p>
+          <p className="text-stone-400 text-xs">Prenda {c.unidadActual} de {c.unidadesObjetivo}</p>
+        </div>
+        <button onClick={() => router.push('/tiempos')}
+          className="text-stone-400 hover:text-white text-xs border border-stone-700 hover:border-stone-500 px-3 py-1.5 rounded-lg transition shrink-0">
+          Salir
+        </button>
+      </header>
+
+      {/* Cronómetro: no tiene botón de arrancar. Lo prende tocar un paso. */}
+      <div className="bg-stone-900 mx-4 mt-3 rounded-xl px-5 py-4 shrink-0">
+        <p className={`text-center font-mono text-3xl font-bold tabular-nums ${corriendo ? 'text-amber-400' : 'text-stone-500'}`}>
+          {cron.tiempoDisplay}
+        </p>
+        <p className="text-center text-xs mt-1 text-stone-400">
+          {abierto?.tipo === 'parada'
+            ? `⏸ ${abierto.motivo ?? 'Parada'}`
+            : pasoAbierto
+              ? `${pasoAbierto.nombre} · ${abierto?.maquina ?? pasoAbierto.maquina}`
+              : 'Tocá un paso para arrancar'}
+        </p>
+      </div>
+
+      {error && (
+        <div className="mx-4 mt-3 bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl">{error}</div>
+      )}
+
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+        {/* ── Los pasos ─────────────────────────────────────────────── */}
+        <div className="space-y-1.5">
+          {c.pasos.map((p) => {
+            const abiertoAca = abierto?.pasoId === p.id;
+            const hecho = minutosDe(p.id, c.unidadActual);
+            return (
+              <button key={p.id} onClick={() => accion({ tipo: 'paso', pasoId: p.id, maquina: p.maquina })}
+                disabled={ocupado}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 text-left transition-all active:scale-95 disabled:opacity-60 ${
+                  abiertoAca ? 'bg-amber-50 border-amber-400' : 'bg-white border-stone-200 hover:border-stone-300'
+                }`}>
+                <span className="text-xs text-stone-400 w-5 tabular-nums shrink-0">{p.orden}</span>
+                <span className="flex-1 min-w-0">
+                  <span className="block font-semibold text-sm text-stone-800 truncate">{p.nombre}</span>
+                  <span className="block text-xs text-stone-400">{p.maquina}</span>
+                </span>
+                <span className="text-sm tabular-nums shrink-0">
+                  {abiertoAca ? <span className="text-amber-600">⏱</span>
+                    : hecho != null ? <span className="text-stone-500">{fmt(hecho)} ✓</span>
+                    : <span className="text-stone-300">—</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Relevamiento: el paso nace acá ─────────────────────────── */}
+        {relevamiento && (
+          !abrirNuevo ? (
+            <button onClick={() => setAbrirNuevo(true)} disabled={ocupado}
+              className="w-full py-3 rounded-xl border-2 border-dashed border-amber-300 text-amber-700 text-xs font-bold uppercase tracking-wide hover:bg-amber-50 transition active:scale-95">
+              + ¿Qué estás haciendo ahora?
+            </button>
+          ) : (
+            <div className="bg-white border-2 border-amber-300 rounded-xl p-3 space-y-2">
+              <input value={nuevoNombre} onChange={(e) => setNuevoNombre(e.target.value)}
+                placeholder="Nombre del paso" autoFocus
+                className="w-full border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+              <div className="grid grid-cols-3 gap-1.5">
+                {MAQUINAS.map((m) => (
+                  <button key={m} onClick={() => setNuevaMaquina(m)}
+                    className={`px-2 py-2 rounded-xl border-2 text-xs font-semibold transition active:scale-95 ${
+                      nuevaMaquina === m ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600'
+                    }`}>{m}</button>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => accion({ tipo: 'paso', nuevoPaso: { nombre: nuevoNombre.trim(), maquina: nuevaMaquina }, maquina: nuevaMaquina })}
+                  disabled={ocupado || nuevoNombre.trim() === ''}
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white py-2.5 rounded-xl text-xs font-bold uppercase tracking-wide transition active:scale-95">
+                  Arrancar este paso
+                </button>
+                <button onClick={() => setAbrirNuevo(false)}
+                  className="px-4 py-2.5 rounded-xl border border-stone-200 text-stone-500 text-xs font-semibold">Cancelar</button>
+              </div>
+            </div>
+          )
+        )}
+
+        {/* ── Máquina: cambia sin cortar el proceso ──────────────────── */}
+        {abierto?.tipo === 'paso' && pasoAbierto && (
+          <div className="bg-white border border-stone-200 rounded-xl p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">Máquina</p>
+            <div className="grid grid-cols-3 gap-1.5">
+              {MAQUINAS.map((m) => {
+                const activa = (abierto.maquina ?? pasoAbierto.maquina) === m;
+                return (
+                  <button key={m} onClick={() => !activa && accion({ tipo: 'paso', pasoId: pasoAbierto.id, maquina: m })}
+                    disabled={ocupado}
+                    className={`px-2 py-2.5 rounded-xl border-2 text-xs font-semibold transition active:scale-95 disabled:opacity-60 ${
+                      activa ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                    }`}>{m}</button>
+                );
+              })}
+            </div>
+            <p className="text-xs text-stone-400 mt-2">Tocá otra y seguís cosiendo: el reloj no se corta.</p>
+          </div>
+        )}
+
+        {/* ── Parada declarada ──────────────────────────────────────── */}
+        {!abrirParada ? (
+          <button onClick={() => setAbrirParada(true)} disabled={ocupado}
+            className="w-full py-3 rounded-xl border-2 border-dashed border-sky-300 text-sky-700 text-xs font-bold uppercase tracking-wide hover:bg-sky-50 transition active:scale-95">
+            ⏸ Paré un momento
+          </button>
+        ) : (
+          <div className="bg-white border-2 border-sky-300 rounded-xl p-3 space-y-1.5">
+            {MOTIVOS_PARADA.map((m) => (
+              <button key={m} onClick={() => accion({ tipo: 'parada', motivo: m })} disabled={ocupado}
+                className="w-full text-left px-4 py-2.5 rounded-xl border-2 border-stone-200 text-sm text-stone-700 hover:border-sky-300 transition active:scale-95">
+                {m}
+              </button>
+            ))}
+            <button onClick={() => setAbrirParada(false)}
+              className="w-full py-2 text-xs text-stone-400">Cancelar</button>
+          </div>
+        )}
+
+        {/* ── Ribete ────────────────────────────────────────────────── */}
+        <div className="bg-white border border-stone-200 rounded-xl p-4">
+          <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-1">Ribete de esta muestra</p>
+          <p className="text-xs text-stone-400 mb-3">Los centímetros del talle {c.talle}, el que estás cosiendo.</p>
+          <div className="space-y-2">
+            {ribetes.map((r, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <input value={r.nombre} placeholder="Ej: Ribete escote"
+                  onChange={(e) => { setRibetes(ribetes.map((x, k) => k === i ? { ...x, nombre: e.target.value } : x)); setRibetesGuardados(false); }}
+                  className="flex-1 min-w-0 border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
+                <NumInput value={r.anchoCm} aria-label="Ancho en cm" placeholder="ancho"
+                  onChange={(n) => { setRibetes(ribetes.map((x, k) => k === i ? { ...x, anchoCm: n } : x)); setRibetesGuardados(false); }}
+                  className="w-20 border border-stone-200 rounded-xl px-2 py-2.5 text-sm text-center focus:outline-none focus:border-amber-400" />
+                <NumInput value={r.largoCm} aria-label="Largo en cm" placeholder="largo"
+                  onChange={(n) => { setRibetes(ribetes.map((x, k) => k === i ? { ...x, largoCm: n } : x)); setRibetesGuardados(false); }}
+                  className="w-20 border border-stone-200 rounded-xl px-2 py-2.5 text-sm text-center focus:outline-none focus:border-amber-400" />
+                <button onClick={() => { setRibetes(ribetes.filter((_, k) => k !== i)); setRibetesGuardados(false); }}
+                  aria-label="Quitar ribete" className="text-stone-300 hover:text-red-500 px-1 shrink-0">✕</button>
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2 mt-3">
+            <button onClick={() => { setRibetes([...ribetes, { nombre: '', anchoCm: 0, largoCm: 0 }]); setRibetesGuardados(false); }}
+              className="flex-1 py-2.5 rounded-xl border-2 border-dashed border-stone-200 text-stone-500 text-xs font-bold uppercase tracking-wide active:scale-95">
+              + Agregar ribete
+            </button>
+            <button onClick={guardarRibetes} disabled={ocupado || ribetesGuardados}
+              className="px-5 py-2.5 rounded-xl bg-stone-900 disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wide active:scale-95">
+              {ribetesGuardados ? 'Guardado' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Cierre ────────────────────────────────────────────────────── */}
+      <div className="bg-white border-t border-stone-200 px-4 py-3 shrink-0 space-y-2">
+        <button onClick={() => accion(null, true)} disabled={ocupado}
+          className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold uppercase tracking-widest text-sm transition active:scale-95">
+          ✓ Terminé la prenda {c.unidadActual}
+        </button>
+        <button onClick={terminar} disabled={ocupado}
+          className="w-full py-2 text-xs text-stone-400 hover:text-stone-700">
+          Terminar la corrida
+        </button>
+      </div>
+    </div>
+  );
+}

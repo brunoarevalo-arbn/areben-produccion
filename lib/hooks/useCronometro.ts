@@ -94,13 +94,18 @@ export function useCronometro(usuario: string, ns = 'default') {
     setTiempoDisplay('00:00:00'); setEstado('idle'); persistir('idle');
   };
   // Foto para guardar (no resetea; llamar descartar() al guardar OK).
-  const obtenerTiempos = () => {
+  // `decimales` > 0 para tramos cortos: un paso de 45 segundos redondeado a
+  // minutos enteros mide CERO, y un estudio de tiempos por operación se queda
+  // sin la mitad de lo que midió. Sin argumento se comporta igual que siempre.
+  const obtenerTiempos = (decimales = 0) => {
     if (!horaInicioRef.current) return undefined;
     const fin = new Date();
+    const min = totalMs() / 60000;
+    const f = 10 ** decimales;
     return {
       horaInicio:   horaInicioRef.current.toTimeString().split(' ')[0],
       horaFin:      fin.toTimeString().split(' ')[0],
-      minutosNetos: Math.floor(totalMs() / 60000),
+      minutosNetos: decimales > 0 ? Math.round(min * f) / f : Math.floor(min),
     };
   };
 

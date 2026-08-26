@@ -110,6 +110,16 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     ],
   },
   {
+    label: 'Calculadora',
+    href: '/calculadora',
+    icon: '⏱',
+    seccion: ['calculadora', 'costos'],
+    sub: [
+      { label: 'Corridas de muestra', href: '/calculadora' },
+      { label: 'Procesos por prenda', href: '/calculadora/procesos' },
+    ],
+  },
+  {
     label: 'Costos',
     href: '/costos',
     icon: '💰',

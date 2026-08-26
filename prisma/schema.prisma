@@ -1230,3 +1230,136 @@ model Estampa {
   @@unique([codigoInterno])
   @@map("estampas")
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CALCULADORA DE PRODUCCIÓN
+// Medir una muestra paso por paso para costear la serie. El estándar de minutos
+// y los cm de ribete salen de acá y bajan al Escandallo con un botón.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// El PROCESO auditado de un tipo de prenda: TODOS sus pasos, cada uno con su
+// máquina responsable. No se siembra a mano: nace de un relevamiento aprobado
+// (una corrida que arranca sin pasos y los descubre cosiendo). `version` sube
+// cada vez que se aprueba uno nuevo y sólo una queda `vigente` por tipoPrenda.
+model ProcesoPrenda {
+  id              String        @id @default(cuid())
+  tipoPrenda      String
+  version         Int
+  vigente         Boolean       @default(false)
+  aprobadoPor     String?
+  aprobadoAt      DateTime?
+  origenCorridaId String? // la corrida de relevamiento de la que salió
+  notas           String?
+  pasos           PasoProceso[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@unique([tipoPrenda, version])
+  @@index([tipoPrenda, vigente])
+  @@map("procesos_prenda")
+}
+
+model PasoProceso {
+  id        String        @id @default(cuid())
+  procesoId String
+  proceso   ProcesoPrenda @relation(fields: [procesoId], references: [id], onDelete: Cascade)
+  orden     Int
+  nombre    String
+  maquina   String // la RESPONSABLE del paso, no una sugerencia
+  notas     String?
+
+  @@unique([procesoId, orden])
+  @@map("pasos_proceso")
+}
+
+// La corrida que enciende Administración/Diseñadora y corre la costurera.
+// modo='relevamiento' → nace sin pasos, los declara ella mientras cose.
+// modo='medicion'     → los pasos se copian del proceso vigente.
+model CorridaMuestra {
+  id               String            @id @default(cuid())
+  nombre           String
+  tipoPrenda       String
+  marca            String
+  modo             String            @default("medicion") // 'relevamiento' | 'medicion'
+  procesoId        String? // versión del proceso con la que se midió (null en relevamiento)
+  talle            String // el talle que se cose y se mide
+  costurera        String // nombre, misma clave que TiemposProduccion.usuario
+  escandalloId     String? // a dónde se aplica el resultado
+  sku              String?
+  estado           String            @default("pendiente") // pendiente | en_curso | terminada | anulada
+  unidadesObjetivo Int               @default(1)
+  unidadActual     Int               @default(1) // en qué prenda va
+  notas            String?
+  creadoPor        String
+  iniciadaAt       DateTime?
+  terminadaAt      DateTime?
+  aplicadaAt       DateTime? // cuándo se bajó al escandallo
+  pasos            CorridaPaso[]
+  mediciones       CorridaMedicion[]
+  ribetes          CorridaRibete[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  @@index([costurera, estado])
+  @@index([estado])
+  @@map("corridas_muestra")
+}
+
+// Los pasos DE ESTA corrida. Se COPIAN del proceso (no se referencian) para que
+// aprobar una versión nueva no reescriba lo que ya se midió.
+model CorridaPaso {
+  id              String            @id @default(cuid())
+  corridaId       String
+  corrida         CorridaMuestra    @relation(fields: [corridaId], references: [id], onDelete: Cascade)
+  orden           Int
+  nombre          String
+  maquina         String // la definida para el paso
+  nacidoEnCorrida Boolean           @default(false) // lo agregó la costurera en el relevamiento
+  mediciones      CorridaMedicion[]
+  createdAt       DateTime          @default(now())
+
+  @@unique([corridaId, orden])
+  @@map("corrida_pasos")
+}
+
+// UN TRAMO medido. Dos clases, misma tabla, y por eso
+// `Σ tramos = el tiempo de reloj de la prenda` por construcción:
+//   tipo='paso'   → trabajo. Cambiar de máquina cierra este y abre el siguiente.
+//   tipo='parada' → el hueco declarado ("paré un momento"), con su motivo.
+// El total de un paso es la SUMA de sus tramos de trabajo. Un tramo abierto
+// (minutosNetos = 0 y horaFin null) es el que está corriendo ahora.
+model CorridaMedicion {
+  id           String         @id @default(cuid())
+  corridaId    String
+  corrida      CorridaMuestra @relation(fields: [corridaId], references: [id], onDelete: Cascade)
+  pasoId       String? // null en las paradas
+  paso         CorridaPaso?   @relation(fields: [pasoId], references: [id], onDelete: Cascade)
+  unidad       Int // nº de prenda dentro de la corrida (1, 2, 3…)
+  tipo         String         @default("paso") // 'paso' | 'parada'
+  motivo       String? // sólo en paradas
+  maquina      String? // la REAL usada — si difiere de la del paso, es desvío
+  minutosNetos Float          @default(0)
+  horaInicio   String?
+  horaFin      String?
+  createdAt    DateTime       @default(now())
+
+  @@index([corridaId, unidad])
+  @@index([pasoId])
+  @@map("corrida_mediciones")
+}
+
+// Los cm de ribete de ESTA muestra, en el talle de la corrida. El costo no se
+// calcula acá: baja al escandallo como una tela tipo='tira', que ya sabe
+// valorizarla por m² y calcular la merma por las uniones del tubo.
+model CorridaRibete {
+  id        String         @id @default(cuid())
+  corridaId String
+  corrida   CorridaMuestra @relation(fields: [corridaId], references: [id], onDelete: Cascade)
+  orden     Int            @default(0)
+  nombre    String // "Ribete escote", "Ribete piernas"
+  anchoCm   Float          @default(0)
+  largoCm   Float          @default(0)
+  createdAt DateTime       @default(now())
+
+  @@map("corrida_ribetes")
+}

@@ -46,7 +46,7 @@ export default async function EscandalloPage({ params, searchParams }: { params:
   const gruposTela = agruparPorArticulo(ficha);
 
   const telasCosts = datos.telas.map(t => {
-    const { pMetro, pM2, costo, merma } = telaCosto(t);
+    const { pMetro, pM2, costo, merma } = telaCosto(t, datos.mezclaTalles);
     return { ...t, pMetro, pM2, costo, merma };
   });
 
@@ -76,6 +76,17 @@ export default async function EscandalloPage({ params, searchParams }: { params:
     chequeos.push(telasManuales.length > 0
       ? { label: 'Telas', estado: 'ok', detalle: `${telasManuales.length} ${telasManuales.length === 1 ? 'cargada' : 'cargadas'} a mano` }
       : { label: 'Telas', estado: 'falta', detalle: 'sin telas cargadas' });
+  }
+  // Una tira (ribete) con nombre pero sin precio de tela cuesta $0 y el total no lo
+  // dice: parece que el ribete no cuesta nada, cuando lo que falta es el dato. La
+  // calculadora crea la tira al aplicar una corrida, con el largo medido y sin rollo.
+  const tirasSinPrecio = datos.telas.filter(t =>
+    t.tipo === 'tira' && (t.nombre?.trim() ?? '') !== '' && telaCosto(t, datos.mezclaTalles).costo <= 0);
+  if (tirasSinPrecio.length > 0) {
+    chequeos.push({
+      label: 'Ribete / tiras', estado: 'falta',
+      detalle: `${tirasSinPrecio.map(t => t.nombre).join(', ')}: falta el precio de la tela ⇒ suma $0`,
+    });
   }
   chequeos.push(
     { label: 'Corte',    estado: datos.costoCorte    > 0 ? 'ok' : 'falta', detalle: datos.costoCorte    > 0 ? fmt$(datos.costoCorte)    : 'sin cargar' },

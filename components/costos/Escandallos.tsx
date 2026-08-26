@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { NumInput } from '@/components/ui/NumInput';
+import { CurvaTira } from './CurvaTira';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { SkuChip } from '@/components/ui/SkuChip';
@@ -234,6 +235,9 @@ export function Escandallos() {
       }
       return next;
     }) }));
+  // La curva es un objeto, no un escalar: no pasa por updTela (que parsea strings).
+  const setCurvaTela = (i: number, curva: import('@/lib/costos/escandallo').TiraCurva | undefined) =>
+    setDatos(prev => ({ ...prev, telas: prev.telas.map((t, idx) => idx !== i ? t : { ...t, curva }) }));
   const delTela = (i: number) => setDatos(prev => ({ ...prev, telas: prev.telas.filter((_, idx) => idx !== i) }));
   // Autocompleta una fila de tela con los datos del catálogo (nombre, rinde,
   // precio/kg). El precio ya trae flete prorrateado, así que dejamos flete en 0.
@@ -771,7 +775,7 @@ export function Escandallos() {
             <div className="space-y-4">
               {datos.telas.map((t, i) => {
                 const esTira = t.tipo === 'tira';
-                const { pMetro, pM2, costo, merma } = telaCosto(t);
+                const { pMetro, pM2, costo, merma } = telaCosto(t, datos.mezclaTalles);
                 return (
                   <div key={i} className={`rounded-xl border p-4 ${i === 0 ? 'bg-violet-50 border-violet-100' : 'bg-stone-50 border-stone-100'}`}>
                     <div className="flex items-end gap-3 mb-3">
@@ -874,6 +878,12 @@ export function Escandallos() {
                             min="0" step="any" className={inp} />
                         </div>
                       </div>
+                    )}
+
+                    {/* El ribete es lo que más escala con el talle: sin curva, el
+                        costo es el de un solo talle repetido en toda la serie. */}
+                    {esTira && (
+                      <CurvaTira tela={t} mezcla={datos.mezclaTalles} onChange={(c) => setCurvaTela(i, c)} />
                     )}
 
                     {/* Resultado calculado */}

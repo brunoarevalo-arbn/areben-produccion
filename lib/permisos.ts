@@ -25,6 +25,7 @@ export const PERMISOS = [
   { key: 'reposicion',    label: 'Reposición',    desc: 'Vínculos con Gestión Nube y reporte de qué producir' },
   { key: 'cortador',      label: 'Cortador (panel)', desc: 'Panel propio del cortador: cargar sus cortes, tizadas, precios y muestras' },
   { key: 'estamperia',    label: 'Estampería',    desc: 'Catálogo de estampas DTF (diseñadora)' },
+  { key: 'calculadora',   label: 'Calculadora de producción', desc: 'Encender corridas de muestra, medir tiempos por operación y auditar el proceso' },
 ] as const;
 
 export type PermisoKey = typeof PERMISOS[number]['key'];

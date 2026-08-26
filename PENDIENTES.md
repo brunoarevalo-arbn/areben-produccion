@@ -3,8 +3,74 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-08-25_
+_Última actualización: 2026-08-26_
 
+> **En esta sesión (26-ago): CALCULADORA DE PRODUCCIÓN.** Sección nueva `/calculadora` (permiso
+> propio `calculadora`) para medir una muestra paso por paso y bajar el resultado al escandallo.
+> Se viene la producción de bikinis y los dos números que más pesan —los minutos de confección y los
+> centímetros de ribete— se tipeaban a mano.
+>
+> 🔑 **Casi nada se construyó de cero.** Ya existían el cronómetro con namespace
+> (`lib/hooks/useCronometro.ts`), la tablet de la costurera, y el ribete como costo
+> (`Tela.tipo='tira'`, valorizada por m² desde el $/kg con merma auto por las uniones del tubo).
+> Estaban sueltos y ninguno sabía del otro. Lo nuevo es la corrida que los ata, el desglose por
+> operación y la dimensión de TALLE, que el costeo no tenía en ninguna parte.
+>
+> 🔑 **La lista de pasos no se inventa: la descubre la primera corrida.** Sin proceso vigente para
+> ese tipo de prenda la corrida nace en modo **relevamiento** —la tablet arranca sin lista y la
+> costurera declara cada paso con su máquina mientras cose—; al cerrar se aprueba esa secuencia como
+> `ProcesoPrenda v1` y de ahí en adelante las corridas nacen en **medición**. Los pasos se **copian**
+> a `CorridaPaso`, no se referencian: aprobar una versión nueva no reescribe lo ya medido.
+>
+> 🔑 **El tiempo se parte en TRAMOS y en un solo lugar** (`lib/calculadora/corridaDb.ts`,
+> `cerrarYAbrir`). Los cinco gestos de la tablet —cambiar de máquina, siguiente paso, agregar un
+> paso, parar, terminar la prenda— son el mismo movimiento con distinto `siguiente`, y por eso
+> **el cronómetro nunca se detiene** cuando cambia de máquina (era el pedido explícito: no terminar,
+> cargar y crear uno nuevo). Un tramo es trabajo (`tipo='paso'`) o un hueco declarado
+> (`tipo='parada'`), así que `Σ tramos = tiempo de reloj de la prenda` sale por construcción.
+>
+> 🔴 **Lo que MIDE la auditoría del proceso: el desvío repetido.** Un paso hecho parte en otra
+> máquina en 1 de 3 prendas es una anécdota; en 3 de 3 dice que **ese paso son DOS pasos**, y la
+> ficha lo dice con esas palabras y ofrece partirlo. **Ejercido en vivo** (corrida de prueba, ya
+> borrada): `Ribete escote` definido en Collareta, real Collareta 61% / Recta 39%, **3 de 3 ⇒
+> sistemático**. Trabajo por prenda **22,1 → 17,8 → 16,5 min** (baja, que es lo esperado en una
+> muestra), promedio **18,8**; parada declarada 1,8 min.
+>
+> ⚠️ **Las paradas NO entran al estándar**: son tiempo del taller y el taller ya está adentro del
+> `costoMinuto` absorbente (`lib/costoMinuto.ts`). Sumarlas al paso lo contaría dos veces.
+>
+> 🔴 **Se decidió NO poner reloj maestro** (el hueco lo declara la costurera). La consecuencia queda
+> escrita: **una parada que no marque se disfraza de trabajo y nada la prueba**. La única señal
+> indirecta es la dispersión entre prendas, que la ficha marca en ámbar arriba del 40%.
+>
+> **El ribete por talle — `Escandallo.datos` sube a `version: 4`.** `Tela.curva` (talle base + `+%`
+> o `+cm` por escalón, con talles pisables a mano que la regla no toca) y `DatosEscandallo.mezclaTalles`.
+> ⚠️ **Se promedian los COSTOS, no los largos**: la merma por empaque (`largoVuelta % largoPieza`)
+> es distinta en cada talle, así que promediar cm primero da un número que existe y no significa.
+> **Oráculo independiente** (`prisma/check-calculadora.ts` y la cuenta a mano en el JSON guardado):
+> ribete 3 × 62 cm en talle 2, +4% por escalón ⇒ talles 1-5 = $89,40 · $90,56 · $91,55 · $92,37 ·
+> $92,97, **ponderado $91,37** — coincide dígito por dígito con lo que muestra la pantalla.
+> 🔴 **REGRESIÓN PROBADA**: `costoTelas` y `costoTotal` de **los 60 escandallos** son **idénticos**
+> con el código v3 y con el v4 (diff vacío). Precios y `/costos/pasajes` no se enteraron.
+>
+> 📊 **Medido de paso: NINGUNO de los 60 escandallos usa una tira.** La capacidad de costear ribete
+> existía en el código y **nunca se usó** ⇒ hoy el ribete de cualquier prenda no está costeado.
+>
+> 🔴 **Defecto encontrado ejerciendo, y arreglado:** al aplicar una corrida nace una tira **sin
+> precio de tela**, que costaba **$0** y la ficha del escandallo igual decía "Telas ✓" — el total
+> salía más chico y se declaraba completo (el cero que AFIRMA). Se sumó el chequeo
+> **"Ribete / tiras · falta el precio de la tela ⇒ suma $0"** en `costos/escandallos/[id]/page.tsx`.
+>
+> ✅ **Cero cambios en `proxy.ts`**: el allowlist de la costurera es por prefijo
+> (`startsWith('/tiempos')`), así que `/tiempos/corrida/[id]` y `/api/tiempos/corrida/*` entran
+> solas. Verificado en vivo: la costurera entra a su corrida (200) y `/calculadora` la rebota a
+> `/tiempos` (307). Las APIs de la tablet toman el usuario de **`session.nombre`, nunca del body**
+> — a diferencia de `POST /api/tiempos`, que sigue tomándolo del body (decisión abierta, abajo).
+>
+> ▶️ **Manos que faltan:** darle el permiso `calculadora` a Lorena y a Stefania, y correr el
+> **relevamiento real de la bikini** con Marisol — la lista de pasos de arriba es de una corrida de
+> prueba, no del taller.
+>
 > **En esta sesión (25-ago):** cuatro pedidos. **(1) Las listas dejan de perder el filtro**: el
 > estado de las 11 listas del repo pasó de `useState` a la URL (`lib/hooks/useParamState.ts`) y los
 > detalles vuelven con `?volverA=` (`lib/volverA.ts`). El síntoma era "entro a un costo listo y al
