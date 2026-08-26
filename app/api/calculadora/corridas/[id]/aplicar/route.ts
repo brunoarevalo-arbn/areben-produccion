@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
-import { cargarCorrida, resumenDe } from '@/lib/calculadora/corridaDb';
+import { cargarCorrida, resumenDe, tuboDe } from '@/lib/calculadora/corridaDb';
 import { estandar } from '@/lib/calculadora/corrida';
 import {
-  parseDatos, escalarCurva, mermaPorVuelta, TIRA_EMPTY, DATOS_VERSION,
+  parseDatos, escalarCurva, TIRA_EMPTY, DATOS_VERSION,
   type Tela, type TiraCurva,
 } from '@/lib/costos/escandallo';
 
@@ -48,6 +48,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   if (!escandallo) return NextResponse.json({ error: 'El escandallo no existe' }, { status: 404 });
 
   const r = resumenDe(corrida);
+  const tubo = tuboDe(corrida);
   const minutos = estandar(r, d.modo);
   if (d.aplicarTiempo && minutos <= 0) {
     return NextResponse.json({ error: 'La corrida todavía no midió ningún minuto' }, { status: 400 });
@@ -70,16 +71,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     const talles = d.talles.length > 0 ? [...d.talles] : [corrida.talle];
     if (!talles.includes(corrida.talle)) talles.unshift(corrida.talle);
 
-    for (const rib of corrida.ribetes) {
+    for (const rib of tubo.ribetes) {
+      if (rib.largoPorPrenda <= 0) continue; // sin cortes medidos no hay qué escribir
       const i = datos.telas.findIndex((t) => t.tipo === 'tira' && norm(t.nombre) === norm(rib.nombre));
       const base: Tela = i >= 0 ? { ...datos.telas[i] } : { ...TIRA_EMPTY, nombre: rib.nombre };
 
       const antesLargo = i >= 0 ? (datos.telas[i].largoTiraCm ?? 0) : 0;
-      const antesAncho = i >= 0 ? (datos.telas[i].anchoTiraCm ?? 0) : 0;
+      const antesMerma = i >= 0 ? (datos.telas[i].mermaPercent ?? 0) : 0;
 
-      base.anchoTiraCm = rib.anchoCm;
-      base.largoTiraCm = rib.largoCm;
-      base.mermaPercent = mermaPorVuelta(rib.largoCm, base.largoVueltaCm ?? 0, base.descarteUnionCm ?? 0);
+      // El ANCHO lo define Diseño: si la corrida no lo trae, se respeta el que
+      // ya tenga el escandallo en vez de pisarlo con un cero.
+      if (rib.anchoCm > 0) base.anchoTiraCm = rib.anchoCm;
+      base.largoTiraCm = rib.largoPorPrenda;
+
+      // 🔑 La merma sale MEDIDA de la secuencia del tubo, no de la fórmula: la
+      // unión cae donde cae. Es del TUBO, así que va igual en todos los ribetes.
+      base.mermaPercent = tubo.mermaPct;
+      base.mermaMedida = true;
 
       // Los talles ya medidos a mano se respetan; el resto los deriva la regla.
       const previos = base.curva?.talles ?? [];
@@ -89,20 +97,28 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
         ...(d.pasoPercent != null ? { pasoPercent: d.pasoPercent } : {}),
         talles: talles.map((t) => {
           const prev = previos.find((p) => p.talle === t);
-          if (t === corrida.talle) return { talle: t, largoCm: rib.largoCm };
+          if (t === corrida.talle) return { talle: t, largoCm: rib.largoPorPrenda };
           return prev?.manual ? prev : { talle: t, largoCm: 0 };
         }),
       };
-      base.curva = escalarCurva(curva, rib.largoCm);
+      base.curva = escalarCurva(curva, rib.largoPorPrenda);
 
       cambios.push({
         campo: `Ribete "${rib.nombre}"`,
-        antes: i >= 0 ? `${antesAncho} × ${antesLargo} cm, sin curva` : 'no estaba en el escandallo',
-        despues: `${rib.anchoCm} × ${rib.largoCm} cm en ${corrida.talle} · curva de ${base.curva.talles.length} talles`,
+        antes: i >= 0 ? `${antesLargo} cm · merma ${antesMerma.toFixed(1)}% calculada` : 'no estaba en el escandallo',
+        despues: `${rib.largoPorPrenda} cm en ${corrida.talle} (${rib.cortes} cortes en ${rib.unidadesConCorte} prenda${rib.unidadesConCorte === 1 ? '' : 's'}) · merma ${tubo.mermaPct}% MEDIDA · curva de ${base.curva.talles.length} talles`,
       });
 
       if (i >= 0) datos.telas[i] = base;
       else datos.telas.push(base);
+    }
+
+    if (tubo.desperdicioCm > 0) {
+      cambios.push({
+        campo: 'Merma del tubo (medida)',
+        antes: 'se calculaba con la fórmula del paño',
+        despues: `${tubo.desperdicioCm} cm de desperdicio sobre ${tubo.totalCm} cm = ${tubo.mermaPct}%`,
+      });
     }
   }
 

@@ -9,12 +9,14 @@ import { MAQUINAS } from '@/lib/constants/maquinas';
 import { MOTIVOS_PARADA } from '@/lib/constants/paradas';
 
 interface Paso { id: string; orden: number; nombre: string; maquina: string; nacidoEnCorrida: boolean }
-interface Ribete { id: string; orden: number; nombre: string; anchoCm: number; largoCm: number }
+interface Ribete { id: string; orden: number; nombre: string; anchoCm: number }
+interface Corte { id: string; ribeteId: string | null; unidad: number; orden: number; largoCm: number }
 export interface CorridaVista {
   id: string; nombre: string; tipoPrenda: string; marca: string; modo: string;
   talle: string; costurera: string; estado: string;
   unidadesObjetivo: number; unidadActual: number;
-  pasos: Paso[]; ribetes: Ribete[];
+  pasos: Paso[]; ribetes: Ribete[]; cortes: Corte[];
+  tubo: { utilCm: number; desperdicioCm: number; totalCm: number; mermaPct: number };
   abierto: { id: string; tipo: string; pasoId: string | null; maquina: string | null; motivo: string | null } | null;
   resumen: {
     porPaso: { pasoId: string; nombre: string; maquina: string; porUnidad: { unidad: number; minutos: number }[] }[];
@@ -45,10 +47,10 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
   const [nuevaMaquina, setNuevaMaquina] = useState<string>(MAQUINAS[0]);
   const [abrirNuevo, setAbrirNuevo] = useState(false);
   const [abrirParada, setAbrirParada] = useState(false);
-  const [ribetes, setRibetes] = useState<{ nombre: string; anchoCm: number; largoCm: number }[]>(
-    inicial.ribetes.map((r) => ({ nombre: r.nombre, anchoCm: r.anchoCm, largoCm: r.largoCm })),
-  );
-  const [ribetesGuardados, setRibetesGuardados] = useState(true);
+  // El corte que se está por cargar: qué salió del tubo y cuántos cm.
+  // `''` = desperdicio (vino una unión y no puede pasar).
+  const [corteRibete, setCorteRibete] = useState<string>(inicial.ribetes[0]?.id ?? '');
+  const [corteLargo, setCorteLargo] = useState(0);
 
   /**
    * El único gesto: cerrar el tramo que corre y abrir el que sigue. Los botones
@@ -80,17 +82,26 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
     setAbrirNuevo(false); setAbrirParada(false); setNuevoNombre('');
   };
 
-  const guardarRibetes = async () => {
+  const agregarCorte = async (ribeteId: string | null) => {
+    if (ocupado || corteLargo <= 0) return;
     setOcupado(true); setError(null);
-    const res = await fetch(`/api/tiempos/corrida/${c.id}/ribete`, {
-      method: 'PUT',
+    const res = await fetch(`/api/tiempos/corrida/${c.id}/corte`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ribetes: ribetes.filter((r) => r.nombre.trim() !== '') }),
+      body: JSON.stringify({ ribeteId, unidad: c.unidadActual, largoCm: corteLargo }),
     });
     setOcupado(false);
-    if (!res.ok) { setError((await res.json()).error ?? 'No se pudo guardar el ribete'); return; }
+    if (!res.ok) { setError((await res.json()).error ?? 'No se pudo cargar el corte'); return; }
     setC(await res.json());
-    setRibetesGuardados(true);
+    setCorteLargo(0);
+  };
+
+  const borrarCorte = async (corteId: string) => {
+    setOcupado(true); setError(null);
+    const res = await fetch(`/api/tiempos/corrida/${c.id}/corte?corteId=${corteId}`, { method: 'DELETE' });
+    setOcupado(false);
+    if (!res.ok) { setError((await res.json()).error ?? 'No se pudo borrar'); return; }
+    setC(await res.json());
   };
 
   const terminar = async () => {
@@ -117,6 +128,8 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
   const minutosDe = (pasoId: string, unidad: number) =>
     c.resumen.porPaso.find((p) => p.pasoId === pasoId)?.porUnidad.find((u) => u.unidad === unidad)?.minutos ?? null;
 
+  const esLaUltima = c.unidadActual >= c.unidadesObjetivo;
+  const cortesDeLaPrenda = c.cortes.filter((t) => t.unidad === c.unidadActual).sort((a, b) => a.orden - b.orden);
   const relevamiento = c.modo === 'relevamiento';
   const corriendo = cron.estado === 'corriendo';
 
@@ -128,7 +141,9 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
             {relevamiento ? 'Relevamiento' : 'Corrida de muestra'}
           </p>
           <p className="text-white font-semibold text-sm leading-tight truncate">{c.nombre} · {c.talle}</p>
-          <p className="text-stone-400 text-xs">Prenda {c.unidadActual} de {c.unidadesObjetivo}</p>
+          {c.unidadesObjetivo > 1 && (
+            <p className="text-stone-400 text-xs">Prenda {c.unidadActual} de {c.unidadesObjetivo}</p>
+          )}
         </div>
         <button onClick={() => router.push('/tiempos')}
           className="text-stone-400 hover:text-white text-xs border border-stone-700 hover:border-stone-500 px-3 py-1.5 rounded-lg transition shrink-0">
@@ -253,50 +268,102 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
           </div>
         )}
 
-        {/* ── Ribete ────────────────────────────────────────────────── */}
+        {/* ── El tubo: la secuencia real de cortes ──────────────────── */}
         <div className="bg-white border border-stone-200 rounded-xl p-4">
-          <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-1">Ribete de esta muestra</p>
-          <p className="text-xs text-stone-400 mb-3">Los centímetros del talle {c.talle}, el que estás cosiendo.</p>
-          <div className="space-y-2">
-            {ribetes.map((r, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <input value={r.nombre} placeholder="Ej: Ribete escote"
-                  onChange={(e) => { setRibetes(ribetes.map((x, k) => k === i ? { ...x, nombre: e.target.value } : x)); setRibetesGuardados(false); }}
-                  className="flex-1 min-w-0 border border-stone-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:border-amber-400" />
-                <NumInput value={r.anchoCm} aria-label="Ancho en cm" placeholder="ancho"
-                  onChange={(n) => { setRibetes(ribetes.map((x, k) => k === i ? { ...x, anchoCm: n } : x)); setRibetesGuardados(false); }}
-                  className="w-20 border border-stone-200 rounded-xl px-2 py-2.5 text-sm text-center focus:outline-none focus:border-amber-400" />
-                <NumInput value={r.largoCm} aria-label="Largo en cm" placeholder="largo"
-                  onChange={(n) => { setRibetes(ribetes.map((x, k) => k === i ? { ...x, largoCm: n } : x)); setRibetesGuardados(false); }}
-                  className="w-20 border border-stone-200 rounded-xl px-2 py-2.5 text-sm text-center focus:outline-none focus:border-amber-400" />
-                <button onClick={() => { setRibetes(ribetes.filter((_, k) => k !== i)); setRibetesGuardados(false); }}
-                  aria-label="Quitar ribete" className="text-stone-300 hover:text-red-500 px-1 shrink-0">✕</button>
+          <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-1">
+            Lo que sale del tubo{c.unidadesObjetivo > 1 ? ` · prenda ${c.unidadActual}` : ''}
+          </p>
+          <p className="text-xs text-stone-400 mb-3">
+            En el orden en que lo cortás. Cuando viene una unión y no puede pasar, cargá lo que tirás
+            como desperdicio.
+          </p>
+
+          {cortesDeLaPrenda.length > 0 && (
+            <div className="space-y-1 mb-3">
+              {cortesDeLaPrenda.map((t, i) => {
+                const rb = t.ribeteId ? c.ribetes.find((r) => r.id === t.ribeteId) : null;
+                return (
+                  <div key={t.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${rb ? 'bg-stone-50' : 'bg-red-50'}`}>
+                    <span className="text-xs text-stone-400 w-4 tabular-nums shrink-0">{i + 1}</span>
+                    <span className={`flex-1 min-w-0 truncate ${rb ? 'text-stone-700' : 'text-red-700 font-semibold'}`}>
+                      {rb ? rb.nombre : '⚠ desperdicio'}
+                    </span>
+                    <span className="tabular-nums text-stone-600 shrink-0">{fmt(t.largoCm)} cm</span>
+                    <button onClick={() => borrarCorte(t.id)} disabled={ocupado}
+                      aria-label="Borrar corte" className="text-stone-300 hover:text-red-500 px-1 shrink-0">✕</button>
+                  </div>
+                );
+              })}
+              <div className="flex justify-between px-3 pt-1 text-xs text-stone-400">
+                <span>útil {fmt(c.tubo.utilCm)} cm · desperdicio {fmt(c.tubo.desperdicioCm)} cm</span>
+                <span className="font-semibold text-amber-600">merma {fmt(c.tubo.mermaPct)}%</span>
               </div>
-            ))}
-          </div>
-          <div className="flex gap-2 mt-3">
-            <button onClick={() => { setRibetes([...ribetes, { nombre: '', anchoCm: 0, largoCm: 0 }]); setRibetesGuardados(false); }}
-              className="flex-1 py-2.5 rounded-xl border-2 border-dashed border-stone-200 text-stone-500 text-xs font-bold uppercase tracking-wide active:scale-95">
-              + Agregar ribete
-            </button>
-            <button onClick={guardarRibetes} disabled={ocupado || ribetesGuardados}
-              className="px-5 py-2.5 rounded-xl bg-stone-900 disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wide active:scale-95">
-              {ribetesGuardados ? 'Guardado' : 'Guardar'}
-            </button>
-          </div>
+            </div>
+          )}
+
+          {c.ribetes.length === 0 ? (
+            <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              Esta corrida no tiene ribetes definidos. Los carga Diseño al encenderla.
+            </p>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-1.5 mb-2">
+                {c.ribetes.map((r) => (
+                  <button key={r.id} onClick={() => setCorteRibete(r.id)}
+                    className={`px-3 py-2.5 rounded-xl border-2 text-left transition active:scale-95 ${
+                      corteRibete === r.id ? 'bg-stone-900 text-white border-stone-900' : 'bg-white border-stone-200 text-stone-700'
+                    }`}>
+                    <span className="block text-sm font-semibold truncate">{r.nombre}</span>
+                    <span className={`block text-xs ${corteRibete === r.id ? 'text-stone-400' : 'text-stone-400'}`}>
+                      ancho {fmt(r.anchoCm)} cm
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <NumInput value={corteLargo} onChange={setCorteLargo} aria-label="Centímetros del corte"
+                  placeholder="cm"
+                  className="w-24 border border-stone-200 rounded-xl px-3 py-3 text-base text-center focus:outline-none focus:border-amber-400" />
+                <button onClick={() => agregarCorte(corteRibete || null)}
+                  disabled={ocupado || corteLargo <= 0 || !corteRibete}
+                  className="flex-1 py-3 rounded-xl bg-stone-900 disabled:opacity-40 text-white text-xs font-bold uppercase tracking-wide active:scale-95">
+                  + Ribete
+                </button>
+                <button onClick={() => agregarCorte(null)} disabled={ocupado || corteLargo <= 0}
+                  className="flex-1 py-3 rounded-xl border-2 border-red-300 text-red-700 disabled:opacity-40 text-xs font-bold uppercase tracking-wide active:scale-95">
+                  + Desperdicio
+                </button>
+              </div>
+              <p className="text-xs text-stone-400 mt-2">
+                Poné los cm y tocá si fue ribete o desperdicio. El ancho lo define Diseño.
+              </p>
+            </>
+          )}
         </div>
       </div>
 
       {/* ── Cierre ────────────────────────────────────────────────────── */}
+      {/* Con una sola prenda no existe una prenda 2: el botón cierra la corrida.
+          Nombrar un paso que no va a pasar es peor que no tener el botón. */}
       <div className="bg-white border-t border-stone-200 px-4 py-3 shrink-0 space-y-2">
-        <button onClick={() => accion(null, true)} disabled={ocupado}
-          className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold uppercase tracking-widest text-sm transition active:scale-95">
-          ✓ Terminé la prenda {c.unidadActual}
-        </button>
-        <button onClick={terminar} disabled={ocupado}
-          className="w-full py-2 text-xs text-stone-400 hover:text-stone-700">
-          Terminar la corrida
-        </button>
+        {esLaUltima ? (
+          <>
+            <button onClick={terminar} disabled={ocupado}
+              className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold uppercase tracking-widest text-sm transition active:scale-95">
+              ✓ Marcar como terminado
+            </button>
+            <button onClick={() => accion(null, true)} disabled={ocupado}
+              className="w-full py-2 text-xs text-stone-400 hover:text-stone-700">
+              Coser una prenda más
+            </button>
+          </>
+        ) : (
+          <button onClick={() => accion(null, true)} disabled={ocupado}
+            className="w-full py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold uppercase tracking-widest text-sm transition active:scale-95">
+            ✓ Terminé la prenda {c.unidadActual} de {c.unidadesObjetivo}
+          </button>
+        )}
       </div>
     </div>
   );

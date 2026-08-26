@@ -1276,19 +1276,19 @@ model PasoProceso {
 // modo='relevamiento' → nace sin pasos, los declara ella mientras cose.
 // modo='medicion'     → los pasos se copian del proceso vigente.
 model CorridaMuestra {
-  id               String            @id @default(cuid())
+  id               String             @id @default(cuid())
   nombre           String
   tipoPrenda       String
   marca            String
-  modo             String            @default("medicion") // 'relevamiento' | 'medicion'
+  modo             String             @default("medicion") // 'relevamiento' | 'medicion'
   procesoId        String? // versión del proceso con la que se midió (null en relevamiento)
   talle            String // el talle que se cose y se mide
   costurera        String // nombre, misma clave que TiemposProduccion.usuario
   escandalloId     String? // a dónde se aplica el resultado
   sku              String?
-  estado           String            @default("pendiente") // pendiente | en_curso | terminada | anulada
-  unidadesObjetivo Int               @default(1)
-  unidadActual     Int               @default(1) // en qué prenda va
+  estado           String             @default("pendiente") // pendiente | en_curso | terminada | anulada
+  unidadesObjetivo Int                @default(1)
+  unidadActual     Int                @default(1) // en qué prenda va
   notas            String?
   creadoPor        String
   iniciadaAt       DateTime?
@@ -1297,8 +1297,9 @@ model CorridaMuestra {
   pasos            CorridaPaso[]
   mediciones       CorridaMedicion[]
   ribetes          CorridaRibete[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  cortes           CorridaCorteTubo[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
 
   @@index([costurera, estado])
   @@index([estado])
@@ -1348,18 +1349,43 @@ model CorridaMedicion {
   @@map("corrida_mediciones")
 }
 
-// Los cm de ribete de ESTA muestra, en el talle de la corrida. El costo no se
-// calcula acá: baja al escandallo como una tela tipo='tira', que ya sabe
-// valorizarla por m² y calcular la merma por las uniones del tubo.
+// La DEFINICIÓN de los ribetes de la prenda: nombre y ancho. Los carga Diseño al
+// encender la corrida — el ancho sale de la cortacollaretas y no es de la
+// costurera. Ella sólo mide los LARGOS, que van en CorridaCorteTubo.
 model CorridaRibete {
+  id        String             @id @default(cuid())
+  corridaId String
+  corrida   CorridaMuestra     @relation(fields: [corridaId], references: [id], onDelete: Cascade)
+  orden     Int                @default(0)
+  nombre    String // "Bajo Busto", "Tirita"
+  anchoCm   Float              @default(0)
+  cortes    CorridaCorteTubo[]
+  createdAt DateTime           @default(now())
+
+  @@map("corrida_ribetes")
+}
+
+// UN CORTE del tubo, en el orden en que salió de la cortacollaretas. La secuencia
+// real es intercalada: 50 de Bajo Busto, 80 de Bajo Busto, y cuando viene una
+// unión —que no puede pasar— se descartan 20 y se sigue.
+//
+// 🔑 `ribeteId = null` es DESPERDICIO. Por eso la merma deja de CALCULARSE
+// (largoVuelta % largoPieza) y pasa a MEDIRSE: la unión cae donde cae, y no hay
+// fórmula que la adivine.
+//
+// 🔑 El desperdicio NO es atribuible a un ribete —cae entre dos cortes— así que
+// la merma medida es del TUBO y le corresponde a todos los ribetes de la corrida.
+model CorridaCorteTubo {
   id        String         @id @default(cuid())
   corridaId String
   corrida   CorridaMuestra @relation(fields: [corridaId], references: [id], onDelete: Cascade)
-  orden     Int            @default(0)
-  nombre    String // "Ribete escote", "Ribete piernas"
-  anchoCm   Float          @default(0)
+  ribeteId  String? // null = desperdicio
+  ribete    CorridaRibete? @relation(fields: [ribeteId], references: [id], onDelete: Cascade)
+  unidad    Int // nº de prenda dentro de la corrida
+  orden     Int // el orden en que salió del tubo
   largoCm   Float          @default(0)
   createdAt DateTime       @default(now())
 
-  @@map("corrida_ribetes")
+  @@index([corridaId, unidad])
+  @@map("corrida_cortes_tubo")
 }

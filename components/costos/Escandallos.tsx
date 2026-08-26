@@ -230,7 +230,9 @@ export function Escandallos() {
       const next = { ...t, [field]: isStr ? val : pf(val) } as Tela;
       // El calculador: al cambiar largo por prenda / por vuelta / descarte por unión,
       // recalculo la merma (fija + empaque). Queda editable a mano después.
-      if (field === 'largoTiraCm' || field === 'largoVueltaCm' || field === 'descarteUnionCm') {
+      // ⛔ Salvo que la merma venga MEDIDA de una corrida: ahí la fórmula no la
+      // pisa. La unión del tubo cae donde cae y ninguna fórmula la adivina.
+      if (!next.mermaMedida && (field === 'largoTiraCm' || field === 'largoVueltaCm' || field === 'descarteUnionCm')) {
         next.mermaPercent = mermaPorVuelta(next.largoTiraCm ?? 0, next.largoVueltaCm ?? 0, next.descarteUnionCm ?? 0);
       }
       return next;
@@ -873,7 +875,9 @@ export function Escandallos() {
                         </div>
                         <div>
                           <label className={lbl}>Merma % (total)</label>
-                          <p className="text-xs text-stone-300 -mt-0.5 mb-1">fija + empaque · editable</p>
+                          <p className={`text-xs -mt-0.5 mb-1 ${t.mermaMedida ? 'text-amber-600 font-semibold' : 'text-stone-300'}`}>
+                            {t.mermaMedida ? 'MEDIDA en una corrida' : 'fija + empaque · calculada'}
+                          </p>
                           <NumInput value={t.mermaPercent ?? 0} onChange={n => updTela(i, 'mermaPercent', String(n))}
                             min="0" step="any" className={inp} />
                         </div>

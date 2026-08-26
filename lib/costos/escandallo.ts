@@ -18,6 +18,10 @@ export interface Tela {
   largoVueltaCm?: number; // largo de tira por vuelta del tubo (entre uniones)
   descarteUnionCm?: number; // cm que se pierden por la costura de cada unión (merma fija)
   mermaPercent?: number;  // % desperdicio total (fija + empaque), calculado o manual
+  // Marca que la merma la MIDIÓ una corrida (secuencia real de cortes del tubo),
+  // no la calculó la fórmula. Con esto en true el editor deja de recalcularla al
+  // tocar los largos: una fórmula no le pasa por encima a una medición.
+  mermaMedida?: boolean;
   curva?: TiraCurva;      // el largo por TALLE (el ribete es lo que más escala con el talle)
 }
 
@@ -170,6 +174,7 @@ function migrarTela(raw: unknown): Tela {
       largoVueltaCm: num(r.largoVueltaCm),
       descarteUnionCm: num(r.descarteUnionCm),
       mermaPercent: num(r.mermaPercent),
+      ...(r.mermaMedida === true ? { mermaMedida: true } : {}),
       ...(r.curva ? { curva: migrarCurva(r.curva) } : {}),
     } : {}),
   };
@@ -268,9 +273,12 @@ export function tiraPorTalle(t: Tela, mezcla?: MezclaTalle[]): FilaTalle[] {
   const anchoTira = (t.anchoTiraCm ?? 0) / 100;
   const largoVuelta = t.largoVueltaCm ?? 0;
   return t.curva.talles.map((x) => {
-    const merma = largoVuelta > 0
-      ? mermaPorVuelta(x.largoCm, largoVuelta, t.descarteUnionCm ?? 0)
-      : (t.mermaPercent ?? 0);
+    // Con merma MEDIDA no se recalcula por talle: el desperdicio se midió sobre
+    // el tubo entero, no sobre una pieza — y una fórmula no le pasa por encima a
+    // una medición. Sin medición, sí vale derivarla del largo de cada talle.
+    const merma = t.mermaMedida || largoVuelta <= 0
+      ? (t.mermaPercent ?? 0)
+      : mermaPorVuelta(x.largoCm, largoVuelta, t.descarteUnionCm ?? 0);
     const costo = pM2 * ((x.largoCm / 100) * anchoTira) * (1 + merma / 100);
     const peso = mezcla?.find((m) => m.talle === x.talle)?.peso ?? 1;
     return { talle: x.talle, largoCm: x.largoCm, merma, costo, peso, manual: x.manual === true };

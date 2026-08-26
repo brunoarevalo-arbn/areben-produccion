@@ -4,12 +4,13 @@
 
 import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
-import { resumen, type MedicionLike, type PasoLike } from './corrida';
+import { resumen, resumenTubo, type MedicionLike, type PasoLike, type CorteLike, type RibeteLike } from './corrida';
 
 export const CORRIDA_INCLUDE = {
   pasos: { orderBy: { orden: 'asc' } },
   mediciones: { orderBy: { createdAt: 'asc' } },
   ribetes: { orderBy: { orden: 'asc' } },
+  cortes: { orderBy: [{ unidad: 'asc' }, { orden: 'asc' }] },
 } satisfies Prisma.CorridaMuestraInclude;
 
 export type CorridaCompleta = Prisma.CorridaMuestraGetPayload<{ include: typeof CORRIDA_INCLUDE }>;
@@ -25,6 +26,10 @@ export function tramoAbierto(c: CorridaCompleta) {
 
 export function resumenDe(c: CorridaCompleta) {
   return resumen(c.pasos as PasoLike[], c.mediciones as MedicionLike[]);
+}
+
+export function tuboDe(c: CorridaCompleta) {
+  return resumenTubo(c.ribetes as RibeteLike[], c.cortes as CorteLike[]);
 }
 
 /** Lo que ven tanto la tablet como la ficha. Un solo shape, una sola verdad. */
@@ -50,8 +55,12 @@ export function serializar(c: CorridaCompleta) {
       nacidoEnCorrida: p.nacidoEnCorrida,
     })),
     ribetes: c.ribetes.map((r) => ({
-      id: r.id, orden: r.orden, nombre: r.nombre, anchoCm: r.anchoCm, largoCm: r.largoCm,
+      id: r.id, orden: r.orden, nombre: r.nombre, anchoCm: r.anchoCm,
     })),
+    cortes: c.cortes.map((t) => ({
+      id: t.id, ribeteId: t.ribeteId, unidad: t.unidad, orden: t.orden, largoCm: t.largoCm,
+    })),
+    tubo: tuboDe(c),
     abierto: abierto
       ? { id: abierto.id, tipo: abierto.tipo, pasoId: abierto.pasoId, maquina: abierto.maquina, motivo: abierto.motivo }
       : null,

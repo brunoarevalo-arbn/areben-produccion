@@ -42,6 +42,9 @@ export function CorridasClient() {
     nombre: '', tipoPrenda: '', marca: 'Zattia', talle: '', costurera: '',
     unidadesObjetivo: 3, escandalloId: '', sku: '', notas: '',
   });
+  // El ancho del ribete lo define DISEÑO, no la costurera: sale de la
+  // cortacollaretas. Ella sólo mide los largos que salen del tubo.
+  const [ribetes, setRibetes] = useState<{ nombre: string; anchoCm: number }[]>([]);
 
   const cargar = useCallback(async () => {
     setLoading(true);
@@ -70,6 +73,7 @@ export function CorridasClient() {
         escandalloId: f.escandalloId || null,
         sku: f.sku || null,
         notas: f.notas || null,
+        ribetes: ribetes.filter((r) => r.nombre.trim() !== ''),
       }),
     });
     setGuardando(false);
@@ -77,6 +81,7 @@ export function CorridasClient() {
     toast.success(esRelevamiento ? 'Relevamiento enviado a la tablet' : 'Corrida enviada a la tablet');
     setAbrirAlta(false);
     setF({ ...f, nombre: '', talle: '', sku: '', notas: '' });
+    setRibetes([]);
     cargar();
   };
 
@@ -166,6 +171,32 @@ export function CorridasClient() {
               </ol>
             </div>
           )}
+
+          <div className="bg-stone-50 rounded-xl p-4">
+            <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-1">Ribetes de esta prenda</p>
+            <p className="text-xs text-stone-400 mb-3">
+              El <strong>ancho</strong> lo definís vos: sale de la cortacollaretas. En la tablet la
+              costurera sólo carga los <strong>largos</strong> que van saliendo del tubo, y el
+              desperdicio que tira cuando viene una unión.
+            </p>
+            <div className="space-y-2">
+              {ribetes.map((r, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input value={r.nombre} placeholder="Ej: Bajo Busto"
+                    onChange={(e) => setRibetes(ribetes.map((x, k) => k === i ? { ...x, nombre: e.target.value } : x))}
+                    className="flex-1 min-w-0 border border-stone-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-amber-400" />
+                  <NumInput value={r.anchoCm} aria-label="Ancho en cm"
+                    onChange={(n) => setRibetes(ribetes.map((x, k) => k === i ? { ...x, anchoCm: n } : x))}
+                    className="w-24 border border-stone-200 rounded-xl px-2 py-2 text-sm text-center focus:outline-none focus:border-amber-400" />
+                  <span className="text-xs text-stone-400 shrink-0">cm ancho</span>
+                  <button onClick={() => setRibetes(ribetes.filter((_, k) => k !== i))}
+                    aria-label="Quitar ribete" className="text-stone-300 hover:text-red-500 px-1 shrink-0">✕</button>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setRibetes([...ribetes, { nombre: '', anchoCm: 0 }])}
+              className="mt-2 text-xs text-stone-400 hover:text-amber-600 font-semibold">+ Agregar ribete</button>
+          </div>
 
           <Button onClick={crear} isLoading={guardando}
             disabled={!f.nombre || !f.tipoPrenda || !f.talle || !f.costurera}>

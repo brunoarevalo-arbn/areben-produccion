@@ -257,3 +257,78 @@ export function procesoPropuesto(porPaso: PasoResumen[]): { orden: number; nombr
       maquina: p.porMaquina[0]?.maquina ?? p.maquina,
     }));
 }
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EL TUBO
+// La cortacollaretas escupe una tira continua y de ahí salen los cortes EN
+// ORDEN: 50 de Bajo Busto, 80 de Bajo Busto, y cuando viene una unión —que no
+// puede pasar— se descartan 20 y se sigue.
+//
+// 🔑 Por eso la merma se MIDE y no se calcula. La fórmula vieja
+// (`largoVuelta % largoPieza`) supone un solo largo de pieza repetido; la
+// realidad es varios largos intercalados y una unión que cae donde cae.
+//
+// 🔑 Y el desperdicio NO es de un ribete: cae ENTRE dos cortes. Así que la merma
+// medida es del TUBO y le corresponde por igual a todos los ribetes.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface CorteLike { ribeteId: string | null; unidad: number; orden: number; largoCm: number }
+export interface RibeteLike { id: string; nombre: string; anchoCm: number; orden: number }
+
+export interface RibeteResumen {
+  ribeteId: string;
+  nombre: string;
+  anchoCm: number;
+  /** cm por prenda: total cortado ÷ prendas que lo cortaron. */
+  largoPorPrenda: number;
+  totalCm: number;
+  unidadesConCorte: number;
+  cortes: number;
+}
+
+export interface ResumenTubo {
+  ribetes: RibeteResumen[];
+  utilCm: number;
+  desperdicioCm: number;
+  totalCm: number;
+  /** Merma MEDIDA del tubo, en %: desperdicio ÷ total. Vale para todos los ribetes. */
+  mermaPct: number;
+  desperdiciosPorUnidad: { unidad: number; cm: number }[];
+  unidadesMedidas: number;
+}
+
+export function resumenTubo(ribetes: RibeteLike[], cortes: CorteLike[]): ResumenTubo {
+  const utiles = cortes.filter((c) => c.ribeteId);
+  const basura = cortes.filter((c) => !c.ribeteId);
+
+  const utilCm = utiles.reduce((s, c) => s + c.largoCm, 0);
+  const desperdicioCm = basura.reduce((s, c) => s + c.largoCm, 0);
+  const totalCm = utilCm + desperdicioCm;
+
+  const porUnidad = new Map<number, number>();
+  for (const c of basura) porUnidad.set(c.unidad, (porUnidad.get(c.unidad) ?? 0) + c.largoCm);
+
+  return {
+    ribetes: [...ribetes].sort((a, b) => a.orden - b.orden).map((r) => {
+      const suyos = utiles.filter((c) => c.ribeteId === r.id);
+      const total = suyos.reduce((s, c) => s + c.largoCm, 0);
+      const unidades = new Set(suyos.map((c) => c.unidad)).size;
+      return {
+        ribeteId: r.id, nombre: r.nombre, anchoCm: r.anchoCm,
+        largoPorPrenda: unidades > 0 ? r1(total / unidades) : 0,
+        totalCm: r1(total), unidadesConCorte: unidades, cortes: suyos.length,
+      };
+    }),
+    utilCm: r1(utilCm),
+    desperdicioCm: r1(desperdicioCm),
+    totalCm: r1(totalCm),
+    // El desperdicio se mide contra el TOTAL que pasó por la máquina, no contra
+    // lo útil: es la parte del tubo que se compró y no llegó a la prenda.
+    mermaPct: totalCm > 0 ? Math.round((desperdicioCm / totalCm) * 1000) / 10 : 0,
+    desperdiciosPorUnidad: [...porUnidad.entries()]
+      .map(([unidad, cm]) => ({ unidad, cm: r1(cm) }))
+      .sort((a, b) => a.unidad - b.unidad),
+    unidadesMedidas: new Set(cortes.map((c) => c.unidad)).size,
+  };
+}

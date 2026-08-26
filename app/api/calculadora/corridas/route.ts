@@ -37,6 +37,15 @@ const NuevaSchema = z.object({
   escandalloId: z.string().trim().optional().nullable(),
   sku: z.string().trim().max(60).optional().nullable(),
   notas: z.string().trim().max(500).optional().nullable(),
+  // Los ribetes de la prenda los define DISEÑO al encender la corrida: el ancho
+  // sale de la cortacollaretas y no es de la costurera. Ella sólo mide largos.
+  ribetes: z
+    .array(z.object({
+      nombre: z.string().trim().min(1, 'Ponele nombre al ribete').max(60),
+      anchoCm: z.number().min(0).max(100),
+    }))
+    .max(12)
+    .default([]),
 });
 
 // El MODO no se pregunta, se deduce: sin proceso vigente para ese tipo de prenda
@@ -80,6 +89,12 @@ export async function POST(req: NextRequest) {
         data: proceso.pasos.map((p) => ({
           corridaId: c.id, orden: p.orden, nombre: p.nombre, maquina: p.maquina,
         })),
+      });
+    }
+
+    if (d.ribetes.length > 0) {
+      await tx.corridaRibete.createMany({
+        data: d.ribetes.map((r, i) => ({ corridaId: c.id, orden: i, nombre: r.nombre, anchoCm: r.anchoCm })),
       });
     }
 

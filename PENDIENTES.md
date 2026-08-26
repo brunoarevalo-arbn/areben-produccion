@@ -5,6 +5,43 @@
 
 _Última actualización: 2026-08-26_
 
+> **En esta sesión (26-ago), 2º tramo: EL TUBO.** Bruno usó la calculadora y volvió con tres
+> correcciones. Las tres salieron de **ejercerla**, ninguna de leer el plan.
+>
+> 🔴 🔑 **La merma del ribete deja de CALCULARSE y pasa a MEDIRSE.** La cortacollaretas escupe una
+> tira continua y de ahí salen los cortes **en orden**: 50 de Bajo Busto, 80 de Bajo Busto, y cuando
+> viene una **unión —que no puede pasar—** se descartan 20 y se sigue. La fórmula vieja
+> (`largoVuelta % largoPieza`) supone **un solo largo de pieza repetido**; la realidad son varios
+> largos intercalados y una unión que **cae donde cae**. ⇒ modelo nuevo `CorridaCorteTubo`: un corte
+> es de un ribete o es **desperdicio** (`ribeteId = null`), en el orden en que salió.
+> 🔑 **El desperdicio NO es de ningún ribete: cae ENTRE dos cortes** ⇒ la merma medida es **del
+> TUBO** y le corresponde por igual a todos los ribetes de la corrida.
+> **Ejercido con el caso de Bruno**: 50 · 80 · ⚠20 · 50 ⇒ útil 180, desperdicio 20, total 200,
+> **merma 10%**; Bajo Busto 130 cm/prenda (2 cortes), Tirita 50.
+>
+> 🔴 **`Tela.mermaMedida`**: con la merma medida, **el editor deja de recalcularla** al tocar los
+> largos. Una fórmula no le pasa por encima a una medición. Verificado: guardó 10% donde la fórmula
+> hubiera dicho 14,33%.
+> ⚠️ **Y eso destapó un segundo lugar donde la fórmula ganaba igual**: `tiraPorTalle` la recalculaba
+> **por talle** aunque estuviera medida. Se veía en que el costo por talle **no era proporcional al
+> largo**. Corregido, y recién ahí la app coincidió con la cuenta a mano: talles S/M/L =
+> **$169,71 · $176,50 · $183,56**, ponderado **$176,59**.
+>
+> 🔴 **El ancho del ribete lo define DISEÑO, no la costurera** (sale de la cortacollaretas).
+> `CorridaRibete` pasó a ser la **definición** (nombre + ancho, cargada al encender la corrida) y
+> **perdió `largoCm`**. Los largos viven en los cortes. Migración de datos idempotente
+> (`prisma/migrate-cortes-tubo-ago26.ts`): los 150 y 30 cm que ya había cargado Bruno **se pasaron a
+> cortes antes** del `DROP COLUMN`, no se perdió nada. Al aplicar, un ancho 0 **no pisa** el que ya
+> tenga el escandallo.
+>
+> 🔴 **"Terminé la prenda 1" con UNA sola prenda inventaba una prenda 2.** Ahora en la última (o
+> única) el botón es **"Marcar como terminado"** y cierra la corrida, con **"Coser una prenda más"**
+> como secundario; el "Prenda 1 de 1" del encabezado desaparece. **Nombrar un paso que no va a
+> pasar es peor que no tener el botón.**
+>
+> 🔴 **REGRESIÓN REPETIDA** contra el código **previo a toda la feature** (`b9f4523`): `costoTelas` y
+> `costoTotal` de **los 60 escandallos**, idénticos. Diff vacío.
+>
 > **En esta sesión (26-ago): CALCULADORA DE PRODUCCIÓN.** Sección nueva `/calculadora` (permiso
 > propio `calculadora`) para medir una muestra paso por paso y bajar el resultado al escandallo.
 > Se viene la producción de bikinis y los dos números que más pesan —los minutos de confección y los
