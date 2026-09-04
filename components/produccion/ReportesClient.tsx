@@ -44,6 +44,9 @@ const ACTIVIDADES = [
   'Proceso Completado',
   'Muestra Zattia',
   'Muestra Stunned',
+  // Las deja el cierre de una corrida en la tablet, no el alta a mano.
+  'Muestra - Relevamiento',
+  'Muestra - Medición',
   'Descanso',
   'Almuerzo',
   'Falla Máquina',

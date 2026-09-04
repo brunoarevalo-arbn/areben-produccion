@@ -1,14 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { TiempoSchema } from '@/lib/validators/tiempos';
 import { prisma } from '@/lib/prisma';
-import { calcularCostoMinuto } from '@/lib/costoMinuto';
 import { getSession } from '@/lib/auth';
+import { crearTiempoConGasto } from '@/lib/tiempos/registrar';
 import { ZodError } from 'zod';
-
-const MARCAS_MUESTRA: Record<string, string> = {
-  'Muestra Zattia':  'Zattia',
-  'Muestra Stunned': 'Stunned',
-};
 
 function horaASegundos(h: string): number {
   const [hh, mm, ss = '0'] = h.split(':');
@@ -54,27 +49,9 @@ export async function POST(req: NextRequest) {
       validated.minutosNetos = segs > 0 ? Math.floor(segs / 60) : 0;
     }
 
-    const tiempo = await prisma.tiemposProduccion.create({ data: validated });
-
-    const marcaMuestra = MARCAS_MUESTRA[validated.actividad];
-    if (marcaMuestra && validated.minutosNetos > 0) {
-      const costoMinuto = await calcularCostoMinuto();
-      const monto = Math.round(validated.minutosNetos * costoMinuto);
-      await prisma.gasto.create({
-        data: {
-          categoria: 'desarrollo',
-          tipo:      'periodo',
-          marca:     marcaMuestra,
-          sku:       validated.sku || null,
-          minutos:   Math.round(validated.minutosNetos),
-          monto,
-          concepto:  `Muestra ${marcaMuestra}${validated.sku ? ` — ${validated.sku}` : ''}`,
-          fecha:     validated.fecha,
-          creadoPor: validated.usuario,
-          tiempoId:  tiempo.id,
-        },
-      });
-    }
+    // El registro y su gasto de muestra los arma el núcleo: es el mismo que usa
+    // el cierre de una corrida, para que las dos formas de medir cuesten igual.
+    const tiempo = await crearTiempoConGasto(validated);
 
     return NextResponse.json(tiempo, { status: 201 });
   } catch (error) {

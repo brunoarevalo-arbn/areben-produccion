@@ -31,6 +31,16 @@ interface CorridaAbierta {
   corriendo: boolean;
 }
 
+interface CorridaHecha {
+  id: string;
+  nombre: string;
+  talle: string;
+  modo: string;
+  costurera: string;
+  minutos: number;
+  pasos: number;
+}
+
 interface SessionUser {
   id: string;
   nombre: string;
@@ -51,10 +61,15 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
   // a la calculadora desde la tablet: no se navega por URL. Van TODAS, no la
   // primera: con cuatro relevamientos cargados, ella elige con cuál arranca.
   const [corridas, setCorridas] = useState<CorridaAbierta[]>([]);
+  // Y lo que terminó hoy, que antes desaparecía sin dejar rastro.
+  const [hechas, setHechas] = useState<CorridaHecha[]>([]);
   useEffect(() => {
     fetch('/api/tiempos/corrida')
-      .then((r) => (r.ok ? r.json() : []))
-      .then((d) => setCorridas(Array.isArray(d) ? d : d ? [d] : []))
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        setCorridas(d?.abiertas ?? []);
+        setHechas(d?.terminadasHoy ?? []);
+      })
       .catch(() => { /* la tablet sigue funcionando sin corrida */ });
   }, []);
 
@@ -133,6 +148,23 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
                   <p className="text-xs text-stone-500 mt-0.5">{c.costurera}</p>
                 )}
               </Link>
+            ))}
+          </div>
+        )}
+
+        {hechas.length > 0 && (
+          <div className="px-4 pt-3 shrink-0 space-y-1">
+            <p className="text-xs font-bold uppercase tracking-widest text-stone-400">Terminado hoy</p>
+            {hechas.map((h) => (
+              <div key={h.id} className="flex items-center gap-2 bg-white border border-stone-200 rounded-xl px-4 py-2.5 text-sm">
+                <span className="text-emerald-600">✓</span>
+                <span className="flex-1 min-w-0 truncate text-stone-700">
+                  {h.modo === 'relevamiento' ? 'Relevamiento' : 'Muestra'} · {h.nombre} · {h.talle}
+                </span>
+                <span className="tabular-nums text-stone-500 shrink-0">
+                  {h.pasos} pasos · {h.minutos.toString().replace('.', ',')} min
+                </span>
+              </div>
             ))}
           </div>
         )}

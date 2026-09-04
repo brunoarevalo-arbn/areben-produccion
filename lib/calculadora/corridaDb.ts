@@ -10,7 +10,7 @@ import { resumen, resumenTubo, type MedicionLike, type PasoLike, type CorteLike,
 // servidor corre en UTC: con new Date().toTimeString() el primer tramo de cada
 // corrida —el unico que no trae hora del cronometro de la tablet— quedaba 3
 // horas adelantado y arrancaba DESPUES de terminar (medido: 12:49:39 -> 09:49:49).
-function horaTaller(): string {
+export function horaTaller(): string {
   return new Date().toLocaleTimeString('en-GB', {
     timeZone: 'America/Argentina/Buenos_Aires',
     hour12: false,
@@ -72,6 +72,17 @@ export function serializar(c: CorridaCompleta) {
       id: t.id, ribeteId: t.ribeteId, unidad: t.unidad, orden: t.orden, largoCm: t.largoCm,
     })),
     tubo: tuboDe(c),
+    // A qué paso se vuelve cuando termina una pausa: el último de trabajo de
+    // esta prenda. Una pausa NO es un paso nuevo, así que reanudar tiene que
+    // devolver a lo que se estaba haciendo, sin declarar nada de nuevo.
+    reanudar: (() => {
+      const ultimo = [...c.mediciones].reverse().find(
+        (m) => m.tipo === 'paso' && m.pasoId != null && m.unidad === c.unidadActual,
+      );
+      if (!ultimo?.pasoId) return null;
+      const paso = c.pasos.find((p) => p.id === ultimo.pasoId);
+      return { pasoId: ultimo.pasoId, nombre: paso?.nombre ?? 'lo anterior', maquina: ultimo.maquina ?? paso?.maquina ?? null };
+    })(),
     abierto: abierto
       ? { id: abierto.id, tipo: abierto.tipo, pasoId: abierto.pasoId, maquina: abierto.maquina, motivo: abierto.motivo }
       : null,

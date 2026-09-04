@@ -17,6 +17,10 @@ interface LogRegistrosProps {
 const COLORES: Record<string, string> = {
   'Proceso Completado': 'border-emerald-400 bg-emerald-50',
   'Muestra/Prototipo':  'border-violet-400 bg-violet-50',
+  'Muestra Zattia':     'border-violet-400 bg-violet-50',
+  'Muestra Stunned':    'border-pink-400 bg-pink-50',
+  'Muestra - Relevamiento': 'border-amber-400 bg-amber-50',
+  'Muestra - Medición':     'border-amber-400 bg-amber-50',
   'Descanso':           'border-sky-400 bg-sky-50',
   'Almuerzo':           'border-orange-400 bg-orange-50',
   'Falla Máquina':      'border-red-400 bg-red-50',
@@ -26,6 +30,10 @@ const COLORES: Record<string, string> = {
 const ICONOS: Record<string, string> = {
   'Proceso Completado': '✅',
   'Muestra/Prototipo':  '📐',
+  'Muestra Zattia':     '📐',
+  'Muestra Stunned':    '📐',
+  'Muestra - Relevamiento': '📐',
+  'Muestra - Medición':     '📐',
   'Descanso':           '☕',
   'Almuerzo':           '🍽️',
   'Falla Máquina':      '⚠️',

@@ -5,6 +5,32 @@
 
 _Última actualización: 2026-09-04_
 
+> **En esta sesión (4-sep), 2º tramo: EL RELEVAMIENTO DEJA REGISTRO, Y LA PAUSA DEJA DE SER UN PASO.**
+> Dos cosas que pidió Bruno después de usarla.
+>
+> 🔴 **Una corrida terminada no dejaba rastro en ningún lado.** Ni historial en la tablet, ni registro
+> del día, ni costo: el rato que la costurera estuvo cosiendo la muestra **salía gratis**, mientras
+> que la misma muestra cargada a mano con el cronómetro genera un `Gasto` de desarrollo. ⇒ al cerrar,
+> la corrida **deja el registro de costura que ella hubiera cargado**: actividad
+> **`Muestra - Relevamiento`** (o `Muestra - Medición`), marca y sku de la corrida, la máquina en la
+> que MÁS tiempo estuvo, y **los minutos de TRABAJO sin las paradas** —el taller ya está adentro del
+> `costoMinuto` absorbente—. 🔑 **La regla vive en UN solo lugar** (`lib/tiempos/registrar.ts`): si
+> quedaba en el route handler, la muestra medida con el cronómetro costaba plata y la misma muestra
+> medida con la corrida salía gratis. 💵 **Genera `Gasto` igual que `Muestra Zattia`.**
+> ⚠️ **Marisol hoy carga el rato a mano** (el 2-sep: `Muestra Zattia`, 36 min) ⇒ **hay que avisarle
+> que cuando use la corrida NO cargue además el registro**, o se cuenta dos veces.
+> Y la tablet ahora muestra **«Terminado hoy»** con lo relevado, que es el historial que faltaba.
+>
+> 🔴 **La pausa se comportaba como un paso nuevo.** Tocar «Paré un momento» abría un tramo de parada
+> y para volver había que **declarar de nuevo** qué se estaba haciendo. Ahora **Pausa** y **▶ Reanudar**
+> viven pegados al cronómetro, la pantalla **no cambia**, y reanudar **vuelve al mismo paso** —
+> `serializar` devuelve `reanudar` (el último tramo de trabajo de esa prenda, con su máquina). El
+> tiempo de pausa se **junta y se muestra aparte** («pausas de esta corrida: X min»): sigue sin
+> entrar al estándar. ⚠️ No se puede pausar si no hay nada corriendo.
+>
+> ▶️ **Falta ejercerlo en la tablet real** (terminar una corrida y ver el registro del día): acá no
+> se pudo, el clasificador no deja firmar una sesión para probar de punta a punta.
+
 > **En esta sesión (4-sep): LA TABLET MOSTRABA UNA SOLA CORRIDA.** Bruno cargó 4 relevamientos de
 > bikini para Marisol y desde la tablet sólo podía entrar al primero. **La causa era un `findFirst`**:
 > `GET /api/tiempos/corrida` devolvía **la corrida más vieja** de las abiertas, no la lista. ⇒ la

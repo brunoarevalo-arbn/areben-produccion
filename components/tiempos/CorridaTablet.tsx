@@ -18,9 +18,12 @@ export interface CorridaVista {
   pasos: Paso[]; ribetes: Ribete[]; cortes: Corte[];
   tubo: { utilCm: number; desperdicioCm: number; totalCm: number; mermaPct: number };
   abierto: { id: string; tipo: string; pasoId: string | null; maquina: string | null; motivo: string | null } | null;
+  /** El paso al que vuelve "Reanudar": una pausa no abre un paso nuevo. */
+  reanudar: { pasoId: string; nombre: string; maquina: string | null } | null;
   resumen: {
     porPaso: { pasoId: string; nombre: string; maquina: string; porUnidad: { unidad: number; minutos: number }[] }[];
     unidades: { unidad: number; trabajo: number; paradas: number }[];
+    minutosParadas: number;
   };
 }
 
@@ -115,7 +118,13 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
     const res = await fetch(`/api/tiempos/corrida/${c.id}/terminar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ minutos: foto?.minutosNetos ?? 0, horaFin: foto?.horaFin }),
+      // La fecha va con el MISMO criterio con el que la tablet después pide los
+      // registros del día (lib/api/tiempos.ts), o el registro no aparece en la lista.
+      body: JSON.stringify({
+        minutos: foto?.minutosNetos ?? 0,
+        horaFin: foto?.horaFin,
+        fecha: new Date().toISOString().split('T')[0],
+      }),
     });
     setOcupado(false);
     if (!res.ok) { setError((await res.json()).error ?? 'No se pudo terminar'); return; }
@@ -131,6 +140,7 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
   const esLaUltima = c.unidadActual >= c.unidadesObjetivo;
   const cortesDeLaPrenda = c.cortes.filter((t) => t.unidad === c.unidadActual).sort((a, b) => a.orden - b.orden);
   const relevamiento = c.modo === 'relevamiento';
+  const enPausa = abierto?.tipo === 'parada';
   const corriendo = cron.estado === 'corriendo';
 
   return (
@@ -157,17 +167,55 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
           {cron.tiempoDisplay}
         </p>
         <p className="text-center text-xs mt-1 text-stone-400">
-          {abierto?.tipo === 'parada'
-            ? `⏸ ${abierto.motivo ?? 'Parada'}`
+          {enPausa
+            ? `⏸ En pausa · ${abierto?.motivo ?? 'Otro'}`
             : pasoAbierto
               ? `${pasoAbierto.nombre} · ${abierto?.maquina ?? pasoAbierto.maquina}`
               : 'Tocá un paso para arrancar'}
         </p>
+        {c.resumen.minutosParadas > 0 && (
+          <p className="text-center text-xs mt-1 text-sky-400">
+            pausas de esta corrida: {fmt(c.resumen.minutosParadas)} min
+          </p>
+        )}
       </div>
 
       {error && (
         <div className="mx-4 mt-3 bg-red-50 border border-red-200 text-red-700 text-sm p-3 rounded-xl">{error}</div>
       )}
+
+      {/* ── Pausa: se pausa y se reanuda ACÁ, sin cambiar de pantalla y sin
+             declarar un paso nuevo. La pausa junta su tiempo aparte; reanudar
+             vuelve a lo que se estaba haciendo. ─────────────────────────── */}
+      <div className="mx-4 mt-3 shrink-0">
+        {enPausa ? (
+          <button
+            onClick={() => c.reanudar && accion({ tipo: 'paso', pasoId: c.reanudar.pasoId, maquina: c.reanudar.maquina ?? undefined })}
+            disabled={ocupado || !c.reanudar}
+            className="w-full py-3.5 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-bold uppercase tracking-widest text-sm transition active:scale-95">
+            ▶ Reanudar{c.reanudar ? ` · ${c.reanudar.nombre}` : ''}
+          </button>
+        ) : !abrirParada ? (
+          <button onClick={() => setAbrirParada(true)} disabled={ocupado || !abierto}
+            className="w-full py-3 rounded-xl border-2 border-dashed border-sky-300 text-sky-700 disabled:opacity-40 text-xs font-bold uppercase tracking-wide hover:bg-sky-50 transition active:scale-95">
+            ⏸ Pausa
+          </button>
+        ) : (
+          <div className="bg-white border-2 border-sky-300 rounded-xl p-3">
+            <p className="text-xs font-bold uppercase tracking-wide text-stone-400 mb-2">¿Por qué parás?</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              {MOTIVOS_PARADA.map((m) => (
+                <button key={m} onClick={() => accion({ tipo: 'parada', motivo: m })} disabled={ocupado}
+                  className="px-3 py-2.5 rounded-xl border-2 border-stone-200 text-sm text-stone-700 hover:border-sky-300 transition active:scale-95">
+                  {m}
+                </button>
+              ))}
+            </div>
+            <button onClick={() => setAbrirParada(false)}
+              className="w-full py-2 mt-1 text-xs text-stone-400">Cancelar</button>
+          </div>
+        )}
+      </div>
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {/* ── Los pasos ─────────────────────────────────────────────── */}
@@ -246,25 +294,6 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
               })}
             </div>
             <p className="text-xs text-stone-400 mt-2">Tocá otra y seguís cosiendo: el reloj no se corta.</p>
-          </div>
-        )}
-
-        {/* ── Parada declarada ──────────────────────────────────────── */}
-        {!abrirParada ? (
-          <button onClick={() => setAbrirParada(true)} disabled={ocupado}
-            className="w-full py-3 rounded-xl border-2 border-dashed border-sky-300 text-sky-700 text-xs font-bold uppercase tracking-wide hover:bg-sky-50 transition active:scale-95">
-            ⏸ Paré un momento
-          </button>
-        ) : (
-          <div className="bg-white border-2 border-sky-300 rounded-xl p-3 space-y-1.5">
-            {MOTIVOS_PARADA.map((m) => (
-              <button key={m} onClick={() => accion({ tipo: 'parada', motivo: m })} disabled={ocupado}
-                className="w-full text-left px-4 py-2.5 rounded-xl border-2 border-stone-200 text-sm text-stone-700 hover:border-sky-300 transition active:scale-95">
-                {m}
-              </button>
-            ))}
-            <button onClick={() => setAbrirParada(false)}
-              className="w-full py-2 text-xs text-stone-400">Cancelar</button>
           </div>
         )}
 
