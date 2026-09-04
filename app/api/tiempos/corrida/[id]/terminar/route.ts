@@ -53,6 +53,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     await crearTiempoConGasto({
       usuario: fresca!.costurera,
       actividad: fresca!.modo === 'relevamiento' ? ACTIVIDAD_RELEVAMIENTO : ACTIVIDAD_MEDICION,
+      // Qué prenda se relevó: sin esto el registro no dice CUÁL.
+      detalle: `${fresca!.nombre} · ${fresca!.talle}`,
       fecha: parsed.data.fecha || new Date().toLocaleDateString('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }),
       marca: fresca!.marca,
       // La máquina del registro es en la que MÁS tiempo estuvo, no la del primer

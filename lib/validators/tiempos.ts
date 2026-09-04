@@ -5,6 +5,7 @@ import { z } from 'zod';
 export const TiempoSchema = z.object({
   usuario: z.string().min(1, 'Usuario requerido'),
   actividad: z.string().min(1, 'Actividad requerida'),
+  detalle: z.string().max(200).optional(),
   fecha: z.string(),
   marca: z.string().optional(),
   maquina: z.string().optional(),

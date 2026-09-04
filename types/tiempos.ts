@@ -4,6 +4,8 @@ export interface TiemposProduccion {
   id?: string;
   usuario: string;
   actividad: string;
+  /** Qué se hizo, en palabras: lo llena el cierre de una corrida. */
+  detalle?: string;
   fecha: string;
   marca?: string;
   maquina?: string;

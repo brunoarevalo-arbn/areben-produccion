@@ -10,6 +10,10 @@ model TiemposProduccion {
   id                 String   @id @default(cuid())
   usuario            String
   actividad          String
+  // Qué se hizo, en palabras: lo llena el cierre de una corrida con el nombre
+  // de la prenda relevada. Sin esto, el registro dice "Muestra - Relevamiento"
+  // y no cuál.
+  detalle            String?
   fecha              String
   marca              String?
   maquina            String?

@@ -5,6 +5,23 @@
 
 _Última actualización: 2026-09-04_
 
+> **En esta sesión (4-sep), 3er tramo: EL SELECTOR NO SE VEÍA PORQUE NO HABÍA QUÉ ELEGIR.**
+> Bruno volvió a decir que no podía elegir con cuál arrancar. Medido en la base: **quedaba UNA sola
+> corrida abierta**; las otras cuatro estaban terminadas —tres de ellas por los clicks de prueba de
+> la mañana—. 🔑 **La lista no estaba rota: no había nada que listar.** Se recrearon las dos que se
+> habían cerrado probando (`Corpiño triangulito con ruedo` y `Bombacha regulable`, con `notas` que
+> lo dicen); las viejas quedan terminadas y se pueden anular. ⇒ ahora hay **3 abiertas**.
+>
+> 🔴 **Y lo clavado arriba le comía la pantalla.** El selector y el «Terminado hoy» estaban fuera del
+> área que desliza. Ahora **el bloque de «Terminado hoy» no existe más** —lo terminado es un
+> **registro del día**, al mismo nivel que un `Proceso Completado`— y el selector **bajó adentro del
+> scroll**, arriba de «Registros de hoy». 🔑 **Pedido de Bruno como regla: en la tablet, lo único
+> clavado es el cronómetro; el resto desliza.**
+>
+> 🆕 **Columna nueva `TiemposProduccion.detalle`** (`db push`, nullable, 717 registros intactos): sin
+> ella el registro decía `Muestra - Relevamiento` y **no cuál prenda**. La llena el cierre de la
+> corrida con `nombre · talle` y se ve abajo del título en el log.
+
 > **En esta sesión (4-sep), 2º tramo: EL RELEVAMIENTO DEJA REGISTRO, Y LA PAUSA DEJA DE SER UN PASO.**
 > Dos cosas que pidió Bruno después de usarla.
 >

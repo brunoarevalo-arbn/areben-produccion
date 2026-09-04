@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
-import { CORRIDA_INCLUDE, resumenDe } from '@/lib/calculadora/corridaDb';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,33 +49,5 @@ export async function GET(req: NextRequest) {
   const peso = (f: typeof filas[number]) => (f.corriendo ? 0 : f.estado === 'en_curso' ? 1 : 2);
   filas.sort((a, b) => peso(a) - peso(b));
 
-  // Lo terminado HOY: el historial que faltaba. Una corrida que se cierra
-  // desaparecía de la tablet sin dejar rastro de qué se relevó.
-  const desde = new Date();
-  desde.setHours(0, 0, 0, 0);
-  const terminadas = await prisma.corridaMuestra.findMany({
-    where: {
-      ...(session.rol === 'admin' ? {} : { costurera: session.nombre }),
-      estado: 'terminada',
-      terminadaAt: { gte: desde },
-    },
-    orderBy: { terminadaAt: 'desc' },
-    include: CORRIDA_INCLUDE,
-  });
-
-  return NextResponse.json({
-    abiertas: filas,
-    terminadasHoy: terminadas.map((c) => {
-      const r = resumenDe(c);
-      return {
-        id: c.id,
-        nombre: c.nombre,
-        talle: c.talle,
-        modo: c.modo,
-        costurera: c.costurera,
-        minutos: Math.round(r.unidades.reduce((s, u) => s + u.trabajo, 0) * 10) / 10,
-        pasos: r.porPaso.length,
-      };
-    }),
-  });
+  return NextResponse.json(filas);
 }

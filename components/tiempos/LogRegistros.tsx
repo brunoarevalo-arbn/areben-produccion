@@ -69,6 +69,9 @@ export function LogRegistros({ registros, loading, ordenes = [], pendientes, onE
                 <span className="text-lg shrink-0">{icono}</span>
                 <div className="min-w-0">
                   <p className="font-semibold text-stone-800 text-sm truncate">{reg.actividad}</p>
+                  {reg.detalle && (
+                    <p className="text-xs text-stone-600 truncate">{reg.detalle}</p>
+                  )}
                   <div className="flex flex-wrap gap-1.5 mt-0.5">
                     {reg.marca && (
                       <span className="text-xs bg-white/70 text-stone-600 px-1.5 py-0.5 rounded font-medium">{reg.marca}</span>
