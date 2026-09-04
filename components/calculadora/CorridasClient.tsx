@@ -37,6 +37,8 @@ export function CorridasClient() {
   const [escandallos, setEscandallos] = useState<Escandallo[]>([]);
   const [abrirAlta, setAbrirAlta] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  // Renombrar una corrida ya creada: {id, nombre} mientras se edita.
+  const [renombrando, setRenombrando] = useState<{ id: string; nombre: string } | null>(null);
 
   const [f, setF] = useState({
     nombre: '', tipoPrenda: '', marca: 'Zattia', talle: '', costurera: '',
@@ -82,6 +84,23 @@ export function CorridasClient() {
     setAbrirAlta(false);
     setF({ ...f, nombre: '', talle: '', sku: '', notas: '' });
     setRibetes([]);
+    cargar();
+  };
+
+  const renombrar = async () => {
+    if (!renombrando) return;
+    const nombre = renombrando.nombre.trim();
+    if (nombre === '') { toast.error('El nombre no puede quedar vacío'); return; }
+    setGuardando(true);
+    const r = await fetch(`/api/calculadora/corridas/${renombrando.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre }),
+    });
+    setGuardando(false);
+    if (!r.ok) { toast.error((await r.json()).error ?? 'No se pudo renombrar'); return; }
+    setRenombrando(null);
+    toast.success('Nombre cambiado');
     cargar();
   };
 
@@ -218,10 +237,31 @@ export function CorridasClient() {
             <div key={c.id} className="bg-white border border-stone-200 rounded-2xl px-5 py-4 flex items-center gap-4">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Link href={`/calculadora/${c.id}?volverA=${encodeURIComponent(`/calculadora?tab=${tab}`)}`}
-                    className="font-semibold text-stone-900 hover:text-amber-600">
-                    {c.nombre} · {c.talle}
-                  </Link>
+                  {renombrando?.id === c.id ? (
+                    <span className="flex items-center gap-2">
+                      <input value={renombrando.nombre} autoFocus
+                        onChange={(e) => setRenombrando({ id: c.id, nombre: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') renombrar();
+                          if (e.key === 'Escape') setRenombrando(null);
+                        }}
+                        className="border border-stone-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:border-amber-400" />
+                      <button onClick={renombrar} disabled={guardando}
+                        className="text-xs font-semibold text-amber-600 hover:text-amber-700 disabled:opacity-50">Guardar</button>
+                      <button onClick={() => setRenombrando(null)}
+                        className="text-xs text-stone-400 hover:text-stone-600">Cancelar</button>
+                    </span>
+                  ) : (
+                    <>
+                      <Link href={`/calculadora/${c.id}?volverA=${encodeURIComponent(`/calculadora?tab=${tab}`)}`}
+                        className="font-semibold text-stone-900 hover:text-amber-600">
+                        {c.nombre} · {c.talle}
+                      </Link>
+                      <button onClick={() => setRenombrando({ id: c.id, nombre: c.nombre })}
+                        aria-label="Cambiar el nombre" title="Cambiar el nombre"
+                        className="text-stone-300 hover:text-amber-600 text-xs">✎</button>
+                    </>
+                  )}
                   <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${est.cls}`}>{est.txt}</span>
                   {c.modo === 'relevamiento' && (
                     <span className="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800">Relevamiento</span>

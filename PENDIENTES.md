@@ -5,6 +5,13 @@
 
 _Última actualización: 2026-09-04_
 
+> **En esta sesión (4-sep), 5º tramo: SE PUEDE CAMBIAR EL NOMBRE DE UNA CORRIDA YA CREADA.** El
+> nombre se tipeaba al encenderla y quedaba clavado con el error adentro. Ahora en la lista de
+> `/calculadora` hay un **✎** al lado del nombre: se edita ahí mismo (Enter guarda, Escape cancela) y
+> el `PATCH` acepta `nombre`. Vale también con la corrida terminada.
+> ⚠️ **Lo que NO se reescribe es el `detalle` del registro del día**: se copia al cerrar, así que un
+> relevamiento renombrado DESPUÉS de terminarlo deja el nombre viejo en el registro de la costurera.
+
 > **En esta sesión (4-sep), 4º tramo: RELEVAMIENTOS EN SU PROPIA PANTALLA, EL RELOJ QUE NO VUELVE A
 > CERO, Y UN GASTO QUE NO SEGUÍA A SU REGISTRO.**
 >

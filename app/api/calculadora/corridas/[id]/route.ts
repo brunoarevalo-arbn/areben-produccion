@@ -15,6 +15,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 const PatchSchema = z.object({
+  // El nombre se puede corregir después: se tipea al encender la corrida y hasta
+  // ahora quedaba clavado para siempre, con el error incluido.
+  nombre: z.string().trim().min(1, 'Ponele nombre a la prenda').max(120).optional(),
   estado: z.enum(['pendiente', 'en_curso', 'terminada', 'anulada']).optional(),
   escandalloId: z.string().trim().nullable().optional(),
   notas: z.string().trim().max(500).nullable().optional(),
@@ -30,6 +33,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   await prisma.corridaMuestra.update({
     where: { id },
     data: {
+      ...(parsed.data.nombre !== undefined ? { nombre: parsed.data.nombre } : {}),
       ...(parsed.data.estado ? { estado: parsed.data.estado, ...(parsed.data.estado === 'terminada' ? { terminadaAt: new Date() } : {}) } : {}),
       ...(parsed.data.escandalloId !== undefined ? { escandalloId: parsed.data.escandalloId || null } : {}),
       ...(parsed.data.notas !== undefined ? { notas: parsed.data.notas || null } : {}),
