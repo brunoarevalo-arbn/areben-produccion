@@ -53,3 +53,47 @@ export async function crearTiempoConGasto(datos: TiempoInput) {
 
   return tiempo;
 }
+
+/**
+ * Deja el gasto de muestra igual a lo que dice el registro. Se llama cuando se
+ * EDITA un tiempo: sin esto el registro decía 0 minutos y el gasto seguía
+ * cobrando los 20 originales —pasó el 4-sep con la corrida de Bombacha entera,
+ * $2.694 que ya no correspondían—. Mismo criterio que el `movimientoId` de un
+ * retiro de tela: el gasto automático sigue a su origen o se borra.
+ */
+export async function sincronizarGastoDeMuestra(tiempoId: string) {
+  const t = await prisma.tiemposProduccion.findUnique({ where: { id: tiempoId } });
+  if (!t) return;
+
+  // Sólo los gastos AUTOMÁTICOS: uno cargado a mano como compra (con proveedor
+  // o con seguimiento de pago) no lo pisa un cambio de horario.
+  const gasto = await prisma.gasto.findFirst({
+    where: { tiempoId, proveedorId: null, estadoPago: null },
+  });
+
+  const marca = marcaDeMuestra(t.actividad, t.marca);
+  const minutos = Math.round(t.minutosNetos);
+
+  if (!marca || minutos <= 0) {
+    if (gasto) await prisma.gasto.delete({ where: { id: gasto.id } });
+    return;
+  }
+
+  const costoMinuto = await calcularCostoMinuto();
+  const monto = Math.round(minutos * costoMinuto);
+  const concepto = `Muestra ${marca}${t.sku ? ` — ${t.sku}` : ''}`;
+
+  if (gasto) {
+    await prisma.gasto.update({
+      where: { id: gasto.id },
+      data: { marca, sku: t.sku, minutos, monto, concepto, fecha: t.fecha },
+    });
+  } else {
+    await prisma.gasto.create({
+      data: {
+        categoria: 'desarrollo', tipo: 'periodo', marca, sku: t.sku,
+        minutos, monto, concepto, fecha: t.fecha, creadoPor: t.usuario, tiempoId: t.id,
+      },
+    });
+  }
+}

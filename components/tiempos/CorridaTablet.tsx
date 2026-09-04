@@ -20,6 +20,8 @@ export interface CorridaVista {
   abierto: { id: string; tipo: string; pasoId: string | null; maquina: string | null; motivo: string | null } | null;
   /** El paso al que vuelve "Reanudar": una pausa no abre un paso nuevo. */
   reanudar: { pasoId: string; nombre: string; maquina: string | null } | null;
+  /** Segundos que el paso en curso ya lleva en esta prenda (tramos cerrados). */
+  acumuladoSeg: number;
   resumen: {
     porPaso: { pasoId: string; nombre: string; maquina: string; porUnidad: { unidad: number; minutos: number }[] }[];
     unidades: { unidad: number; trabajo: number; paradas: number }[];
@@ -36,6 +38,16 @@ interface Siguiente {
 }
 
 const fmt = (n: number) => n.toString().replace('.', ',');
+
+const hhmmss = (seg: number) => {
+  const t = Math.max(0, Math.floor(seg));
+  return [Math.floor(t / 3600), Math.floor((t % 3600) / 60), t % 60]
+    .map((n) => String(n).padStart(2, '0')).join(':');
+};
+
+/** El display del cronómetro son segundos: "HH:MM:SS" → 3661. */
+const aSegundos = (display: string) =>
+  display.split(':').reduce((t, n) => t * 60 + Number(n), 0);
 
 export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: CorridaVista }) {
   const router = useRouter();
@@ -141,6 +153,7 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
   const cortesDeLaPrenda = c.cortes.filter((t) => t.unidad === c.unidadActual).sort((a, b) => a.orden - b.orden);
   const relevamiento = c.modo === 'relevamiento';
   const enPausa = abierto?.tipo === 'parada';
+  const segCron = aSegundos(cron.tiempoDisplay);
   const corriendo = cron.estado === 'corriendo';
 
   return (
@@ -163,12 +176,15 @@ export function CorridaTablet({ usuario, inicial }: { usuario: string; inicial: 
 
       {/* Cronómetro: no tiene botón de arrancar. Lo prende tocar un paso. */}
       <div className="bg-stone-900 mx-4 mt-3 rounded-xl px-5 py-4 shrink-0">
-        <p className={`text-center font-mono text-3xl font-bold tabular-nums ${corriendo ? 'text-amber-400' : 'text-stone-500'}`}>
-          {cron.tiempoDisplay}
+        {/* El número grande es el reloj del PASO, no el del tramo: sigue desde
+            donde estaba al reanudar y al cambiar de máquina. En pausa se
+            congela y abajo corre el reloj de la pausa, que va aparte. */}
+        <p className={`text-center font-mono text-3xl font-bold tabular-nums ${corriendo && !enPausa ? 'text-amber-400' : 'text-stone-500'}`}>
+          {hhmmss(c.acumuladoSeg + (abierto?.tipo === 'paso' ? segCron : 0))}
         </p>
         <p className="text-center text-xs mt-1 text-stone-400">
           {enPausa
-            ? `⏸ En pausa · ${abierto?.motivo ?? 'Otro'}`
+            ? `⏸ En pausa · ${abierto?.motivo ?? 'Otro'} · ${hhmmss(segCron)}`
             : pasoAbierto
               ? `${pasoAbierto.nombre} · ${abierto?.maquina ?? pasoAbierto.maquina}`
               : 'Tocá un paso para arrancar'}

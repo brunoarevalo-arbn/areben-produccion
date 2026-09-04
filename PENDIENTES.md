@@ -5,6 +5,34 @@
 
 _Última actualización: 2026-09-04_
 
+> **En esta sesión (4-sep), 4º tramo: RELEVAMIENTOS EN SU PROPIA PANTALLA, EL RELOJ QUE NO VUELVE A
+> CERO, Y UN GASTO QUE NO SEGUÍA A SU REGISTRO.**
+>
+> **`/tiempos/relevamientos`**: la lista se fue a su propia pantalla y en la home queda **una sola
+> fila** («Relevamientos · 3 →»). Con varios cargados, la home quedaba larguísima. La consulta de
+> «cuáles están abiertas» pasó a `corridasAbiertasDe()` en el núcleo, y la usan **la pantalla y la
+> API**: una sola definición de qué ve cada una.
+>
+> 🔑 **El reloj grande dejó de ser el del TRAMO y pasó a ser el del PASO.** Al reanudar —y al cambiar
+> de máquina, que también corta el tramo— volvía a **00:00:00** aunque los minutos sí se sumaran por
+> detrás: el número contradecía a la costurera. Ahora `serializar` devuelve **`acumuladoSeg`** (los
+> segundos cerrados de ese paso en esa prenda) y la tablet muestra `acumulado + lo que corre`. En
+> pausa **se congela** y el reloj de la pausa corre chiquito abajo, que es lo que va aparte.
+>
+> 🔴 💵 **Y apareció uno de plata, VIEJO y no de la calculadora: editar un registro NO tocaba su
+> gasto.** El `PATCH /api/tiempos/[id]` recalcula `minutosNetos` desde las horas y el `Gasto` de la
+> muestra **quedaba con el valor viejo**. Medido en vivo: `Bombacha entera` quedó con el registro en
+> **0 min** y el gasto en **20 min / $2.694**. ⇒ `sincronizarGastoDeMuestra()` en el núcleo, llamado
+> desde el PATCH: el gasto sigue al registro y **se borra si quedan 0 minutos**. Sólo toca los gastos
+> **automáticos** (sin proveedor ni seguimiento de pago). Mismo criterio que el `movimientoId` de un
+> retiro de tela, que ya estaba escrito así. ▶️ **Queda el gasto de $2.694 del 4-sep para decidir**:
+> es de una prueba y su corrida ya no existe.
+>
+> ⚠️ **Los 20 minutos salieron del tramo que quedó abierto** a las 10:20 mientras Bruno probaba:
+> volvió a la corrida 15 minutos después y el paso se comió el rato. Es exactamente el agujero de
+> **no tener reloj maestro**, y ahora se ve en la pantalla de relevamientos («⏱ el reloj está
+> corriendo»).
+
 > **En esta sesión (4-sep), 3er tramo: EL SELECTOR NO SE VEÍA PORQUE NO HABÍA QUÉ ELEGIR.**
 > Bruno volvió a decir que no podía elegir con cuál arrancar. Medido en la base: **quedaba UNA sola
 > corrida abierta**; las otras cuatro estaban terminadas —tres de ellas por los clicks de prueba de

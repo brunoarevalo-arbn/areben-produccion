@@ -26,6 +26,49 @@ export const CORRIDA_INCLUDE = {
 
 export type CorridaCompleta = Prisma.CorridaMuestraGetPayload<{ include: typeof CORRIDA_INCLUDE }>;
 
+/**
+ * Las corridas abiertas que puede tomar quien pide: cada costurera ve las
+ * suyas, el admin ve todas —así se prueba sin la tablet de la costurera—. La
+ * consulta vive acá porque la usan la pantalla de relevamientos y la API.
+ */
+export async function corridasAbiertasDe(session: { nombre: string; rol: string }) {
+  const corridas = await prisma.corridaMuestra.findMany({
+    where: {
+      ...(session.rol === 'admin' ? {} : { costurera: session.nombre }),
+      estado: { in: ['pendiente', 'en_curso'] },
+    },
+    orderBy: { createdAt: 'asc' },
+    select: {
+      id: true, nombre: true, tipoPrenda: true, talle: true, modo: true,
+      estado: true, costurera: true, unidadActual: true, unidadesObjetivo: true,
+      // Un tramo sin horaFin es el que está corriendo AHORA. Se muestra porque
+      // sin reloj maestro, un cronómetro olvidado en otra corrida sigue sumando
+      // y nada más lo delata.
+      mediciones: { where: { horaFin: null }, select: { id: true }, take: 1 },
+    },
+  });
+
+  const filas = corridas.map((c) => ({
+    id: c.id,
+    nombre: c.nombre,
+    tipoPrenda: c.tipoPrenda,
+    talle: c.talle,
+    modo: c.modo,
+    estado: c.estado,
+    costurera: c.costurera,
+    unidadActual: c.unidadActual,
+    unidadesObjetivo: c.unidadesObjetivo,
+    corriendo: c.mediciones.length > 0,
+  }));
+
+  // La que tiene el reloj corriendo primero, después las empezadas, y al final
+  // las que todavía no arrancaron, en el orden en que se cargaron.
+  const peso = (f: (typeof filas)[number]) => (f.corriendo ? 0 : f.estado === 'en_curso' ? 1 : 2);
+  return filas.sort((a, b) => peso(a) - peso(b));
+}
+
+export type CorridaAbierta = Awaited<ReturnType<typeof corridasAbiertasDe>>[number];
+
 export function cargarCorrida(id: string) {
   return prisma.corridaMuestra.findUnique({ where: { id }, include: CORRIDA_INCLUDE });
 }
@@ -82,6 +125,19 @@ export function serializar(c: CorridaCompleta) {
       if (!ultimo?.pasoId) return null;
       const paso = c.pasos.find((p) => p.id === ultimo.pasoId);
       return { pasoId: ultimo.pasoId, nombre: paso?.nombre ?? 'lo anterior', maquina: ultimo.maquina ?? paso?.maquina ?? null };
+    })(),
+    // Los segundos que este paso YA lleva en esta prenda (tramos cerrados). El
+    // reloj de la tablet arranca desde acá y no desde cero: al reanudar —o al
+    // cambiar de máquina, que también corta el tramo— el proceso tiene que
+    // seguir contando donde estaba, aunque por debajo sean tramos distintos.
+    acumuladoSeg: (() => {
+      const pasoId = abierto?.pasoId
+        ?? [...c.mediciones].reverse().find((m) => m.tipo === 'paso' && m.pasoId != null && m.unidad === c.unidadActual)?.pasoId;
+      if (!pasoId) return 0;
+      const seg = c.mediciones
+        .filter((m) => m.pasoId === pasoId && m.unidad === c.unidadActual && m.horaFin != null)
+        .reduce((t, m) => t + m.minutosNetos * 60, 0);
+      return Math.round(seg);
     })(),
     abierto: abierto
       ? { id: abierto.id, tipo: abierto.tipo, pasoId: abierto.pasoId, maquina: abierto.maquina, motivo: abierto.motivo }

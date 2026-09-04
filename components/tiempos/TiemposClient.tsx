@@ -129,34 +129,23 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
             registro del día, al mismo nivel que un Proceso Completado. */}
         <div className="flex-1 overflow-y-auto px-4 py-2">
           {corridas.length > 0 && (
-            <div className="mb-4 space-y-2">
-              {corridas.length > 1 && (
-                <p className="text-xs font-bold uppercase tracking-widest text-stone-400">
-                  Tenés {corridas.length} para medir · elegí una
-                </p>
-              )}
-              {corridas.map((c) => (
-                <Link key={c.id} href={`/tiempos/corrida/${c.id}`}
-                  className="block bg-amber-50 border-2 border-amber-400 rounded-xl px-4 py-3.5 transition active:scale-95">
-                  <p className="text-xs font-bold uppercase tracking-widest text-amber-600 flex items-center gap-2">
-                    📐 {c.modo === 'relevamiento' ? 'Relevamiento' : 'Corrida de muestra'}
-                    {c.corriendo && (
-                      <span className="text-red-600 normal-case tracking-normal">⏱ el reloj está corriendo</span>
-                    )}
-                    {!c.corriendo && c.estado === 'en_curso' && (
-                      <span className="text-stone-400 normal-case tracking-normal">empezada</span>
-                    )}
-                  </p>
-                  <p className="font-semibold text-stone-900 text-sm mt-0.5">
-                    {c.nombre} · {c.talle} <span className="text-amber-600">→</span>
-                  </p>
-                  {usuario.rol === 'admin' && (
-                    <p className="text-xs text-stone-500 mt-0.5">{c.costurera}</p>
-                  )}
-                </Link>
-              ))}
-            </div>
+            <Link href="/tiempos/relevamientos"
+              className="flex items-center gap-3 bg-amber-50 border-2 border-amber-400 rounded-xl px-4 py-3 mb-4 transition active:scale-95">
+              <span className="text-lg shrink-0">📐</span>
+              <span className="flex-1 min-w-0">
+                <span className="block font-semibold text-stone-900 text-sm">
+                  Relevamientos · {corridas.length}
+                </span>
+                <span className="block text-xs text-stone-500 truncate">
+                  {corridas.some((c) => c.corriendo)
+                    ? '⏱ uno tiene el reloj corriendo'
+                    : 'elegí cuál medir'}
+                </span>
+              </span>
+              <span className="text-amber-600 shrink-0">→</span>
+            </Link>
           )}
+
           <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-2">
             Registros de hoy
           </p>

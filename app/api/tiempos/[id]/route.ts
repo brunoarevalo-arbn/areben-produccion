@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
+import { sincronizarGastoDeMuestra } from '@/lib/tiempos/registrar';
 
 const PatchSchema = z.object({
   actividad:          z.string().min(1).optional(),
@@ -48,5 +49,10 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   const actualizado = await prisma.tiemposProduccion.update({ where: { id }, data });
+
+  // El gasto de la muestra sigue al registro: si acá cambian los minutos, la
+  // actividad o el sku, la plata tiene que cambiar con ellos.
+  await sincronizarGastoDeMuestra(id);
+
   return NextResponse.json(actualizado);
 }
