@@ -18,6 +18,19 @@ interface OrdenActiva {
   estado: string;
 }
 
+interface CorridaAbierta {
+  id: string;
+  nombre: string;
+  tipoPrenda: string;
+  talle: string;
+  modo: string;
+  estado: string;
+  costurera: string;
+  unidadActual: number;
+  unidadesObjetivo: number;
+  corriendo: boolean;
+}
+
 interface SessionUser {
   id: string;
   nombre: string;
@@ -34,13 +47,14 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
   const router  = useRouter();
   const tiempos = useTiempos(usuario.nombre);
 
-  // La corrida de muestra encendida para esta costurera, si hay alguna. Es la
-  // única puerta a la calculadora desde la tablet: no se navega por URL.
-  const [corrida, setCorrida] = useState<{ id: string; nombre: string; talle: string; modo: string } | null>(null);
+  // Las corridas de muestra encendidas para esta costurera. Son la única puerta
+  // a la calculadora desde la tablet: no se navega por URL. Van TODAS, no la
+  // primera: con cuatro relevamientos cargados, ella elige con cuál arranca.
+  const [corridas, setCorridas] = useState<CorridaAbierta[]>([]);
   useEffect(() => {
     fetch('/api/tiempos/corrida')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setCorrida(d))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setCorridas(Array.isArray(d) ? d : d ? [d] : []))
       .catch(() => { /* la tablet sigue funcionando sin corrida */ });
   }, []);
 
@@ -93,17 +107,33 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
       </header>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {corrida && (
-          <div className="px-4 pt-4 shrink-0">
-            <Link href={`/tiempos/corrida/${corrida.id}`}
-              className="block bg-amber-50 border-2 border-amber-400 rounded-xl px-4 py-3.5 transition active:scale-95">
-              <p className="text-xs font-bold uppercase tracking-widest text-amber-600">
-                📐 {corrida.modo === 'relevamiento' ? 'Relevamiento' : 'Corrida de muestra'}
+        {corridas.length > 0 && (
+          <div className="px-4 pt-4 shrink-0 space-y-2">
+            {corridas.length > 1 && (
+              <p className="text-xs font-bold uppercase tracking-widest text-stone-400">
+                Tenés {corridas.length} para medir · elegí una
               </p>
-              <p className="font-semibold text-stone-900 text-sm mt-0.5">
-                {corrida.nombre} · {corrida.talle} <span className="text-amber-600">→</span>
-              </p>
-            </Link>
+            )}
+            {corridas.map((c) => (
+              <Link key={c.id} href={`/tiempos/corrida/${c.id}`}
+                className="block bg-amber-50 border-2 border-amber-400 rounded-xl px-4 py-3.5 transition active:scale-95">
+                <p className="text-xs font-bold uppercase tracking-widest text-amber-600 flex items-center gap-2">
+                  📐 {c.modo === 'relevamiento' ? 'Relevamiento' : 'Corrida de muestra'}
+                  {c.corriendo && (
+                    <span className="text-red-600 normal-case tracking-normal">⏱ el reloj está corriendo</span>
+                  )}
+                  {!c.corriendo && c.estado === 'en_curso' && (
+                    <span className="text-stone-400 normal-case tracking-normal">empezada</span>
+                  )}
+                </p>
+                <p className="font-semibold text-stone-900 text-sm mt-0.5">
+                  {c.nombre} · {c.talle} <span className="text-amber-600">→</span>
+                </p>
+                {usuario.rol === 'admin' && (
+                  <p className="text-xs text-stone-500 mt-0.5">{c.costurera}</p>
+                )}
+              </Link>
+            ))}
           </div>
         )}
 

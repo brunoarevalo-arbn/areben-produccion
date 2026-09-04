@@ -6,6 +6,17 @@ import { prisma } from '@/lib/prisma';
 import type { Prisma } from '@prisma/client';
 import { resumen, resumenTubo, type MedicionLike, type PasoLike, type CorteLike, type RibeteLike } from './corrida';
 
+// La hora que se guarda es la del TALLER, no la del servidor. En Vercel el
+// servidor corre en UTC: con new Date().toTimeString() el primer tramo de cada
+// corrida —el unico que no trae hora del cronometro de la tablet— quedaba 3
+// horas adelantado y arrancaba DESPUES de terminar (medido: 12:49:39 -> 09:49:49).
+function horaTaller(): string {
+  return new Date().toLocaleTimeString('en-GB', {
+    timeZone: 'America/Argentina/Buenos_Aires',
+    hour12: false,
+  });
+}
+
 export const CORRIDA_INCLUDE = {
   pasos: { orderBy: { orden: 'asc' } },
   mediciones: { orderBy: { createdAt: 'asc' } },
@@ -108,7 +119,7 @@ export async function cerrarYAbrir(corridaId: string, cmd: CerrarYAbrir) {
           data: {
             minutosNetos: cmd.minutos,
             horaInicio: cmd.horaInicio ?? abierto.horaInicio,
-            horaFin: cmd.horaFin ?? new Date().toTimeString().slice(0, 8),
+            horaFin: cmd.horaFin ?? horaTaller(),
           },
         });
       }
@@ -148,7 +159,7 @@ export async function cerrarYAbrir(corridaId: string, cmd: CerrarYAbrir) {
           motivo: s.tipo === 'parada' ? (s.motivo ?? null) : null,
           maquina: s.tipo === 'paso' ? (s.maquina ?? null) : null,
           minutosNetos: 0,
-          horaInicio: cmd.horaFin ?? new Date().toTimeString().slice(0, 8),
+          horaInicio: cmd.horaFin ?? horaTaller(),
           horaFin: null,
         },
       });

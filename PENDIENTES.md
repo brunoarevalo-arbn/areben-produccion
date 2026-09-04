@@ -3,7 +3,32 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-08-26_
+_Última actualización: 2026-09-04_
+
+> **En esta sesión (4-sep): LA TABLET MOSTRABA UNA SOLA CORRIDA.** Bruno cargó 4 relevamientos de
+> bikini para Marisol y desde la tablet sólo podía entrar al primero. **La causa era un `findFirst`**:
+> `GET /api/tiempos/corrida` devolvía **la corrida más vieja** de las abiertas, no la lista. ⇒ la
+> única forma de llegar a la segunda era **terminar la primera**, y eso fue lo que pasó: quedaron
+> `Corpiño triangulito con ruedo` (0,15 min) y `Bombacha regulable` (0,25 min) **cerradas con clicks
+> de prueba**. 🔑 **Un endpoint que devuelve UNA fila donde hay muchas no se ve como un bug: se ve
+> como que no hay nada más.**
+> Ahora la tablet lista **todas** las corridas abiertas de esa costurera, con la que tiene el
+> **reloj corriendo** primero y marcada —sin reloj maestro, un cronómetro olvidado en otra corrida
+> sigue sumando y nada más lo delata—. El **admin ve todas** las abiertas, así se prueba sin la
+> tablet de la costurera.
+>
+> 🔴 **Y de paso se midió un segundo defecto: la hora del primer tramo venía en UTC.** El único
+> tramo que no trae hora del cronómetro es el primero de cada corrida, y ahí el servidor sellaba
+> `new Date().toTimeString()`, que **en Vercel es UTC**: `Corpiño triangulito con ruedo` tiene
+> `12:49:39 → 09:49:49`, o sea **arranca 3 horas después de terminar**. Los minutos no se tocan (los
+> cuenta el cronómetro), pero la hora que se lee en la ficha miente. ⇒ `horaTaller()` en
+> `corridaDb.ts`, sellada en `America/Argentina/Buenos_Aires`.
+>
+> ▶️ **Decisión de Bruno**: qué hacer con las 2 corridas cerradas por los clicks de prueba
+> (reabrirlas borrando sus tramos, o crearlas de nuevo). ⚠️ Y las 4 se cargaron con el **mismo
+> `tipoPrenda = 'bikini'`** siendo prendas distintas: el proceso vigente se busca **por
+> `tipoPrenda`**, así que aprobar el del corpiño haría nacer en *medición* —con los pasos del
+> corpiño— a las corridas de bombacha.
 
 > **En esta sesión (26-ago), 2º tramo: EL TUBO.** Bruno usó la calculadora y volvió con tres
 > correcciones. Las tres salieron de **ejercerla**, ninguna de leer el plan.
