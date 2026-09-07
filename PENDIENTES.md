@@ -5,6 +5,46 @@
 
 _Última actualización: 2026-09-07_
 
+> **En esta sesión (7-sep), 7º tramo: EL LISO ENLAZADO — 6 productos decían «falta el
+> escandallo» y el escandallo estaba.** De las **149 prendas** de la orden de lanzamiento sólo
+> **35 tenían costo**. `productos_estampados` guarda el liso de dos formas —`lisoEscandalloId`
+> (hay costo) o `lisoSku` (sólo la receta)— y los 13 de Stunned nacieron el **20-ago** apuntando
+> al SKU porque todavía no había escandallo. Los escandallos aparecieron el **25-ago** y nadie
+> volvió a apuntar.
+>
+> 🔴 🔑 **Lo peor no era el número faltante: era el cartel.** La pantalla decía «falta el
+> escandallo» de 6 productos cuyo escandallo **existía, con ese mismo SKU** ⇒ mandaba a **rehacer
+> un trabajo ya hecho**. Y la pantalla ya sabía que el escandallo manda (`lisosSoloSku` esconde el
+> SKU pelado cuando hay uno con ese sku): la mitad del arreglo es que **lo diga**.
+> Ahora dice **«el escandallo existe: enlazalo»** y el desglose **«Liso (sin enlazar)»**.
+>
+> 🏁 `prisma/migrate-liso-escandallo-por-sku.ts` (dry-run por defecto, `--aplicar` escribe) enlaza
+> por **SKU exacto, ⛔ no por nombre**, y **se planta si hay dos escandallos con el mismo SKU**:
+> eso es una ambigüedad real y elegir uno sería inventar cuál. **Aplicado: los 6.**
+>
+> 📊 **Medido después: 10 de 13 productos y 107 de 149 prendas con costo — $2.176.354.**
+> Costo por prenda (liso + DTF + MO de estampería, márgenes de config 10/5):
+> CAMPERA WEAR $32.732 · BUZO FLECK $28.347 · BUZO MADE $25.730 · BUZO STND $25.588 ·
+> BUZO PHRASE $23.056 · SKATE $16.334 · CIRCLE BROWN $15.656 · LONG BROWN $14.169 ·
+> LONG OFF WHITE $14.122 · GRAPH $14.067.
+>
+> 🔴 ▶️ **Las 42 prendas que siguen sin costo son las 3 estampas sobre remera BOXY** (MADE 12,
+> TIME 12, STARRY 18): los lisos **STU-REM-BOXY-BL y STU-REM-BOXY-NG** tienen **97 unidades en
+> stock** y **ningún escandallo**, y ⛔ **ninguna OP de donde sacar el consumo medido** (las 7 OPs
+> de Stunned son de otros SKU). **Mano de Bruno: el consumo de tela y los minutos de la remera
+> boxy.** De referencia: la oversize va **0,97 m + 0,04 m de ribb, 14,7 min**, y la *boxy* de
+> Zattia **0,70 m + 0,02 m, 18-20 min** — ⛔ ninguna de las dos es la medida de ésta.
+>
+> ⚠️ **El mismo liso vale dos números según la pantalla, y es a propósito** (`lib/costos/costoSku.ts`
+> lo tiene escrito): `/costos/estampados` usa los márgenes de **config (10/5)** y la ficha/PDF los
+> **congelados en el escandallo (5/3)** ⇒ la remera oversize da **$10.069** o **$9.429**. Los 7
+> escandallos del 25-ago se guardaron con 5/3 contra un config de 10/5. **Falta que Bruno diga cuál
+> es el margen de Stunned**: son ~$640 por prenda.
+>
+> ⚠️ `STU-REM-OVER-BL` tiene los rubros cruzados contra sus hermanas: **corte $800 · tizada $450 ·
+> lavadero $0**, donde las otras tres van **corte $450 · lavadero $800**. El total coincide
+> ($1.250) así que ⛔ no cambia ningún costo, pero el desglose por rubro miente.
+
 > **En esta sesión (7-sep), 6º tramo: LOS MINUTOS DE ESTAMPERÍA, CARGADOS Y MARCADOS COMO
 > ESTIMADOS.** Los 13 de Stunned iban en **0 min**, y un 0 ahí ⛔ no dice «falta el dato»: **AFIRMA
 > que estampar sale gratis**. Bruno: **~5 PLANCHADOS por hora ⇒ 12 min cada uno**.
