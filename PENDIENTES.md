@@ -23,7 +23,7 @@ _Última actualización: 2026-09-07_
 > eso es una ambigüedad real y elegir uno sería inventar cuál. **Aplicado: los 6.**
 >
 > 📊 **Medido después: 10 de 13 productos y 107 de 149 prendas con costo — $2.176.354.**
-> Costo por prenda (liso + DTF + MO de estampería, márgenes de config 10/5):
+> Costo por prenda (liso + DTF + MO de estampería, márgenes 10/5, ya los únicos):
 > CAMPERA WEAR $32.732 · BUZO FLECK $28.347 · BUZO MADE $25.730 · BUZO STND $25.588 ·
 > BUZO PHRASE $23.056 · SKATE $16.334 · CIRCLE BROWN $15.656 · LONG BROWN $14.169 ·
 > LONG OFF WHITE $14.122 · GRAPH $14.067.
@@ -35,11 +35,21 @@ _Última actualización: 2026-09-07_
 > boxy.** De referencia: la oversize va **0,97 m + 0,04 m de ribb, 14,7 min**, y la *boxy* de
 > Zattia **0,70 m + 0,02 m, 18-20 min** — ⛔ ninguna de las dos es la medida de ésta.
 >
-> ⚠️ **El mismo liso vale dos números según la pantalla, y es a propósito** (`lib/costos/costoSku.ts`
-> lo tiene escrito): `/costos/estampados` usa los márgenes de **config (10/5)** y la ficha/PDF los
-> **congelados en el escandallo (5/3)** ⇒ la remera oversize da **$10.069** o **$9.429**. Los 7
-> escandallos del 25-ago se guardaron con 5/3 contra un config de 10/5. **Falta que Bruno diga cuál
-> es el margen de Stunned**: son ~$640 por prenda.
+> 🏁 🔑 **UN SOLO MARGEN, y la idea que lo ordena: el escandallo FOTOGRAFÍA la config, ⛔ no opina.**
+> El mismo liso valía dos números —la oversize blanca daba **$9.384** en la ficha y **$10.022** en
+> `/costos/estampados`— y abajo ⛔ no había ningún costo distinto: la **base es $8.677 en las dos**.
+> Eran los márgenes: la ficha usa los **congelados** en el escandallo (5/3) y estampados los de
+> **config** (10/5), y eso está escrito a propósito en `lib/costos/costoSku.ts`.
+> 📊 **Lo que decidió cuál**: 51 de 60 escandallos van **10/5**, igual que `config_costos` desde el
+> 17-jul, y **los 9 de 5/3 son exactamente los del 25-ago, en LAS DOS marcas** (7 Stunned + 2
+> Zattia) ⇒ ⛔ no es un criterio de marca, es **una tanda**. ⚠️ **El código de hoy no tiene ningún
+> camino que escriba 5/3** (el editor estampa la config, `parseDatos` cae en 10): de dónde salió ese
+> día **no se pudo determinar**.
+> 🔑 **Se conserva el congelado** —existe para que un pasaje cerrado ⛔ no se mueva si mañana cambia
+> la config— pero tiene que ser **una foto de la config, no una segunda opinión**.
+> 🏁 `prisma/migrate-margenes-a-config.ts` (dry-run por defecto). **Aplicado a los 9: +6,8%** en la
+> ficha y el PDF. `/costos/estampados` ⛔ no se movió (ya calculaba con config) y `pasaje_items` ⛔ no
+> se toca (0 filas, y ahí el costo está congelado por ítem). **Verificado: la 2ª corrida da 0.**
 >
 > ⚠️ `STU-REM-OVER-BL` tiene los rubros cruzados contra sus hermanas: **corte $800 · tizada $450 ·
 > lavadero $0**, donde las otras tres van **corte $450 · lavadero $800**. El total coincide
