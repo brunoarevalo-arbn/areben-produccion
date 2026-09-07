@@ -5,6 +5,56 @@
 
 _Última actualización: 2026-09-07_
 
+> **En esta sesión (7-sep), 8º tramo: PRECIOS DE LANZAMIENTO, DECIDIDOS Y PUESTOS EN GESTIÓN
+> NUBE.** Los 13 quedaron con precio de lista en GN, que es la que empuja a Tienda Nube — ⛔ a
+> Tienda Nube no se le escribe directo. Remeras **$36.990-41.990**, buzos **$66.990-74.990**,
+> campera **$81.990**; markup 101-151%. Venta a lista **$7.340.510** contra $2.731.876 de costo.
+>
+> 🔑 **Lo que definió el margen ⛔ no fue una opinión: fue lo que ya cobra la marca.** Los 25
+> productos de Stunned en GN dan **markup mediana 128%**, y `config_costos` trae 130% ⇒ la casa ya
+> corre a ~130 y no había nada que inventar. 🔴 **Pero ese 128% era falso**: se calcula con
+> `precios_producto.costoManual` cargados el **14-jul** y nunca actualizados, entre **13% y 24% por
+> debajo** de los costos de hoy ⇒ con los costos reales y los precios de la calle el markup caía a
+> 58-124%. ▶️ **`/precios` sigue mostrando los markups inflados**: lee el manual, no el escandallo.
+>
+> 🔑 **La forma de pago cambia más que el margen**: transferencia y efectivo están configuradas
+> como venta SIN factura ⇒ no descuentan IVA, IIBB ni DREI ⇒ **un 10% de descuento sin factura deja
+> más plata que el precio entero con factura**. Pero con `saldoIvaFavor` activo se da vuelta: lista
+> $4,36M contra $3,87M de transferencia. ⚠️ **$1,28M de diferencia entre las dos lecturas del IVA.**
+> ⚠️ La config dice **Efectivo 10%**, y Bruno trabaja con **15%**: ▶️ hay que corregir `comisiones_pago`.
+>
+> 🏁 **La planilla para decidir**: `prisma/export-precios-stunned.ts` genera un `.xlsx` con fórmulas
+> vivas (se toca el precio y se mueven markup, margen, precios con descuento y totales). Editable el
+> precio y los parámetros; **el costo va bloqueado** y es una FOTO del día ⇒ si cambia la tela o el
+> DTF hay que regenerarla, y lo dice adentro.
+>
+> 🔴 🔑 **EL TOKEN DE PRODUCCIÓN NO ESCRIBE, Y EL 403 NO DICE ESO.** `GESTIONNUBE_TOKEN` (51
+> caracteres, generación vieja) lee perfecto y contesta **403 «Invalid ability provided»** en
+> cualquier PATCH: es el mensaje de **Sanctum cuando al token le falta la ability**, o sea que ⛔ no
+> es el campo ni el producto ni el permiso del usuario. El que escribe es **`GN_TOKEN_ZATTIA` del
+> monitor** (52 caracteres), el mismo con el que `api/_liquidacion.js` pisa precios promocionales
+> — **Stunned es una LÍNEA de Zattia**, así que sus productos viven en esa cuenta.
+> ⚠️ La escritura contra GN **la bloquea el clasificador** ⇒ el script lo corre Bruno con `!`.
+>
+> 🔑 **En GN el SKU ⛔ NO está en el producto: está en la VARIANTE por talle** (`STU-REM-0024-S/M/L/XL`)
+> y el `code` del producto viene en **null** ⇒ los 12 creados el 7-sep no aparecían buscando por
+> código; **se los encuentra por INVENTARIO**. Y sin proveedor eran **invisibles para todo el
+> sistema**: el cliente de GN filtra por proveedor propio, así que un producto con `provider: ""`
+> no lo ve ni Reposición ni Precios.
+> 🏁 `prisma/migrate-integrar-gn-stunned.ts` (aplicado, 13/13): `productos_estampados.sku` = la
+> familia de SKU de GN, y `reposicion_mapeo` (gnId → skuLiso) = qué liso consume cada uno.
+> 🔑 **La tabla va a mano con el nombre de GN al lado, ⛔ no derivada por texto**: «MADE» es a la vez
+> una remera y un buzo.
+> 🏁 `prisma/gn-precios-stunned.ts` (dry-run por defecto) escribe proveedor y precio con **dos
+> seguros, los dos porque el fallo ⛔ no se ve mirando un 200**: compara el **NOMBRE contra el id**
+> antes de tocar, y **relee lo que devolvió el PATCH** después. 📊 **Verificado por otro camino**:
+> releyendo GN, los 13 con su precio y el proveedor intacto.
+>
+> 🔴 ▶️ **Lo que quedó abierto y es urgente: los 13 estaban en $1,00 y `activo = 1`.** El precio ya
+> está puesto, pero **falta saber si estaban publicados en Tienda Nube** mientras tanto.
+> ▶️ **CIRCLE BROWN tiene 0 de stock en GN**: las otras 12 ya suman 137 en Local, que son las 149 de
+> la orden menos sus 12.
+
 > **En esta sesión (7-sep), 7º tramo: EL LISO ENLAZADO — 6 productos decían «falta el
 > escandallo» y el escandallo estaba.** De las **149 prendas** de la orden de lanzamiento sólo
 > **35 tenían costo**. `productos_estampados` guarda el liso de dos formas —`lisoEscandalloId`
