@@ -46,11 +46,48 @@ export async function GET(req: NextRequest) {
     include: {
       items: {
         orderBy: [{ skuLiso: 'asc' }, { gnNombre: 'asc' }, { talle: 'asc' }],
-        include: { estampa: { select: { codigoInterno: true, nombreComercial: true } } },
+        // Las medidas viajan con el ítem: son las que dejan calcular cuánto rollo pide
+        // la orden y contrastarlo con lo que se compró.
+        include: { estampa: { select: { codigoInterno: true, nombreComercial: true, anchoCm: true, largoCm: true, ancho2Cm: true, largo2Cm: true } } },
       },
+      comprasDtf: { select: { id: true, fecha: true, metros: true, precioMetro: true, flete: true, gastoId: true } },
     },
   });
-  return NextResponse.json(ordenes);
+  // 🔴 El ítem apunta a UNA estampa (la espalda), pero la prenda puede llevar también el
+  // frente: otro planchado y otra área de DTF. La relación vive en `ProductoEstampado`,
+  // así que de ahí salen TODAS las caras de cada prenda. Sin esto la orden se mide corta
+  // y el número parece bueno.
+  const productos = await prisma.productoEstampado.findMany({ select: { estampas: true } });
+  const medidas = new Map((await prisma.estampa.findMany({
+    select: { id: true, anchoCm: true, largoCm: true, ancho2Cm: true, largo2Cm: true },
+  })).map((e) => [e.id, { anchoCm: Number(e.anchoCm), largoCm: Number(e.largoCm), ancho2Cm: Number(e.ancho2Cm), largo2Cm: Number(e.largo2Cm) }]));
+  // estampaId → todas las estampas de la prenda que la usa (ella incluida).
+  const caras = new Map<string, string[]>();
+  for (const p of productos) {
+    const ids = (p.estampas as { estampaId: string }[]).map((l) => l.estampaId).filter(Boolean);
+    for (const id of ids) if (!caras.has(id)) caras.set(id, ids);
+  }
+
+  // Los Decimal salen como string por JSON: se pasan a número acá, en el borde, para que
+  // la pantalla no tenga que acordarse de convertir cada uno.
+  return NextResponse.json(ordenes.map((o) => ({
+    ...o,
+    precioMetroDtf: Number(o.precioMetroDtf),
+    items: o.items.map((i) => ({
+      ...i,
+      estampa: i.estampa ? {
+        codigoInterno: i.estampa.codigoInterno, nombreComercial: i.estampa.nombreComercial,
+        anchoCm: Number(i.estampa.anchoCm), largoCm: Number(i.estampa.largoCm),
+        ancho2Cm: Number(i.estampa.ancho2Cm), largo2Cm: Number(i.estampa.largo2Cm),
+      } : null,
+      // Todas las caras de la prenda. Si la estampa del ítem no está en ningún producto,
+      // va sola: es lo único que se sabe, y decir de más sería peor.
+      estampasPrenda: i.estampaId
+        ? (caras.get(i.estampaId) ?? [i.estampaId]).map((id) => medidas.get(id)).filter(Boolean)
+        : [],
+    })),
+    comprasDtf: o.comprasDtf.map((c) => ({ id: c.id, fecha: c.fecha, metros: Number(c.metros), precioMetro: Number(c.precioMetro), flete: Number(c.flete), gastoId: c.gastoId })),
+  })));
 }
 
 export async function POST(req: NextRequest) {

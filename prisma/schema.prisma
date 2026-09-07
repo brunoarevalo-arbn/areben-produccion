@@ -1173,6 +1173,7 @@ model OrdenEstampa {
   // 0 = orden vieja, anterior al snapshot (7-sep-2026): ésas caen al precio vigente.
   precioMetroDtf Decimal @default(0)
   items     OrdenEstampaItem[]
+  comprasDtf CompraDtf[]
 
   @@map("ordenes_estampa")
 }
@@ -1237,11 +1238,17 @@ model CompraDtf {
   proveedor     Proveedor? @relation(fields: [proveedorId], references: [id])
   numeroFactura String?
   gastoId       String? // el Gasto donde entró la plata, si se cargó. Trazabilidad, no monto.
+  // La orden de estampa para la que se compró este DTF, si fue para una. Es lo que deja
+  // comparar lo que la TIRA dice que hacía falta contra lo que se compró de verdad —
+  // el único chequeo que caza una medida mal, un precio mal o un encastre mal.
+  ordenId       String?
+  orden         OrdenEstampa? @relation(fields: [ordenId], references: [id], onDelete: SetNull)
   notas         String?
   creadoPor     String
   createdAt     DateTime @default(now())
 
   @@index([fecha])
+  @@index([ordenId])
   @@map("compras_dtf")
 }
 

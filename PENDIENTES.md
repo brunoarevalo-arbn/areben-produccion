@@ -5,6 +5,42 @@
 
 _Última actualización: 2026-09-07_
 
+> **En esta sesión (7-sep), 5º tramo: LA COMPRA DE DTF ENTRA A CUENTAS POR PAGAR, Y LA ORDEN
+> CONTRASTA LO PEDIDO CONTRA LO COMPRADO** (puntos 3 y 4 del plan del precio).
+>
+> **3 · La plata entra UNA sola vez.** `POST /api/dtf/compras` con `crearGasto` crea el `Gasto`
+> (`produccion`/`insumos`, monto = metros × $/m + flete, con proveedor, nº de factura y estado de
+> pago) y guarda su id en `CompraDtf.gastoId` — que es **TRAZABILIDAD, no un monto**: el mismo
+> criterio que arregló la cuenta de los cortadores, donde dos formas de restar lo mismo lo contaban
+> dos veces. 🔴 **Y el DELETE se lleva el gasto con la compra**: si sólo se borrara la compra, la
+> plata quedaría en cuentas por pagar sin nada que la explique.
+>
+> **4 · `lib/costos/ordenEstampaDtf.ts`**: cuánto rollo pide una orden según la TIRA, contra lo que
+> se compró para ella (`CompraDtf.ordenId`, nuevo). Se ve en `/reposicion/ordenes`:
+> **«la tira dice 41,5 m · se compraron 43,0 m (+4%)»**, en verde hasta 10% de desvío y en ámbar
+> arriba. 🔑 Es el chequeo que caza al primero que se rompa —una medida mal, un precio mal, o un
+> encastre peor del previsto—: era un script que había que acordarse de correr, y ahora está en la
+> pantalla. Las órdenes de reposición dicen **«DTF sin medir»** con el motivo, porque van por
+> producto de Gestión Nube y no tienen estampa con medida.
+>
+> 🔴 🔑 **Y el oráculo encontró un agujero que el código nuevo tenía**: la orden daba **40,0 m**
+> cuando a mano daban 41,5. El ítem de la orden apunta a **UNA** estampa —la espalda—, pero la
+> prenda lleva también el **frente**: otro planchado y otra área. Contando sólo la del ítem salía un
+> número **creíble y 4% corto**, del que no se nota nunca. Se resuelve por la relación REAL
+> (`ProductoEstampado`, que es donde vive qué caras lleva cada prenda), ⛔ **no por el sufijo `-F`**:
+> atar la cuenta a una convención de nombres es esperar a que alguien la rompa.
+> ⚠️ **La curva la manda el TALLE del ítem** (`curvaDeTalle`: S/M → T1, el resto → T2), no el
+> `tamano` que tenga elegido el producto: acá se costea lo que se PIDIÓ, y lo pedido tiene talle.
+>
+> ✅ **Los dos verbos que escriben, ejercidos por HTTP contra el dev con cookie de admin** —no
+> imitados—: POST con `crearGasto` (gasto atado, $10.500 = $10.500, `produccion/insumos/PENDIENTE`),
+> el precio vigente **sin moverse** (la compra de prueba iba con fecha vieja), DELETE devolviendo
+> `gastoBorrado: true`, **cero gastos huérfanos**, y la base igual que antes (1 compra, 148 gastos).
+>
+> ▶️ **La compra del 20-ago quedó SIN gasto a propósito**: son $408.500 reales entrando a cuentas por
+> pagar y ⛔ no sé si están pagados. **Mano de Bruno: tildar «a cuentas por pagar» y elegir el
+> estado**, o cargarla de nuevo con el tilde.
+
 > **En esta sesión (7-sep), 4º tramo: EL PRECIO DEL DTF DEJÓ DE TIPEARSE — SALE DE LA COMPRA, Y LA
 > ORDEN LO CONGELA.**
 >

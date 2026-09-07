@@ -31,7 +31,8 @@ interface DtfCfg {
   precioCompra?: { metros: number; precioMetro: number; flete: number; proveedor: string | null } | null;
   dtfPrecioManual?: number;
 }
-interface CompraDtf { id: string; fecha: string; metros: number; precioMetro: number; flete: number; proveedor: string | null; numeroFactura: string | null; notas: string | null; creadoPor: string }
+interface CompraDtf { id: string; fecha: string; metros: number; precioMetro: number; flete: number; proveedor: string | null; numeroFactura: string | null; ordenId: string | null; gastoId: string | null; notas: string | null; creadoPor: string }
+interface OrdenOpt { id: string; creadoAt: string; origen: string; items: { cantidad: number }[] }
 
 const ESTADOS = [
   { value: 'pensada',  label: 'Pensada',    variant: 'warning' as const },
@@ -94,7 +95,8 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   // Compras de DTF: de la última sale el $/metro de todo el módulo.
   const [compras, setCompras] = useState<CompraDtf[]>([]);
   const [verCompras, setVerCompras] = useState(false);
-  const [nc, setNc] = useState({ fecha: new Date().toISOString().slice(0, 10), metros: '', precioMetro: '', flete: '', numeroFactura: '', notas: '' });
+  const [nc, setNc] = useState({ fecha: new Date().toISOString().slice(0, 10), metros: '', precioMetro: '', flete: '', numeroFactura: '', notas: '', ordenId: '', crearGasto: true, estadoPago: 'PENDIENTE' });
+  const [ordenesOpt, setOrdenesOpt] = useState<OrdenOpt[]>([]);
   const [ncSaving, setNcSaving] = useState(false);
 
   // Carga masiva
@@ -127,6 +129,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
 
   const cargarCompras = () => {
     fetch('/api/dtf/compras').then((r) => r.ok ? r.json() : []).then((cs) => { if (Array.isArray(cs)) setCompras(cs); }).catch(() => {});
+    fetch('/api/reposicion/orden-estampa').then((r) => r.ok ? r.json() : []).then((os) => { if (Array.isArray(os)) setOrdenesOpt(os); }).catch(() => {});
   };
 
   const cargar = useCallback(async () => {
@@ -157,17 +160,26 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
     setNcSaving(true);
     const r = await fetch('/api/dtf/compras', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ fecha: nc.fecha, metros, precioMetro, flete: parseFloat(nc.flete) || 0, numeroFactura: nc.numeroFactura || null, notas: nc.notas || null }),
+      body: JSON.stringify({
+        fecha: nc.fecha, metros, precioMetro, flete: parseFloat(nc.flete) || 0,
+        numeroFactura: nc.numeroFactura || null, notas: nc.notas || null,
+        ordenId: nc.ordenId || null,
+        crearGasto: nc.crearGasto, estadoPago: nc.estadoPago as 'PENDIENTE' | 'PARCIAL' | 'PAGADA',
+      }),
     });
     setNcSaving(false);
     if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo guardar'); return; }
-    setNc({ fecha: new Date().toISOString().slice(0, 10), metros: '', precioMetro: '', flete: '', numeroFactura: '', notas: '' });
+    const { gastoId } = await r.json().catch(() => ({ gastoId: null }));
+    setNc({ fecha: new Date().toISOString().slice(0, 10), metros: '', precioMetro: '', flete: '', numeroFactura: '', notas: '', ordenId: '', crearGasto: true, estadoPago: 'PENDIENTE' });
     cargarCompras();
     fetch('/api/estampas/config').then((x) => x.ok ? x.json() : null).then((c) => { if (c) setCfg(c); }).catch(() => {});
-    toast.success('Compra cargada · el precio del DTF se actualizó');
+    toast.success(gastoId ? 'Compra cargada · precio actualizado y gasto creado' : 'Compra cargada · el precio del DTF se actualizó');
   };
   const borrarCompra = async (c: CompraDtf) => {
-    if (!(await confirmAsync({ message: `¿Borrar la compra del ${c.fecha.slice(0, 10)} (${c.metros} m)? El precio vigente pasa a ser el de la compra anterior.`, danger: true, confirmLabel: 'Borrar' }))) return;
+    // Se dice que el gasto se va con ella: si no, la plata quedaría en cuentas por pagar
+    // sin nada que la explique.
+    const msg = `¿Borrar la compra del ${c.fecha.slice(0, 10)} (${c.metros} m)? El precio vigente pasa a ser el de la compra anterior.${c.gastoId ? ' Y se borra también su gasto de cuentas por pagar.' : ''}`;
+    if (!(await confirmAsync({ message: msg, danger: true, confirmLabel: 'Borrar' }))) return;
     const r = await fetch(`/api/dtf/compras/${c.id}`, { method: 'DELETE' });
     if (!r.ok) { toast.error('No se pudo borrar'); return; }
     cargarCompras();
@@ -399,6 +411,8 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
                       <span className="tabular-nums w-24 shrink-0 text-right">{fmt$(c.precioMetro)}/m</span>
                       <span className="tabular-nums w-24 shrink-0 text-right text-stone-400">{c.flete > 0 ? `+ ${fmt$(c.flete)} flete` : ''}</span>
                       <span className="tabular-nums w-28 shrink-0 text-right font-semibold text-stone-700">{fmt$(c.metros * c.precioMetro + c.flete)}</span>
+                      {c.gastoId && <span className="text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded shrink-0" title="La plata entró a cuentas por pagar como Gasto. Se borra junto con la compra.">en gastos</span>}
+                      {c.ordenId && <span className="text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded shrink-0" title="Vinculada a una orden de estampa: ahí se compara con lo que la tira dice que hacía falta.">con orden</span>}
                       <span className="text-stone-400 truncate">{[c.proveedor, c.numeroFactura, c.notas].filter(Boolean).join(' · ')}</span>
                       {esAdmin && <button onClick={() => borrarCompra(c)} className="ml-auto text-stone-300 hover:text-red-400 text-lg leading-none shrink-0">×</button>}
                     </div>
@@ -412,6 +426,36 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
                 <div><label className="text-xs text-stone-500 block mb-1">$/metro</label><NumInput value={parseFloat(nc.precioMetro) || 0} onChange={(n) => setNc((p) => ({ ...p, precioMetro: n ? String(n) : '' }))} min="0" className={inpSm} /></div>
                 <div><label className="text-xs text-stone-500 block mb-1">Flete $</label><NumInput value={parseFloat(nc.flete) || 0} onChange={(n) => setNc((p) => ({ ...p, flete: n ? String(n) : '' }))} min="0" className={inpSm} /></div>
                 <div><label className="text-xs text-stone-500 block mb-1">Nº factura</label><input value={nc.numeroFactura} onChange={(e) => setNc((p) => ({ ...p, numeroFactura: e.target.value }))} placeholder="(opcional)" className={inpSm} /></div>
+                {/* Vincularla a la orden es lo que deja comparar después lo que la tira
+                    dijo que hacía falta contra lo que se compró. */}
+                <div>
+                  <label className="text-xs text-stone-500 block mb-1">¿Para qué orden?</label>
+                  <select value={nc.ordenId} onChange={(e) => setNc((p) => ({ ...p, ordenId: e.target.value }))} className={inpSm}>
+                    <option value="">— sin orden —</option>
+                    {ordenesOpt.map((o) => (
+                      <option key={o.id} value={o.id}>
+                        {new Date(o.creadoAt).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })} · {o.origen} · {o.items.reduce((a, i) => a + i.cantidad, 0)} prendas
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* La plata entra UNA sola vez: por el Gasto. El `gastoId` de la compra es
+                    trazabilidad, no un monto que se sume aparte. */}
+                <label className="flex items-center gap-1.5 text-xs text-stone-600 pb-2" title="Crea el gasto en cuentas por pagar por el total (metros × $/m + flete). Si se borra la compra, se borra con ella.">
+                  <input type="checkbox" checked={nc.crearGasto} onChange={(e) => setNc((p) => ({ ...p, crearGasto: e.target.checked }))} />
+                  a cuentas por pagar
+                </label>
+                {nc.crearGasto && (
+                  <div><label className="text-xs text-stone-500 block mb-1">Estado</label>
+                    <select value={nc.estadoPago} onChange={(e) => setNc((p) => ({ ...p, estadoPago: e.target.value }))} className={inpSm}>
+                      <option value="PENDIENTE">Pendiente</option>
+                      <option value="PAGADA">Pagada</option>
+                    </select>
+                  </div>
+                )}
+                {(parseFloat(nc.metros) || 0) > 0 && (parseFloat(nc.precioMetro) || 0) > 0 && (
+                  <span className="text-xs text-stone-500 pb-2">Total <strong className="text-stone-700">{fmt$((parseFloat(nc.metros) || 0) * (parseFloat(nc.precioMetro) || 0) + (parseFloat(nc.flete) || 0))}</strong></span>
+                )}
                 <Button size="sm" onClick={guardarCompra} disabled={ncSaving}>{ncSaving ? 'Guardando…' : 'Cargar compra'}</Button>
               </div>
             )}

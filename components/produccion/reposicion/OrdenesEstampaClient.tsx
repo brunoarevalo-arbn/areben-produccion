@@ -6,11 +6,45 @@ import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { toast } from '@/components/ui/Toaster';
 import { nombreItemOrden } from '@/lib/produccion/ordenEstampa';
+import { consumoDtfOrden, contrastarDtf } from '@/lib/costos/ordenEstampaDtf';
+import type { DtfConfig } from '@/lib/costos/estampaCosto';
 
-interface OrdenItem { id: string; gnId: number | null; gnNombre: string | null; estampa: { codigoInterno: string; nombreComercial: string | null } | null; skuLiso: string; talle: string; cantidad: number; confirmado: number; }
-interface OrdenEstampa { id: string; creadoAt: string; creadoPor: string; estado: string; tipo: string; origen: string; notas: string | null; precioMetroDtf?: number | string; items: OrdenItem[]; }
+interface OrdenItem { id: string; gnId: number | null; gnNombre: string | null; estampa: { codigoInterno: string; nombreComercial: string | null; anchoCm: number; largoCm: number; ancho2Cm: number; largo2Cm: number } | null; skuLiso: string; talle: string; cantidad: number; confirmado: number; estampasPrenda?: { anchoCm: number; largoCm: number; ancho2Cm: number; largo2Cm: number }[]; }
+interface CompraDtfOrden { id: string; fecha: string; metros: number; precioMetro: number; flete: number; gastoId: string | null }
+interface OrdenEstampa { id: string; creadoAt: string; creadoPor: string; estado: string; tipo: string; origen: string; notas: string | null; precioMetroDtf?: number | string; comprasDtf?: CompraDtfOrden[]; items: OrdenItem[]; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
+
+// Lo que la TIRA dice que hace falta contra lo que se compró de verdad. Es el chequeo que
+// caza al primero que se rompa: una medida mal cargada, un precio mal, o un encastre peor
+// del previsto. Antes vivía en un script que había que acordarse de correr.
+function ContrasteDtfLinea({ orden, dtf }: { orden: OrdenEstampa; dtf: DtfConfig }) {
+  const consumo = consumoDtfOrden(
+    orden.items.map((i) => ({ talle: i.talle, cantidad: i.cantidad, estampas: i.estampasPrenda ?? [] })),
+    dtf,
+  );
+  const comprados = (orden.comprasDtf ?? []).reduce((s, c) => s + c.metros, 0);
+  const k = contrastarDtf(consumo, (orden.comprasDtf ?? []).length ? comprados : null);
+
+  // Sin medidas no se muestra un metraje parcial: se dice qué falta.
+  if (consumo.metros == null) {
+    return <span className="text-xs px-2 py-0.5 rounded-lg bg-stone-100 text-stone-500" title={consumo.motivo ?? ''}>DTF sin medir</span>;
+  }
+  const tira = `${consumo.metros.toFixed(1)} m`;
+  if (k.metrosComprados == null) {
+    return <span className="text-xs px-2 py-0.5 rounded-lg bg-violet-50 text-violet-700" title="Lo que pide esta orden según la tira. No hay ninguna compra de DTF vinculada, así que no hay con qué contrastarlo.">la tira dice {tira} · sin compra vinculada</span>;
+  }
+  // Un desvío chico es normal (se compra en metros redondos); uno grande dice que algo
+  // de las tres cosas está mal, y por eso se colorea en vez de sólo mostrarse.
+  const d = k.desvioPct!;
+  const color = Math.abs(d) <= 10 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-100 text-amber-800 font-semibold';
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-lg ${color}`}
+      title={`La tira dice ${tira} para las ${consumo.prendas} prendas. Se compraron ${k.metrosComprados!.toFixed(1)} m ⇒ ${k.sobranMetros! >= 0 ? 'sobran' : 'FALTAN'} ${Math.abs(k.sobranMetros!).toFixed(1)} m.`}>
+      la tira dice {tira} · se compraron {k.metrosComprados!.toFixed(1)} m ({d >= 0 ? '+' : ''}{Math.round(d)}%)
+    </span>
+  );
+}
 
 export function OrdenesEstampaClient() {
   const [ordenes, setOrdenes] = useState<OrdenEstampa[]>([]);
@@ -19,6 +53,9 @@ export function OrdenesEstampaClient() {
   const [confirmando, setConfirmando] = useState<string | null>(null);
   const [verHechas, setVerHechas] = useState(false);
   const [abiertos, setAbiertos] = useState<Record<string, boolean>>({}); // liso colapsable: `${ordenId}::${liso}`
+  // El ancho del rollo y la separación salen de la config: sin eso no se puede saber
+  // cuántas estampas entran por fila, y el metraje sería inventado.
+  const [dtf, setDtf] = useState<DtfConfig | null>(null);
 
   const cargar = useCallback(async () => {
     const r = await fetch('/api/reposicion/orden-estampa');
@@ -26,6 +63,10 @@ export function OrdenesEstampaClient() {
     setLoading(false);
   }, []);
   useEffect(() => { cargar(); }, [cargar]);
+  useEffect(() => {
+    fetch('/api/estampas/config').then((r) => r.ok ? r.json() : null)
+      .then((c) => { if (c) setDtf({ dtfPrecioMetro: c.dtfPrecioMetro, dtfAnchoCm: c.dtfAnchoCm, dtfSeparacionCm: c.dtfSeparacionCm }); }).catch(() => {});
+  }, []);
 
   const confirmarOrden = async (o: OrdenEstampa) => {
     // El input es una carga parcial ("cuántas ahora"); se suma a lo ya confirmado.
@@ -82,6 +123,7 @@ export function OrdenesEstampaClient() {
               : <span className="text-xs font-semibold text-emerald-600 ml-2">completa ✓</span>}
           </span>
           <div className="flex items-center gap-2">
+            {dtf && <ContrasteDtfLinea orden={o} dtf={dtf} />}
             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${estadoColor}`}>{o.estado}</span>
             {totalConf > 0 && (
               <a href={`/reposicion/orden/${o.id}/remito`} target="_blank" rel="noopener noreferrer" className="text-xs px-2.5 py-1 rounded-lg border border-stone-300 text-stone-700 hover:bg-stone-100 transition font-semibold">📄 Remito{o.estado === 'parcial' ? ' parcial' : ''}</a>
