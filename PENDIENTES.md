@@ -5,6 +5,46 @@
 
 _Última actualización: 2026-09-07_
 
+> **En esta sesión (7-sep), 4º tramo: EL PRECIO DEL DTF DEJÓ DE TIPEARSE — SALE DE LA COMPRA, Y LA
+> ORDEN LO CONGELA.**
+>
+> 🔴 **El hallazgo que lo motivó: esa compra NO ESTABA CARGADA EN NINGÚN LADO.** Se buscó en
+> `proveedores`, `compras` y `gastos`: **cero**. Los $408.500 (43 m × $9.500) no existían en el
+> sistema, y el único rastro del precio era un número tipeado en `config_costos`. Por eso pudo
+> quedar en **$11.500 contra $9.500** sin que nada avisara: 🔑 **un número tipeado no tiene fecha,
+> así que no se puede ver viejo.**
+>
+> **1. `compras_dtf`** (fecha, metros, $/metro, **flete**, proveedor, nº de factura). El `$/metro` de
+> todo el módulo sale de la **más reciente**, con el **flete adentro** — antes el flete no lo contaba
+> nadie. Va liviana y no por `Compra`+`Insumo`+`Rollo` a propósito: nadie lleva stock de DTF, y es el
+> mismo criterio con el que `EtiquetaCatalogo` reemplazó a Insumo+Lote para los avíos.
+> ⚠️ Guarda la **MEDIDA, no la plata**: `gastoId` queda para linkear el Gasto si la factura tiene que
+> entrar a cuentas por pagar (3er punto del plan, sin hacer) — **trazabilidad, no monto**.
+>
+> 🔑 **UN SOLO DUEÑO del precio: `lib/costos/dtfPrecio.ts`.** `config_costos.dtfPrecioMetro` no se
+> borró pero **dejó de mandar**: es el **fallback** para el ambiente sin ninguna compra. Y la pantalla
+> **dice cuál de los dos muestra** (*«de la compra del 20-ago · 43 m»* / *«cargado a mano · sin
+> compra»*), más un aviso si el precio tiene **más de 90 días**. Dos fuentes conviviendo sin que se
+> vea cuál manda es cómo se llega a la equivocada.
+>
+> **2. `ordenes_estampa.precioMetroDtf`**: snapshot del $/metro al crear la orden, como
+> `pasaje_items.costoUnitario` y como el avío en el escandallo ⇒ **subir el precio de hoy ya no
+> reescribe lo que ya se produjo**. Se ve en `/reposicion/ordenes`. ⚠️ Backfilleada **sólo la orden
+> del 20-ago**, que es la de esa compra; las de jun/jul quedan en **0** (= «cae al vigente») porque de
+> ésas ⛔ no se sabe el precio: **un snapshot inventado es peor que no tenerlo, parece medido**.
+>
+> 🔑 **Y de paso, `costoEstampa()` devuelve `null` también cuando NO HAY PRECIO.** Antes multiplicaba
+> por 0 y devolvía **$0**, que es la misma mentira que el área nunca diciendo «no entra»: afirma que
+> estampar sale gratis.
+>
+> ✅ Ejercido a mano contra la base: las 3 fuentes (compra / manual / ninguna), el precio vencido, dos
+> compras del mismo día (gana la cargada después), el flete adentro (10 m a $9.000 + $5.000 = $9.500),
+> el 30×30 sin precio dando `null`, y los 3 snapshots de órdenes.
+>
+> ▶️ **Queda sin hacer, del plan de 4:** el **3** (linkear la compra a un `Gasto` para cuentas por
+> pagar) y el **4** (que la orden compare *«la tira dice 41,5 m · se compraron 43 m»*, que es lo que
+> convierte en instrumento fijo la medición que hoy se corre a mano).
+
 > **En esta sesión (7-sep), 3er tramo: EL PRECIO DEL DTF ESTABA MAL CARGADO — $11.500 contra
 > $9.500 reales.** Lo corrigió Bruno junto con el metraje: pidió **43 m**, no ~44.
 > `config_costos.dtfPrecioMetro` pasó a **9.500** ⇒ **todo el DTF baja 17%**.

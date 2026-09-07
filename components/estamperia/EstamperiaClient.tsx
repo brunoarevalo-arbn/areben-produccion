@@ -23,7 +23,15 @@ interface Estampa {
 }
 // ¿tiene 2º tamaño cargado?
 const tiene2Tam = (e: { ancho2Cm: string | number; largo2Cm: string | number }) => (Number(e.ancho2Cm) || 0) > 0 && (Number(e.largo2Cm) || 0) > 0;
-interface DtfCfg { dtfPrecioMetro: number; dtfAnchoCm: number; dtfSeparacionCm: number; dtfMermaDefault: number }
+interface DtfCfg {
+  dtfPrecioMetro: number; dtfAnchoCm: number; dtfSeparacionCm: number; dtfMermaDefault: number;
+  precioFuente?: 'compra' | 'manual' | 'ninguna';
+  precioFecha?: string | null;
+  precioVencido?: boolean;
+  precioCompra?: { metros: number; precioMetro: number; flete: number; proveedor: string | null } | null;
+  dtfPrecioManual?: number;
+}
+interface CompraDtf { id: string; fecha: string; metros: number; precioMetro: number; flete: number; proveedor: string | null; numeroFactura: string | null; notas: string | null; creadoPor: string }
 
 const ESTADOS = [
   { value: 'pensada',  label: 'Pensada',    variant: 'warning' as const },
@@ -83,6 +91,11 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const [cfgAncho, setCfgAncho] = useState('');
   const [cfgMerma, setCfgMerma] = useState('');
   const [cfgSep, setCfgSep] = useState('');
+  // Compras de DTF: de la última sale el $/metro de todo el módulo.
+  const [compras, setCompras] = useState<CompraDtf[]>([]);
+  const [verCompras, setVerCompras] = useState(false);
+  const [nc, setNc] = useState({ fecha: new Date().toISOString().slice(0, 10), metros: '', precioMetro: '', flete: '', numeroFactura: '', notas: '' });
+  const [ncSaving, setNcSaving] = useState(false);
 
   // Carga masiva
   const [bulk, setBulk] = useState(false);
@@ -112,6 +125,10 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   // Qué se hace con las tildadas: vincularlas a un liso (receta/costo) o pedir el DTF.
   const [accionSel, setAccionSel] = useState<'vincular' | 'pedir'>('vincular');
 
+  const cargarCompras = () => {
+    fetch('/api/dtf/compras').then((r) => r.ok ? r.json() : []).then((cs) => { if (Array.isArray(cs)) setCompras(cs); }).catch(() => {});
+  };
+
   const cargar = useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams();
@@ -125,11 +142,37 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   useEffect(() => { cargar(); }, [cargar]);
   useEffect(() => {
     fetch('/api/estampas/config').then((r) => r.ok ? r.json() : null).then((c) => { if (c) setCfg(c); }).catch(() => {});
+    cargarCompras();
     fetch('/api/costos/escandallos').then((r) => r.ok ? r.json() : []).then((e) => { if (Array.isArray(e)) setLisos(e); }).catch(() => {});
     fetch('/api/reposicion/lisos').then((r) => r.ok ? r.json() : []).then((l) => { if (Array.isArray(l)) setLisosSku(l); }).catch(() => {});
     fetch('/api/estampado/tiempo').then((r) => r.ok ? r.json() : null).then((c) => { if (c && c.minPorEstampa) { setMinGlobal(c.minPorEstampa); setVincMin(String(Math.round(c.minPorEstampa * 10) / 10)); } }).catch(() => {});
     cargarVinculos();
   }, []);
+
+  // Cargar una compra mueve el $/metro de TODO el módulo, así que se recarga la config
+  // (que es quien resuelve el precio) y no se toca el número por acá.
+  const guardarCompra = async () => {
+    const metros = parseFloat(nc.metros) || 0, precioMetro = parseFloat(nc.precioMetro) || 0;
+    if (metros <= 0 || precioMetro <= 0) { toast.error('Faltan los metros y el precio por metro'); return; }
+    setNcSaving(true);
+    const r = await fetch('/api/dtf/compras', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fecha: nc.fecha, metros, precioMetro, flete: parseFloat(nc.flete) || 0, numeroFactura: nc.numeroFactura || null, notas: nc.notas || null }),
+    });
+    setNcSaving(false);
+    if (!r.ok) { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo guardar'); return; }
+    setNc({ fecha: new Date().toISOString().slice(0, 10), metros: '', precioMetro: '', flete: '', numeroFactura: '', notas: '' });
+    cargarCompras();
+    fetch('/api/estampas/config').then((x) => x.ok ? x.json() : null).then((c) => { if (c) setCfg(c); }).catch(() => {});
+    toast.success('Compra cargada · el precio del DTF se actualizó');
+  };
+  const borrarCompra = async (c: CompraDtf) => {
+    if (!(await confirmAsync({ message: `¿Borrar la compra del ${c.fecha.slice(0, 10)} (${c.metros} m)? El precio vigente pasa a ser el de la compra anterior.`, danger: true, confirmLabel: 'Borrar' }))) return;
+    const r = await fetch(`/api/dtf/compras/${c.id}`, { method: 'DELETE' });
+    if (!r.ok) { toast.error('No se pudo borrar'); return; }
+    cargarCompras();
+    fetch('/api/estampas/config').then((x) => x.ok ? x.json() : null).then((k) => { if (k) setCfg(k); }).catch(() => {});
+  };
 
   const cargarVinculos = () => {
     fetch('/api/costos/productos-estampados/por-estampa').then((r) => r.ok ? r.json() : null).then((m) => { if (m && typeof m === 'object') setProductosPorEstampa(m); }).catch(() => {});
@@ -224,12 +267,12 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const guardarCfg = async () => {
     const r = await fetch('/api/estampas/config', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dtfPrecioMetro: parseFloat(cfgPrecio) || 0, dtfAnchoCm: parseFloat(cfgAncho) || 58, dtfSeparacionCm: parseFloat(cfgSep) || 0, dtfMermaDefault: parseFloat(cfgMerma) || 0 }),
+      body: JSON.stringify({ dtfPrecioManual: parseFloat(cfgPrecio) || 0, dtfAnchoCm: parseFloat(cfgAncho) || 58, dtfSeparacionCm: parseFloat(cfgSep) || 0, dtfMermaDefault: parseFloat(cfgMerma) || 0 }),
     });
-    if (r.ok) { const c = await r.json(); setCfg(c); setEditCfg(false); toast.success('Precio del DTF actualizado'); }
+    if (r.ok) { const c = await r.json(); setCfg(c); setEditCfg(false); toast.success('Configuración del DTF actualizada'); }
     else toast.error('No se pudo guardar');
   };
-  const abrirCfg = () => { setCfgPrecio(String(cfg.dtfPrecioMetro || '')); setCfgAncho(String(cfg.dtfAnchoCm || 58)); setCfgSep(String(cfg.dtfSeparacionCm || '')); setCfgMerma(String(cfg.dtfMermaDefault || '')); setEditCfg(true); };
+  const abrirCfg = () => { setCfgPrecio(String(cfg.dtfPrecioManual ?? cfg.dtfPrecioMetro ?? '')); setCfgAncho(String(cfg.dtfAnchoCm || 58)); setCfgSep(String(cfg.dtfSeparacionCm || '')); setCfgMerma(String(cfg.dtfMermaDefault || '')); setEditCfg(true); };
 
   // Carga masiva
   const abrirBulk = () => { setBulkRows([{ ...FILA_BULK_VACIA, id: 0 }]); seq.current = 1; setShowForm(false); setBulk(true); };
@@ -300,17 +343,78 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
       <div className="bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3 text-sm">
         {!editCfg ? (
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-stone-700"><strong>DTF:</strong> {fmt$(cfg.dtfPrecioMetro)}/metro · rollo {cfg.dtfAnchoCm} cm · separación {cfg.dtfSeparacionCm} cm · rechazo {cfg.dtfMermaDefault}%</span>
-            {esAdmin && <button onClick={abrirCfg} className="text-xs px-2.5 py-1 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-100 transition ml-auto">Editar precio</button>}
+            <span className="text-stone-700">
+              <strong>DTF:</strong>{' '}
+              {cfg.precioFuente === 'ninguna'
+                ? <span className="font-semibold text-amber-700">sin precio — cargá una compra</span>
+                : <>{fmt$(cfg.dtfPrecioMetro)}/metro</>}
+              {' · '}rollo {cfg.dtfAnchoCm} cm · separación {cfg.dtfSeparacionCm} cm · rechazo {cfg.dtfMermaDefault}%
+            </span>
+            {/* De dónde salió el precio. Un número sin fecha no se puede ver viejo: así el
+                precio tipeado se quedó en $11.500 contra $9.500 reales. */}
+            {cfg.precioFuente === 'compra' && cfg.precioCompra && (
+              <span className={`text-xs px-2 py-0.5 rounded-lg ${cfg.precioVencido ? 'bg-amber-100 text-amber-800 font-semibold' : 'bg-white text-stone-500'}`}
+                title={`${cfg.precioCompra.metros} m a ${fmt$(cfg.precioCompra.precioMetro)}/m${cfg.precioCompra.flete > 0 ? ` + ${fmt$(cfg.precioCompra.flete)} de flete` : ''}`}>
+                de la compra del {String(cfg.precioFecha ?? '').slice(0, 10)} · {cfg.precioCompra.metros} m
+                {cfg.precioVencido && ' · hace más de 3 meses'}
+              </span>
+            )}
+            {cfg.precioFuente === 'manual' && (
+              <span className="text-xs px-2 py-0.5 rounded-lg bg-amber-100 text-amber-800 font-semibold" title="No hay ninguna compra cargada: se está usando el precio escrito a mano, que no tiene fecha.">
+                cargado a mano · sin compra
+              </span>
+            )}
+            <button onClick={() => setVerCompras((v) => !v)} className="text-xs px-2.5 py-1 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-100 transition ml-auto">
+              {verCompras ? 'Ocultar compras' : `Compras de DTF (${compras.length})`}
+            </button>
+            {esAdmin && <button onClick={abrirCfg} className="text-xs px-2.5 py-1 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-100 transition">Rollo y rechazo</button>}
           </div>
         ) : (
           <div className="flex items-end gap-3 flex-wrap">
-            <div><label className="text-xs text-stone-500 block mb-1">$/metro</label><NumInput value={parseFloat(cfgPrecio) || 0} onChange={(n) => setCfgPrecio(n ? String(n) : '')} min="0" className={inpSm} /></div>
+            <div><label className="text-xs text-stone-500 block mb-1" title="Sólo se usa si NO hay ninguna compra de DTF cargada. Con una compra, manda la compra.">$/metro a mano (fallback)</label><NumInput value={parseFloat(cfgPrecio) || 0} onChange={(n) => setCfgPrecio(n ? String(n) : '')} min="0" className={inpSm} /></div>
             <div><label className="text-xs text-stone-500 block mb-1">Ancho rollo (cm)</label><NumInput value={parseFloat(cfgAncho) || 0} onChange={(n) => setCfgAncho(n ? String(n) : '')} min="0" className={inpSm} /></div>
             <div><label className="text-xs text-stone-500 block mb-1" title="Margen de corte entre dos estampas. En un diseño chico pesa tanto como el diseño.">Separación (cm)</label><NumInput value={parseFloat(cfgSep) || 0} onChange={(n) => setCfgSep(n ? String(n) : '')} min="0" className={inpSm} /></div>
             <div><label className="text-xs text-stone-500 block mb-1" title="% de RECHAZO default (planchas que salen mal). El desperdicio del rollo ya está en la tira.">Rechazo default %</label><NumInput value={parseFloat(cfgMerma) || 0} onChange={(n) => setCfgMerma(n ? String(n) : '')} min="0" className={inpSm} /></div>
             <Button size="sm" onClick={guardarCfg}>Guardar</Button>
             <Button size="sm" variant="secondary" onClick={() => setEditCfg(false)}>Cancelar</Button>
+          </div>
+        )}
+
+        {verCompras && (
+          <div className="mt-3 pt-3 border-t border-violet-100 space-y-2">
+            <p className="text-xs text-stone-500">
+              El <strong>$/metro</strong> de todo el módulo sale de la compra <strong>más reciente</strong>, con el flete adentro.
+              Cargar una acá mueve el costo de todos los productos con estampa — las órdenes ya creadas no, que tienen su precio congelado.
+            </p>
+            {compras.length === 0
+              ? <p className="text-xs text-amber-700 font-semibold">No hay ninguna compra cargada: se está usando el precio escrito a mano.</p>
+              : (
+                <div className="space-y-1">
+                  {compras.map((c, i) => (
+                    <div key={c.id} className="flex items-center gap-2 text-xs bg-white rounded-lg px-2.5 py-1.5">
+                      {/* La primera es la que manda: se dice, no se deduce del orden. */}
+                      <span className={`w-16 shrink-0 font-semibold ${i === 0 ? 'text-violet-700' : 'text-stone-300'}`}>{i === 0 ? 'vigente' : ''}</span>
+                      <span className="text-stone-500 w-24 shrink-0">{c.fecha.slice(0, 10)}</span>
+                      <span className="tabular-nums w-16 shrink-0 text-right">{c.metros} m</span>
+                      <span className="tabular-nums w-24 shrink-0 text-right">{fmt$(c.precioMetro)}/m</span>
+                      <span className="tabular-nums w-24 shrink-0 text-right text-stone-400">{c.flete > 0 ? `+ ${fmt$(c.flete)} flete` : ''}</span>
+                      <span className="tabular-nums w-28 shrink-0 text-right font-semibold text-stone-700">{fmt$(c.metros * c.precioMetro + c.flete)}</span>
+                      <span className="text-stone-400 truncate">{[c.proveedor, c.numeroFactura, c.notas].filter(Boolean).join(' · ')}</span>
+                      {esAdmin && <button onClick={() => borrarCompra(c)} className="ml-auto text-stone-300 hover:text-red-400 text-lg leading-none shrink-0">×</button>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            {esAdmin && (
+              <div className="flex items-end gap-2 flex-wrap pt-1">
+                <div><label className="text-xs text-stone-500 block mb-1">Fecha</label><input type="date" value={nc.fecha} onChange={(e) => setNc((p) => ({ ...p, fecha: e.target.value }))} className={inpSm} /></div>
+                <div><label className="text-xs text-stone-500 block mb-1">Metros</label><NumInput value={parseFloat(nc.metros) || 0} onChange={(n) => setNc((p) => ({ ...p, metros: n ? String(n) : '' }))} min="0" className={inpSm} /></div>
+                <div><label className="text-xs text-stone-500 block mb-1">$/metro</label><NumInput value={parseFloat(nc.precioMetro) || 0} onChange={(n) => setNc((p) => ({ ...p, precioMetro: n ? String(n) : '' }))} min="0" className={inpSm} /></div>
+                <div><label className="text-xs text-stone-500 block mb-1">Flete $</label><NumInput value={parseFloat(nc.flete) || 0} onChange={(n) => setNc((p) => ({ ...p, flete: n ? String(n) : '' }))} min="0" className={inpSm} /></div>
+                <div><label className="text-xs text-stone-500 block mb-1">Nº factura</label><input value={nc.numeroFactura} onChange={(e) => setNc((p) => ({ ...p, numeroFactura: e.target.value }))} placeholder="(opcional)" className={inpSm} /></div>
+                <Button size="sm" onClick={guardarCompra} disabled={ncSaving}>{ncSaving ? 'Guardando…' : 'Cargar compra'}</Button>
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -62,7 +62,10 @@ export function tiraEstampa(e: Pick<EstampaCostoInput, 'anchoCm' | 'largoCm'>, c
 export function costoEstampa(e: EstampaCostoInput, cfg: DtfConfig): number | null {
   const t = tiraEstampa(e, cfg);
   if (!t) return null;
-  return (t.largoCm / 100) * (cfg.dtfPrecioMetro || 0) * (1 + (e.mermaPercent || 0) / 100);
+  // Sin precio del DTF no hay costo. Multiplicar por 0 devolvería $0, que es la misma
+  // mentira que el área nunca diciendo "no entra": afirma que estampar sale gratis.
+  if (!(cfg.dtfPrecioMetro > 0)) return null;
+  return (t.largoCm / 100) * cfg.dtfPrecioMetro * (1 + (e.mermaPercent || 0) / 100);
 }
 
 // Para la pantalla: "2/fila girada · 24,2 cm de rollo". El que compra el DTF necesita

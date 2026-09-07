@@ -8,7 +8,7 @@ import { toast } from '@/components/ui/Toaster';
 import { nombreItemOrden } from '@/lib/produccion/ordenEstampa';
 
 interface OrdenItem { id: string; gnId: number | null; gnNombre: string | null; estampa: { codigoInterno: string; nombreComercial: string | null } | null; skuLiso: string; talle: string; cantidad: number; confirmado: number; }
-interface OrdenEstampa { id: string; creadoAt: string; creadoPor: string; estado: string; tipo: string; origen: string; notas: string | null; items: OrdenItem[]; }
+interface OrdenEstampa { id: string; creadoAt: string; creadoPor: string; estado: string; tipo: string; origen: string; notas: string | null; precioMetroDtf?: number | string; items: OrdenItem[]; }
 
 const inp = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400';
 
@@ -71,6 +71,12 @@ export function OrdenesEstampaClient() {
             {esLanzamiento && <span className="text-xs font-semibold px-1.5 py-0.5 rounded mr-2 bg-fuchsia-100 text-fuchsia-700">lanzamiento</span>}
             {new Date(o.creadoAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
             <span className="text-stone-400 font-normal"> · {o.creadoPor} · {totalConf}/{totalPed} {hechas}</span>
+            {/* El $/metro que regía cuando se pidió. Congelarlo es lo que hace que subir el
+                precio de hoy no reescriba lo que ya se produjo. 0 = orden anterior al
+                snapshot: de ésas no se sabe el precio y caen al vigente. */}
+            {Number(o.precioMetroDtf) > 0
+              ? <span className="text-stone-400 font-normal" title="Precio del DTF congelado al crear la orden: cambiar el de hoy no la toca."> · DTF ${Number(o.precioMetroDtf).toLocaleString('es-AR')}/m</span>
+              : <span className="text-stone-300 font-normal" title="Orden anterior al snapshot de precio: se costea al precio vigente."> · DTF sin precio propio</span>}
             {totalPend > 0
               ? <span className="text-xs font-semibold text-amber-600 ml-2">{totalPend} pendientes</span>
               : <span className="text-xs font-semibold text-emerald-600 ml-2">completa ✓</span>}

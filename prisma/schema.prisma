@@ -348,7 +348,10 @@ model ConfigCostos {
   id                     String   @id @default("singleton")
   margenDesarrollo       Float    @default(10)
   margenFallas           Float    @default(5)
-  dtfPrecioMetro         Float    @default(0) // precio fijo del DTF por metro (rollo)
+  // ⚠️ FALLBACK. El precio bueno sale de la última `CompraDtf` (lib/costos/dtfPrecio.ts);
+  // esto es lo que se muestra sólo mientras no haya ninguna compra cargada. Un número
+  // tipeado no tiene fecha, así que no se puede ver viejo — por eso dejó de mandar.
+  dtfPrecioMetro         Float    @default(0) // $/metro cargado a mano (fallback)
   dtfAnchoCm             Float    @default(58) // ancho del rollo DTF
   dtfSeparacionCm        Float    @default(0.5) // margen de corte entre estampas (lib/costos/estampaCosto.ts)
   // % de RECHAZO default (planchas que salen mal). ⛔ NO es el desperdicio de encastre:
@@ -794,6 +797,7 @@ model Proveedor {
   compras      Compra[]
   gastos       Gasto[]
   etiquetas    EtiquetaCatalogo[]
+  comprasDtf   CompraDtf[]
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
 
@@ -1163,6 +1167,11 @@ model OrdenEstampa {
   tipo      String             @default("estampa") // 'estampa' (descuenta liso) | 'produccion' (informativa)
   origen    String             @default("reposicion") // 'reposicion' (nace de un producto GN) | 'lanzamiento' (nace de una estampa)
   notas     String?
+  // Snapshot del $/metro del DTF al crear la orden (flete adentro). Mismo criterio que
+  // `pasaje_items.costoUnitario` y que el avío en el escandallo: lo ya pedido se costea al
+  // precio de ESE día, así que cambiar el precio de hoy no reescribe lo que ya se produjo.
+  // 0 = orden vieja, anterior al snapshot (7-sep-2026): ésas caen al precio vigente.
+  precioMetroDtf Decimal @default(0)
   items     OrdenEstampaItem[]
 
   @@map("ordenes_estampa")
@@ -1209,6 +1218,31 @@ model ReposicionMinimo {
 
   @@unique([gnId, talle])
   @@map("reposicion_minimo")
+}
+
+// COMPRA de DTF. Liviana a propósito: nadie lleva stock de DTF, así que no entra por
+// Insumo+Rollo — el mismo criterio con el que `EtiquetaCatalogo` reemplazó a Insumo+Lote
+// para los avíos. De acá sale el $/metro que usa todo el módulo (lib/costos/dtfPrecio.ts).
+//
+// ⚠️ Esto guarda la MEDIDA (metros y $/metro), no la plata. Si la factura además tiene que
+// entrar a cuentas por pagar, va como Gasto y se linkea: `gastoId` es TRAZABILIDAD, no
+// plata. La plata entra UNA sola vez, como en la cuenta de los cortadores.
+model CompraDtf {
+  id            String   @id @default(cuid())
+  fecha         DateTime
+  metros        Decimal // metros de rollo comprados
+  precioMetro   Decimal // $/metro de la factura, SIN flete
+  flete         Decimal  @default(0) // $ del envío: se pagó por este mismo DTF, entra al $/metro
+  proveedorId   String?
+  proveedor     Proveedor? @relation(fields: [proveedorId], references: [id])
+  numeroFactura String?
+  gastoId       String? // el Gasto donde entró la plata, si se cargó. Trazabilidad, no monto.
+  notas         String?
+  creadoPor     String
+  createdAt     DateTime @default(now())
+
+  @@index([fecha])
+  @@map("compras_dtf")
 }
 
 model Estampa {

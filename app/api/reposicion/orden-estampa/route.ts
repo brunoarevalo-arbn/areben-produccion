@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
+import { Prisma } from '@prisma/client';
+import { resolverPrecioDtf } from '@/lib/costos/dtfPrecio';
 import { z } from 'zod';
 
 // Un ítem nace de un producto de GN (reposición: ya se vende) o de una Estampa
@@ -64,12 +66,24 @@ export async function POST(req: NextRequest) {
     if (existen !== estampaIds.length) return NextResponse.json({ error: 'Alguna estampa no existe' }, { status: 400 });
   }
 
+  // SNAPSHOT del $/metro del DTF. Lo que se pide hoy se costea al precio de hoy: si mañana
+  // sube, esta orden no se reescribe. Mismo criterio que `pasaje_items.costoUnitario`.
+  const [cfg, comprasDtf] = await Promise.all([
+    prisma.configCostos.findUnique({ where: { id: 'singleton' }, select: { dtfPrecioMetro: true } }),
+    prisma.compraDtf.findMany({ orderBy: [{ fecha: 'desc' }, { createdAt: 'desc' }], take: 5 }),
+  ]);
+  const precioDtf = resolverPrecioDtf(
+    comprasDtf.map((c) => ({ id: c.id, fecha: c.fecha, metros: Number(c.metros), precioMetro: Number(c.precioMetro), flete: Number(c.flete) })),
+    cfg?.dtfPrecioMetro,
+  ).precioMetro ?? 0;
+
   const orden = await prisma.$transaction(async (tx) => {
     const creada = await tx.ordenEstampa.create({
       data: {
         creadoPor: session.nombre,
         tipo,
         origen,
+        precioMetroDtf: new Prisma.Decimal(precioDtf),
         notas: notas?.trim() || null,
         items: { create: items.map((i) => ({ gnId: i.gnId ?? null, gnNombre: i.gnNombre || null, estampaId: i.estampaId ?? null, skuLiso: i.skuLiso, talle: i.talle, cantidad: i.cantidad })) },
       },
