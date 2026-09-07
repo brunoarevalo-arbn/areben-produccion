@@ -22,18 +22,28 @@ _Última actualización: 2026-09-07_
 > por **SKU exacto, ⛔ no por nombre**, y **se planta si hay dos escandallos con el mismo SKU**:
 > eso es una ambigüedad real y elegir uno sería inventar cuál. **Aplicado: los 6.**
 >
-> 📊 **Medido después: 10 de 13 productos y 107 de 149 prendas con costo — $2.176.354.**
+> 📊 **Medido después: 10 de 13 productos y 107 de 149 prendas con costo — $2.176.354** (y con los dos escandallos boxy de más abajo, **13 de 13 y 149 de 149**).
 > Costo por prenda (liso + DTF + MO de estampería, márgenes 10/5, ya los únicos):
 > CAMPERA WEAR $32.732 · BUZO FLECK $28.347 · BUZO MADE $25.730 · BUZO STND $25.588 ·
 > BUZO PHRASE $23.056 · SKATE $16.334 · CIRCLE BROWN $15.656 · LONG BROWN $14.169 ·
 > LONG OFF WHITE $14.122 · GRAPH $14.067.
 >
-> 🔴 ▶️ **Las 42 prendas que siguen sin costo son las 3 estampas sobre remera BOXY** (MADE 12,
-> TIME 12, STARRY 18): los lisos **STU-REM-BOXY-BL y STU-REM-BOXY-NG** tienen **97 unidades en
-> stock** y **ningún escandallo**, y ⛔ **ninguna OP de donde sacar el consumo medido** (las 7 OPs
-> de Stunned son de otros SKU). **Mano de Bruno: el consumo de tela y los minutos de la remera
-> boxy.** De referencia: la oversize va **0,97 m + 0,04 m de ribb, 14,7 min**, y la *boxy* de
-> Zattia **0,70 m + 0,02 m, 18-20 min** — ⛔ ninguna de las dos es la medida de ésta.
+> 🏁 **Y las 42 que faltaban también quedaron** (`53a9d4b`, `prisma/migrate-escandallo-remera-boxy.ts`):
+> los lisos **STU-REM-BOXY-BL y -NG** tenían **97 u en stock**, **ningún escandallo** y ⛔ **ninguna
+> OP de donde sacar el consumo medido** — la boxy quedó afuera de la tanda de 7 del 25-ago.
+> 🔴 🔑 **El consumo de tela es ESTIMADO y se marca en TRES lugares que se ven** —el nombre del
+> escandallo, las `notas` (la lista y la ficha las muestran) y el nombre de la tela—: **un número
+> cargado sin marca pasa por medido**, y éste no lo es.
+> 🔑 **Sale de la relación que dio Bruno** (planilla: oversize $9.400 · boxy $9.000 ⇒ **−4,26%**), y
+> como todo lo demás es idéntico entre las dos —mismo taller, mismas operaciones— **la única
+> variable es la TELA**: el script la **DESPEJA en vez de tipearla**, buscando el consumo que hace
+> que el total dé 0,9574 del de la oversize del mismo color ⇒ **0,887 m** (blanca) y **0,890 m**
+> (negra), contra 0,97 y 0,98.
+> 🔴 ▶️ **Ese es el número a verificar con la prenda en la mano**: si la boxy no consume ~0,89 m, el
+> costo está mal **en la misma proporción**. ⚠️ La boxy de Zattia gasta 0,70 m, bastante menos, pero
+> es **otro molde y otra marca** ⇒ ⛔ no sirve de oráculo.
+> 📊 **Cerrada la orden: 13 de 13 productos y las 149 prendas con costo — $2.731.881.**
+> MADE $12.568 · STARRY $12.524 · TIME $14.940 (dos caras).
 >
 > 🏁 🔑 **UN SOLO MARGEN, y la idea que lo ordena: el escandallo FOTOGRAFÍA la config, ⛔ no opina.**
 > El mismo liso valía dos números —la oversize blanca daba **$9.384** en la ficha y **$10.022** en
