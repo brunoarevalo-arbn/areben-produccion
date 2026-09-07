@@ -122,7 +122,12 @@ async function main() {
     try { d = JSON.parse(cuerpo).data ?? {}; } catch { /* cuerpo raro: cae al chequeo de abajo */ }
     const provOk = cambios.provider === undefined || (d.provider ?? '') === PROVEEDOR;
     const precioOk = cambios.retailer_price === undefined || Math.round(parseFloat(String(d.retailer_price ?? 0))) === p.precio;
-    if (provOk && precioOk) { console.log(`   ✅ escrito y verificado: proveedor "${d.provider}" · $${d.retailer_price}`); ok++; }
+    // Sólo se informa lo que se PIDIÓ cambiar: GN no devuelve los campos que no tocaste, y
+    // escribir «proveedor "undefined"» al lado de un ✅ se lee como si lo hubiera borrado.
+    if (provOk && precioOk) {
+      const puesto = [cambios.provider !== undefined && `proveedor "${d.provider}"`, cambios.retailer_price !== undefined && `$${d.retailer_price}`].filter(Boolean).join(' · ');
+      console.log(`   ✅ escrito y verificado: ${puesto}`); ok++;
+    }
     else { console.log(`   🔴 200 PERO NO QUEDÓ: devolvió proveedor "${d.provider}" · precio ${d.retailer_price}. El campo no se acepta o se revirtió.`); fallados++; }
   }
   console.log(`\n${ok} escritos y verificados · ${saltados} salteados · ${fallados} fallados`);
