@@ -50,11 +50,22 @@ _Última actualización: 2026-09-07_
 > antes de tocar, y **relee lo que devolvió el PATCH** después. 📊 **Verificado por otro camino**:
 > releyendo GN, los 13 con su precio y el proveedor intacto.
 >
-> 🔴 🔑 **ESCRIBIR EN GN ⛔ NO BAJA A TIENDA NUBE.** Ya estaba en el `PENDIENTES.md` del monitor:
-> *«lo arregla el sync GN→TN de **Integraciones**, que se aplica **fila por fila y a mano**»*. El
-> precio quedó bien en GN y la vidriera siguió en $1 ⇒ ▶️ **falta aplicar el sync en Integraciones**.
-> El script lo dice al terminar, para que nadie lea «13 escritos y verificados» y crea que la
-> vidriera cambió.
+> 🏁 🔴 🔑 **LA VIDRIERA: escribir en GN ⛔ no basta, y el interruptor está POR VARIANTE.**
+> El precio quedó bien en GN y Tienda Nube siguió en $1. La causa ⛔ no era el `code`, ni el
+> proveedor, ni el vínculo (en Productos figuraban **«Vinculadas»** en verde): en
+> **Integraciones → Tienda Nube → Stock y Precios → Precios**, las **48 variantes** (12 productos ×
+> 4 talles) estaban en **«No configurado»** con el checkbox **«Act. precio» sin marcar**, y el botón
+> dice *«Envía los precios **seleccionados**»* ⇒ mandaba **cero**.
+> 🔑 **Y el delator fue CIRCLE BROWN**: es la única de las 13 que ⛔ NO aparecía entre las 48, y su
+> $37.990 **había bajado solo**. Existe desde abril y ya tenía la variante configurada ⇒
+> **una variante configurada SÍ sincroniza sola al cambiar el precio en GN; una nueva nace apagada.**
+> Eso corrige el *«fila por fila y a mano»* del monitor: **a mano se prende el interruptor, una vez
+> por variante**; después el precio viaja solo.
+> ⚠️ **«proponer» ⛔ no era el botón**: esa acción es para productos que faltan **crear** en TN.
+> 🏁 Aplicado (7-sep, por Chrome, con Bruno autorizando): marcadas las 48 y **«Guardar y Enviar»**.
+> 📊 **Verificado: el filtro de diferencias pasó de 48 a 0 de 1289**, y SKATE $41.990 y CIRCLE BROWN
+> $37.990 con **Precio TN = Precio GN**. ▶️ Queda mirar **«Filtrar Vínculos Rotos: 103»**, que es
+> otra cosa y nadie revisó.
 >
 > 🔴 🔑 **Y el PATCH de GN acepta EXACTAMENTE TRES CAMPOS — lo dice él con un 422**:
 > `retailer_price`, `wholesaler_price`, `tiendanube_promotional_price`. ⇒ **`unit_cost` y `provider`
