@@ -16,9 +16,13 @@ import { resolverCostoFinal, etiquetaCostoManual, type CostoFinal } from '@/lib/
 
 interface Escandallo { id: string; nombre: string; sku: string | null; marca: string | null; datos: string | null; }
 interface EstampaOpt { id: string; codigoInterno: string; nombreComercial: string | null; imagenUrl: string | null; anchoCm: string | number; largoCm: string | number; mermaPercent: string | number; ancho2Cm: string | number; largo2Cm: string | number; merma2Percent: string | number; }
-interface LineaEstampa { id: number; estampaId: string; tamano: number; minutosEstampado: string; }
+interface LineaEstampa { id: number; estampaId: string; tamano: number; minutosEstampado: string; minEstimado?: boolean }
 interface BulkRow { id: number; nombre: string; liso: string; estampas: LineaEstampa[]; }
-interface EstampaProducto { estampaId: string; tamano?: number; minutosEstampado?: number; costoEstampado?: number }
+// `minEstimado` = los minutos son un número dicho, no medido. Mientras `tiempos_estampado`
+// esté vacío TODO lo cargado es estimación, y una MO estimada dibujada igual que una medida
+// es un costo que nadie va a volver a mirar. Se apaga solo al traer el valor del sistema
+// de tiempos (el ↓), que sí sale de tandas reales.
+interface EstampaProducto { estampaId: string; tamano?: number; minutosEstampado?: number; minEstimado?: boolean; costoEstampado?: number }
 interface Producto extends LisoRef {
   id: string; nombre: string; sku: string | null; marca: string | null; estampas: EstampaProducto[]; notas: string | null;
   costoFinalManual: string | null; costoFinalFecha: string | null; costoFinalFuente: string | null;
@@ -196,20 +200,21 @@ export function ProductosEstampados() {
     setCostoManual(p.costoFinalManual != null ? String(Math.round(Number(p.costoFinalManual))) : '');
     setCostoFecha(p.costoFinalFecha ? p.costoFinalFecha.slice(0, 10) : '');
     setCostoFuente(p.costoFinalFuente ?? '');
-    setLineas(p.estampas.length ? p.estampas.map((l, i) => ({ id: i, estampaId: l.estampaId, tamano: l.tamano ?? 1, minutosEstampado: l.minutosEstampado ? String(l.minutosEstampado) : '' })) : [{ id: 0, estampaId: '', tamano: 1, minutosEstampado: '' }]);
+    setLineas(p.estampas.length ? p.estampas.map((l, i) => ({ id: i, estampaId: l.estampaId, tamano: l.tamano ?? 1, minutosEstampado: l.minutosEstampado ? String(l.minutosEstampado) : '', minEstimado: l.minEstimado })) : [{ id: 0, estampaId: '', tamano: 1, minutosEstampado: '' }]);
     seq.current = p.estampas.length + 1;
     setShowForm(true);
   };
 
   const traerMin = (lineaId: number) => {
     if (!minGlobal) return;
-    setLineas((p) => p.map((x) => x.id === lineaId ? { ...x, minutosEstampado: String(Math.round(minGlobal * 10) / 10) } : x));
+    // Viene de las tandas reales ⇒ deja de ser estimado.
+    setLineas((p) => p.map((x) => x.id === lineaId ? { ...x, minutosEstampado: String(Math.round(minGlobal * 10) / 10), minEstimado: false } : x));
   };
 
   const guardar = async () => {
     if (!nombre.trim()) { toast.error('Poné un nombre'); return; }
     if (!lisoId) { toast.error('Elegí el liso base'); return; }
-    const estampasBody = lineas.filter((l) => l.estampaId).map((l) => ({ estampaId: l.estampaId, tamano: l.tamano ?? 1, minutosEstampado: parseFloat(l.minutosEstampado) || 0 }));
+    const estampasBody = lineas.filter((l) => l.estampaId).map((l) => ({ estampaId: l.estampaId, tamano: l.tamano ?? 1, minutosEstampado: parseFloat(l.minutosEstampado) || 0, ...(l.minEstimado ? { minEstimado: true } : {}) }));
     setSaving(true);
     const body = {
       nombre: nombre.trim(), sku: sku.trim() || null, marca: marca.trim() || null, ...parseLisoValue(lisoId),
@@ -281,6 +286,8 @@ export function ProductosEstampados() {
 
   // ── Edición masiva de tiempos ─────────────────────────────────
   const lineaSinTiempo = (l: EstampaProducto) => !(l.minutosEstampado) && !(l.costoEstampado);
+  // MO estimada: hay minutos, pero salieron de un número dicho, no de una tanda medida.
+  const moEstimada = (p: Producto) => p.estampas.some((l) => l.minEstimado && !!l.minutosEstampado);
   const sinTiempo = (p: Producto) => p.estampas.some(lineaSinTiempo);
   const abrirTiempos = () => {
     setShowForm(false); setShowBulk(false);
@@ -333,7 +340,7 @@ export function ProductosEstampados() {
         const arr = tiempos[p.id]; if (!arr) return false;
         return p.estampas.some((l, i) => (parseFloat(arr[i]) || 0) !== (Number(l.minutosEstampado) || 0));
       })
-      .map((p) => ({ id: p.id, estampas: p.estampas.map((l, i) => ({ estampaId: l.estampaId, tamano: l.tamano ?? 1, minutosEstampado: parseFloat(tiempos[p.id][i]) || 0 })) }));
+      .map((p) => ({ id: p.id, estampas: p.estampas.map((l, i) => ({ estampaId: l.estampaId, tamano: l.tamano ?? 1, minutosEstampado: parseFloat(tiempos[p.id][i]) || 0, ...(l.minEstimado ? { minEstimado: true } : {}) })) }));
     if (cambios.length === 0) { toast.error('No cambiaste ningún tiempo'); return; }
     setTiemposSaving(true);
     const r = await fetch('/api/costos/productos-estampados/tiempos', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ cambios }) });
@@ -635,7 +642,9 @@ export function ProductosEstampados() {
                       <p className="text-sm font-semibold text-stone-800 truncate">{p.nombre}{p.sku && <span className="text-xs text-stone-400 font-mono ml-2">{p.sku}</span>}</p>
                       <p className="text-xs text-stone-400">{p.estampas.length} estampa{p.estampas.length !== 1 ? 's' : ''} · liso {lisoNombre(p)} {d.liso == null ? '' : `· ${fmt$(d.liso)}`}</p>
                     </div>
-                    {sinTiempo(p) && <span className="text-[11px] px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-700 shrink-0" title="Falta el tiempo de estampería: el costo está incompleto">⚠ sin tiempo</span>}
+                    {sinTiempo(p)
+                      ? <span className="text-[11px] px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-700 shrink-0" title="Falta el tiempo de estampería: el costo está incompleto">⚠ sin tiempo</span>
+                      : moEstimada(p) && <span className="text-[11px] px-1.5 py-0.5 rounded-md border border-stone-200 bg-stone-50 text-stone-500 shrink-0" title="Los minutos de estampería son estimados, no medidos: cargá una tanda real en /estamperia/tiempos y traelos con el ↓">≈ tiempo estimado</span>}
                     {d.costo.total == null
                       ? <span className="text-[11px] font-semibold text-amber-700 w-28 text-right leading-tight" title="Sin el escandallo del liso, o sin la medida de la estampa, no hay costo final: se muestra lo que falta, no un total incompleto">{faltaAlgo(p)}</span>
                       : (
@@ -653,7 +662,7 @@ export function ProductosEstampados() {
                     <div className="ml-7 mt-2 max-w-xs space-y-0.5 text-xs">
                       <div className="flex justify-between text-stone-500"><span>Liso ({p.lisoSku ? 'sin escandallo' : 'escandallo'})</span><span className="tabular-nums">{d.liso == null ? `— ${faltaLiso(p)}` : fmt$(d.liso)}</span></div>
                       <div className="flex justify-between text-stone-500"><span>Material DTF</span><span className="tabular-nums">{d.dtf == null ? `— ${faltaDtf(p)}` : fmt$(d.dtf)}</span></div>
-                      <div className="flex justify-between text-stone-500"><span>Estampería (MO){d.min ? ` · ${fmt1(d.min)} min` : ''}</span><span className="tabular-nums">{fmt$(d.mo)}</span></div>
+                      <div className="flex justify-between text-stone-500"><span>Estampería (MO){d.min ? ` · ${fmt1(d.min)} min` : ''}{moEstimada(p) ? ' · estimado' : ''}</span><span className="tabular-nums">{moEstimada(p) ? '≈ ' : ''}{fmt$(d.mo)}</span></div>
                       <div className="flex justify-between font-semibold text-stone-700 border-t border-stone-100 pt-1 mt-1">
                         <span>Total</span>
                         {d.costo.total == null

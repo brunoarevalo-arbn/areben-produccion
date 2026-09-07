@@ -5,6 +5,32 @@
 
 _Última actualización: 2026-09-07_
 
+> **En esta sesión (7-sep), 6º tramo: LOS MINUTOS DE ESTAMPERÍA, CARGADOS Y MARCADOS COMO
+> ESTIMADOS.** Los 13 de Stunned iban en **0 min**, y un 0 ahí ⛔ no dice «falta el dato»: **AFIRMA
+> que estampar sale gratis**. Bruno: **~5 PLANCHADOS por hora ⇒ 12 min cada uno**.
+>
+> 🔴 🔑 **La unidad era la pregunta, y valía el doble.** 7 de los 13 diseños llevan **dos caras** ⇒
+> las 149 prendas son **225 planchados**. Si «5 por hora» hubieran sido PRENDAS, la orden salía
+> **$123.750**; siendo planchados sale **$247.500**. Es la misma trampa del 5º tramo (el ítem nombra
+> una cara, el consumo es de la prenda) ⇒ **preguntar la unidad ANTES de multiplicar**.
+>
+> 🆕 🔑 **`minEstimado: true` en la línea del producto**, y **se marcaron los 32, no los 13**:
+> `tiempos_estampado` está **VACÍO (0 tandas)**, así que **ninguno** de los minutos del sistema está
+> medido — incluidos los **6 min** que los 19 de Zattia tenían tipeados desde antes. Marcar sólo los
+> nuevos habría hecho parecer **medidos** a los viejos, que es peor que no marcar nada.
+> La pantalla lo dice: chip **«≈ tiempo estimado»** y la MO con **≈** adelante. La marca **se apaga
+> sola** al traer el valor con el ↓, que sale de tandas reales.
+> ⚠️ El script **se niega a correr si ya hay tandas medidas**: una estimación ⛔ no pisa una medición.
+>
+> 📊 Estampado por prenda (DTF + MO): SKATE $6.312 · FLECK $6.827 · CIRCLE BROWN $5.587 · TIME $5.343
+> · BUZO MADE $4.309 · LONG $4.100 · GRAPH $3.998 · CAMPERA $3.200 · BUZO STND $2.997 · STARRY $2.976
+> · MADE $2.972 · PHRASE $1.456. **La orden: 45 h ≈ $247.500 de MO contra $394.011 de DTF** ⇒ la mano
+> de obra es el **39%** del costo de estampar.
+>
+> ▶️ **Lo que lo reemplaza con un dato de verdad: UNA sola tanda.** El estándar del sistema sale de
+> `Σ minutos ÷ Σ estampas` de `/estamperia/tiempos` y está en 0 porque **nunca se cargó ninguna**.
+> Que el estampador anote hora de inicio, hora de fin y cuántas salieron.
+
 > **En esta sesión (7-sep), 5º tramo: LA COMPRA DE DTF ENTRA A CUENTAS POR PAGAR, Y LA ORDEN
 > CONTRASTA LO PEDIDO CONTRA LO COMPRADO** (puntos 3 y 4 del plan del precio).
 >

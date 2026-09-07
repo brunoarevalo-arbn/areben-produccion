@@ -13,6 +13,7 @@ const Schema = z.object({
       estampaId:        z.string().min(1),
       tamano:           z.number().optional(),
       minutosEstampado: z.number().min(0).optional(),
+      minEstimado:      z.boolean().optional(), // minutos dichos, no medidos
     })),
   })).min(1, 'No hay cambios'),
 });
@@ -27,7 +28,9 @@ export async function PATCH(req: NextRequest) {
   await prisma.$transaction(
     cambios.map((c) => prisma.productoEstampado.update({
       where: { id: c.id },
-      data: { estampas: c.estampas.map((e) => ({ estampaId: e.estampaId, tamano: e.tamano ?? 1, minutosEstampado: e.minutosEstampado ?? 0 })) },
+      // ⚠️ `minEstimado` se REESCRIBE con lo que manda el cliente: si se cayera acá, un
+      // número estimado quedaría indistinguible de uno medido en cuanto alguien edite.
+      data: { estampas: c.estampas.map((e) => ({ estampaId: e.estampaId, tamano: e.tamano ?? 1, minutosEstampado: e.minutosEstampado ?? 0, ...(e.minEstimado ? { minEstimado: true } : {}) })) },
     })),
   );
   return NextResponse.json({ actualizados: cambios.length });

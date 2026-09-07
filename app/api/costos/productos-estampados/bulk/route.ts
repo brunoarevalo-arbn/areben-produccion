@@ -18,6 +18,7 @@ const Schema = z.object({
       estampaId:        z.string().min(1),
       tamano:           z.number().optional(),
       minutosEstampado: z.number().min(0).optional(),
+      minEstimado:      z.boolean().optional(),
     })).default([]),
     notas:            z.string().nullish(),
   })).min(1, 'Cargá al menos un producto'),
@@ -43,7 +44,7 @@ export async function POST(req: NextRequest) {
       marca:            p.marca?.trim() || null,
       lisoEscandalloId: p.lisoEscandalloId || null,
       lisoSku:          p.lisoSku || null,
-      estampas:         p.estampas.map((e) => ({ estampaId: e.estampaId, tamano: e.tamano ?? 1, minutosEstampado: e.minutosEstampado ?? 0 })),
+      estampas:         p.estampas.map((e) => ({ estampaId: e.estampaId, tamano: e.tamano ?? 1, minutosEstampado: e.minutosEstampado ?? 0, ...(e.minEstimado ? { minEstimado: true } : {}) })),
       notas:            p.notas?.trim() || null,
     })),
   });
