@@ -166,12 +166,20 @@ export function ProductosEstampados() {
     const derivado = liso == null || dtf == null ? null : liso + dtf + mo;
     return { liso, dtf, mo, min, costo: resolverCostoFinal({ derivado, ...p }) };
   };
-  // Por qué a este producto le falta el costo del liso. Son dos causas distintas y la
-  // pantalla las tiene que separar: una se arregla haciendo el escandallo, la otra es
-  // un escandallo borrado.
+  // Por qué a este producto le falta el costo del liso. Son causas distintas y la pantalla
+  // las tiene que separar, porque cada una se arregla en otro lado: hacer el escandallo,
+  // enlazar el que ya está, o un escandallo borrado.
+  // 🔴 «falta el escandallo» decía la pantalla de 6 productos de Stunned cuyo escandallo
+  // EXISTÍA, con ese mismo SKU: nacieron el 20-ago apuntando al SKU y los escandallos
+  // aparecieron el 25. Mandaba a hacer de nuevo un trabajo ya hecho, y mientras tanto 72
+  // prendas de la orden de lanzamiento figuraban sin costo. La pantalla ya sabe que el
+  // escandallo manda —`lisosSoloSku` esconde el SKU pelado cuando existe uno con ese sku—,
+  // así que acá tiene que decir la verdad: está, hay que enlazarlo.
+  const escandalloDelSku = (sku: string | null): Escandallo | undefined =>
+    sku ? escandallos.find((e) => e.sku && e.sku.trim() === sku.trim()) : undefined;
   const faltaLiso = (p: Producto): string | null => {
     if (lisoTotal(p.lisoEscandalloId) != null) return null;
-    if (p.lisoSku) return 'falta el escandallo';
+    if (p.lisoSku) return escandalloDelSku(p.lisoSku) ? 'el escandallo existe: enlazalo' : 'falta el escandallo';
     return p.lisoEscandalloId ? 'escandallo no encontrado' : 'sin liso';
   };
   // Por qué a este producto le falta el DTF, que es otra causa distinta a la del liso:
@@ -660,7 +668,7 @@ export function ProductosEstampados() {
                   </div>
                   {abierto && (
                     <div className="ml-7 mt-2 max-w-xs space-y-0.5 text-xs">
-                      <div className="flex justify-between text-stone-500"><span>Liso ({p.lisoSku ? 'sin escandallo' : 'escandallo'})</span><span className="tabular-nums">{d.liso == null ? `— ${faltaLiso(p)}` : fmt$(d.liso)}</span></div>
+                      <div className="flex justify-between text-stone-500"><span>Liso ({p.lisoSku ? (escandalloDelSku(p.lisoSku) ? 'sin enlazar' : 'sin escandallo') : 'escandallo'})</span><span className="tabular-nums">{d.liso == null ? `— ${faltaLiso(p)}` : fmt$(d.liso)}</span></div>
                       <div className="flex justify-between text-stone-500"><span>Material DTF</span><span className="tabular-nums">{d.dtf == null ? `— ${faltaDtf(p)}` : fmt$(d.dtf)}</span></div>
                       <div className="flex justify-between text-stone-500"><span>Estampería (MO){d.min ? ` · ${fmt1(d.min)} min` : ''}{moEstimada(p) ? ' · estimado' : ''}</span><span className="tabular-nums">{moEstimada(p) ? '≈ ' : ''}{fmt$(d.mo)}</span></div>
                       <div className="flex justify-between font-semibold text-stone-700 border-t border-stone-100 pt-1 mt-1">
