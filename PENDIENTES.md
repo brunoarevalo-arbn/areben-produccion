@@ -3,7 +3,35 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-09-04_
+_Última actualización: 2026-09-07_
+
+> **En esta sesión (7-sep): LAS MEDIDAS DE LAS 13 ESTAMPAS DE STUNNED, y el FRENTE pasó a ser una
+> estampa propia.** Las 13 estaban en `anchoCm = largoCm = 0`, así que el costo DTF de esos 13
+> productos salía **$0** y el total no decía «falta»: decía un número más chico que el real.
+>
+> 🔑 **T1/T2 son las dos CURVAS del mismo diseño** (T1 = S/M, T2 = L/XL), que es lo que el escandallo
+> elige con `tamano: 1 | 2`. **La otra CARA no entra ahí**: un diseño con espalda + frente son dos
+> planchados y dos áreas de DTF ⇒ **dos filas en `estampas` y dos líneas en el `ProductoEstampado`**.
+> Se crearon 7 estampas `-F` (`EST-021-F`, `EST-022-F`, `EST-025-F`, `EST-026-F`, `EST-027-F`,
+> `EST-029-F`, `EST-030-F`) y la principal pasó a llamarse `… ESPALDA`. Script:
+> `prisma/migrate-medidas-estampas-stunned.ts` (dry-run por defecto, `--aplicar` escribe).
+>
+> 📊 **Medido, con las 149 prendas de la orden y ninguna sin medida: hacen falta 36,9 m de rollo de
+> 58 cm** (18,60 m² de estampa + 15% de merma) ≈ **$424.000**. Se mandaron **~44 paños** ≈ $506.000
+> ⇒ **sobran ~7 m**. Deja de ser una estimación a ojo: ahora el número sale de las medidas.
+>
+> 🔴 🔑 **BUZO FLECK vino MAL en el primer dictado, y lo delató una RAZÓN, no un ojo.** En los otros
+> 12 diseños el L/XL es el S/M × **1,10**; los 4 números de FLECK daban 0,83 / 0,94 / 0,90 / 0,90 —el
+> L/XL más CHICO que el S/M— y encima su espalda S/M era **carácter por carácter la de SKATE**. Se
+> frenó la carga y Bruno los rectificó: la espalda L/XL es **38,9 × 48** (lo que decía «L/XL» era en
+> realidad el S/M) y el frente tenía **las dos filas dadas vuelta**. Ahora las 4 razones dan 1,11.
+> ⇒ **el chequeo quedó en el oráculo**: si alguna estampa sale de la banda 1,05–1,25 hay que mirarla.
+>
+> ⚠️ `EST-028 BUZO STND` mide **59,4 / 66 cm de ancho** contra un rollo de **58**: entra **girado**.
+> El costo es por área, no cambia, pero el que arme el paño lo tiene que saber.
+>
+> ⚠️ Sigue abierto lo de siempre: los 13 productos van con **0 minutos** de estampería
+> (`tiempos_estampado` está vacío), así que la mano de obra de estampado sigue en cero.
 
 > **En esta sesión (4-sep), 5º tramo: SE PUEDE CAMBIAR EL NOMBRE DE UNA CORRIDA YA CREADA.** El
 > nombre se tipeaba al encenderla y quedaba clavado con el error adentro. Ahora en la lista de
