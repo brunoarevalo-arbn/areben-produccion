@@ -350,7 +350,10 @@ model ConfigCostos {
   margenFallas           Float    @default(5)
   dtfPrecioMetro         Float    @default(0) // precio fijo del DTF por metro (rollo)
   dtfAnchoCm             Float    @default(58) // ancho del rollo DTF
-  dtfMermaDefault        Float    @default(0) // % merma default de estampas
+  dtfSeparacionCm        Float    @default(0.5) // margen de corte entre estampas (lib/costos/estampaCosto.ts)
+  // % de RECHAZO default (planchas que salen mal). ⛔ NO es el desperdicio de encastre:
+  // eso lo resuelve la TIRA en lib/costos/estampaCosto.ts. Sumarlo acá lo contaría dos veces.
+  dtfMermaDefault        Float    @default(0)
   estampadoValorHora     Float    @default(0) // $/hora de MO de estampería ($/min = /60)
   sublimacionPrecioMetro Float    @default(0) // $/m lineal de sublimación de tela (precio vigente)
   ivaVenta               Float    @default(21) // % IVA de venta (para separar PVP del costo neto)
@@ -1216,9 +1219,12 @@ model Estampa {
   marca           String? // 'Zattia' | 'Stunned' (lib/marcas.ts); null = sin asignar
   imagenUrl       String? // opcional (URL; sin upload por ahora)
   precioMetroDtf  Decimal  @default(0) // (dormido) el precio ahora es global en ConfigCostos
+  // T1 y T2 son las dos CURVAS del mismo diseño (T1 = S/M, T2 = L/XL); el escandallo elige
+  // con `tamano`. ⛔ La otra CARA de la prenda NO va acá: espalda y frente son dos estampas
+  // (dos planchados, dos áreas de DTF) y llevan dos filas y dos líneas en el producto.
   anchoCm         Decimal  @default(0) // ancho del diseño (cm)
   largoCm         Decimal  @default(0) // largo del diseño (cm)
-  mermaPercent    Decimal  @default(0) // % de merma/aprovechamiento
+  mermaPercent    Decimal  @default(0) // % de RECHAZO (el encastre lo resuelve la tira)
   ancho2Cm        Decimal  @default(0) // 2º tamaño opcional (0 = no tiene)
   largo2Cm        Decimal  @default(0)
   merma2Percent   Decimal  @default(0)

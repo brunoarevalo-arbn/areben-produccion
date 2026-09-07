@@ -5,6 +5,45 @@
 
 _Última actualización: 2026-09-07_
 
+> **En esta sesión (7-sep), 2º tramo: EL COSTO DTF DEJÓ DE SER POR ÁREA Y PASÓ A SER POR TIRA.**
+> Lo levantó Bruno: *«a veces no entra por tamaño, entonces si es por área se rompe»*. Tenía razón.
+>
+> 🔑 **El rollo se paga por METRO LINEAL a un ancho FIJO ⇒ lo que se cobra no es el ÁREA del diseño,
+> es el LARGO DE ROLLO que se lleva.** Un 30×30 sobre 58 cm deja 28 cm muertos y esos 28 se pagan.
+> Ahora `lib/costos/estampaCosto.ts` calcula cuántas entran a lo ancho —probando **las dos
+> orientaciones**— y cuánto largo consume una unidad. `tiraEstampa()` devuelve `{porFila, girada,
+> largoCm}` y la pantalla lo muestra: **«2/fila girada · 20,9 cm de rollo»**.
+>
+> 📊 **Medido contra la orden de 149 prendas, que es el único caso con una compra real al lado:**
+> el área daba **36,9 m**, la tira da **41,5 m**, y se compraron **~44 m**. El área erraba 16% para
+> abajo. 🔴 **Y no erraba parejo: iba de −7% a +93% según cómo cae la pieza contra los 58 cm** ⇒
+> ninguna merma única lo tapa, subirla al promedio deja unas cortas y otras largas. Por marca: Zattia
+> **+0%** (las baby tee son chicas y llenan la fila), Stunned **+17%**, GRAPH **+71%**.
+>
+> 🔴 **`mermaPercent` cambió de significado y por eso se puso en CERO en las 39.** El desperdicio de
+> encastre ya está adentro de la tira; dejar el 15% viejo lo contaría **dos veces**. Lo que queda es
+> el **RECHAZO** (planchas que salen mal) y **nadie lo midió**, así que va 0 y está dicho acá. Las
+> fallas de PRENDA no se perdieron: ya viven aparte en `margenFallas`.
+> ▶️ **Mano de Bruno: decir qué % de planchas sale mal**, o dejarlo en 0 a sabiendas.
+>
+> 🔑 **`costoEstampa()` ahora devuelve `number | null`**, y eso es la mitad del arreglo: el área
+> **nunca decía «no entra»** —un diseño de 60×60 devolvía un costo tan campante—. `null` es
+> «sin medida» o «no entra ni girada», y **el tipo obligó a atender los 11 lugares** que hubieran
+> mostrado $0. En `/costos/estampados` una sola estampa sin número deja el DTF entero en «—» con el
+> motivo (`EST-0XX sin medida` / `no entra en el rollo`), igual que ya hacía el liso.
+>
+> 🆕 `config_costos.dtfSeparacionCm` (default **0,5 cm**): el margen de corte entre estampas. En un
+> diseño chico pesa tanto como el diseño (un 9×1 con 0,5 de margen es 50% más largo). Se edita en el
+> banner de `/estamperia`. 🔴 **Va SIEMPRE junto al ancho y al precio**: `ProductosEstampados` lo
+> tomaba sin él y calculaba distinto que `/estamperia`, sin que ninguna avisara cuál estaba bien.
+>
+> ⛔ **Lo que NO se hizo, y no por olvido: el ENCASTRE (mezclar diseños para llenar el hueco).**
+> Se probó un empaquetado greedy por filas sobre las 225 estampas reales y dio **45,3 m — PEOR que
+> la tira**. La ocupación real es 71-74% contra un piso teórico de 32,1 m, así que el ahorro existe
+> (~$128.000 en esta orden), pero **no está demostrado** y hace falta un nester de verdad.
+> 🔑 Y cuando se haga, ese ahorro **cae entre dos cortes: es DEL PAÑO, no de la prenda** —igual que la
+> merma del ribete en el tubo— ⇒ ⛔ no vuelve al escandallo, va en la pantalla de la orden de estampa.
+
 > **En esta sesión (7-sep): LAS MEDIDAS DE LAS 13 ESTAMPAS DE STUNNED, y el FRENTE pasó a ser una
 > estampa propia.** Las 13 estaban en `anchoCm = largoCm = 0`, así que el costo DTF de esos 13
 > productos salía **$0** y el total no decía «falta»: decía un número más chico que el real.

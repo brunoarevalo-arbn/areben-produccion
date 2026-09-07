@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { toast } from '@/components/ui/Toaster';
-import { costoEstampa } from '@/lib/costos/estampaCosto';
+import { costoEstampa, tiraEstampa, tiraDetalle } from '@/lib/costos/estampaCosto';
 import { ImageDrop, ThumbUpload } from '@/components/ui/ImageDrop';
 import { MARCAS } from '@/lib/marcas';
 import { PedirEstampaPanel } from './PedirEstampaPanel';
@@ -23,7 +23,7 @@ interface Estampa {
 }
 // ¿tiene 2º tamaño cargado?
 const tiene2Tam = (e: { ancho2Cm: string | number; largo2Cm: string | number }) => (Number(e.ancho2Cm) || 0) > 0 && (Number(e.largo2Cm) || 0) > 0;
-interface DtfCfg { dtfPrecioMetro: number; dtfAnchoCm: number; dtfMermaDefault: number }
+interface DtfCfg { dtfPrecioMetro: number; dtfAnchoCm: number; dtfSeparacionCm: number; dtfMermaDefault: number }
 
 const ESTADOS = [
   { value: 'pensada',  label: 'Pensada',    variant: 'warning' as const },
@@ -50,7 +50,7 @@ const fmt$ = (n: number) => `$${n.toLocaleString('es-AR', { maximumFractionDigit
 export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const [lista, setLista] = useState<Estampa[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cfg, setCfg] = useState<DtfCfg>({ dtfPrecioMetro: 0, dtfAnchoCm: 58, dtfMermaDefault: 0 });
+  const [cfg, setCfg] = useState<DtfCfg>({ dtfPrecioMetro: 0, dtfAnchoCm: 58, dtfSeparacionCm: 0.5, dtfMermaDefault: 0 });
   const [filtroEstado, setFiltroEstado] = useState('');
   const [filtroMarca, setFiltroMarca] = useState('');
   const [soloSinNombre, setSoloSinNombre] = useState(false);
@@ -82,6 +82,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const [cfgPrecio, setCfgPrecio] = useState('');
   const [cfgAncho, setCfgAncho] = useState('');
   const [cfgMerma, setCfgMerma] = useState('');
+  const [cfgSep, setCfgSep] = useState('');
 
   // Carga masiva
   const [bulk, setBulk] = useState(false);
@@ -164,6 +165,13 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
 
   const costo = (e: { anchoCm: string | number; largoCm: string | number; mermaPercent: string | number }) =>
     costoEstampa({ anchoCm: Number(e.anchoCm), largoCm: Number(e.largoCm), mermaPercent: Number(e.mermaPercent) }, cfg);
+  // Cómo cae en el rollo, para mostrarlo al lado del precio: "2/fila girada · 24,2 cm".
+  const tira = (e: { anchoCm: string | number; largoCm: string | number }) =>
+    tiraEstampa({ anchoCm: Number(e.anchoCm), largoCm: Number(e.largoCm) }, cfg);
+  // Un diseño sin medida y uno que no entra en el rollo son cosas distintas, y las dos
+  // tienen que decirse: mostrar $0 afirmaría que no cuesta nada.
+  const $tira = (c: number | null, e: { anchoCm: string | number; largoCm: string | number }) =>
+    c != null ? fmt$(c) : (Number(e.anchoCm) > 0 && Number(e.largoCm) > 0 ? 'no entra' : '—');
 
   const resetForm = () => {
     setEditId(null); setCodigoInterno(''); setNombreComercial(''); setColeccion(''); setMarca('');
@@ -216,12 +224,12 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
   const guardarCfg = async () => {
     const r = await fetch('/api/estampas/config', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ dtfPrecioMetro: parseFloat(cfgPrecio) || 0, dtfAnchoCm: parseFloat(cfgAncho) || 58, dtfMermaDefault: parseFloat(cfgMerma) || 0 }),
+      body: JSON.stringify({ dtfPrecioMetro: parseFloat(cfgPrecio) || 0, dtfAnchoCm: parseFloat(cfgAncho) || 58, dtfSeparacionCm: parseFloat(cfgSep) || 0, dtfMermaDefault: parseFloat(cfgMerma) || 0 }),
     });
     if (r.ok) { const c = await r.json(); setCfg(c); setEditCfg(false); toast.success('Precio del DTF actualizado'); }
     else toast.error('No se pudo guardar');
   };
-  const abrirCfg = () => { setCfgPrecio(String(cfg.dtfPrecioMetro || '')); setCfgAncho(String(cfg.dtfAnchoCm || 58)); setCfgMerma(String(cfg.dtfMermaDefault || '')); setEditCfg(true); };
+  const abrirCfg = () => { setCfgPrecio(String(cfg.dtfPrecioMetro || '')); setCfgAncho(String(cfg.dtfAnchoCm || 58)); setCfgSep(String(cfg.dtfSeparacionCm || '')); setCfgMerma(String(cfg.dtfMermaDefault || '')); setEditCfg(true); };
 
   // Carga masiva
   const abrirBulk = () => { setBulkRows([{ ...FILA_BULK_VACIA, id: 0 }]); seq.current = 1; setShowForm(false); setBulk(true); };
@@ -292,14 +300,15 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
       <div className="bg-violet-50 border border-violet-100 rounded-2xl px-4 py-3 text-sm">
         {!editCfg ? (
           <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-stone-700"><strong>DTF:</strong> {fmt$(cfg.dtfPrecioMetro)}/metro · rollo {cfg.dtfAnchoCm} cm · merma default {cfg.dtfMermaDefault}%</span>
+            <span className="text-stone-700"><strong>DTF:</strong> {fmt$(cfg.dtfPrecioMetro)}/metro · rollo {cfg.dtfAnchoCm} cm · separación {cfg.dtfSeparacionCm} cm · rechazo {cfg.dtfMermaDefault}%</span>
             {esAdmin && <button onClick={abrirCfg} className="text-xs px-2.5 py-1 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-100 transition ml-auto">Editar precio</button>}
           </div>
         ) : (
           <div className="flex items-end gap-3 flex-wrap">
             <div><label className="text-xs text-stone-500 block mb-1">$/metro</label><NumInput value={parseFloat(cfgPrecio) || 0} onChange={(n) => setCfgPrecio(n ? String(n) : '')} min="0" className={inpSm} /></div>
             <div><label className="text-xs text-stone-500 block mb-1">Ancho rollo (cm)</label><NumInput value={parseFloat(cfgAncho) || 0} onChange={(n) => setCfgAncho(n ? String(n) : '')} min="0" className={inpSm} /></div>
-            <div><label className="text-xs text-stone-500 block mb-1">Merma default %</label><NumInput value={parseFloat(cfgMerma) || 0} onChange={(n) => setCfgMerma(n ? String(n) : '')} min="0" className={inpSm} /></div>
+            <div><label className="text-xs text-stone-500 block mb-1" title="Margen de corte entre dos estampas. En un diseño chico pesa tanto como el diseño.">Separación (cm)</label><NumInput value={parseFloat(cfgSep) || 0} onChange={(n) => setCfgSep(n ? String(n) : '')} min="0" className={inpSm} /></div>
+            <div><label className="text-xs text-stone-500 block mb-1" title="% de RECHAZO default (planchas que salen mal). El desperdicio del rollo ya está en la tira.">Rechazo default %</label><NumInput value={parseFloat(cfgMerma) || 0} onChange={(n) => setCfgMerma(n ? String(n) : '')} min="0" className={inpSm} /></div>
             <Button size="sm" onClick={guardarCfg}>Guardar</Button>
             <Button size="sm" variant="secondary" onClick={() => setEditCfg(false)}>Cancelar</Button>
           </div>
@@ -357,7 +366,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
                       <NumInput value={parseFloat(row.ancho) || 0} onChange={(n) => setFila(row.id, { ancho: n ? String(n) : '' })} min="0" className={`${inpSm} text-center`} />
                       <NumInput value={parseFloat(row.largo) || 0} onChange={(n) => setFila(row.id, { largo: n ? String(n) : '' })} min="0" className={`${inpSm} text-center`} />
                       <input value={row.coleccion} onChange={(e) => setFila(row.id, { coleccion: e.target.value })} placeholder="(opcional)" className={inpSm} />
-                      <span className="text-sm font-semibold tabular-nums text-stone-700 text-right">{fmt$(c1)}</span>
+                      <span className="text-sm font-semibold tabular-nums text-stone-700 text-right" title={(() => { const t = tira({ anchoCm: row.ancho, largoCm: row.largo }); return t ? tiraDetalle(t) : 'sin medida o no entra en el rollo'; })()}>{$tira(c1, { anchoCm: row.ancho, largoCm: row.largo })}</span>
                       <div className="flex items-center gap-1 shrink-0">
                         {!row.tiene2 && (
                           <button type="button" title="Agregar un 2º tamaño (mismo diseño, otra medida)" onClick={() => setFila(row.id, { tiene2: true })}
@@ -373,7 +382,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
                         <span>×</span>
                         <NumInput value={parseFloat(row.largo2) || 0} onChange={(n) => setFila(row.id, { largo2: n ? String(n) : '' })} min="0" placeholder="largo" className={inpTam2} />
                         <span>cm</span>
-                        <span className="font-semibold tabular-nums text-violet-700">{fmt$(c2)}</span>
+                        <span className="font-semibold tabular-nums text-violet-700">{$tira(c2, { anchoCm: row.ancho2, largoCm: row.largo2 })}</span>
                         <button type="button" onClick={() => setFila(row.id, { tiene2: false, ancho2: '', largo2: '' })} className="text-stone-400 hover:text-red-500">Quitar</button>
                       </div>
                     )}
@@ -409,7 +418,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
             </Select>
             <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Ancho diseño (cm)</label><NumInput value={parseFloat(anchoCm) || 0} onChange={(n) => setAnchoCm(n ? String(n) : '')} min="0" className={inp} /></div>
             <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Largo diseño (cm)</label><NumInput value={parseFloat(largoCm) || 0} onChange={(n) => setLargoCm(n ? String(n) : '')} min="0" className={inp} /></div>
-            <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Merma %</label><NumInput value={parseFloat(mermaPercent) || 0} onChange={(n) => setMermaPercent(n ? String(n) : '')} min="0" className={inp} /></div>
+            <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block" title="% de RECHAZO (planchas que salen mal). El desperdicio del rollo ya está en la tira: no va acá.">Rechazo %</label><NumInput value={parseFloat(mermaPercent) || 0} onChange={(n) => setMermaPercent(n ? String(n) : '')} min="0" className={inp} /></div>
             <Input label="Producto / SKU vinculado" fullWidth value={sku} onChange={(e) => setSku(e.target.value)} placeholder="(opcional, después)" />
             <div>
               <label className="text-xs font-semibold text-stone-600 mb-1.5 block">Imagen de la estampa</label>
@@ -429,17 +438,24 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Ancho 2 (cm)</label><NumInput value={parseFloat(ancho2Cm) || 0} onChange={(n) => setAncho2Cm(n ? String(n) : '')} min="0" className={inp} /></div>
                 <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Largo 2 (cm)</label><NumInput value={parseFloat(largo2Cm) || 0} onChange={(n) => setLargo2Cm(n ? String(n) : '')} min="0" className={inp} /></div>
-                <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block">Merma 2 %</label><NumInput value={parseFloat(merma2Percent) || 0} onChange={(n) => setMerma2Percent(n ? String(n) : '')} min="0" className={inp} /></div>
+                <div><label className="text-xs font-semibold text-stone-600 mb-1.5 block" title="% de RECHAZO del 2º tamaño">Rechazo 2 %</label><NumInput value={parseFloat(merma2Percent) || 0} onChange={(n) => setMerma2Percent(n ? String(n) : '')} min="0" className={inp} /></div>
               </div>
-              <p className="text-xs text-stone-500">Costo tamaño 2: <strong className="text-violet-700">{fmt$(costo2Vivo)}</strong></p>
+              <p className="text-xs text-stone-500">Costo tamaño 2: <strong className="text-violet-700">{$tira(costo2Vivo, { anchoCm: ancho2Cm, largoCm: largo2Cm })}</strong>{(() => { const t = tira({ anchoCm: ancho2Cm, largoCm: largo2Cm }); return t ? <span className="text-stone-400"> · {tiraDetalle(t)}</span> : null; })()}</p>
             </div>
           )}
 
           <Input label="Notas" fullWidth value={notas} onChange={(e) => setNotas(e.target.value)} />
           <div className="flex items-center gap-4 bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5">
             <span className="text-xs text-stone-400">Costo por prenda:</span>
-            <span className="text-base font-bold font-mono tabular-nums text-violet-700">{fmt$(costoVivo)}</span>
-            <span className="text-xs text-stone-400">= ({parseFloat(anchoCm) || 0}×{parseFloat(largoCm) || 0}) / ({cfg.dtfAnchoCm}×100) × {fmt$(cfg.dtfPrecioMetro)} + {parseFloat(mermaPercent) || 0}% merma</span>
+            <span className="text-base font-bold font-mono tabular-nums text-violet-700">{$tira(costoVivo, { anchoCm, largoCm })}</span>
+            {(() => {
+              const t = tira({ anchoCm, largoCm });
+              // Lo que se paga es el LARGO DE ROLLO que se lleva, no el área: se muestra la
+              // cuenta entera para que se vea de dónde sale y cuántas entran por fila.
+              return t
+                ? <span className="text-xs text-stone-400">= {t.largoCm.toFixed(1)} cm de rollo ({t.porFila}/fila{t.girada ? ' girada' : ''}) / 100 × {fmt$(cfg.dtfPrecioMetro)}{(parseFloat(mermaPercent) || 0) > 0 ? ` + ${parseFloat(mermaPercent)}% de rechazo` : ''}</span>
+                : <span className="text-xs text-amber-700">{(parseFloat(anchoCm) || 0) > 0 && (parseFloat(largoCm) || 0) > 0 ? `no entra en un rollo de ${cfg.dtfAnchoCm} cm ni girada` : 'falta la medida del diseño'}</span>;
+            })()}
           </div>
           {error && <p className="text-red-500 text-xs">{error}</p>}
           <div className="flex gap-2">
@@ -471,7 +487,7 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
                   <NumInput value={parseFloat(t.largo) || 0} onChange={(n) => setTamVal(e.id, 'largo', n ? String(n) : '')} min="0" className={`${inpSm} text-center`} />
                   <NumInput value={parseFloat(t.ancho2) || 0} onChange={(n) => setTamVal(e.id, 'ancho2', n ? String(n) : '')} min="0" placeholder="—" className={`${inpSm} text-center`} />
                   <NumInput value={parseFloat(t.largo2) || 0} onChange={(n) => setTamVal(e.id, 'largo2', n ? String(n) : '')} min="0" placeholder="—" className={`${inpSm} text-center`} />
-                  <span className="text-sm font-semibold tabular-nums text-stone-700 text-right">{fmt$(c)}</span>
+                  <span className="text-sm font-semibold tabular-nums text-stone-700 text-right" title={(() => { const tt = tira({ anchoCm: t.ancho, largoCm: t.largo }); return tt ? tiraDetalle(tt) : 'sin medida o no entra en el rollo'; })()}>{$tira(c, { anchoCm: t.ancho, largoCm: t.largo })}</span>
                 </div>
               );
             })}
@@ -576,12 +592,12 @@ export function EstamperiaClient({ esAdmin }: { esAdmin: boolean }) {
                   </p>
                   <p className="text-xs text-stone-400">
                     {Number(e.anchoCm) || 0}×{Number(e.largoCm) || 0} cm{e.sku ? ` · SKU ${e.sku}` : ''}
-                    {tiene2Tam(e) && <span className="text-violet-500"> · T2 {Number(e.ancho2Cm)}×{Number(e.largo2Cm)} cm ({fmt$(costo({ anchoCm: e.ancho2Cm, largoCm: e.largo2Cm, mermaPercent: e.merma2Percent }))})</span>}
+                    {tiene2Tam(e) && <span className="text-violet-500"> · T2 {Number(e.ancho2Cm)}×{Number(e.largo2Cm)} cm ({$tira(costo({ anchoCm: e.ancho2Cm, largoCm: e.largo2Cm, mermaPercent: e.merma2Percent }), { anchoCm: e.ancho2Cm, largoCm: e.largo2Cm })})</span>}
                   </p>
                 </div>
                 {productosPorEstampa[e.id]?.length ? <ProductosChip productos={productosPorEstampa[e.id]} /> : null}
                 <Badge variant={est.variant} size="sm">{est.label}</Badge>
-                <span className="text-sm font-semibold tabular-nums text-stone-700 w-20 text-right shrink-0">{fmt$(costo(e))}</span>
+                <span className="text-sm font-semibold tabular-nums text-stone-700 w-20 text-right shrink-0" title={(() => { const t = tira(e); return t ? tiraDetalle(t) : 'sin medida o no entra en el rollo'; })()}>{$tira(costo(e), e)}</span>
                 <div className="flex gap-1.5 shrink-0">
                   <Button variant="secondary" size="sm" onClick={() => abrirEdicion(e)}>Editar</Button>
                   <button onClick={() => eliminar(e)} aria-label="Eliminar" className="text-xs px-2 py-1 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition">×</button>

@@ -38,7 +38,10 @@ export function ProductosEstampados() {
   // (esta estampa sobre este liso) se puede declarar igual.
   const [lisosSku, setLisosSku] = useState<LisoStock[]>([]);
   const [estampas, setEstampas] = useState<EstampaOpt[]>([]);
-  const [cfgDTF, setCfgDTF] = useState({ dtfPrecioMetro: 0, dtfAnchoCm: 58 });
+  // 🔴 La separación va SIEMPRE junto al ancho y al precio: si esta pantalla la dejara
+  // afuera, calcularía la misma estampa distinto que /estamperia y ninguna de las dos
+  // avisaría cuál está bien.
+  const [cfgDTF, setCfgDTF] = useState({ dtfPrecioMetro: 0, dtfAnchoCm: 58, dtfSeparacionCm: 0.5 });
   const [costoMinuto, setCostoMinuto] = useState(0);        // tarifa costura, para el liso
   const [costoMinutoEst, setCostoMinutoEst] = useState(0);  // tarifa estampería, para la MO de estampa
   const [minGlobal, setMinGlobal] = useState(0);            // promedio global min/estampa del sistema
@@ -96,7 +99,7 @@ export function ProductosEstampados() {
     fetch('/api/costos/escandallos').then((r) => r.ok ? r.json() : []).then((e) => { if (Array.isArray(e)) setEscandallos(e); }).catch(() => {});
     fetch('/api/reposicion/lisos').then((r) => r.ok ? r.json() : []).then((l) => { if (Array.isArray(l)) setLisosSku(l); }).catch(() => {});
     fetch('/api/estampas').then((r) => r.ok ? r.json() : []).then((e) => { if (Array.isArray(e)) setEstampas(e); }).catch(() => {});
-    fetch('/api/estampas/config').then((r) => r.ok ? r.json() : null).then((c) => { if (c) setCfgDTF({ dtfPrecioMetro: c.dtfPrecioMetro, dtfAnchoCm: c.dtfAnchoCm }); }).catch(() => {});
+    fetch('/api/estampas/config').then((r) => r.ok ? r.json() : null).then((c) => { if (c) setCfgDTF({ dtfPrecioMetro: c.dtfPrecioMetro, dtfAnchoCm: c.dtfAnchoCm, dtfSeparacionCm: c.dtfSeparacionCm ?? 0 }); }).catch(() => {});
     fetch('/api/costos/config').then((r) => r.ok ? r.json() : null).then((c) => {
       if (!c) return;
       if (typeof c.margenDesarrollo === 'number') setMargenes({ margenDesarrollo: c.margenDesarrollo, margenFallas: c.margenFallas });
@@ -126,9 +129,11 @@ export function ProductosEstampados() {
     if (!e) return null;
     return calcular(parseDatos(e.datos), costoMinuto, margenes).costoTotal;
   };
-  const costoDTF = (estampaId: string, tamano = 1): number => {
+  // `null` cuando la estampa no tiene medida o no entra en el rollo ni girada. NO es 0:
+  // un 0 acá se suma calladito y presenta un costo incompleto como si fuera el costo.
+  const costoDTF = (estampaId: string, tamano = 1): number | null => {
     const e = estampas.find((x) => x.id === estampaId);
-    if (!e) return 0;
+    if (!e) return null;
     if (tamano === 2 && tiene2(e)) return costoEstampa({ anchoCm: Number(e.ancho2Cm), largoCm: Number(e.largo2Cm), mermaPercent: Number(e.merma2Percent) }, cfgDTF);
     return costoEstampa({ anchoCm: Number(e.anchoCm), largoCm: Number(e.largoCm), mermaPercent: Number(e.mermaPercent) }, cfgDTF);
   };
@@ -140,12 +145,22 @@ export function ProductosEstampados() {
   // Sin costo de liso NO hay costo derivado: no se suma 0 para presentar un número
   // incompleto como si fuera el costo. Ahí entra el costo cargado a mano, si lo hay —
   // y la pantalla dice cuál de los dos está mostrando.
-  const desglose = (p: Producto): { liso: number | null; dtf: number; mo: number; min: number; costo: CostoFinal } => {
+  // Suma el DTF de varias líneas. Una sola sin número deja el total en `null`: el resto
+  // no es "el material", es una PARTE, y mostrarla sola miente para abajo.
+  const sumaDtf = (ls: { estampaId: string; tamano?: number }[]): number | null =>
+    ls.reduce<number | null>((s, l) => {
+      if (s == null) return null;
+      const c = l.estampaId ? costoDTF(l.estampaId, l.tamano ?? 1) : null;
+      return c == null ? null : s + c;
+    }, 0);
+
+  const desglose = (p: Producto): { liso: number | null; dtf: number | null; mo: number; min: number; costo: CostoFinal } => {
     const liso = lisoTotal(p.lisoEscandalloId);
-    const dtf = p.estampas.reduce((s, l) => s + costoDTF(l.estampaId, l.tamano ?? 1), 0);
+    const dtf = sumaDtf(p.estampas);
     const mo = p.estampas.reduce((s, l) => s + moGuardado(l), 0);
     const min = p.estampas.reduce((s, l) => s + (Number(l.minutosEstampado) || 0), 0);
-    return { liso, dtf, mo, min, costo: resolverCostoFinal({ derivado: liso == null ? null : liso + dtf + mo, ...p }) };
+    const derivado = liso == null || dtf == null ? null : liso + dtf + mo;
+    return { liso, dtf, mo, min, costo: resolverCostoFinal({ derivado, ...p }) };
   };
   // Por qué a este producto le falta el costo del liso. Son dos causas distintas y la
   // pantalla las tiene que separar: una se arregla haciendo el escandallo, la otra es
@@ -155,6 +170,22 @@ export function ProductosEstampados() {
     if (p.lisoSku) return 'falta el escandallo';
     return p.lisoEscandalloId ? 'escandallo no encontrado' : 'sin liso';
   };
+  // Por qué a este producto le falta el DTF, que es otra causa distinta a la del liso:
+  // o la estampa no tiene medida cargada, o no entra en el rollo ni girada.
+  const faltaDtf = (p: Producto): string | null => {
+    for (const l of p.estampas) {
+      if (costoDTF(l.estampaId, l.tamano ?? 1) != null) continue;
+      const e = estampas.find((x) => x.id === l.estampaId);
+      if (!e) return 'estampa borrada';
+      const usaT2 = (l.tamano ?? 1) === 2 && tiene2(e);
+      const a = Number(usaT2 ? e.ancho2Cm : e.anchoCm), la = Number(usaT2 ? e.largo2Cm : e.largoCm);
+      if (!a || !la) return `${e.codigoInterno} sin medida`;
+      return `${e.codigoInterno} no entra en el rollo`;
+    }
+    return null;
+  };
+  // El motivo que se muestra: primero el que se arregla antes.
+  const faltaAlgo = (p: Producto): string | null => faltaLiso(p) ?? faltaDtf(p);
   const lisoNombre = (p: Producto): string =>
     escandallos.find((e) => e.id === p.lisoEscandalloId)?.nombre ?? p.lisoSku ?? '— liso —';
 
@@ -222,8 +253,9 @@ export function ProductosEstampados() {
     }));
   const bulkRowTotal = (r: BulkRow): number | null => {
     const liso = lisoTotal(parseLisoValue(r.liso).lisoEscandalloId);
-    const est = r.estampas.reduce((s, l) => s + (l.estampaId ? costoDTF(l.estampaId, l.tamano) + moLinea(l) : 0), 0);
-    return liso == null ? null : liso + est;
+    const dtf = sumaDtf(r.estampas.filter((l) => l.estampaId));
+    const mo = r.estampas.reduce((s, l) => s + (l.estampaId ? moLinea(l) : 0), 0);
+    return liso == null || dtf == null ? null : liso + dtf + mo;
   };
   const guardarBulk = async () => {
     const productos = bulkRows
@@ -266,8 +298,9 @@ export function ProductosEstampados() {
   const tiemposRowTotal = (p: Producto): number | null => {
     const liso = lisoTotal(p.lisoEscandalloId);
     const arr = tiempos[p.id] ?? [];
-    const est = p.estampas.reduce((s, l, i) => s + costoDTF(l.estampaId, l.tamano ?? 1) + (parseFloat(arr[i]) || 0) * costoMinutoEst, 0);
-    return liso == null ? null : liso + est;
+    const dtf = sumaDtf(p.estampas);
+    const mo = p.estampas.reduce((s, l, i) => s + (parseFloat(arr[i]) || 0) * costoMinutoEst, 0);
+    return liso == null || dtf == null ? null : liso + dtf + mo;
   };
   // Totales del pie de la grilla de tiempos (en vivo).
   const totMinutos = Object.values(tiempos).flat().reduce((s, x) => s + (parseFloat(x) || 0), 0);
@@ -284,7 +317,7 @@ export function ProductosEstampados() {
     // lleva la mentira a donde nadie puede ver la advertencia de la pantalla.
     const filas = [['Nombre', 'Marca', 'Costo final', 'Fuente'], ...elegidos.map((p) => {
       const c = desglose(p).costo;
-      if (c.total == null) return [p.nombre, p.marca ?? '', faltaLiso(p) ?? 'sin costo', ''];
+      if (c.total == null) return [p.nombre, p.marca ?? '', faltaAlgo(p) ?? 'sin costo', ''];
       return [p.nombre, p.marca ?? '', String(Math.round(c.total)), c.fuente === 'manual' ? etiquetaCostoManual(c) : 'escandallo (vivo)'];
     })];
     const csv = '﻿' + filas.map((f) => f.map((c) => csvCell(c)).join(',')).join('\n');
@@ -312,9 +345,10 @@ export function ProductosEstampados() {
   // Total en vivo del editor
   const lisoRefVivo = parseLisoValue(lisoId);
   const lisoVivo = lisoTotal(lisoRefVivo.lisoEscandalloId);
-  const estVivo = lineas.reduce((s, l) => s + (l.estampaId ? costoDTF(l.estampaId, l.tamano) + moLinea(l) : 0), 0);
+  const dtfVivo = sumaDtf(lineas.filter((l) => l.estampaId));
+  const moVivo = lineas.reduce((s, l) => s + (l.estampaId ? moLinea(l) : 0), 0);
   const costoVivo = resolverCostoFinal({
-    derivado: lisoVivo == null ? null : lisoVivo + estVivo,
+    derivado: lisoVivo == null || dtfVivo == null ? null : lisoVivo + dtfVivo + moVivo,
     costoFinalManual: costoManual.trim() || null,
     costoFinalFecha: costoFecha || null,
     costoFinalFuente: costoFuente.trim() || null,
@@ -518,7 +552,7 @@ export function ProductosEstampados() {
             {lineas.map((l) => {
               const est = estampas.find((x) => x.id === l.estampaId);
               const con2 = tiene2(est);
-              const dtf = l.estampaId ? costoDTF(l.estampaId, l.tamano) : 0;
+              const dtf = l.estampaId ? costoDTF(l.estampaId, l.tamano) : null;
               const mo = l.estampaId ? moLinea(l) : 0;
               return (
                 <div key={l.id} className="grid grid-cols-[1fr_auto] gap-2 items-center">
@@ -544,7 +578,7 @@ export function ProductosEstampados() {
                           className="text-xs px-1.5 py-1 border border-stone-200 rounded-lg text-stone-500 hover:border-amber-400 hover:text-amber-600 transition">↓</button>
                       )}
                     </div>
-                    <span className="text-xs text-stone-400 whitespace-nowrap w-32 text-right">{l.estampaId ? `DTF ${fmt$(dtf)} · MO ${fmt$(mo)}` : ''}</span>
+                    <span className="text-xs text-stone-400 whitespace-nowrap w-32 text-right">{l.estampaId ? `DTF ${dtf == null ? 'no entra' : fmt$(dtf)} · MO ${fmt$(mo)}` : ''}</span>
                     <button type="button" onClick={() => setLineas((p) => p.length > 1 ? p.filter((x) => x.id !== l.id) : p)} className="text-stone-300 hover:text-red-400 text-xl leading-none">×</button>
                   </div>
                 </div>
@@ -556,12 +590,12 @@ export function ProductosEstampados() {
           <div className="flex items-center gap-4 bg-stone-50 border border-stone-200 rounded-xl px-4 py-2.5">
             <span className="text-xs text-stone-400">Total producto final:</span>
             {costoVivo.total == null
-              ? <span className="text-sm font-semibold text-amber-700">sin costo: falta el escandallo del liso o un costo cargado a mano</span>
+              ? <span className="text-sm font-semibold text-amber-700">sin costo: {dtfVivo == null ? 'una estampa no tiene medida o no entra en el rollo' : 'falta el escandallo del liso o un costo cargado a mano'}</span>
               : <span className={`text-lg font-bold font-mono tabular-nums ${costoVivo.fuente === 'manual' ? 'text-stone-700' : 'text-emerald-700'}`}>{fmt$(costoVivo.total)}</span>}
             <span className="text-xs text-stone-400">
-              {costoVivo.fuente === 'escandallo' ? `= liso ${fmt$(lisoVivo!)} + estampas ${fmt$(estVivo)}`
+              {costoVivo.fuente === 'escandallo' ? `= liso ${fmt$(lisoVivo!)} + estampas ${fmt$(dtfVivo! + moVivo)}`
                 : costoVivo.fuente === 'manual' ? etiquetaCostoManual(costoVivo)
-                : `estampas ${fmt$(estVivo)}`}
+                : dtfVivo == null ? '' : `estampas ${fmt$(dtfVivo + moVivo)}`}
             </span>
           </div>
 
@@ -603,7 +637,7 @@ export function ProductosEstampados() {
                     </div>
                     {sinTiempo(p) && <span className="text-[11px] px-1.5 py-0.5 rounded-md border border-amber-200 bg-amber-50 text-amber-700 shrink-0" title="Falta el tiempo de estampería: el costo está incompleto">⚠ sin tiempo</span>}
                     {d.costo.total == null
-                      ? <span className="text-[11px] font-semibold text-amber-700 w-28 text-right leading-tight" title="Sin el escandallo del liso no hay costo final: se muestra lo que falta, no un total incompleto">{faltaLiso(p)}</span>
+                      ? <span className="text-[11px] font-semibold text-amber-700 w-28 text-right leading-tight" title="Sin el escandallo del liso, o sin la medida de la estampa, no hay costo final: se muestra lo que falta, no un total incompleto">{faltaAlgo(p)}</span>
                       : (
                         <span className="w-28 text-right leading-tight">
                           <span className={`text-sm font-bold tabular-nums block ${d.costo.fuente === 'manual' ? 'text-stone-700' : 'text-emerald-700'}`}>{fmt$(d.costo.total)}</span>
@@ -618,12 +652,12 @@ export function ProductosEstampados() {
                   {abierto && (
                     <div className="ml-7 mt-2 max-w-xs space-y-0.5 text-xs">
                       <div className="flex justify-between text-stone-500"><span>Liso ({p.lisoSku ? 'sin escandallo' : 'escandallo'})</span><span className="tabular-nums">{d.liso == null ? `— ${faltaLiso(p)}` : fmt$(d.liso)}</span></div>
-                      <div className="flex justify-between text-stone-500"><span>Material DTF</span><span className="tabular-nums">{fmt$(d.dtf)}</span></div>
+                      <div className="flex justify-between text-stone-500"><span>Material DTF</span><span className="tabular-nums">{d.dtf == null ? `— ${faltaDtf(p)}` : fmt$(d.dtf)}</span></div>
                       <div className="flex justify-between text-stone-500"><span>Estampería (MO){d.min ? ` · ${fmt1(d.min)} min` : ''}</span><span className="tabular-nums">{fmt$(d.mo)}</span></div>
                       <div className="flex justify-between font-semibold text-stone-700 border-t border-stone-100 pt-1 mt-1">
                         <span>Total</span>
                         {d.costo.total == null
-                          ? <span className="text-amber-700">sin costo · {faltaLiso(p)}</span>
+                          ? <span className="text-amber-700">sin costo · {faltaAlgo(p)}</span>
                           : <span className="tabular-nums text-emerald-700">{fmt$(d.costo.total)}</span>}
                       </div>
                       <p className="text-[10px] text-stone-400 pt-0.5">
