@@ -5,6 +5,23 @@
 
 _Última actualización: 2026-09-07_
 
+> **En esta sesión (7-sep), 3er tramo: EL PRECIO DEL DTF ESTABA MAL CARGADO — $11.500 contra
+> $9.500 reales.** Lo corrigió Bruno junto con el metraje: pidió **43 m**, no ~44.
+> `config_costos.dtfPrecioMetro` pasó a **9.500** ⇒ **todo el DTF baja 17%**.
+>
+> 🔑 **Y ese −17% casi cancela el +17% que había traído la tira en Stunned**: el costo por prenda
+> queda parecido al de antes de los dos cambios, pero ahora **cada mitad es correcta** — antes se
+> compensaban dos errores, un precio 21% alto contra un consumo 14% bajo. ⚠️ Es el caso clásico de
+> [dos errores que se tapan](../../memory/feedback_areben_numero_que_parece_confirmar_otro.md):
+> el total parecía sano y ninguna de las dos mitades lo estaba.
+>
+> 📊 **Con el precio bueno, la tira le erra 4% a lo que Bruno compró de verdad**: 41,5 m ($394.011)
+> contra 43 m ($408.500), 1,5 m de sobra ($14.489). Es la validación más fuerte que tiene el modelo.
+>
+> ⚠️ `dtfPrecioMetro` es **un solo precio vigente, sin historial**: cambiarlo reescribe el costo de
+> los 32 productos con estampa, también los ya producidos. Hoy es así en todo el módulo; si alguna
+> vez hace falta costear a precio de la fecha, ahí entra `Estampa.precioMetroDtf`, que está dormido.
+
 > **En esta sesión (7-sep), 2º tramo: EL COSTO DTF DEJÓ DE SER POR ÁREA Y PASÓ A SER POR TIRA.**
 > Lo levantó Bruno: *«a veces no entra por tamaño, entonces si es por área se rompe»*. Tenía razón.
 >
@@ -15,8 +32,8 @@ _Última actualización: 2026-09-07_
 > largoCm}` y la pantalla lo muestra: **«2/fila girada · 20,9 cm de rollo»**.
 >
 > 📊 **Medido contra la orden de 149 prendas, que es el único caso con una compra real al lado:**
-> el área daba **36,9 m**, la tira da **41,5 m**, y se compraron **~44 m**. El área erraba 16% para
-> abajo. 🔴 **Y no erraba parejo: iba de −7% a +93% según cómo cae la pieza contra los 58 cm** ⇒
+> el área daba **36,9 m**, la tira da **41,5 m**, y Bruno pidió **43 m**. La tira le erra **4%**; el
+> área erraba **14% para abajo**. 🔴 **Y no erraba parejo: iba de −7% a +93% según cómo cae la pieza contra los 58 cm** ⇒
 > ninguna merma única lo tapa, subirla al promedio deja unas cortas y otras largas. Por marca: Zattia
 > **+0%** (las baby tee son chicas y llenan la fila), Stunned **+17%**, GRAPH **+71%**.
 >
@@ -40,7 +57,7 @@ _Última actualización: 2026-09-07_
 > ⛔ **Lo que NO se hizo, y no por olvido: el ENCASTRE (mezclar diseños para llenar el hueco).**
 > Se probó un empaquetado greedy por filas sobre las 225 estampas reales y dio **45,3 m — PEOR que
 > la tira**. La ocupación real es 71-74% contra un piso teórico de 32,1 m, así que el ahorro existe
-> (~$128.000 en esta orden), pero **no está demostrado** y hace falta un nester de verdad.
+> (**9,4 m ≈ $89.000** en esta orden), pero **no está demostrado** y hace falta un nester de verdad.
 > 🔑 Y cuando se haga, ese ahorro **cae entre dos cortes: es DEL PAÑO, no de la prenda** —igual que la
 > merma del ribete en el tubo— ⇒ ⛔ no vuelve al escandallo, va en la pantalla de la orden de estampa.
 
@@ -55,9 +72,10 @@ _Última actualización: 2026-09-07_
 > `EST-029-F`, `EST-030-F`) y la principal pasó a llamarse `… ESPALDA`. Script:
 > `prisma/migrate-medidas-estampas-stunned.ts` (dry-run por defecto, `--aplicar` escribe).
 >
-> 📊 **Medido, con las 149 prendas de la orden y ninguna sin medida: hacen falta 36,9 m de rollo de
-> 58 cm** (18,60 m² de estampa + 15% de merma) ≈ **$424.000**. Se mandaron **~44 paños** ≈ $506.000
-> ⇒ **sobran ~7 m**. Deja de ser una estimación a ojo: ahora el número sale de las medidas.
+> 📊 **Medido, con las 149 prendas de la orden y ninguna sin medida.** Deja de ser una estimación a
+> ojo: el número sale de las medidas. ⚠️ La cuenta por ÁREA de este tramo quedó vieja en el 2º tramo
+> (área → tira) y el precio se corrigió después: **el número bueno es 41,5 m ≈ $394.000** contra los
+> **43 m ≈ $408.500** que se pidieron.
 >
 > 🔴 🔑 **BUZO FLECK vino MAL en el primer dictado, y lo delató una RAZÓN, no un ojo.** En los otros
 > 12 diseños el L/XL es el S/M × **1,10**; los 4 números de FLECK daban 0,83 / 0,94 / 0,90 / 0,90 —el
