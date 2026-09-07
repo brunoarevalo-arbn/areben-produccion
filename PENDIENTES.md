@@ -37,9 +37,12 @@ _Última actualización: 2026-09-07_
 > el precio vigente **sin moverse** (la compra de prueba iba con fecha vieja), DELETE devolviendo
 > `gastoBorrado: true`, **cero gastos huérfanos**, y la base igual que antes (1 compra, 148 gastos).
 >
-> ▶️ **La compra del 20-ago quedó SIN gasto a propósito**: son $408.500 reales entrando a cuentas por
-> pagar y ⛔ no sé si están pagados. **Mano de Bruno: tildar «a cuentas por pagar» y elegir el
-> estado**, o cargarla de nuevo con el tilde.
+> 🏁 **La compra del 20-ago YA ESTÁ en cuentas por pagar y PAGADA** (Bruno lo confirmó el 7-sep):
+> gasto de **$408.500**, `produccion/insumos`, `montoPagado` = el total, vinculado a la orden de
+> lanzamiento. Se recargó **por la API** (borrar + crear con el tilde) en vez de parchear la fila:
+> así el Gasto lo arma el mismo código que lo va a armar siempre.
+> ⚠️ `fechaPago` quedó en **null**: está pagado pero ⛔ no se dijo cuándo. Se completa editando el
+> gasto — un `PAGADA` sin fecha no miente, pero no sirve para un corte por período.
 
 > **En esta sesión (7-sep), 4º tramo: EL PRECIO DEL DTF DEJÓ DE TIPEARSE — SALE DE LA COMPRA, Y LA
 > ORDEN LO CONGELA.**
