@@ -16,10 +16,7 @@
 // ⚠️ Tope de la API: 60 llamadas por minuto. Va con pausa y con reintento ante 429.
 //
 //   npx tsx prisma/gn-precios-stunned.ts                      → dry-run: lee y compara
-//   npx tsx prisma/gn-precios-stunned.ts --aplicar-proveedor  → escribe SOLO el proveedor
-//   npx tsx prisma/gn-precios-stunned.ts --aplicar-precio     → escribe SOLO el precio
-//   npx tsx prisma/gn-precios-stunned.ts --aplicar-costo        → escribe SOLO el costo
-//   npx tsx prisma/gn-precios-stunned.ts --aplicar-proveedor --aplicar-precio
+//   npx tsx prisma/gn-precios-stunned.ts --aplicar-precio  → escribe el precio de lista
 //
 // ⚠️ Escribir acá ⛔ NO baja nada a Tienda Nube: el sync GN→TN es la pantalla de
 // INTEGRACIONES de Gestión Nube y se aplica FILA POR FILA, a mano.
@@ -34,12 +31,25 @@ import { calcularCostoMinuto } from '../lib/costoMinuto';
 const BASE = 'https://www.gestionnube.com/api/v1';
 const PROVEEDOR = 'STUNNED';
 const PAUSA = 1200; // ms entre llamadas (tope 60/min)
-const APLICAR_PROV = process.argv.includes('--aplicar-proveedor');
 const APLICAR_PRECIO = process.argv.includes('--aplicar-precio');
-// `unit_cost` en GN se carga A MANO y su API ⛔ NO lo devuelve en `/productos/obtener`
-// (por eso el catálogo de bdi-catalogo lo muestra en 0 para todos: es su default
-// defensivo, no un 0 real). El costo sale del sistema, ⛔ no se tipea.
-const APLICAR_COSTO = process.argv.includes('--aplicar-costo');
+
+// 🔴 MEDIDO, ⛔ NO SUPUESTO: `PATCH /productos/{id}` acepta EXACTAMENTE TRES CAMPOS y lo
+// dice él mismo con un 422 —
+//   «Debe proporcionar al menos un campo para actualizar
+//    (retailer_price, wholesaler_price, tiendanube_promotional_price)»
+// ⇒ `unit_cost` y `provider` ⛔ NO SE PUEDEN ESCRIBIR POR API, se cargan a mano en GN.
+// Eso cierra el «nunca se probó que GN acepte esos dos campos» del PENDIENTES del monitor:
+// `retailer_price` SÍ (13 de 13, verificado releyendo), `unit_cost` NO.
+// ⚠️ Y `unit_cost` tampoco VUELVE en `/productos/obtener`: por eso el catálogo de
+// bdi-catalogo lo muestra en 0 para todos. Es su default defensivo, ⛔ no un 0 real.
+const CAMPOS_QUE_ACEPTA = ['retailer_price', 'wholesaler_price', 'tiendanube_promotional_price'];
+if (process.argv.includes('--aplicar-costo') || process.argv.includes('--aplicar-proveedor')) {
+  console.error(`⛔ Ese campo no se puede escribir por API. GN sólo acepta: ${CAMPOS_QUE_ACEPTA.join(', ')}.`);
+  console.error('   El costo (unit_cost) y el proveedor se cargan a mano en la pantalla de Gestión Nube.');
+  process.exit(1);
+}
+const APLICAR_PROV = false;
+const APLICAR_COSTO = false;
 
 // id · nombre esperado · precio definitivo (Bruno, 7-sep-2026). El nombre es el SEGURO:
 // si no coincide, ese producto se saltea.
