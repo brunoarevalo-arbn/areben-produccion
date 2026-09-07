@@ -50,6 +50,20 @@ _Última actualización: 2026-09-07_
 > antes de tocar, y **relee lo que devolvió el PATCH** después. 📊 **Verificado por otro camino**:
 > releyendo GN, los 13 con su precio y el proveedor intacto.
 >
+> 🔴 🔑 **ESCRIBIR EN GN ⛔ NO BAJA A TIENDA NUBE.** Ya estaba en el `PENDIENTES.md` del monitor:
+> *«lo arregla el sync GN→TN de **Integraciones**, que se aplica **fila por fila y a mano**»*. El
+> precio quedó bien en GN y la vidriera siguió en $1 ⇒ ▶️ **falta aplicar el sync en Integraciones**.
+> El script lo dice al terminar, para que nadie lea «13 escritos y verificados» y crea que la
+> vidriera cambió.
+>
+> 🔴 🔑 **Y el PATCH de GN acepta EXACTAMENTE TRES CAMPOS — lo dice él con un 422**:
+> `retailer_price`, `wholesaler_price`, `tiendanube_promotional_price`. ⇒ **`unit_cost` y `provider`
+> ⛔ NO se pueden escribir por API**, se cargan a mano (por eso el proveedor de los 12 hubo que
+> ponerlo a mano). Con eso queda cerrado el *«nunca se probó que GN acepte esos dos campos»* del
+> monitor, **medido en las dos direcciones**. ⚠️ `unit_cost` **tampoco vuelve** en
+> `/productos/obtener` ⇒ el 0 que muestra el catálogo de bdi-catalogo para **todos** los productos
+> es su default defensivo, ⛔ no un dato.
+>
 > 🔴 ▶️ **Lo que quedó abierto y es urgente: los 13 estaban en $1,00 y `activo = 1`.** El precio ya
 > está puesto, pero **falta saber si estaban publicados en Tienda Nube** mientras tanto.
 > ▶️ **CIRCLE BROWN tiene 0 de stock en GN**: las otras 12 ya suman 137 en Local, que son las 149 de
