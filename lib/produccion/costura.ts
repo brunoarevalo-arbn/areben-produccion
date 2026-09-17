@@ -66,15 +66,35 @@ export async function terminarCosturaOrden(
       }
     }
 
+    // 🔴 Antes esto descontaba con `Math.max(0, stock - consumido)`: si el avío no
+    // alcanzaba, el stock quedaba en 0, el faltante se perdía y NADA lo decía. La tela sí
+    // se planta cuando los kg no alcanzan (`registrarCorteOrden`); los avíos no lo hacían.
+    // Ahora se juntan TODOS los faltantes y se nombra cada uno: plantarse en el primero
+    // obligaría a descubrirlos de a uno.
+    const aDescontar: { etiquetaId: string; nombre: string; consumido: number; stock: number }[] = [];
+    const faltantes: string[] = [];
     for (const a of receta) {
       const et = await tx.etiquetaCatalogo.findUnique({ where: { id: a.etiquetaId } });
       if (!et || et.stock == null) continue; // sin seguimiento / ilimitado
       const consumido = a.cantidad * totalProducido;
-      const nuevo = Math.max(0, et.stock - consumido);
-      await tx.etiquetaCatalogo.update({ where: { id: a.etiquetaId }, data: { stock: nuevo } });
+      if (consumido > et.stock) {
+        faltantes.push(`${et.nombre}: hacen falta ${consumido} y hay ${et.stock} (faltan ${consumido - et.stock})`);
+        continue;
+      }
+      aDescontar.push({ etiquetaId: a.etiquetaId, nombre: et.nombre, consumido, stock: et.stock });
+    }
+    if (faltantes.length > 0) {
+      throw new CosturaError(
+        `No alcanza el stock de avíos para ingresar ${totalProducido} u de ${sku} — ${faltantes.join(' · ')}. ` +
+        'Ajustá el stock del avío o cargá la compra antes de ingresar.',
+      );
+    }
+
+    for (const a of aDescontar) {
+      await tx.etiquetaCatalogo.update({ where: { id: a.etiquetaId }, data: { stock: a.stock - a.consumido } });
       await tx.avioMovimiento.create({
         data: {
-          etiquetaId: a.etiquetaId, tipo: 'EGRESO', cantidad: -consumido, ordenId,
+          etiquetaId: a.etiquetaId, tipo: 'EGRESO', cantidad: -a.consumido, ordenId,
           motivo: `Consumo producción${sku ? ` ${sku}` : ''}`, creadoPor: session.nombre,
         },
       });
@@ -85,7 +105,11 @@ export async function terminarCosturaOrden(
   await tx.ordenProduccion.update({
     where: { id: ordenId },
     data: {
-      estado: 'TERMINADO_SIN_ESTAMPA', terminadoAt: new Date(), cantidad: totalProducido,
+      // `cantidad` NO se toca: es lo planificado. Lo producido se deriva de los
+      // MovimientoTerminado de la orden (`cantidadIngresada` en lib/produccion/cantidades.ts).
+      estado: 'TERMINADO_SIN_ESTAMPA', terminadoAt: new Date(),
+      // El aviso de la tablet ya cumplió: el taller contó e ingresó.
+      avisoCosturaAt: null, avisoCosturaPor: null,
       ...(descontado ? { aviosDescontados: true } : {}),
     },
   });

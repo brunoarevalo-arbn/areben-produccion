@@ -546,11 +546,24 @@ model OrdenProduccion {
   sku         String?   @unique
   descripcion String?
   marca       String    @default("Zattia")
-  cantidad    Int       @default(1)
+  // `cantidad` es lo PLANIFICADO y nadie más la pisa. Lo realmente cortado vive en
+  // `cantidadCortada` (la escriben las tres cargas de corte: el cortador, el taller y la
+  // ficha de tela) y lo ingresado se DERIVA de los MovimientoTerminado de la orden.
+  // Antes las tres nociones compartían este campo y el costo unitario cambiaba de
+  // denominador solo: entrar 20 de 100 dividía la tela de las 100 por 20.
+  cantidad       Int    @default(1)
+  cantidadCortada Int?
   estado      EstadoOP  @default(PENDIENTE)
   notas       String?
   creadoPor   String    @default("admin")
   terminadoAt DateTime?
+  // La costurera avisa desde la tablet que terminó de coser. Es SÓLO un aviso: no
+  // mueve el estado ni ingresa stock (antes el botón avanzaba la OP a
+  // TERMINADO_SIN_ESTAMPA sin contar nada y sin descontar avíos ⇒ esa producción
+  // desaparecía). Saca la OP de la cola de la tablet y la marca para que el taller
+  // la cuente por talle.
+  avisoCosturaAt  DateTime?
+  avisoCosturaPor String?
 
   fichaCorteCargada Boolean   @default(false)
   fichaFotoUrl      String?

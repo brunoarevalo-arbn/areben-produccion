@@ -3,7 +3,82 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-09-07_
+_Última actualización: 2026-09-17_
+
+> **En esta sesión (17-sep): EL DENOMINADOR DEL COSTO, y los dos descuadres que estaban vivos.**
+> Arranca el trabajo de producir **por LOTE** para la temporada de bikinis (~20 artículos que van a
+> entrar de a partes). El vocabulario quedó: **artículo → corte → lote**. `OrdenProduccion` ya **es**
+> el corte (admite una sola ficha); lo que se llama `LoteProduccion` ⛔ no es un lote, es **la tizada
+> compartida** (varias OP del mismo molde, distinto color, cortadas en la misma mesa).
+>
+> 🔴 🔑 **`cantidad` era UN campo con TRES significados, y se pisaba solo.** Nacía planificado, lo
+> pisaban las **tres** cargas de corte —el cortador (`api/cortador/carga`), el taller
+> (`carga-tizada`) y la ficha de tela (`registrarCorteOrden`)— con lo **cortado**, y al terminar
+> costura lo pisaba lo **producido**. Como el costo unitario es `costoTotal / cantidad`, **entrar 20
+> de un corte de 100 dejaba la tela de las 100 dividida por 20**: ésa era la "progresión a ojo" que
+> había que hacer a mano. 🏁 Ahora `cantidad` es **sólo lo planificado**, lo cortado vive en
+> **`cantidadCortada`** (columna nueva) y lo ingresado **se DERIVA** de los `MovimientoTerminado` de
+> la orden — no se guarda, para que no pueda desincronizarse de los movimientos que lo producen.
+> Helper único: **`lib/produccion/cantidades.ts`**.
+>
+> 📊 **Medido antes de tocar: la corrección ⛔ no mueve ningún costo hacia atrás.** De 67 OP, 25 sin
+> corte cargado, **41 con `cantidad` ya IGUAL a lo cortado** y **1 sola que difiere**
+> (`ZAT-BUZ-CH-001`: cortó 20, ingresó 14 — y su `costoTotal` es $0). Verificado por otro camino
+> sobre las **40 OP con ficha de tela**: **0 costos unitarios movidos**. Y sobre los **2 cortes
+> pendientes de validar**: **0 montos del cortador cambiados**. `prisma/migrate-cantidad-cortada.ts`
+> (dry-run por defecto), 42 escritas y **releído: 0 OP con corte y `cantidadCortada` en NULL**.
+>
+> 🔴 **Descuadre vivo #1, arreglado: el botón de la tablet hacía DESAPARECER producción.**
+> `PATCH /api/tiempos/cola/[id]` avanzaba la OP de `COSTURA` a `TERMINADO_SIN_ESTAMPA` **sin contar
+> por talle, sin ingresar a `stock_terminado` y sin descontar avíos** — y encima la dejaba en un
+> estado desde el que `terminarCosturaOrden` ya ⛔ no la acepta (exige `COSTURA`), así que el taller
+> **no podía ingresarla ni dándose cuenta**. 🏁 Ahora es un **aviso** (`avisoCosturaAt` /
+> `avisoCosturaPor`): saca la OP de la cola de la tablet, ⛔ no toca estado ni stock, y la cola de
+> producción muestra **«Marisol avisó: falta contar»**. Se puede deshacer (`DELETE`).
+> 🔑 **No alcanzaba con borrar el botón**: le sacaba a la costurera la forma de sacarse la orden de
+> encima, que es para lo que lo usa.
+>
+> 🔴 **Descuadre vivo #2, arreglado: el avío que faltaba se comía en silencio.**
+> `Math.max(0, stock - consumido)` dejaba el stock en 0 y **el faltante se perdía sin que nada lo
+> dijera** — la tela sí se planta cuando los kg no alcanzan, los avíos no lo hacían. 🏁 Ahora se
+> juntan **todos** los faltantes y se nombra cada uno con cuánto falta (plantarse en el primero
+> obligaría a descubrirlos de a uno). ⚠️ **Esto puede frenar un ingreso real si el stock de un avío
+> está mal cargado**: el mensaje dice qué avío y cuánto, y se destraba ajustando el stock.
+>
+> 🔴 🔑 **Lo que se midió en la base y dio vuelta una decisión: partir el corte POR COLOR ⛔ no
+> compra precisión de costo.** En **8 de los 9** cortes multicolor la tela por unidad da **idéntica**
+> entre colores (spread **0,0%**); el noveno da 1,3%. **El precio ⛔ no sigue al COLOR, sigue a la
+> COMPRA**: Rústico Invisible gris/negro/azul al mismo $/kg, Ribb Remera **8 colores a $14.580** en
+> una sola compra — y al revés, Morley c/ Lycra pasó de **$13.200 (22-may) a $14.580 (11-jun)** en
+> los mismos tres colores (**+10,5%**) y Microfibra Stella XL de **$9.543 (1-jun) a $10.211
+> (16-jul)** en el **mismo chocolate** (**+7%**). El 1,3% de los buzos sale de mezclar las dos
+> compras de Morley, ⛔ no del color. ⇒ **la OP por color se queda porque da IDENTIDAD** (el SKU
+> lleva el color, el stock se acumula por color, se puede repetir sólo el que vende), **⛔ no por
+> precisión**; y el eje que mueve la plata es **cuándo se compró la tela**, que es justo lo que un
+> costo congelado por corte hace visible.
+>
+> ⚠️ **Lo que apareció de paso y ⛔ no se tocó:** `Jersey 16.1` tiene **3 precios con 210% de
+> spread** entre rollos del mismo artículo (o carga mal hecha, o compra en USD sin convertir) — es
+> plata mal contada en todo escandallo que use esa tela.
+>
+> ⚠️ **Drift preexistente en la base**: `prisma migrate diff` pide dropear y recrear dos FK de
+> `compras_dtf` y renombrar `compras_dtf_orden_idx` → `compras_dtf_ordenId_idx`. ⛔ **No usar
+> `db push`** mientras eso siga ahí: las columnas nuevas se aplicaron con `prisma db execute` y un
+> `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`.
+>
+> ▶️ **Lo que sigue (decidido con Bruno, sin empezar):** la **Fase 1** es el modelo `LoteCorte` —
+> lotes planificados al cortar, **con talles adentro**, y **costo congelado al ingresar** (incluida
+> la mano de obra, que hoy ⛔ nunca llega a la OP: `costoManoObra` es una **columna muerta**).
+> **Fase 2**: el **dije** traba **sólo la venta** ⇒ el lote entra `RETENIDO` en `stock_terminado`
+> con **`tipo: 'retenido'`**, invisible para reposición y para el pasaje sin tocar esas pantallas.
+> **Fase 3**: **repetir producción** — sacar el `@unique` de `OrdenProduccion.sku` (medido: **ninguna
+> consulta busca la OP por SKU**, todos los `findUnique` van por `id`). **Fase 4**: **FIFO por lote**
+> en la salida a la marca — 🔴 **le cambia el número al pasaje, que hoy valoriza al escandallo** ⇒
+> **hablarlo con Darío antes**.
+>
+> 🔴 ▶️ **Y una que no estaba prevista**: la bikini se tiza **junta** (corpiño + bombacha, 6 bikinis
+> por espacio) pero **se vende POR PIEZA** ⇒ un corte tiene que poder producir **dos artículos**, y
+> hoy una OP tiene **un solo SKU**. Falta decidir cómo.
 
 > **En esta sesión (7-sep), 8º tramo: PRECIOS DE LANZAMIENTO, DECIDIDOS Y PUESTOS EN GESTIÓN
 > NUBE.** Los 13 quedaron con precio de lista en GN, que es la que empuja a Tienda Nube — ⛔ a

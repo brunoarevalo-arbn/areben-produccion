@@ -100,8 +100,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const cantidad = talles.reduce((s, t) => s + t.cantidad, 0);
   if (cantidad <= 0) return NextResponse.json({ error: 'Cargá al menos un talle con cantidad' }, { status: 400 });
 
-  // La carga pisa `cantidad` con lo realmente cortado. Se guarda la planificada para que
-  // deshacer devuelva la OP como estaba; re-cargar encima NO la pisa con la ya pisada.
+  // Lo cortado va a `cantidadCortada`; `cantidad` (lo planificado) ya no se toca, así que
+  // deshacer no necesita guardarse ninguna copia previa. `cantidadPrevia` se sigue
+  // escribiendo sólo para que las cargas viejas se puedan deshacer igual que antes.
   const fdPrev = orden.fichaCorteData as Record<string, unknown> | null;
   const cantidadPrevia = typeof fdPrev?.cantidadPrevia === 'number' ? fdPrev.cantidadPrevia : orden.cantidad;
 
@@ -128,7 +129,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   await prisma.ordenProduccion.update({
     where: { id },
     data: {
-      fichaCorteData, cantidad,
+      fichaCorteData,
+      cantidadCortada: cantidad,
       corteEstado: 'validado',
       costoCorte: new Prisma.Decimal(total),
       cortador: cortador?.nombre ?? null,
@@ -165,6 +167,9 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
       // de corte y un cortador de un corte que ya no existe.
       cortador: null,
       fechaCorte: null,
+      // Ya no hay corte: se limpia lo cortado. Las cargas viejas además dejaron `cantidad`
+      // pisada, así que se la devuelve desde la copia que guardaron.
+      cantidadCortada: null,
       ...(typeof (orden.fichaCorteData as Record<string, unknown> | null)?.cantidadPrevia === 'number'
         ? { cantidad: (orden.fichaCorteData as Record<string, number>).cantidadPrevia }
         : {}),

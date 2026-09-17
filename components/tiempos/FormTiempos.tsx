@@ -86,7 +86,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
         await fetchOrdenes();
       } else {
         const data = await r.json().catch(() => ({}));
-        setErrorFin(typeof data.error === 'string' ? data.error : 'No se pudo marcar como terminada. Probá de nuevo.');
+        setErrorFin(typeof data.error === 'string' ? data.error : 'No se pudo avisar. Probá de nuevo.');
       }
     } catch {
       setErrorFin('Sin conexión. Revisá internet y probá de nuevo.');
@@ -226,12 +226,15 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                   onClick={() => setConfirmFin(true)}
                   className="w-full py-2.5 rounded-xl border-2 border-dashed border-emerald-300 text-emerald-600 text-xs font-bold uppercase tracking-wide hover:bg-emerald-50 transition active:scale-95"
                 >
-                  ✓ Costura terminada — {ordenSeleccionada.sku}
+                  ✓ Avisar que terminé — {ordenSeleccionada.sku}
                 </button>
               ) : (
                 <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3 space-y-2">
                   <p className="text-xs font-bold text-emerald-800 text-center">
-                    ¿Confirmar que la costura de <span className="font-mono">{ordenSeleccionada.sku}</span> está terminada?
+                    ¿Avisar que terminaste de coser <span className="font-mono">{ordenSeleccionada.sku}</span>?
+                  </p>
+                  <p className="text-[11px] text-emerald-700 text-center leading-snug">
+                    Sale de tu lista y el taller la cuenta por talle. Si te equivocaste, avisales.
                   </p>
                   {errorFin && (
                     <p className="text-xs text-red-800 bg-red-100 border border-red-300 rounded-lg px-2 py-1.5 font-mono break-all">
@@ -244,7 +247,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                       disabled={finalizando}
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold transition active:scale-95"
                     >
-                      {finalizando ? 'Marcando...' : 'Sí, terminada'}
+                      {finalizando ? 'Avisando...' : 'Sí, avisar'}
                     </button>
                     <button
                       onClick={() => { setConfirmFin(false); setErrorFin(null); }}

@@ -21,7 +21,10 @@ interface Orden {
   sku: string;
   descripcion: string | null;
   marca: string;
-  cantidad: number;
+  cantidad: number;           // lo PLANIFICADO
+  cantidadCortada: number | null; // lo realmente cortado (null = todavía sin corte)
+  avisoCosturaAt: string | null;  // la costurera avisó que terminó; falta contar e ingresar
+  avisoCosturaPor: string | null;
   estado: string;
   fichaCorteCargada: boolean;
   costoTotal: string;
@@ -197,11 +200,13 @@ export function ColaAdmin() {
   // Validar el corte del cortador (cobrable) sin hacer la ficha de tela.
   const validarCorte = async (orden: Orden) => {
     const precio = Number(orden.fichaCorteData?.costoCorte) || 0;
-    const total = orden.fichaCorteData?.modoCosto === 'unidad' ? precio * orden.cantidad : precio;
-    const unidad = orden.cantidad > 0 ? total / orden.cantidad : total;
+    // Se le paga por lo CORTADO, igual que hace el server en validar-corte.
+    const cortada = orden.cantidadCortada ?? orden.cantidad;
+    const total = orden.fichaCorteData?.modoCosto === 'unidad' ? precio * cortada : precio;
+    const unidad = cortada > 0 ? total / cortada : total;
     if (!(await confirmAsync({
       title: `Validar corte ${orden.sku ?? 'S/SKU'}`,
-      message: `Cantidad: ${orden.cantidad} u\nPrecio: $${fmt(unidad)}/u  ·  Total: $${fmt(total)}\n\nQueda cobrable para el cortador. La ficha de tela se puede hacer después.`,
+      message: `Cortadas: ${cortada} u\nPrecio: $${fmt(unidad)}/u  ·  Total: $${fmt(total)}\n\nQueda cobrable para el cortador. La ficha de tela se puede hacer después.`,
       confirmLabel: 'Validar',
     }))) return;
     const r = await fetch(`/api/produccion/cola/${orden.id}/validar-corte`, { method: 'POST' });
@@ -520,6 +525,11 @@ export function ColaAdmin() {
             <p className="text-sm text-stone-800 font-medium truncate">{orden.descripcion || '--'}</p>
             <span className="text-xs text-stone-400 shrink-0">{orden.marca}</span>
             {!orden.sku && <Badge variant="warning" size="sm">SKU pendiente</Badge>}
+            {orden.avisoCosturaAt && orden.estado === 'COSTURA' && (
+              <Badge variant="success" size="sm">
+                {orden.avisoCosturaPor ? `${orden.avisoCosturaPor} avisó: falta contar` : 'Avisó: falta contar'}
+              </Badge>
+            )}
             {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
               orden.corteEstado === 'validado'
                 ? <Badge variant="blue" size="sm">Validado</Badge>
@@ -530,7 +540,14 @@ export function ColaAdmin() {
           </div>
           <p className="text-xs text-stone-400 mt-0.5">{fechaCorta(orden.createdAt)} · {orden.creadoPor}</p>
         </div>
-        <span className="text-sm font-bold text-stone-700 text-center tabular-nums">{orden.cantidad}</span>
+        {/* Lo CORTADO es el número que importa una vez que hay corte; `cantidad` es lo
+            planificado y se muestra al lado sólo cuando no coinciden. */}
+        <span className="text-sm font-bold text-stone-700 text-center tabular-nums">
+          {orden.cantidadCortada ?? orden.cantidad}
+          {orden.cantidadCortada != null && orden.cantidadCortada !== orden.cantidad && (
+            <span className="block text-[10px] font-normal text-stone-400">plan {orden.cantidad}</span>
+          )}
+        </span>
         <Badge variant={ESTADO_BADGE[orden.estado] ?? 'default'} size="sm" className="whitespace-nowrap justify-self-start">
           {ESTADO_LABEL[orden.estado] ?? orden.estado}
         </Badge>

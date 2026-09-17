@@ -50,7 +50,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   await prisma.ordenProduccion.update({
     where: { id: ordenId },
-    data: { fichaCorteData, corteEstado: 'cargado', cantidad },
+    // Lo cargado va a `cantidadCortada`, nunca a `cantidad` (que es lo planificado).
+    data: { fichaCorteData, corteEstado: 'cargado', cantidadCortada: cantidad },
   });
 
   return NextResponse.json({ ok: true });
@@ -74,7 +75,9 @@ export async function DELETE(req: NextRequest, { params }: Ctx) {
 
   await prisma.ordenProduccion.update({
     where: { id: ordenId },
-    data: { fichaCorteData: Prisma.DbNull, corteEstado: 'asignado' },
+    // Se borra la carga: también lo cortado, si no la OP queda afirmando un corte
+    // que ya no existe (antes `cantidad` quedaba pisada y nada la devolvía).
+    data: { fichaCorteData: Prisma.DbNull, corteEstado: 'asignado', cantidadCortada: null },
   });
 
   return NextResponse.json({ ok: true });

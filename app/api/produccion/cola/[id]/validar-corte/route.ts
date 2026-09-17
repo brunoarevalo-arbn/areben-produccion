@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
+import { cantidadCortada } from '@/lib/produccion/cantidades';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   const orden = await prisma.ordenProduccion.findUnique({
     where: { id },
-    select: { id: true, cantidad: true, corteEstado: true, fichaCorteCargada: true, cortadorId: true, fechaCorte: true, fichaCorteData: true },
+    select: { id: true, cantidad: true, cantidadCortada: true, corteEstado: true, fichaCorteCargada: true, cortadorId: true, fechaCorte: true, fichaCorteData: true },
   });
   if (!orden) return NextResponse.json({ error: 'OP no encontrada' }, { status: 404 });
   if (orden.fichaCorteCargada) return NextResponse.json({ error: 'Este corte ya tiene ficha de corte' }, { status: 400 });
@@ -23,7 +24,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   const fd = orden.fichaCorteData as Record<string, unknown> | null;
   const precio = Number(fd?.costoCorte) || 0;
-  const total = fd?.modoCosto === 'unidad' ? precio * orden.cantidad : precio;
+  // Al cortador se le paga por lo que CORTÓ, no por lo planificado.
+  const total = fd?.modoCosto === 'unidad' ? precio * cantidadCortada(orden) : precio;
   if (total <= 0) return NextResponse.json({ error: 'Cargá el precio del corte antes de validar' }, { status: 400 });
 
   const cortador = orden.cortadorId ? await prisma.cortador.findUnique({ where: { id: orden.cortadorId }, select: { nombre: true } }) : null;

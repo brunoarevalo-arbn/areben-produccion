@@ -91,7 +91,8 @@ export async function registrarCorteOrden(
     costoSublimacion = metrosSublimadosDec.mul(new Prisma.Decimal(cfg?.sublimacionPrecioMetro ?? 0));
   }
 
-  // Cantidad total cortada = suma de talles → reemplaza la cantidad planificada
+  // Cantidad total cortada = suma de talles. Va a `cantidadCortada`: `cantidad` es lo
+  // PLANIFICADO y no se pisa (si no, el costo unitario cambia de denominador solo).
   const cantidadTotal = cortesPorTalle.reduce((s, t) => s + t.cantidad, 0);
 
   // Descontar rollos (kg = metros / rinde)
@@ -152,7 +153,7 @@ export async function registrarCorteOrden(
     costoSublimacion,
     metrosSublimados: metrosSublimadosDec,
     costoTotal,
-    cantidad: cantidadTotal,
+    cantidadCortada: cantidadTotal,
     fichaCorteData: fichaData ?? Prisma.JsonNull, // para ver/editar la ficha idéntica
     // Fecha del corte (mediodía UTC para que no se corra de día por zona horaria).
     fechaCorte: fechaCorte ? new Date(`${fechaCorte}T12:00:00Z`) : (orden.fechaCorte ?? new Date()),
@@ -237,6 +238,8 @@ export async function revertirCorteOrden(
       costoInsumosSecundarios: new Prisma.Decimal(0),
       costoSublimacion: new Prisma.Decimal(0), metrosSublimados: new Prisma.Decimal(0),
       costoTotal: new Prisma.Decimal(0),
+      // Se revirtió el corte: ya no hay nada cortado que contar.
+      cantidadCortada: null,
     },
   });
 }

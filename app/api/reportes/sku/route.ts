@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
+import { cantidadCortada, ingresadasPorOrden } from '@/lib/produccion/cantidades';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,6 +20,10 @@ export async function GET(req: NextRequest) {
       where: { estado: 'CERRADA' },
       orderBy: { terminadoAt: 'desc' },
     });
+
+    // Las unidades del reporte son las que REALMENTE entraron: `cantidad` es lo
+    // planificado y dividir minutos por ahí infla o desinfla el min/prenda.
+    const ingresadas = await ingresadasPorOrden(prisma, ordenes.map((o) => o.id));
 
     const skus = [...new Set(ordenes.map((o) => o.sku).filter((s): s is string => !!s))];
     const tiempos = await prisma.tiemposProduccion.findMany({
@@ -59,16 +64,18 @@ export async function GET(req: NextRequest) {
         porActividad[t.actividad].registros += 1;
       }
 
+      const unidades = ingresadas.get(orden.id) || cantidadCortada(orden);
+
       return {
         id: orden.id,
         sku: orden.sku,
         descripcion: orden.descripcion,
         marca: orden.marca,
-        cantidad: orden.cantidad,
+        cantidad: unidades,
         terminadoAt: orden.terminadoAt,
         creadoPor: orden.creadoPor,
         totalMinutos,
-        minutosPorPrenda: orden.cantidad > 0 ? totalMinutos / orden.cantidad : 0,
+        minutosPorPrenda: unidades > 0 ? totalMinutos / unidades : 0,
         registros: ts.length,
         porMaquina,
         porCosturera,

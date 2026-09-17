@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
+import { cantidadCortada, ingresadasPorOrden } from '@/lib/produccion/cantidades';
 
 export async function GET(req: NextRequest) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -22,16 +23,23 @@ export async function GET(req: NextRequest) {
   // SKU no tenga tiempos propios: si está en un lote con tiempos de otros colores,
   // igual devolvemos el promedio del lote.
   const ops = await prisma.ordenProduccion.findMany({
-    where:  { sku: { equals: sku, mode: 'insensitive' }, cantidad: { gt: 0 } },
-    select: { cantidad: true, loteId: true },
+    where:  { sku: { equals: sku, mode: 'insensitive' } },
+    select: { id: true, cantidad: true, cantidadCortada: true, loteId: true },
   });
+
+  // 🔴 El denominador de min/prenda son las prendas que esos minutos produjeron: lo
+  // INGRESADO. Mientras no haya entrado nada se cae a lo cortado. Antes se usaba
+  // `cantidad`, que iba cambiando de significado sola (planificado → cortado → producido).
+  const ingresadas = await ingresadasPorOrden(prisma, ops.map((o) => o.id));
+  const unidadesDe = (o: { id: string; cantidad: number; cantidadCortada: number | null }) =>
+    ingresadas.get(o.id) || cantidadCortada(o);
 
   // Individual del SKU (solo si tiene tiempos propios).
   let minutosPromedio = 0;
   let cantidadProducida = 0;
   if (registros.length > 0) {
     const minutosTotales = registros.reduce((s, r) => s + r.minutosNetos, 0);
-    cantidadProducida = ops.reduce((s, o) => s + o.cantidad, 0);
+    cantidadProducida = ops.reduce((s, o) => s + unidadesDe(o), 0);
     if (cantidadProducida === 0) cantidadProducida = Math.max(...registros.map((r) => r.cantidad));
     minutosPromedio = cantidadProducida > 0 ? minutosTotales / cantidadProducida : 0;
   }
@@ -42,11 +50,12 @@ export async function GET(req: NextRequest) {
   const loteId = ops.find((o) => o.loteId)?.loteId ?? null;
   if (loteId) {
     const loteOps = await prisma.ordenProduccion.findMany({
-      where: { loteId, cantidad: { gt: 0 } },
-      select: { sku: true, cantidad: true },
+      where: { loteId },
+      select: { id: true, sku: true, cantidad: true, cantidadCortada: true },
     });
+    const ingLote = await ingresadasPorOrden(prisma, loteOps.map((o) => o.id));
     const loteSkus = [...new Set(loteOps.map((o) => o.sku).filter(Boolean))] as string[];
-    const cantidadLote = loteOps.reduce((s, o) => s + o.cantidad, 0);
+    const cantidadLote = loteOps.reduce((s, o) => s + (ingLote.get(o.id) || cantidadCortada(o)), 0);
     if (loteSkus.length >= 2 && cantidadLote > 0) {
       const regsLote = await prisma.tiemposProduccion.findMany({
         where: { sku: { in: loteSkus }, cantidad: { gt: 0 }, minutosNetos: { gt: 0 } },

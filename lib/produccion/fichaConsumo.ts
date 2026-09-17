@@ -4,6 +4,7 @@
 // ficha cargada (el SKU es único por OP, así que en la práctica es LA OP de ese SKU).
 import { prisma } from '@/lib/prisma';
 import { consumoNetoPorRollo } from '@/lib/produccion/consumo';
+import { cantidadCortada } from './cantidades';
 
 export interface FichaTelaFila {
   rolloId: string;
@@ -28,6 +29,8 @@ export interface FichaTelaArticulo {
 }
 
 export interface FichaDetalle {
+  // `cantidad` son las unidades CORTADAS: es el denominador con el que se reparte el
+  // costo del corte. No es lo planificado ni lo que después entró de costura.
   orden: { id: string; sku: string | null; marca: string; descripcion: string | null; cantidad: number; fechaCorte: Date | null; cortador: string | null };
   telas: FichaTelaFila[];
   totales: { metros: number; kg: number; costo: number; metrosUnit: number; kgUnit: number };
@@ -94,7 +97,7 @@ export async function fichaDetalleSku(sku: string | null | undefined): Promise<F
   // Los rollos de la misma tela quedan juntos (y el mismo artículo se lee de corrido).
   telas.sort((a, b) => a.articulo.localeCompare(b.articulo, 'es') || a.codigo.localeCompare(b.codigo, 'es'));
 
-  const cant = orden.cantidad || 0;
+  const cant = cantidadCortada(orden) || 0;
   return {
     orden: { id: orden.id, sku: orden.sku, marca: orden.marca, descripcion: orden.descripcion, cantidad: cant, fechaCorte: orden.fechaCorte, cortador: orden.cortador },
     telas,
