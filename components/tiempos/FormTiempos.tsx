@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { TiemposProduccion } from '@/types/tiempos';
 import type { EstadoCronometro } from '@/lib/hooks/useTiempos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
-import { MAQUINAS } from '@/lib/constants/maquinas';
+import { MAQUINAS, MAQUINA_NINGUNA } from '@/lib/constants/maquinas';
 import { PARTE_COMPARTIDA, MAQUINA_COMPARTIDA } from '@/lib/constants/partes';
 import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
@@ -51,7 +51,6 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   const [cambiando,   setCambiando]   = useState(false);
   const [confirmParte, setConfirmParte] = useState<{ nueva: string; minutos: number } | null>(null);
   const [maquina,     setMaquina]     = useState('');
-  const [cantidad,    setCantidad]    = useState('1');
   const [defectos,    setDefectos]    = useState('0');
   const [ordenes,     setOrdenes]     = useState<OrdenActiva[]>(ordenesIniciales);
   const [finalizando, setFinalizando] = useState(false);
@@ -89,6 +88,16 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   const sugerirCompartido = partesDisponibles.length > 0 && maquina === MAQUINA_COMPARTIDA;
   // Hay un cronómetro abierto (corriendo o en pausa) listo para guardarse.
   const hayTarea = estado !== 'idle';
+  // 🔴 Con una orden de producción elegida, la MÁQUINA es obligatoria: sin ella el
+  // registro dice cuánto se trabajó pero ⛔ no en qué paso, y mientras no haya
+  // `ProcesoPrenda` aprobado la máquina ES el paso. Se pide "Sin máquina" cuando de
+  // verdad no usó ninguna.
+  //
+  // ⚠️ Traba el GUARDAR, ⛔ nunca el arranque del reloj: la orden se elige AL FINAL
+  // —Marisol arranca a coser y recién después dice qué era—, así que exigirla antes
+  // le rompería el orden de trabajo, igual que se lo rompió la pieza preseleccionada
+  // el 18-sep. El trabajo libre (sin orden) ⛔ no la necesita.
+  const faltaMaquina = !!ordenSeleccionada && !maquina;
 
   const marcarCosturaTerminada = async () => {
     if (!ordenSeleccionada) return;
@@ -124,7 +133,12 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
     maquina:      maquina                   || undefined,
     sku:          ordenSeleccionada?.sku     || undefined,
     parte:        parteDelRegistro          || undefined,
-    cantidad:     parseInt(cantidad) || 0,
+    // ⛔ `cantidad` ⛔ NO se manda más. La tablet la copiaba de `OrdenProduccion.cantidad`
+    // (lo PLANIFICADO) en cada registro y nadie la tocaba: el 18-sep los 7 registros de
+    // la bikini decían "60" sobre un corte de 62, y el reporte del día sumaba 462
+    // "prendas" habiendo entrado CERO. Contar en la mesa con una sola costurera no es
+    // viable (decisión de Bruno, 18-sep) y el denominador del min/prenda ya ⛔ no sale
+    // de acá: sale de lo INGRESADO o lo CORTADO de la OP (`lib/produccion/cantidades.ts`).
     defectos:     parseInt(defectos) || 0,
     horaInicio:   t.horaInicio,
     horaFin:      t.horaFin,
@@ -164,6 +178,13 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
     const t = onObtenerTiempos();
     if (!t) { setParte(pedido.nueva); setConfirmParte(null); return; }
 
+    // Cambiar de pieza CIERRA un registro ⇒ pasa por la misma exigencia que guardar.
+    if (faltaMaquina) {
+      toast.error('Elegí la máquina antes de cambiar de pieza: el registro que se cierra la necesita.');
+      setConfirmParte(null);
+      return;
+    }
+
     setCambiando(true);
     try {
       await onGuardar(armarRegistro(t, parte));
@@ -183,7 +204,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   };
 
   const handleGuardar = async () => {
-    if (!actividad || estado === 'idle') return;
+    if (!actividad || estado === 'idle' || faltaMaquina) return;
 
     const t = onObtenerTiempos();
     if (!t) return;
@@ -194,7 +215,6 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       setOrdenId('');
       setParte('');
       setMaquina('');
-      setCantidad('1');
       setDefectos('0');
       setInconveniente('');
       setInconvenienteNotas('');
@@ -243,11 +263,9 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
               onClick={() => {
                 if (ordenId === orden.id) {
                   setOrdenId('');
-                  setCantidad('1');
                   setParte('');
                 } else {
                   setOrdenId(orden.id);
-                  setCantidad(String(orden.cantidad));
                   // 🔴 La parte se preselecciona SÓLO con el reloj parado.
                   //
                   // Con el reloj corriendo, la orden se elige AL FINAL —así trabaja
@@ -291,7 +309,6 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
           <button
             onClick={() => {
               setOrdenId(ordenId === LIBRE_ID ? '' : LIBRE_ID);
-              setCantidad('1');
               setParte('');
               setConfirmFin(false);
             }}
@@ -429,25 +446,22 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
 
       {/* Resto del formulario */}
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-bold text-stone-500 mb-1 uppercase tracking-wide">Máquina</label>
+        <div className="col-span-2">
+          <label className="block text-xs font-bold text-stone-500 mb-1 uppercase tracking-wide">
+            Máquina {ordenSeleccionada && <span className="text-amber-600">· obligatoria</span>}
+          </label>
+          {/* ⛔ Sin valor por default, ni siquiera cuando es obligatoria: un valor que
+              pone la pantalla queda indistinguible de uno que eligió la persona. */}
           <select
             value={maquina}
             onChange={(e) => setMaquina(e.target.value)}
-            className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white text-stone-800 focus:outline-none focus:border-amber-400"
+            className={`w-full px-3 py-2 border rounded-lg text-sm bg-white text-stone-800 focus:outline-none focus:border-amber-400 ${
+              faltaMaquina ? 'border-amber-400 ring-1 ring-amber-200' : 'border-stone-200'
+            }`}
           >
-            <option value="">— Opcional —</option>
+            <option value="">{ordenSeleccionada ? '— Elegí la máquina —' : '— Opcional —'}</option>
             {MAQUINAS.map((m) => <option key={m}>{m}</option>)}
           </select>
-        </div>
-        <div>
-          <label className="block text-xs font-bold text-stone-500 mb-1 uppercase tracking-wide">Cantidad</label>
-          <NumInput
-            value={parseFloat(cantidad) || 0}
-            onChange={(n) => setCantidad(n ? String(n) : '')}
-            min="0"
-            className="w-full px-3 py-2 border border-stone-200 rounded-lg text-sm bg-white text-stone-800 focus:outline-none focus:border-amber-400"
-          />
         </div>
         <div className="col-span-2">
           <label className="block text-xs font-bold text-stone-500 mb-1 uppercase tracking-wide">Defectos</label>
@@ -522,9 +536,14 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
             Iniciá el cronómetro para registrar un trabajo
           </p>
         )}
+        {hayTarea && actividad && faltaMaquina && (
+          <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
+            Elegí la máquina para guardar — si no usaste ninguna, poné &quot;{MAQUINA_NINGUNA}&quot; ↑
+          </p>
+        )}
         <button
           onClick={handleGuardar}
-          disabled={loading || !actividad || !hayTarea}
+          disabled={loading || !actividad || !hayTarea || faltaMaquina}
           className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 disabled:text-stone-400 text-white py-3.5 rounded-xl font-bold text-sm uppercase tracking-widest transition-all active:scale-95"
         >
           {loading ? 'Guardando...' : '✓ Guardar registro'}

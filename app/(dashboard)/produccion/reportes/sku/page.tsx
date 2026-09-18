@@ -7,7 +7,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 export const dynamic = 'force-dynamic';
 
 interface Breakdown { minutos: number; registros: number }
-interface BreakdownCosturera extends Breakdown { prendas: number }
 
 function fechaCorta(d: Date | null) {
   if (!d) return '—';
@@ -40,7 +39,7 @@ export default async function ReporteSkuPage() {
     const totalMinutos = ts.reduce((s, t) => s + t.minutosNetos, 0);
 
     const porMaquina:   Record<string, Breakdown>          = {};
-    const porCosturera: Record<string, BreakdownCosturera> = {};
+    const porCosturera: Record<string, Breakdown> = {};
     const porActividad: Record<string, Breakdown>          = {};
 
     for (const t of ts) {
@@ -49,10 +48,12 @@ export default async function ReporteSkuPage() {
         porMaquina[t.maquina].minutos   += t.minutosNetos;
         porMaquina[t.maquina].registros += 1;
       }
-      porCosturera[t.usuario] ??= { minutos: 0, registros: 0, prendas: 0 };
+      // ⛔ Sin "prendas": era Σ `TiemposProduccion.cantidad`, o sea lo PLANIFICADO de
+      // la OP copiado en cada registro ⇒ la misma tanda contada una vez por proceso.
+      // Las unidades reales del SKU están arriba, y salen del ingreso/corte de la OP.
+      porCosturera[t.usuario] ??= { minutos: 0, registros: 0 };
       porCosturera[t.usuario].minutos   += t.minutosNetos;
       porCosturera[t.usuario].registros += 1;
-      porCosturera[t.usuario].prendas   += t.cantidad;
 
       porActividad[t.actividad] ??= { minutos: 0, registros: 0 };
       porActividad[t.actividad].minutos   += t.minutosNetos;
@@ -132,7 +133,7 @@ export default async function ReporteSkuPage() {
 
               <div className="border-t border-stone-100 bg-stone-50/50 px-5 py-4 grid grid-cols-1 md:grid-cols-3 gap-5">
                 <BreakdownTable titulo="Por máquina" data={f.porMaquina} />
-                <BreakdownTable titulo="Por costurera" data={f.porCosturera} mostrarPrendas />
+                <BreakdownTable titulo="Por costurera" data={f.porCosturera} />
                 <BreakdownTable titulo="Por actividad" data={f.porActividad} />
               </div>
             </details>
@@ -146,11 +147,9 @@ export default async function ReporteSkuPage() {
 function BreakdownTable({
   titulo,
   data,
-  mostrarPrendas = false,
 }: {
   titulo: string;
-  data: Record<string, Breakdown | BreakdownCosturera>;
-  mostrarPrendas?: boolean;
+  data: Record<string, Breakdown>;
 }) {
   const filas = Object.entries(data).sort((a, b) => b[1].minutos - a[1].minutos);
 
@@ -165,11 +164,6 @@ function BreakdownTable({
             {filas.map(([nombre, stats]) => (
               <tr key={nombre} className="border-b border-stone-200/60 last:border-b-0">
                 <td className="py-1.5 text-stone-700 font-medium truncate pr-2">{nombre}</td>
-                {mostrarPrendas && 'prendas' in stats && (
-                  <td className="py-1.5 text-right text-xs text-stone-500 tabular-nums whitespace-nowrap">
-                    {stats.prendas} pzas
-                  </td>
-                )}
                 <td className="py-1.5 text-right font-semibold text-amber-700 tabular-nums whitespace-nowrap pl-2">
                   {minutosAHorasMin(stats.minutos)}
                 </td>

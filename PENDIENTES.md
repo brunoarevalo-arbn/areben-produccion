@@ -5,6 +5,58 @@
 
 _Última actualización: 2026-09-18_
 
+> 🔴 🔑 **UN CAMPO QUE NADIE TOCA NO ESTÁ VACÍO: AFIRMA EL DEFAULT.** (18-sep, 2ª tanda del día)
+> `cantidad` en la tablet venía prellenada con `OrdenProduccion.cantidad` —lo **PLANIFICADO**— al
+> elegir la orden, y nadie la tocaba nunca. 📊 Los 7 registros de bikini del 18-sep decían **60**
+> sobre un corte de **62**, y el reporte del día sumaba **462 "prendas"** en una jornada donde
+> **entraron CERO**: la misma tanda contada una vez por proceso. Septiembre entero: **806**.
+> 🔑 **Es el mismo defecto que la pieza preseleccionada, en otro campo** — un valor que pone la
+> pantalla queda indistinguible de uno que eligió la persona.
+> 🏁 **Decisión de Bruno**: contar en la mesa **⛔ no es viable** con estas cantidades y una sola
+> costurera ⇒ **el campo se saca**. El denominador del min/prenda ⛔ no se pierde: ya sale de lo
+> **INGRESADO o CORTADO** de la OP (`lib/produccion/cantidades.ts`), que es el número real.
+>
+> 🏁 **Lo que se hizo:**
+> 1. **`cantidad` afuera de la tablet.** `TiemposProduccion.cantidad` queda en la base (historia) y
+>    pasa a opcional en `types/tiempos.ts`. Los registros nuevos van en **0 = "no se contó"**,
+>    ⛔ no "cero prendas".
+> 2. **Las pantallas que la mostraban dejaron de mostrarla**, ⛔ no se las dejó ir a 0 —el cero
+>    AFIRMA—: el KPI "Prendas" y la columna por costurera de `/produccion/reportes`, las "pzas" del
+>    log de la tablet y de `/produccion/reportes/sku`. En su lugar el KPI **"Con SKU"**: qué % de
+>    los minutos productivos dice **qué** se cosió, que es lo que traba el costo por prenda.
+> 3. 🔴 **`cantidad: { gt: 0 }` era un FILTRO en `/api/produccion/tiempo-sku`** ⇒ sacar el campo
+>    habría hecho **DESAPARECER** los minutos de la pantalla que existe para mostrarlos. Se quitó.
+>    📊 Sobre lo histórico ⛔ no cambia nada: **0 de 448** registros con SKU caían ahí.
+> 4. **MÁQUINA OBLIGATORIA con orden de producción elegida**, con `'Sin máquina'` (`MAQUINA_NINGUNA`)
+>    para el trabajo que de verdad no usa ninguna. Tres condiciones, y las tres importan:
+>    **(a)** traba el **GUARDAR**, ⛔ **nunca el arranque del reloj** —la orden se elige AL FINAL—;
+>    **(b)** **vacía, ⛔ sin default**, porque un obligatorio prellenado no pregunta, afirma;
+>    **(c)** `'Sin máquina'` es una **AFIRMACIÓN** y `null` es **"no dijo"** ⇒ ⛔ **los `null`
+>    históricos NO se rellenan**. Va **última** en la lista: es la salida fácil.
+>    ⚠️ Se llama **'Sin máquina'** y ⛔ no 'Libre' porque el selector de orden **ya tiene** un
+>    "Sin orden — trabajo libre": dos "Libre" en la misma pantalla queriendo decir cosas distintas
+>    es justo la ambigüedad que se está sacando.
+> 5. 🔴 **De paso, el defecto que cazó CORREGIR A MANO**: Bruno le puso la máquina al registro de
+>    las 15:19 y **los minutos pasaron de 41,37 a 41**. Dos causas, las dos arregladas en
+>    `lib/tiempos/minutos.ts` (dueño único): el `Math.floor` que el cronómetro ya había dejado el
+>    18-sep seguía vivo en el **alta manual** y en la **edición del admin**; y el PATCH recalculaba
+>    los minutos con que la hora **VINIERA** en el body, aunque fuera **idéntica** ⇒ corregir sólo
+>    la máquina **pisaba un dato MEDIDO con uno DERIVADO**. Ahora recalcula sólo si la hora CAMBIÓ.
+>
+> ▶️ **NO se hizo, y es deliberado: "terminé este paso".** Es lo único que falta para que el
+> min/u **se cierre solo**; hoy se cierra mirando la secuencia (cuándo pasó a la otra pieza) o la
+> mesa. ⚠️ Mientras tanto: **un parcial se ve idéntico a un total** —a las 12:00 la bombacha daba
+> 3,1 min/u y a las 12:27 daba 3,83—. Bruno lo pospuso porque **la parte de pasos no está lista**.
+> ▶️ `/api/costos/productividad` **quedó sin tocar**: no lo consume ninguna pantalla, pero su
+> `totalUnidades` suma un campo que ya nadie escribe ⇒ **si alguien lo engancha, va a leer 0**.
+>
+> 📊 **El día 18-sep, medido** (`ZAT-BIK-MAR-001`, 62 cortadas, Marisol): remallado de **bombacha
+> 237,3 min** y **corpiño 141,7 min** + **13 min** de cortacollareta (Compartido), y a las 15:19
+> arrancó la verde. Contra las muestras del 4-sep (talle L, **n=1**): **6,11 min/u contra 10,26**,
+> **−40%**. ⚠️ Lo comparable es **sólo el remallado**; el tubo/collareta y el atraque en recta
+> —9,74 min/u por muestra— todavía no se hicieron, y **el cortacollareta ⛔ no está en ninguna de
+> las dos muestras**, así que toda estimación que salga de ellas viene corta por ese lado.
+
 > 🔴 🔑 **EN PRODUCCIÓN, EL MISMO DÍA: preseleccionar una opción es AFIRMAR algo que
 > nadie dijo.** La tablet preseleccionaba la primera pieza al elegir la orden. Pero la
 > orden **se elige AL FINAL** —se arranca a coser y recién después se dice qué era—, así

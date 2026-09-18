@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { sincronizarGastoDeMuestra } from '@/lib/tiempos/registrar';
+import { minutosEntre } from '@/lib/tiempos/minutos';
 
 const PatchSchema = z.object({
   actividad:          z.string().min(1).optional(),
@@ -16,11 +17,6 @@ const PatchSchema = z.object({
   inconveniente:      z.string().nullable().optional(),
   inconvenienteNotas: z.string().nullable().optional(),
 });
-
-function horaASegundos(h: string): number {
-  const [hh, mm, ss = '0'] = h.split(':');
-  return Number(hh) * 3600 + Number(mm) * 60 + Number(ss);
-}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const token = req.cookies.get(SESSION_COOKIE)?.value;
@@ -41,12 +37,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const data: Record<string, unknown> = { ...parsed.data };
 
-  // Si cambian horas, recalcular minutosNetos
+  // Los minutos se recalculan SÓLO si una hora efectivamente CAMBIÓ.
+  //
+  // 🔴 Antes alcanzaba con que la hora VINIERA en el PATCH, aunque fuera igual: el
+  // formulario las manda siempre, así que corregir sólo la máquina le pisaba los
+  // minutos MEDIDOS por el cronómetro con un valor DERIVADO de las horas. Con el
+  // truncado de `Math.floor` encima, el registro de la verde del 18-sep pasó de
+  // 41,37 a 41 min al corregirle la máquina. Un dato medido ⛔ no se pisa con uno
+  // derivado, y menos sin que nadie lo haya pedido.
   const horaInicio = parsed.data.horaInicio ?? actual.horaInicio;
   const horaFin    = parsed.data.horaFin    ?? actual.horaFin;
-  if ((parsed.data.horaInicio || parsed.data.horaFin) && horaInicio && horaFin) {
-    const segs = horaASegundos(horaFin) - horaASegundos(horaInicio);
-    data.minutosNetos = segs > 0 ? Math.floor(segs / 60) : 0;
+  const cambioHora =
+    (parsed.data.horaInicio !== undefined && parsed.data.horaInicio !== actual.horaInicio) ||
+    (parsed.data.horaFin    !== undefined && parsed.data.horaFin    !== actual.horaFin);
+  if (cambioHora && horaInicio && horaFin) {
+    data.minutosNetos = minutosEntre(horaInicio, horaFin);
   }
 
   const actualizado = await prisma.tiemposProduccion.update({ where: { id }, data });

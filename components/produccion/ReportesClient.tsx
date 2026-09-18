@@ -31,8 +31,7 @@ interface ReporteData {
   fecha: string;
   totalRegistros: number;
   totalMinutos: number;
-  totalPrendas: number;
-  porCosturera: Record<string, { minutos: number; registros: number; prendas: number }>;
+  porCosturera: Record<string, { minutos: number; registros: number }>;
   porActividad: Record<string, { minutos: number; registros: number }>;
   porMaquina:   Record<string, { minutos: number; registros: number }>;
   porInconveniente:     Record<string, { registros: number; minutos: number }>;
@@ -52,6 +51,10 @@ const ACTIVIDADES = [
   'Falla Máquina',
   'Cambio Hilo',
 ];
+
+// Lo que ⛔ no es coser una prenda: no tiene SKU y pedírselo no tendría sentido, así
+// que queda afuera del denominador de "Con SKU".
+const ACTIVIDADES_NO_PRODUCTIVAS = ['Descanso', 'Almuerzo', 'Falla Máquina', 'Cambio Hilo'];
 
 
 function hoy() {
@@ -167,14 +170,29 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
         />
       )}
 
-      {!loading && data && data.totalRegistros > 0 && (
+      {!loading && data && data.totalRegistros > 0 && (() => {
+        // 🔑 Reemplaza al viejo KPI "Prendas". Lo que traba el costo por prenda ⛔ no es
+        // cuántas se cosieron —eso lo dice el ingreso al stock— sino cuántos minutos
+        // dicen QUÉ se cosió: un registro sin SKU ⛔ no se puede imputar a nada.
+        // 📊 La semana del 7-sep el 82% de los minutos no lo decía.
+        const minProd = data.registros
+          .filter((r) => !ACTIVIDADES_NO_PRODUCTIVAS.includes(r.actividad))
+          .reduce((s, r) => s + r.minutosNetos, 0);
+        const minConSku = data.registros
+          .filter((r) => r.sku && !ACTIVIDADES_NO_PRODUCTIVAS.includes(r.actividad))
+          .reduce((s, r) => s + r.minutosNetos, 0);
+        const pctConSku = minProd > 0 ? minConSku / minProd : 0;
+        return (
         <div className="space-y-5">
           {/* Resumen */}
           <div className="grid grid-cols-3 gap-4">
             {[
               { label: 'Registros', value: data.totalRegistros, color: 'text-stone-800' },
               { label: 'Tiempo total', value: minutosAHorasMin(data.totalMinutos), color: 'text-amber-700' },
-              { label: 'Prendas', value: data.totalPrendas, color: 'text-emerald-700' },
+              // ⛔ El KPI "Prendas" se sacó el 18-sep-2026: sumaba la cantidad PLANIFICADA
+              // de la OP copiada en cada registro (462 "prendas" en un día de cero ingresos).
+              // Lo producido sale del ingreso al stock, ⛔ no de los tiempos.
+              { label: 'Con SKU', value: `${Math.round(100 * pctConSku)}%`, color: 'text-emerald-700' },
             ].map((s) => (
               <Card key={s.label} padding="none" className="p-5 text-center">
                 <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
@@ -193,8 +211,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                 <tr className="border-b border-stone-50 text-xs text-stone-400">
                   <th className="px-5 py-2 text-left font-semibold">Costurera</th>
                   <th className="px-5 py-2 text-center font-semibold">Registros</th>
-                  <th className="px-5 py-2 text-center font-semibold">Tiempo</th>
-                  <th className="px-5 py-2 text-right font-semibold">Prendas</th>
+                  <th className="px-5 py-2 text-right font-semibold">Tiempo</th>
                 </tr>
               </thead>
               <tbody>
@@ -204,8 +221,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                     <tr key={nombre} className="border-b border-stone-50 hover:bg-stone-50">
                       <td className="px-5 py-3 font-medium text-stone-800">{nombre}</td>
                       <td className="px-5 py-3 text-center text-stone-500">{stats.registros}</td>
-                      <td className="px-5 py-3 text-center font-semibold text-amber-700">{minutosAHorasMin(stats.minutos)}</td>
-                      <td className="px-5 py-3 text-right font-bold text-stone-800">{stats.prendas}</td>
+                      <td className="px-5 py-3 text-right font-semibold text-amber-700">{minutosAHorasMin(stats.minutos)}</td>
                     </tr>
                   ))}
               </tbody>
@@ -356,8 +372,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                   <th className="px-5 py-2 text-left font-semibold">SKU</th>
                   <th className="px-5 py-2 text-left font-semibold">Máquina</th>
                   <th className="px-5 py-2 text-center font-semibold">Horario</th>
-                  <th className="px-5 py-2 text-center font-semibold">Tiempo</th>
-                  <th className="px-5 py-2 text-right font-semibold">Prendas</th>
+                  <th className="px-5 py-2 text-right font-semibold">Tiempo</th>
                   {isAdmin && <th className="px-5 py-2 text-right font-semibold w-24" />}
                 </tr>
               </thead>
@@ -407,7 +422,8 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
             </table></div>
           </Card>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

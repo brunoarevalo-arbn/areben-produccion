@@ -90,9 +90,8 @@ export function LogRegistros({ registros, loading, ordenes = [], pendientes, onE
               </div>
 
               <div className="text-right shrink-0">
-                {reg.cantidad > 0 && (
-                  <p className="text-sm font-bold text-stone-700">{reg.cantidad} pzas</p>
-                )}
+                {/* ⛔ Las "pzas" se sacaron el 18-sep-2026: eran lo PLANIFICADO de la OP
+                    copiado en cada registro, no lo que se cosió. Ver `types/tiempos.ts`. */}
                 {reg.defectos > 0 && (
                   <p className="text-xs font-bold text-red-600">{reg.defectos} def.</p>
                 )}

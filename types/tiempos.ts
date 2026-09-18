@@ -12,7 +12,14 @@ export interface TiemposProduccion {
   sku?: string;
   /** Qué parte se cosió ("Corpiño", "Bombacha"). Sólo en prendas por partes. */
   parte?: string;
-  cantidad: number;
+  /**
+   * ⚠️ HISTÓRICO: la tablet ⛔ ya no la escribe (18-sep-2026). Era una copia de
+   * `OrdenProduccion.cantidad` —lo PLANIFICADO— pegada en cada registro, así que
+   * sumarla contaba la misma tanda una vez por proceso. El denominador del
+   * min/prenda sale de `lib/produccion/cantidades.ts`, ⛔ no de acá.
+   * Los registros nuevos quedan en 0 y eso significa "no se contó", ⛔ no "cero prendas".
+   */
+  cantidad?: number;
   defectos: number;
   horaInicio?: string;
   horaFin?: string;

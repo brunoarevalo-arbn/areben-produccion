@@ -12,9 +12,12 @@ export async function GET(req: NextRequest) {
   if (!sku) return NextResponse.json({ error: 'SKU requerido' }, { status: 400 });
 
   const registros = await prisma.tiemposProduccion.findMany({
+    // ⛔ Sin filtrar por `cantidad`: desde el 18-sep-2026 la tablet ⛔ no la escribe
+    // y todo registro nuevo viene en 0. Filtrarla haría DESAPARECER los minutos de
+    // la pantalla que existe para mostrarlos. 📊 Sobre lo histórico no cambia nada:
+    // 0 de 448 registros con SKU tenían minutos > 0 y cantidad = 0.
     where: {
       sku:          { equals: sku, mode: 'insensitive' },
-      cantidad:     { gt: 0 },
       minutosNetos: { gt: 0 },
     },
     select: { minutosNetos: true, cantidad: true, parte: true },
@@ -79,7 +82,7 @@ export async function GET(req: NextRequest) {
     const cantidadLote = loteOps.reduce((s, o) => s + (ingLote.get(o.id) || cantidadCortada(o)), 0);
     if (loteSkus.length >= 2 && cantidadLote > 0) {
       const regsLote = await prisma.tiemposProduccion.findMany({
-        where: { sku: { in: loteSkus }, cantidad: { gt: 0 }, minutosNetos: { gt: 0 } },
+        where: { sku: { in: loteSkus }, minutosNetos: { gt: 0 } },
         select: { minutosNetos: true },
       });
       if (regsLote.length > 0) {

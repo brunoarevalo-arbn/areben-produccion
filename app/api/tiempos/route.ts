@@ -1,14 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { minutosEntre } from '@/lib/tiempos/minutos';
 import { TiempoSchema } from '@/lib/validators/tiempos';
 import { prisma } from '@/lib/prisma';
 import { getSession } from '@/lib/auth';
 import { crearTiempoConGasto } from '@/lib/tiempos/registrar';
 import { ZodError } from 'zod';
-
-function horaASegundos(h: string): number {
-  const [hh, mm, ss = '0'] = h.split(':');
-  return Number(hh) * 3600 + Number(mm) * 60 + Number(ss);
-}
 
 export async function GET(req: NextRequest) {
   if (!(await getSession(req))) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
@@ -45,8 +41,7 @@ export async function POST(req: NextRequest) {
     // Alta manual: si no vienen minutos pero sí horario, derivar minutosNetos
     // (misma lógica que el PATCH). La tablet ya envía minutosNetos > 0, no la afecta.
     if (!validated.minutosNetos && validated.horaInicio && validated.horaFin) {
-      const segs = horaASegundos(validated.horaFin) - horaASegundos(validated.horaInicio);
-      validated.minutosNetos = segs > 0 ? Math.floor(segs / 60) : 0;
+      validated.minutosNetos = minutosEntre(validated.horaInicio, validated.horaFin);
     }
 
     // El registro y su gasto de muestra los arma el núcleo: es el mismo que usa

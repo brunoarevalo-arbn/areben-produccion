@@ -9,9 +9,6 @@ interface Breakdown {
   minutos: number;
   registros: number;
 }
-interface BreakdownCosturera extends Breakdown {
-  prendas: number;
-}
 
 export async function GET(req: NextRequest) {
   if (!(await requirePermiso(req, 'produccion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
@@ -43,7 +40,7 @@ export async function GET(req: NextRequest) {
       const totalMinutos = ts.reduce((s, t) => s + t.minutosNetos, 0);
 
       const porMaquina:   Record<string, Breakdown> = {};
-      const porCosturera: Record<string, BreakdownCosturera> = {};
+      const porCosturera: Record<string, Breakdown> = {};
       const porActividad: Record<string, Breakdown> = {};
 
       for (const t of ts) {
@@ -52,12 +49,12 @@ export async function GET(req: NextRequest) {
           porMaquina[t.maquina].minutos += t.minutosNetos;
           porMaquina[t.maquina].registros += 1;
         }
-        porCosturera[t.usuario] ??= { minutos: 0, registros: 0, prendas: 0 };
+        // ⛔ Sin "prendas": el máximo de `TiemposProduccion.cantidad` esquivaba el
+        // 38×N pero seguía leyendo lo PLANIFICADO de la OP, no lo cosido. Las
+        // unidades del SKU ya vienen abajo en `cantidad`, desde el ingreso/corte.
+        porCosturera[t.usuario] ??= { minutos: 0, registros: 0 };
         porCosturera[t.usuario].minutos   += t.minutosNetos;
         porCosturera[t.usuario].registros += 1;
-        // "prendas" = la tanda que trabajó, NO la suma de procesos: la misma tanda
-        // de 38 pasa por N procesos y sumar daría 38×N. Tomamos el máximo (la tanda).
-        porCosturera[t.usuario].prendas = Math.max(porCosturera[t.usuario].prendas, t.cantidad);
 
         porActividad[t.actividad] ??= { minutos: 0, registros: 0 };
         porActividad[t.actividad].minutos   += t.minutosNetos;

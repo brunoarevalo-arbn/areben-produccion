@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
       orderBy: [{ horaInicio: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
     });
 
-    const porCosturera: Record<string, { minutos: number; registros: number; prendas: number }> = {};
+    const porCosturera: Record<string, { minutos: number; registros: number }> = {};
     const porActividad: Record<string, { minutos: number; registros: number }> = {};
     const porMaquina:   Record<string, { minutos: number; registros: number }> = {};
     const porInconveniente:     Record<string, { registros: number; minutos: number }>  = {};
@@ -24,10 +24,9 @@ export async function GET(req: NextRequest) {
 
     for (const r of registros) {
       // por costurera
-      if (!porCosturera[r.usuario]) porCosturera[r.usuario] = { minutos: 0, registros: 0, prendas: 0 };
+      if (!porCosturera[r.usuario]) porCosturera[r.usuario] = { minutos: 0, registros: 0 };
       porCosturera[r.usuario].minutos   += r.minutosNetos;
       porCosturera[r.usuario].registros += 1;
-      porCosturera[r.usuario].prendas   += r.cantidad;
 
       // por actividad
       if (!porActividad[r.actividad]) porActividad[r.actividad] = { minutos: 0, registros: 0 };
@@ -60,7 +59,11 @@ export async function GET(req: NextRequest) {
       fecha,
       totalRegistros: registros.length,
       totalMinutos:   registros.reduce((s, r) => s + r.minutosNetos, 0),
-      totalPrendas:   registros.reduce((s, r) => s + r.cantidad, 0),
+      // ⛔ No hay "totalPrendas": era Σ `TiemposProduccion.cantidad`, y esa cantidad
+      // la copiaba la tablet de lo PLANIFICADO de la OP en CADA registro ⇒ la misma
+      // tanda se contaba una vez por proceso. 📊 El 18-sep daba 462 "prendas" en un
+      // día en que entraron CERO. Lo producido se lee del ingreso al stock, ⛔ no de
+      // los registros de tiempo. Devolverlo en 0 sería peor: el cero AFIRMA.
       porCosturera,
       porActividad,
       porMaquina,
