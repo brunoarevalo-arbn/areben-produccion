@@ -5,6 +5,58 @@
 
 _Última actualización: 2026-09-18_
 
+> **En esta sesión (18-sep): LA TABLET REGISTRA POR PARTE — corpiño y bombacha en la misma sesión.**
+> Bruno decidió que la bikini **se vende por pieza** aunque **se tiza junta** (entran 6 en un espacio
+> en metros). Las dos OP de bikini (`ZAT-BIK-VER-001` 40 · `ZAT-BIK-MAR-001` 60) **arrancan producción
+> ya**, sin otra muestra de por medio ⇒ el cambio fue en la **tablet de producción**, ⛔ no en la
+> calculadora.
+>
+> 🔴 **El problema medido**: la cola le mostraba a Marisol una sola fila (`ZAT-BIK-VER-001`) y todo lo
+> que cronometrara caía bajo ese SKU. Para cambiar de pieza tenía que **parar, guardar, volver a
+> elegir y arrancar** — cuatro gestos, con el tiempo del medio perdido. 📊 Y no es teórico: el **82%**
+> de los minutos de la semana del 7-sep y el **96%** de la del 31-ago ⛔ no dicen qué prenda se hizo.
+>
+> 🏁 Ahora: `TiemposProduccion.parte` (nullable), catálogo `ConjuntoPrenda`/`PartePrenda`, y en la
+> tablet **dos botones que cierran el registro anterior y abren el siguiente de un solo toque**
+> (`FormTiempos.cambiarParte`). El mecanismo ⛔ no se inventó: es el mismo de `CorridaTablet.accion()`,
+> y `useTiempos` ya exponía `obtenerTiempos`/`descartar`/`iniciar`.
+> ⚠️ **El reloj SÍ vuelve a 00:00:00 al cambiar de parte, y está bien**: el registro anterior se
+> cerró. Lo que se evita es el hueco, ⛔ no el reinicio.
+>
+> 🔑 **EL SUPUESTO, explícito porque se rompe solo dentro de seis meses**: el conjunto se engancha a
+> la orden por el **2º segmento del SKU** (`ZAT-`**`BIK`**`-VER-001` → `prendaAbrev = 'BIK'`), la
+> convención de `AGENTS.md` que ya usa `lote/agrupar/route.ts:72`. Dos cosas:
+> **(a)** se lee **por POSICIÓN**, y un SKU fuera de formato devuelve el segmento equivocado **sin
+> avisar** ⇒ por eso `ConjuntoPrenda` es una **lista blanca** y no una derivación: lo mal leído no
+> matchea, la orden queda sin partes y la tablet se comporta como siempre. **Falla cerrado.**
+> **(b)** se deriva **SIEMPRE del SKU y ⛔ NUNCA de `LoteProduccion.prenda`**, que admite override
+> manual ⇒ ahí el mismo molde puede estar guardado como otra cosa. El único dueño de esa lectura es
+> **`lib/produccion/conjuntos.ts`**.
+>
+> 🔴 **`parte` ⛔ NO arregla el 82% sin SKU, y no hay que leerlo como si lo arreglara.** Un registro
+> sin SKU tampoco tiene conjunto ni parte ⇒ separar por pieza **no agrega observaciones, sólo parte
+> las pocas que hay**. El cuello para el costo por pieza sigue siendo **que la tablet cargue el SKU**.
+> Por eso `/api/produccion/tiempo-sku` devuelve `minutosSinParte` aparte: los minutos sin pieza **⛔ no
+> se reparten entre las partes**, se informan.
+>
+> ⛔ **NO se resolvió acá (es de la otra sesión)**: que **una OP produzca DOS SKU**. Este diseño está
+> hecho para no prejuzgarlo — ⛔ no agrega ninguna columna a `OrdenProduccion`, y cuando el corte se
+> parta en dos artículos el campo `parte` sigue valiendo y empalma.
+>
+> 🔴 **La migración ⛔ NO se aplica con `db push`**: `prisma/sql/2026-09-18-parte-y-conjuntos.sql`, con
+> `psql` o `db execute`. Se verificó con `migrate diff` que lo único que queda afuera es el **drift
+> preexistente de `compras_dtf`** (2 FK + un índice renombrado), que `db push` arrastraría solo.
+>
+> ✅ **Caminado contra una COPIA de producción en Postgres local** (`areben_test`), ⛔ no contra prod:
+> 🔴 hasta ahora **el localhost apuntaba a la base real** (`.env` tiene una sola), que es lo que dejó
+> 3 relevamientos cerrados con clicks de prueba el 4-sep. ⚠️ **`prisma.config.ts` lee `.env`, ⛔ no
+> `.env.local`** ⇒ a los comandos de prisma hay que pasarles `DIRECT_URL` en la línea o van a prod.
+> Oráculo: `horaFin` de una parte == `horaInicio` de la siguiente (sin huecos) — verde en 2 de 2.
+>
+> ▶️ **Falta**: caminar la tablet **con el dedo** (se ejerció la escritura por API, ⛔ no el click);
+> sembrar el conjunto en **producción** (`prisma/seed-conjuntos-prenda.ts --aplicar`, dry-run por
+> defecto); y el **ABM del catálogo** (hoy se siembra por script, que para una fila alcanza).
+
 > **En esta sesión (18-sep): FASE 1 — EL LOTE QUE ENTRA, CON EL COSTO CONGELADO.**
 > Un corte ya puede entrar **de a partes**: cada parte es un `LoteCorte` con **talles adentro** y con
 > el costo **congelado el día que entró**. Antes una OP entraba entera de una sola vez y su costo se

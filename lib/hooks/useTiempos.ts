@@ -143,13 +143,21 @@ export function useTiempos(usuario: string) {
   };
 
   // Foto de los tiempos para guardar (no resetea; el reset ocurre al guardar OK).
+  //
+  // 🔑 Se guarda con DOS DECIMALES, no truncado a minutos enteros. `Math.floor` se
+  // comía hasta 59 segundos de CADA registro y siempre para abajo, así que el error
+  // no se compensaba: se acumulaba. En un tramo de 10 minutos eran ~5%.
+  // Y desde que la tablet registra por PARTE hay un registro más por cada cambio de
+  // pieza ⇒ truncar una vez más por cambio hacía que **la suma de las partes diera
+  // menos que el total**. Es el mismo criterio que ya usaba la pantalla de muestras
+  // (`useCronometro.obtenerTiempos(2)`). Las pantallas ya redondean para mostrar.
   const obtenerTiempos = () => {
     if (!horaInicioRef.current) return undefined;
     const fin = new Date();
     return {
       horaInicio:   horaInicioRef.current.toTimeString().split(' ')[0],
       horaFin:      fin.toTimeString().split(' ')[0],
-      minutosNetos: Math.floor(totalMs() / 60000),
+      minutosNetos: Math.round((totalMs() / 60000) * 100) / 100,
     };
   };
 

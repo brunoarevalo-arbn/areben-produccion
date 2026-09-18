@@ -10,6 +10,8 @@ export interface TiemposProduccion {
   marca?: string;
   maquina?: string;
   sku?: string;
+  /** Qué parte se cosió ("Corpiño", "Bombacha"). Sólo en prendas por partes. */
+  parte?: string;
   cantidad: number;
   defectos: number;
   horaInicio?: string;

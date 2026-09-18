@@ -18,6 +18,12 @@ model TiemposProduccion {
   marca              String?
   maquina            String?
   sku                String?
+  // Qué PARTE de la prenda se cosió ("Corpiño", "Bombacha"). Null en las prendas
+  // de una sola parte, que son casi todas: la bikini se corta junta pero se cose y
+  // se vende por partes, así que sus minutos tienen que quedar separados desde el
+  // primer día — repartirlos después es inventarlos. Las opciones salen de
+  // `ConjuntoPrenda`, y quién las ofrece es `lib/produccion/conjuntos.ts`.
+  parte              String?
   cantidad           Int      @default(0)
   defectos           Int      @default(0)
   horaInicio         String?
@@ -89,6 +95,43 @@ model SkuCatalogo {
   @@unique([categoria, abreviatura])
   @@index([categoria, activo])
   @@map("sku_catalogo")
+}
+
+// Una prenda que se CORTA junta pero se COSE y se VENDE por partes: la bikini se
+// tiza entera (entran 6 en un espacio) y después el corpiño y la bombacha son dos
+// artículos con su propio costo.
+//
+// 🔑 El vínculo con la orden es por el 2º segmento del SKU (`ZAT-BIK-VER-001` →
+// "BIK"), que es la convención de `AGENTS.md` y la que ya usa `lote/agrupar`.
+// Se deriva SIEMPRE del SKU y nunca de `LoteProduccion.prenda`, que admite un
+// override manual y por eso puede decir otra cosa del mismo molde.
+//
+// ⚠️ Leer por POSICIÓN devuelve el segmento equivocado en silencio si el SKU no
+// sigue el formato. Por eso esto es una LISTA BLANCA y no una derivación: un
+// segmento mal leído simplemente no matchea y la tablet se comporta como siempre.
+// Falla cerrado. El dueño de esa lectura es `lib/produccion/conjuntos.ts`.
+model ConjuntoPrenda {
+  id          String        @id @default(cuid())
+  prendaAbrev String        @unique // el 2º segmento del SKU: "BIK"
+  nombre      String // "Bikini"
+  activo      Boolean       @default(true)
+  partes      PartePrenda[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@map("conjuntos_prenda")
+}
+
+model PartePrenda {
+  id         String         @id @default(cuid())
+  conjuntoId String
+  conjunto   ConjuntoPrenda @relation(fields: [conjuntoId], references: [id], onDelete: Cascade)
+  orden      Int
+  nombre     String // "Corpiño" | "Bombacha" — se guarda TAL CUAL en TiemposProduccion.parte
+  createdAt  DateTime       @default(now())
+
+  @@unique([conjuntoId, orden])
+  @@map("partes_prenda")
 }
 
 model Producto {

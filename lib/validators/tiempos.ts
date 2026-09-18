@@ -10,6 +10,9 @@ export const TiempoSchema = z.object({
   marca: z.string().optional(),
   maquina: z.string().optional(),
   sku: z.string().optional(),
+  // La parte que se cosió. No se valida contra el catálogo a propósito: si alguien
+  // renombra una parte, los registros viejos siguen diciendo lo que se cosió.
+  parte: z.string().max(40).optional(),
   cantidad: z.number().default(0),
   defectos: z.number().default(0),
   horaInicio: z.string().optional(),

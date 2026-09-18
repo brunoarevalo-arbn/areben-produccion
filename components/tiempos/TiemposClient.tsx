@@ -161,6 +161,9 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
             onObtenerTiempos={tiempos.obtenerTiempos}
             onGuardar={tiempos.guardarRegistro}
             onRefresh={() => router.refresh()}
+            // Cerrar y volver a arrancar de una: es lo que deja cambiar de parte
+            // sin que la costurera tenga que parar el reloj a mano.
+            onReiniciarReloj={() => { tiempos.descartar(); tiempos.iniciar(); }}
             loading={tiempos.loading}
           />
         </div>

@@ -79,6 +79,9 @@ export function LogRegistros({ registros, loading, ordenes = [], pendientes, onE
                     {reg.sku && (
                       <span className="text-xs bg-white/70 text-stone-600 px-1.5 py-0.5 rounded font-mono">{reg.sku}</span>
                     )}
+                    {reg.parte && (
+                      <span className="text-xs bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-semibold">{reg.parte}</span>
+                    )}
                     {reg.maquina && (
                       <span className="text-xs bg-white/70 text-stone-500 px-1.5 py-0.5 rounded">🔧 {reg.maquina}</span>
                     )}

@@ -11,6 +11,7 @@ const PatchSchema = z.object({
   cantidad:           z.number().int().nonnegative().optional(),
   defectos:           z.number().int().nonnegative().optional(),
   sku:                z.string().nullable().optional(),
+  parte:              z.string().max(40).nullable().optional(),
   maquina:            z.string().nullable().optional(),
   inconveniente:      z.string().nullable().optional(),
   inconvenienteNotas: z.string().nullable().optional(),
