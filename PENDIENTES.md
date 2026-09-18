@@ -73,6 +73,21 @@ _Última actualización: 2026-09-18_
 > `Compartido`; los otros tres → `Bombacha` + `Remalladora`, dictado por Bruno).
 
 > 🔴 🔑 **UN CORTE PRODUCE DOS ARTÍCULOS: el lote entra POR PIEZA** (18-sep, decidido por Bruno).
+> 🏁 **EN PRODUCCIÓN el 18-sep**, en el orden correcto: SQL aplicado y verificado (`migrate diff`
+> deja **sólo** el drift viejo de `compras_dtf`; el índice quedó **`NULLS NOT DISTINCT`** de verdad,
+> Postgres es **17.6**, así que el fallback del `DO` block ⛔ no se disparó) → `skuAbrev` sembrado y
+> releído ("sin cambios") → push `aa8ed5a` → deploy **Ready**.
+> ⚠️ **Y mordió el 🔴 conocido, pero al revés de como se cuenta: Vercel no perdió el push, lo procesó
+> TARDE.** A los 20 minutos del push ⛔ no existía ningún deployment de `aa8ed5a`
+> (`vercel ls --meta githubCommitSha=…` → "No deployments found") y había otro trabado en `Queued`
+> hacía 19 minutos con `Builds: . [0ms]`. Se destrabó con un **commit vacío** (`e25cab2`), que
+> disparó en 5 segundos — y **después** apareció el de `aa8ed5a`, más nuevo que el del re-trigger.
+> 🔑 **El delator ⛔ no es que el sitio responda** (un GET sin cookie da 307 igual con código viejo):
+> es `vercel ls --meta githubCommitSha=<sha>`, que dice si ESE commit tiene deploy.
+> 🔴 **Lo que ⛔ NO se pudo verificar y queda abierto: que la PANTALLA de prod muestre las dos
+> piezas.** El clasificador bloquea leer producción por HTTP, así que lo único afirmado es que el
+> deployment del commit está Ready. **Es un clic: abrir una OP de bikini y tocar "Terminar lote".**
+>
 > La bikini se tiza junta y **se vende por pieza**, pero hasta acá una OP tenía un SKU y todo lo que
 > entraba iba ahí. Ahora un ingreso deja **un `LoteCorte` por parte** —mismo número de lote, "Lote 2 ·
 > Corpiño" y "Lote 2 · Bombacha"—, cada uno con su SKU (`ZAT-COR-VER-001` / `ZAT-BOM-VER-001`), su
@@ -137,8 +152,11 @@ _Última actualización: 2026-09-18_
 > - 🔴 **El % de material corpiño/bombacha** — mano de Bruno, hablándolo con el cortador. Se carga con
 >   `npx tsx prisma/seed-conjuntos-prenda.ts --aplicar --porcentajes BIK=40/60`.
 > - 🔴 **La ficha de corte de las dos OP de bikini** (sigue abierta del 18-sep a la mañana).
-> - **Sembrar `skuAbrev` en PRODUCCIÓN**: `npx tsx prisma/seed-conjuntos-prenda.ts --aplicar` (dry-run
->   por defecto). Sin eso la bikini **no puede ingresar** — se planta, que es correcto, pero traba.
+>   📊 Medido en prod al cerrar: `ZAT-BIK-VER-001` **ya tiene `cantidadCortada = 42`** pero
+>   `costoTotal` sigue en **$0** ⇒ falta la parte de la ficha que carga la TELA.
+> - ✅ ~~Sembrar `skuAbrev` en PRODUCCIÓN~~ — hecho el 18-sep.
+> - 🔴 **Abrir la pantalla en PROD y contar una tanda de verdad**: es el único paso que no se pudo
+>   ejercer desde acá.
 > - ⚠️ **Los SKU de pieza (`ZAT-COR-…` / `ZAT-BOM-…`) no existen todavía en ningún lado**: ni en
 >   `sku_catalogo` (que sólo tiene "Bikini/BIK"), ni como escandallo, ni en Gestión Nube. El stock los
 >   crea al entrar. **Hay que decidir si ésos son los códigos con los que Zattia los va a vender.**
