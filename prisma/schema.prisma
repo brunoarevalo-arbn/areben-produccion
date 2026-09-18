@@ -598,6 +598,7 @@ model OrdenProduccion {
   movimientosInsumo MovimientoInsumo[]
   cortesPorTalle    CortePorTalle[]
   edicionesCorte    EdicionCorte[]
+  lotesCorte        LoteCorte[]
 
   loteId String?
   lote   LoteProduccion? @relation(fields: [loteId], references: [id], onDelete: SetNull)
@@ -1452,4 +1453,68 @@ model CorridaCorteTubo {
 
   @@index([corridaId, unidad])
   @@map("corrida_cortes_tubo")
+}
+
+// Un LOTE es la fracción de un corte que entra terminada. Un corte (OrdenProduccion)
+// puede entrar de a partes —la temporada de bikinis entra así a propósito— y cada parte
+// se lleva su costo CONGELADO en el momento de ingresar.
+//
+// 🔑 Por qué se congela acá y no se recalcula: el costo de una unidad depende de cuándo
+// se compró la tela y de cuántos minutos llevaba la costurera ese día. Recalcularlo más
+// tarde le cambia el número a mercadería que ya salió del taller.
+//
+// ⚠️ `costoMinuto` se guarda con el lote a propósito: es un costo ABSORBENTE (gastos
+// fijos + sueldos / horas del mes) y se mueve cada vez que cambia un sueldo. Sin el
+// snapshot, subir un sueldo reescribiría el costo de todo lo ya producido.
+model LoteCorte {
+  id      String          @id @default(cuid())
+  ordenId String
+  orden   OrdenProduccion @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  numero  Int // 1, 2, 3… dentro de la orden
+
+  talles   LoteCorteTalle[]
+  unidades Int // suma de los talles, desnormalizada para no recorrer la relación
+
+  ingresadoAt  DateTime @default(now())
+  ingresadoPor String
+
+  // Costo congelado, POR UNIDAD. `material` sale de la orden (tela + corte +
+  // sublimación) repartido por lo CORTADO, nunca por lo ingresado: la tela ya se
+  // consumió entera el día del corte.
+  costoMaterialUnit Decimal @default(0)
+  costoMoUnit       Decimal @default(0)
+  costoUnitario     Decimal @default(0)
+
+  // El instrumento, guardado al lado del número: cuántos minutos se le imputaron a este
+  // lote y a qué $/min. Sin esto un costo de MO no se puede auditar ni explicar.
+  minutosImputados Decimal @default(0)
+  costoMinuto      Decimal @default(0)
+
+  // Sobre qué se repartió el material, y cuántas unidades eran. Va GUARDADO y no derivado
+  // porque el costo está congelado: si el denominador fue lo PLANIFICADO (la orden no tenía
+  // corte cargado) el unitario puede estar lejos del real, y sin esto no hay forma de saber
+  // cuáles lotes mirar. `cantidadCortada()` cae a lo planificado sin decirlo.
+  unidadesBase  Int    @default(0)
+  baseMaterial  String @default("planificado") // cortado | planificado
+
+  // true = entró sin costo de material porque la orden todavía no tenía ficha de corte.
+  // Es un ingreso que alguien AFIRMÓ, no un silencio: el ingreso normal se planta.
+  sinCostoMaterial Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@unique([ordenId, numero])
+  @@index([ordenId])
+  @@map("lotes_corte")
+}
+
+model LoteCorteTalle {
+  id       String    @id @default(cuid())
+  loteId   String
+  lote     LoteCorte @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  talle    String
+  cantidad Int
+
+  @@unique([loteId, talle])
+  @@map("lotes_corte_talles")
 }

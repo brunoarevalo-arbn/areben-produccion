@@ -8,6 +8,8 @@ import { resumenConsumoTela } from '@/lib/produccion/consumo';
 import { AsignarCortador } from '@/components/produccion/AsignarCortador';
 import { CargaTizadaBtn } from '@/components/produccion/CargaTizadaBtn';
 import { volverASeguro } from '@/lib/volverA';
+import { minutosSinImputar } from '@/lib/produccion/loteCorte';
+import { calcularCostoMinuto } from '@/lib/costoMinuto';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +35,7 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
     where: { id },
     include: {
       transiciones: { orderBy: { fecha: 'desc' } },
+      lotesCorte: { include: { talles: { orderBy: { talle: 'asc' } } }, orderBy: { numero: 'asc' } },
       cortesPorTalle: { orderBy: { talle: 'asc' } },
       pagoCorte: { select: { id: true, fecha: true, beneficiario: true, montoTotal: true, cortadorId: true } },
       edicionesCorte: { orderBy: { createdAt: 'desc' } },
@@ -56,6 +59,13 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
   );
   const metrosPorU = totalCortado > 0 ? metrosTotal / totalCortado : 0;
   const kgPorU = totalCortado > 0 ? kgTotal / totalCortado : 0;
+
+  // Minutos de costura del SKU que todavía no se llevó ningún lote. Se muestra porque es
+  // plata que existe medida y puede quedar fuera del costo de toda unidad: con la regla
+  // de reparto elegida, los minutos que se registran DESPUÉS del último lote no tienen
+  // quién se los lleve. Callarlo los haría desaparecer.
+  const minutosPendientes = orden.lotesCorte.length > 0 ? await minutosSinImputar(prisma, orden) : 0;
+  const costoMinutoHoy = minutosPendientes > 0 ? await calcularCostoMinuto() : 0;
 
   // Las sub-pantallas (ficha, corte) vuelven ACÁ, y esta página ya sabe volver a la cola:
   // el `volverA` se anida en vez de saltearse un escalón.
@@ -172,6 +182,54 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
               </div>
             ))}
           </div>
+        </Card>
+      )}
+
+      {/* Lotes que entraron, con el costo que se les congeló */}
+      {orden.lotesCorte.length > 0 && (
+        <Card padding="none" className="p-6 mb-6">
+          <h3 className="text-sm font-bold text-stone-800 mb-1">Lotes ingresados</h3>
+          <p className="text-xs text-stone-500 mb-3">
+            Cada lote se llevó el costo del día en que entró: el material repartido entre las unidades del
+            corte y los minutos de costura que ningún lote anterior había tomado. No se recalcula.
+          </p>
+          <div className="space-y-2">
+            {orden.lotesCorte.map((l) => (
+              <div key={l.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm border-b border-stone-100 pb-2 last:border-0">
+                <span className="font-mono text-xs text-stone-400 w-14">#{l.numero}</span>
+                <span className="text-xs text-stone-400 w-28 whitespace-nowrap">
+                  {new Date(l.ingresadoAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                </span>
+                <span className="font-semibold text-stone-800">{l.unidades} u</span>
+                <span className="text-xs text-stone-500">
+                  {l.talles.map((t) => `${t.talle}:${t.cantidad}`).join(' · ')}
+                </span>
+                <span className="ml-auto text-xs text-stone-600 whitespace-nowrap">
+                  material {l.sinCostoMaterial
+                    ? <span className="text-amber-700 font-semibold">sin costear</span>
+                    : <>
+                        ${fmt(l.costoMaterialUnit)}
+                        {/* De qué se dividió: 'planificado' significa que la orden no tenía corte
+                            cargado y el unitario puede estar lejos del real. El número solo no lo dice. */}
+                        <span className={l.baseMaterial === 'cortado' ? 'text-stone-400' : 'text-amber-700 font-semibold'}>
+                          {' '}(÷{l.unidadesBase} {l.baseMaterial === 'cortado' ? 'cortadas' : 'PLANIFICADAS'})
+                        </span>
+                      </>}
+                  {' · '}MO ${fmt(l.costoMoUnit)}
+                  <span className="text-stone-400"> ({fmt(l.minutosImputados)} min a ${fmt(l.costoMinuto)})</span>
+                  {' = '}<strong className="text-stone-800">${fmt(l.costoUnitario)}/u</strong>
+                </span>
+              </div>
+            ))}
+          </div>
+          {minutosPendientes > 0 && (
+            <p className="text-xs text-amber-700 mt-3 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
+              Quedan <strong>{fmt(minutosPendientes)} minutos</strong> de costura registrados a este SKU que
+              todavía no se llevó ningún lote (${fmt(minutosPendientes * costoMinutoHoy)} al $/min de hoy).
+              Se los va a llevar el próximo lote que entre; si la orden ya no va a recibir más, esa plata
+              no está en el costo de ninguna unidad.
+            </p>
+          )}
         </Card>
       )}
 

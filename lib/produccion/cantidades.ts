@@ -24,10 +24,30 @@ export function cantidadCortada(orden: { cantidad: number; cantidadCortada: numb
   return orden.cantidadCortada ?? orden.cantidad;
 }
 
+/** De dónde salió el denominador que se usó para repartir un costo. */
+export type OrigenBase = 'cortado' | 'planificado';
+
+/**
+ * El denominador del costo unitario de material **y de dónde vino**.
+ *
+ * 🔴 `cantidadCortada()` cae a lo planificado cuando no hay corte cargado, y el número
+ * que devuelve **no dice cuál de las dos es**: 40 puede ser "se cortaron 40" o "nadie
+ * cortó nada y hay 40 planificadas". Un consumidor que rotule "cortado" sobre eso miente,
+ * y si además CONGELA el resultado —como hace un lote— la mentira ya no se puede corregir
+ * después. La procedencia se devuelve acá, una sola vez, en vez de que cada consumidor la
+ * re-derive: derivarla de `n > 0` es la forma natural de equivocarse.
+ */
+export function baseDeRepartoConOrigen(
+  orden: { cantidad: number; cantidadCortada: number | null },
+): { unidades: number; origen: OrigenBase } | null {
+  const n = cantidadCortada(orden);
+  if (n <= 0) return null;
+  return { unidades: n, origen: orden.cantidadCortada != null ? 'cortado' : 'planificado' };
+}
+
 /** Denominador del costo unitario de material. `null` si todavía no hay nada que repartir. */
 export function baseDeReparto(orden: { cantidad: number; cantidadCortada: number | null }): number | null {
-  const n = cantidadCortada(orden);
-  return n > 0 ? n : null;
+  return baseDeRepartoConOrigen(orden)?.unidades ?? null;
 }
 
 /** Lo realmente ingresado a stock por producción, sumado de los movimientos de la orden. */

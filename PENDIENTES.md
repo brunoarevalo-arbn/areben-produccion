@@ -3,7 +3,97 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-09-17_
+_Última actualización: 2026-09-18_
+
+> **En esta sesión (18-sep): FASE 1 — EL LOTE QUE ENTRA, CON EL COSTO CONGELADO.**
+> Un corte ya puede entrar **de a partes**: cada parte es un `LoteCorte` con **talles adentro** y con
+> el costo **congelado el día que entró**. Antes una OP entraba entera de una sola vez y su costo se
+> recalculaba para siempre contra la ficha de hoy.
+>
+> 🔑 **La mano de obra llega a la prenda por primera vez.** `costoManoObra` era una **columna muerta
+> medida**: 0 escrituras en todo el repo, **0 de 67 OP** con un valor distinto de cero. Los minutos
+> existían —`TiemposProduccion`, **34.906 minutos**, de los cuales **18.787 (53,8%) tienen SKU**— y
+> **ninguno llegaba nunca a un costo**. 📊 Y matchean: de esos 18.787, **0 son huérfanos**, todos caen
+> en una OP real. A $134,71/min son **~$2,53M** de mano de obra que estaba medida y sin imputar.
+>
+> 🔴 🔑 **Los minutos de MUESTRA quedan AFUERA, y no por prolijidad: ya se cobran.**
+> `crearTiempoConGasto` le crea un `Gasto` de categoría 'desarrollo' a cada registro de muestra.
+> Sumarlos al costo de la prenda cobraría los mismos minutos **dos veces**. Quién es muestra lo decide
+> **`marcaDeMuestra`, el mismo juez que los cobra** — duplicar la lista de actividades en el costeo
+> sería media regla en dos lados. ⚠️ Sólo cuentan los `estado: 'guardado'`: un 'pendiente' es un
+> cronómetro sin confirmar (hay 5 hoy).
+>
+> **Decisiones de Bruno (18-sep):**
+> 1. **La MO se congela con lo que REALMENTE costó hasta ese día**, ⛔ no al estándar: los minutos que
+>    ningún lote anterior se llevó, sobre las unidades de ese lote. Es **desparejo a propósito** — el
+>    primer lote se lleva el arranque, el último lo que quedó.
+> 2. **Una orden sin costo de material se PLANTA** al ingresar. Se puede entrar igual, pero
+>    **afirmándolo**: el lote queda marcado (`sinCostoMaterial`) y la casilla aparece **recién después
+>    del freno**, para que nadie la tenga tildada por costumbre.
+>
+> 🔴 **Y eso muerde YA: las dos OP de bikini están en COSTURA con `costoTotal` $0 y `cantidadCortada`
+> en NULL** (ficha de corte sin cargar) ⇒ hoy todo lo que entre de ellas se congela **sin material**.
+> ▶️ **Mano de Bruno: cargar la ficha de corte de `ZAT-BIK-VER-001` y `ZAT-BIK-MAR-001` antes de que
+> entre el primer lote**, o esas 100 bikinis quedan valuadas sólo por mano de obra.
+>
+> 🔴 🔑 **El agujero conocido de la regla elegida: los minutos que llegan DESPUÉS del último lote no
+> tienen quién se los lleve.** Si la orden ya completó, ningún lote más va a entrar y esa plata no
+> entra al costo de ninguna unidad. ⛔ No se tapó con un promedio: la ficha de la OP **lo dice**
+> («quedan N minutos que no se llevó ningún lote, $X al $/min de hoy»). Si molesta en la práctica, la
+> salida es re-congelar el último lote, ⛔ no repartir para atrás.
+>
+> 🏁 **Lo que entró.** `LoteCorte` + `LoteCorteTalle` (`prisma/sql/2026-09-18-lotes-corte.sql`,
+> idempotente, ⛔ **sin `db push`** por el drift de `compras_dtf`). El núcleo es
+> **`lib/produccion/loteCorte.ts`**, con `permitirSinCosto` **obligatorio** para que el typechecker
+> señale a los llamadores. `terminarCosturaOrden` pasó a ingresar **un lote**: si lo ingresado no
+> alcanza lo cortado, la OP **sigue en COSTURA** y puede recibir otro; el parcial deja su propia
+> `EstadoTransicion` (sin eso, 30 de 100 no aparecían en ningún historial).
+>
+> 🔴 **Tres descuadres que aparecieron y se arreglaron, los tres del mismo tipo — un denominador que
+> cambió de significado y nadie siguió:**
+> - **Los avíos se descontaban una sola vez por ORDEN** (guard `aviosDescontados`). Con ingreso
+>   parcial el **primer lote se llevaba el descuento y los siguientes no descontaban nada, en
+>   silencio**: 100 bikinis en tres tandas descontaban las etiquetas de la primera. El evento que
+>   consume avíos es **el lote**, no la orden.
+> - **`lib/costos/fichaCostos.ts` era el ÚNICO camino de costo unitario que seguía dividiendo por
+>   `cantidad`** (lo planificado) después de 81251ca. Una OP planificada en 100 y cortada en 80
+>   mostraba un costo **20% más barato** ahí que en `ficha-resumen`, que ya dividía por lo cortado.
+>   Dos pantallas, dos números, la misma OP.
+> - **`lib/costos/aviosStock.ts` descontaba por `op.cantidad`**: mientras ese campo se pisaba con lo
+>   producido descontaba bien, y desde 81251ca descuenta **lo planificado**. Ahora va por lo ingresado
+>   y, si no hay movimientos, por lo cortado.
+>
+>
+> 🔴 🔑 **Y un descuadre más, que iba a quedar CONGELADO: el denominador no decía de cuál venía.**
+> `cantidadCortada()` cae a lo planificado cuando no hay corte cargado, y **el número solo no dice
+> cuál de las dos es**: 40 puede ser «se cortaron 40» o «nadie cortó y hay 40 planificadas». El lote
+> **congela** el unitario ⇒ repartir por el plan cuando se cortó menos deja el costo mal **para
+> siempre**, sin forma de encontrar cuáles mirar. 📊 **Medido en el ejercicio: $1.000/u (÷40
+> planificadas) contra $1.250/u (÷32 cortadas) — 25%.** Y la ficha **afirmaba «repartido por lo
+> cortado»** sin saber si era cierto. 🏁 Ahora la procedencia sale del núcleo **una sola vez**
+> (`baseDeRepartoConOrigen` en `lib/produccion/cantidades.ts`, y `baseDeReparto` se implementa con
+> ella), el lote la **guarda** (`unidadesBase` + `baseMaterial`) y la ficha muestra **«÷32 cortadas»**
+> en gris o **«÷40 PLANIFICADAS»** en ámbar. 🔑 **La forma natural de equivocarse es derivarlo de
+> `unidades > 0`** —da 'cortado' para una orden con el campo en NULL—, así que el chequeo 8a es
+> justamente ése. Lo levantó la sesión de la tablet, que se había equivocado así.
+> 🔑 **El rojo lo encontró correr el ejercicio DOS VECES, no escribirlo.** La primera corrida dio todo
+> verde sobre una base limpia. La segunda destapó que **una orden que vuelve a costura se quedaba con
+> el `terminadoAt` de su vuelta anterior** — y `aviosStock.ts:22` busca las terminadas justamente por
+> `terminadoAt: { not: null }` ⇒ figuraba **terminada en una pantalla y en costura en otra**. Ahora el
+> ingreso parcial lo limpia, y el caso quedó como chequeo 7.
+>
+> 📊 **Ejercido de verdad, ⛔ no sólo tipado**: `prisma/check-lote-corte-ejercicio.ts` corre el ingreso
+> real contra una **copia local** (`areben_test`) y **lee el resultado con SQL crudo**, no con los
+> helpers que prueba. 24 chequeos, verde **tres corridas seguidas**. Se planta si `DIRECT_URL` no
+> apunta a localhost. `prisma/check-fase1-lote.ts` es la medición read-only de la base.
+> ⚠️ 🔴 **`.env` apunta a PRODUCCIÓN y `.env.local` está vacío** ⇒ cualquier prueba local escribe datos
+> reales; y `prisma.config.ts` lee `.env`, ⛔ no `.env.local`, así que a los comandos de prisma hay que
+> pasarles `DIRECT_URL` en la línea. (Lo levantó la sesión de la tablet.)
+>
+> ▶️ **Lo que falta**: **aplicar el SQL en producción** (probado sólo en la copia); **caminar el modal
+> con el dedo** —se ejerció el núcleo, ⛔ no el click ni el checkbox del freno—; y que el **pasaje a la
+> marca valorice por el costo del LOTE** en vez del escandallo, que es la Fase 4 y 🔴 **le cambia el
+> número a Darío: hablarlo antes**.
 
 > **En esta sesión (17-sep): EL DENOMINADOR DEL COSTO, y los dos descuadres que estaban vivos.**
 > Arranca el trabajo de producir **por LOTE** para la temporada de bikinis (~20 artículos que van a

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
 import { TerminarLoteSchema } from '@/lib/validators/produccion';
 import { terminarCosturaOrden, CosturaError } from '@/lib/produccion/costura';
+import { LoteCorteError } from '@/lib/produccion/loteCorte';
 
 type Ctx = { params: Promise<{ loteId: string }> };
 
@@ -43,12 +44,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   try {
     const total = await prisma.$transaction(async (tx) => {
       let acum = 0;
-      for (const c of colores) acum += await terminarCosturaOrden(tx, c.ordenId, c.talles, session);
+      for (const c of colores) {
+        acum += await terminarCosturaOrden(tx, c.ordenId, c.talles, session, parsed.data.permitirSinCosto);
+      }
       return acum;
     });
     return NextResponse.json({ ok: true, colores: colores.length, total }, { status: 201 });
   } catch (e) {
-    if (e instanceof CosturaError) return NextResponse.json({ error: e.message }, { status: 400 });
+    if (e instanceof CosturaError || e instanceof LoteCorteError) {
+      return NextResponse.json({ error: e.message }, { status: 400 });
+    }
     throw e;
   }
 }

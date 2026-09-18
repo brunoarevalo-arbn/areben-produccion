@@ -35,6 +35,10 @@ export const TerminarCosturaSchema = z.object({
     talle:    z.string().min(1),
     cantidad: z.number().int().nonnegative(),
   })).min(1, 'Cargá al menos un talle'),
+  // Ingresar un lote de una orden que todavía no tiene costo de material (sin ficha de
+  // corte) congelaría ese lote en $0 para siempre. Por eso el default es plantarse y
+  // esto tiene que venir AFIRMADO desde la pantalla, nunca preseleccionado.
+  permitirSinCosto: z.boolean().default(false),
 });
 
 // Ajuste manual de stock de producto terminado (carga inicial, merma, corrección).
@@ -129,6 +133,8 @@ export const TerminarLoteSchema = z.object({
       cantidad: z.number().int().nonnegative(),
     })).min(1),
   })).min(1, 'Cargá al menos un color con su conteo'),
+  // Mismo criterio que TerminarCosturaSchema: afirmado, nunca preseleccionado.
+  permitirSinCosto: z.boolean().default(false),
 });
 
 // Cambio de estado por lote (avanzar todos los colores elegibles): mandar a costura o cerrar.

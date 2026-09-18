@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma';
 import { parseDatos } from './escandallo';
+import { cantidadCortada, cantidadIngresada } from '@/lib/produccion/cantidades';
 
 // Fallback del descuento de avíos vía escandallo.
 // Si una orden ya está terminada pero todavía no se descontaron sus avíos
@@ -29,12 +30,19 @@ export async function aplicarDescuentoAviosDesdeEscandallo(
     if (tieneCorte > 0) continue;
 
     await prisma.$transaction(async (tx) => {
+      // 🔴 El denominador era `op.cantidad`. Mientras ese campo se pisaba con lo
+      // producido, descontaba por lo producido; desde 81251ca significa sólo lo
+      // PLANIFICADO, así que una orden planificada en 100 y terminada en 80 descontaba
+      // 100 etiquetas. Se descuenta por lo que realmente entró y, si no hay movimientos
+      // (las órdenes viejas no los tienen), por lo cortado — el mismo orden que usan
+      // reportes/sku y tiempo-sku.
+      const unidades = (await cantidadIngresada(tx, op.id)) || cantidadCortada(op);
       for (const a of refs) {
         const et = await tx.etiquetaCatalogo.findUnique({ where: { id: a.etiquetaId } });
         if (!et || et.stock == null) continue;
         await tx.etiquetaCatalogo.update({
           where: { id: a.etiquetaId },
-          data: { stock: Math.max(0, et.stock - a.cantidad * op.cantidad) },
+          data: { stock: Math.max(0, et.stock - a.cantidad * unidades) },
         });
       }
       await tx.ordenProduccion.update({ where: { id: op.id }, data: { aviosDescontados: true } });

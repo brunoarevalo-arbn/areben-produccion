@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     where:  { sku: { not: null } },
     select: {
       sku: true, marca: true, descripcion: true, fichaCorteCargada: true,
-      costoTela: true, costoInsumosSecundarios: true, costoCorte: true, costoSublimacion: true, cantidad: true, loteId: true,
+      costoTela: true, costoInsumosSecundarios: true, costoCorte: true, costoSublimacion: true, cantidad: true, cantidadCortada: true, loteId: true,
     },
     orderBy: { createdAt: 'desc' },
   });

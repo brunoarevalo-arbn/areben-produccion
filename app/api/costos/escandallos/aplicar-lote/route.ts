@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   // OPs del lote → costos de ficha por SKU hermano (≠ fuente).
   const loteOps = await prisma.ordenProduccion.findMany({
     where: { loteId, sku: { not: null } },
-    select: { sku: true, marca: true, descripcion: true, fichaCorteCargada: true, costoTela: true, costoInsumosSecundarios: true, costoCorte: true, cantidad: true },
+    select: { sku: true, marca: true, descripcion: true, fichaCorteCargada: true, costoTela: true, costoInsumosSecundarios: true, costoCorte: true, cantidad: true, cantidadCortada: true },
     orderBy: { createdAt: 'desc' },
   });
 

@@ -140,6 +140,10 @@ export function ColaAdmin() {
 
   // Modal terminar costura (conteo por talle → stock de terminados)
   const [terminarOrden,  setTerminarOrden]  = useState<Orden | null>(null);
+  // El freno por falta de costo de material y la afirmación que lo levanta. Los dos
+  // arrancan apagados en cada apertura del modal: una afirmación no se hereda.
+  const [terminarPideAfirmar, setTerminarPideAfirmar] = useState(false);
+  const [terminarSinCosto,    setTerminarSinCosto]    = useState(false);
   const [terminarTalles, setTerminarTalles] = useState<{ talle: string; cantidad: string }[]>([]);
   const [terminarSaving, setTerminarSaving] = useState(false);
   const [terminarError,  setTerminarError]  = useState('');
@@ -360,6 +364,8 @@ export function ColaAdmin() {
   const abrirTerminar = async (orden: Orden) => {
     setTerminarOrden(orden);
     setTerminarError('');
+    setTerminarPideAfirmar(false);
+    setTerminarSinCosto(false);
     let talles: { talle: string; cantidad: string }[] = [];
     const r = await fetch(`/api/produccion/cola/${orden.id}/corte`);
     if (r.ok) {
@@ -388,11 +394,17 @@ export function ColaAdmin() {
     const r = await fetch(`/api/produccion/cola/${terminarOrden.id}/terminar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ talles }),
+      body: JSON.stringify({ talles, permitirSinCosto: terminarSinCosto }),
     });
     setTerminarSaving(false);
     if (r.ok) { setTerminarOrden(null); cargar(); }
-    else { const d = await r.json().catch(() => ({})); setTerminarError(d.error || 'Error al terminar'); }
+    else {
+      const d = await r.json().catch(() => ({}));
+      setTerminarError(d.error || 'Error al terminar');
+      // El freno por falta de costo se puede levantar, pero afirmándolo: recién acá
+      // aparece la casilla, para que nadie la tenga tildada de entrada por costumbre.
+      if (d.requiereAfirmar) setTerminarPideAfirmar(true);
+    }
   };
 
   const eliminar = async (id: string, sku: string | null) => {
@@ -863,7 +875,11 @@ export function ColaAdmin() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={() => setTerminarOrden(null)}>
           <div className="bg-white rounded-2xl border border-stone-200 p-5 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-sm font-bold text-stone-800 mb-1">Terminar costura <span className="font-mono text-stone-500">{terminarOrden.sku}</span></h3>
-            <p className="text-xs text-stone-500 mb-3">¿Cuántas salieron de cada talle? Ingresan al stock de terminados.</p>
+            <p className="text-xs text-stone-500 mb-3">
+              ¿Cuántas salieron de cada talle? Ingresan al stock de terminados.
+              Si entran menos de las {terminarOrden.cantidadCortada ?? terminarOrden.cantidad} cortadas,
+              la orden <strong>sigue en costura</strong> y podés cargar otro lote después.
+            </p>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {terminarTalles.map((t, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -880,9 +896,25 @@ export function ColaAdmin() {
               <span className="text-xs text-stone-500">Total: <strong className="text-stone-800">{totalTerminar}</strong> u</span>
             </div>
             {terminarError && <p className="text-red-500 text-xs mt-2">{terminarError}</p>}
+            {terminarPideAfirmar && (
+              <label className="flex items-start gap-2 mt-3 p-2.5 rounded-lg bg-amber-50 border border-amber-200 cursor-pointer">
+                <input type="checkbox" checked={terminarSinCosto} onChange={(e) => setTerminarSinCosto(e.target.checked)}
+                  className="mt-0.5 accent-amber-600" />
+                <span className="text-xs text-stone-700">
+                  Ingresar igual, <strong>sin costo de material</strong>. El lote queda marcado y su costo
+                  unitario va a tener sólo la mano de obra.
+                </span>
+              </label>
+            )}
             <div className="flex gap-2 mt-4">
-              <Button variant="primary" isLoading={terminarSaving} disabled={totalTerminar === 0} onClick={confirmarTerminar} className="flex-1">
-                {terminarSaving ? 'Terminando...' : 'Terminar y mandar a stock'}
+              <Button variant="primary" isLoading={terminarSaving}
+                disabled={totalTerminar === 0 || (terminarPideAfirmar && !terminarSinCosto)}
+                onClick={confirmarTerminar} className="flex-1">
+                {terminarSaving
+                  ? 'Ingresando...'
+                  : totalTerminar > 0 && totalTerminar < (terminarOrden.cantidadCortada ?? terminarOrden.cantidad)
+                    ? `Ingresar ${totalTerminar} u y seguir en costura`
+                    : 'Terminar y mandar a stock'}
               </Button>
               <Button variant="secondary" onClick={() => setTerminarOrden(null)}>Cancelar</Button>
             </div>
