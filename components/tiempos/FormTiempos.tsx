@@ -144,6 +144,11 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
     if (nueva === parte || cambiando) return;
     // Sin reloj corriendo no hay nada que cerrar: es sólo elegir con qué empieza.
     if (estado === 'idle' || !actividad) { setParte(nueva); return; }
+    // 🔑 Sin parte todavía tampoco hay nada que cerrar: los minutos que corrieron
+    // ⛔ no están puestos en ninguna pieza, así que esto ⛔ no es un CAMBIO — es
+    // decir por primera vez qué se estuvo cosiendo. Cerrar un registro acá
+    // inventaría una pieza anterior que nunca existió.
+    if (!parte) { setParte(nueva); return; }
     setConfirmParte({ nueva, minutos: onObtenerTiempos()?.minutosNetos ?? 0 });
   };
 
@@ -243,9 +248,16 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                 } else {
                   setOrdenId(orden.id);
                   setCantidad(String(orden.cantidad));
-                  // Una prenda por partes arranca en la primera: dejar el selector
-                  // vacío haría que el primer registro del día saliera sin parte.
-                  setParte(orden.partes?.[0] ?? '');
+                  // 🔴 La parte se preselecciona SÓLO con el reloj parado.
+                  //
+                  // Con el reloj corriendo, la orden se elige AL FINAL —así trabaja
+                  // Marisol: arranca a coser y recién después dice qué era—. Ahí
+                  // preseleccionar la primera pieza es AFIRMAR algo que nadie dijo:
+                  // los minutos que ya corrieron quedan puestos en Corpiño, y como
+                  // cambiar de pieza cierra el registro anterior, la única salida
+                  // era guardar esos minutos en la pieza equivocada.
+                  // Pasó en producción el 18-sep con 82 minutos.
+                  setParte(estado === 'idle' ? (orden.partes?.[0] ?? '') : '');
                 }
                 setConfirmFin(false);
               }}
@@ -370,11 +382,13 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
             </button>
           </div>
           <p className="text-[11px] text-stone-400 mt-1.5 leading-snug">
-            {sugerirCompartido && parte !== PARTE_COMPARTIDA
-              ? `La tira de la cortacollareta va a ${partesDisponibles.join(' y ')}: ese rato se reparte entre las dos.`
-              : relojCorriendo
-                ? 'Tocá la otra parte y se cierra sola la que venías haciendo: no hace falta parar.'
-                : 'Se guarda con cada registro, para saber cuánto lleva cada pieza.'}
+            {relojCorriendo && !parte
+              ? '👆 Decí cuál estuviste cosiendo. Todavía no hay nada asignado, así que elegir acá no cierra ningún registro.'
+              : sugerirCompartido && parte !== PARTE_COMPARTIDA
+                ? `La tira de la cortacollareta va a ${partesDisponibles.join(' y ')}: ese rato se reparte entre las dos.`
+                : relojCorriendo
+                  ? 'Tocá la otra parte y se cierra sola la que venías haciendo: no hace falta parar.'
+                  : 'Se guarda con cada registro, para saber cuánto lleva cada pieza.'}
           </p>
         </div>
       )}

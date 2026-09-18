@@ -5,6 +5,21 @@
 
 _Última actualización: 2026-09-18_
 
+> 🔴 🔑 **EN PRODUCCIÓN, EL MISMO DÍA: preseleccionar una opción es AFIRMAR algo que
+> nadie dijo.** La tablet preseleccionaba la primera pieza al elegir la orden. Pero la
+> orden **se elige AL FINAL** —se arranca a coser y recién después se dice qué era—, así
+> que con **82 minutos ya corridos** apareció "Corpiño" solo. Y como cambiar de pieza
+> **cierra el registro anterior**, la única salida era guardar esos 82 minutos en la
+> pieza equivocada. 🔑 **El defecto ⛔ no era el cambio de parte: era el default.** Un
+> valor puesto por la pantalla se vuelve indistinguible de uno elegido por la persona, y
+> desde ahí toda la mecánica que lo sigue ⛔ ya no puede ayudar.
+> 🏁 Dos arreglos: (1) **⛔ no se preselecciona con el reloj corriendo** (parado sí: ahí
+> se está configurando antes de arrancar); (2) **con la pieza vacía, el primer toque sólo
+> ETIQUETA y ⛔ no cierra nada** — no hay pieza anterior que cerrar, y cerrar una
+> inventaría un tramo que nunca existió. Recién el segundo toque es un cambio de verdad.
+> 📊 Los 4 registros del 18-sep quedaron corregidos a mano (13 min de cortacollareta →
+> `Compartido`; los otros tres → `Bombacha` + `Remalladora`, dictado por Bruno).
+
 > **En esta sesión (18-sep): LA TABLET REGISTRA POR PARTE — corpiño y bombacha en la misma sesión.**
 > Bruno decidió que la bikini **se vende por pieza** aunque **se tiza junta** (entran 6 en un espacio
 > en metros). Las dos OP de bikini (`ZAT-BIK-VER-001` 40 · `ZAT-BIK-MAR-001` 60) **arrancan producción
