@@ -182,10 +182,30 @@ _Última actualización: 2026-09-18_
 > igual** que una que la costurera está cosiendo. Se escribe *«esperando dije»* en `notas`, que ya
 > existe. No se le pone código hasta que moleste.
 >
-> ▶️ **Lo que falta**: **aplicar el SQL en producción** (probado sólo en la copia); **caminar el modal
-> con el dedo** —se ejerció el núcleo, ⛔ no el click ni el checkbox del freno—; y que el **pasaje a la
-> marca valorice por el costo del LOTE** en vez del escandallo, que es la Fase 4 y 🔴 **le cambia el
-> número a Darío: hablarlo antes**.
+> 🏁 **EN PRODUCCIÓN el 18-sep.** Bruno aplicó el SQL, el push (`0ea53d1`, 11:20) se llevó los tres
+> commits de esta línea en la misma cadena y el deploy quedó **Ready 2 segundos después**, sirviendo
+> `produccion.arebensrl.com`. **El orden se respetó: SQL primero, deploy después** ⇒ la tablet nunca
+> se rompió (y ⛔ nunca iba a romperse: lo que consulta `lotes_corte` son **tres** lugares, los tres de
+> Producción —la ficha de OP y los dos `terminar`—, medido por `grep`, ⛔ no deducido).
+> 📊 **Verificado contra prod por tres caminos**: las dos tablas con sus 15 y 4 columnas, 5 índices y
+> 2 FK (incluidas `unidadesBase`/`baseMaterial`, agregadas al final y por eso las más fáciles de
+> perder) · `prisma migrate diff` deja **sólo** el drift viejo de `compras_dtf` · y el
+> `include: { lotesCorte }` de la ficha —lo que reventaba— corrido con el cliente Prisma **contra la
+> base de producción**.
+>
+> ▶️ **Lo que falta**:
+> - 🔴 **LA FICHA DE CORTE de las dos OP de bikini** (mano de Bruno). Es lo único que separa a las 100
+>   bikinis de tener costo real: hoy entran valuadas **sólo por mano de obra**.
+> - ⚠️ **La pantalla LOGUEADA nunca se abrió.** Chrome no tiene sesión; un GET sin cookie da **307 al
+>   login**, que ⛔ **no prueba la query** porque el guard corta antes. Es un clic:
+>   `/produccion/cmu5s8ldu000104l55m12itqp`.
+> - **Caminar el modal con el dedo** — se ejerció el núcleo y el contrato del endpoint, ⛔ no el click
+>   ni el checkbox del freno.
+> - **Un umbral para el residuo de redondeo**: `minutosImputados` se guarda a 2 decimales contra una
+>   suma cruda, así que el cartel de «quedan N minutos» puede salir diciendo **0**. Ruido con cara de
+>   dato; es una línea. (Apareció cuando la tablet pasó a guardar decimales: antes 30 seg valían 0.)
+> - **Fase 4**: que el **pasaje a la marca valorice por el costo del LOTE** en vez del escandallo.
+>   🔴 **le cambia el número a Darío: hablarlo antes**.
 
 > **En esta sesión (17-sep): EL DENOMINADOR DEL COSTO, y los dos descuadres que estaban vivos.**
 > Arranca el trabajo de producir **por LOTE** para la temporada de bikinis (~20 artículos que van a
