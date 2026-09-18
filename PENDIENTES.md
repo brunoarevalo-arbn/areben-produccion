@@ -72,6 +72,79 @@ _Última actualización: 2026-09-18_
 > 📊 Los 4 registros del 18-sep quedaron corregidos a mano (13 min de cortacollareta →
 > `Compartido`; los otros tres → `Bombacha` + `Remalladora`, dictado por Bruno).
 
+> 🔴 🔑 **UN CORTE PRODUCE DOS ARTÍCULOS: el lote entra POR PIEZA** (18-sep, decidido por Bruno).
+> La bikini se tiza junta y **se vende por pieza**, pero hasta acá una OP tenía un SKU y todo lo que
+> entraba iba ahí. Ahora un ingreso deja **un `LoteCorte` por parte** —mismo número de lote, "Lote 2 ·
+> Corpiño" y "Lote 2 · Bombacha"—, cada uno con su SKU (`ZAT-COR-VER-001` / `ZAT-BOM-VER-001`), su
+> conteo por talle y **su propio costo**.
+>
+> 🔑 **Dónde se parte lo decidió el conteo, ⛔ no el costo.** Se evaluó partir en el pasaje a la marca
+> (cero código) y en dos OP hermanas dentro de la tizada (cero código nuevo, pero la tela se parte a
+> mano en cada corte). Lo que descartó las dos es que **40 corpiños y 39 bombachas se tiene que poder
+> decir**: si el conteo no admite piezas desparejas, una rotura obliga a mentir en el ingreso. La OP
+> se queda con **TODO el material**, que es lo que el corte consumió de verdad.
+>
+> **Decisiones de Bruno (18-sep):** los **avíos se descuentan por PIEZA** (40 bikinis descuentan 80
+> etiquetas: cada pieza sale sola a la venta con su etiqueta) · los minutos que la tablet **no
+> etiquetó** —los `Compartido` y los que quedaron sin pieza— se reparten **mitad y mitad**.
+> ▶️ **El % de material lo va a preguntar Bruno al cortador**; hasta entonces queda **en NULL**.
+>
+> 🔑 **Y no traba nada hoy**: el % sólo decide algo cuando hay material que repartir, y las dos OP de
+> bikini están en `costoTotal` $0. Mientras no haya ficha de corte, entran igual (afirmándolo).
+>
+> 🔴 **Los dos frenos se parecen y NO son lo mismo, y la pantalla los distingue.** Falta la **ficha de
+> corte** = falta una DECISIÓN ⇒ se puede entrar afirmándolo (`requiereAfirmar: true`, la casilla).
+> Falta el **% de cada pieza** o su **abreviatura de SKU** = falta un DATO ⇒ `afirmable: false` y la
+> pantalla **no ofrece salida**: tildar una casilla no conseguiría el dato, sólo congelaría un
+> reparto inventado.
+>
+> 🔴 **El descuadre que esto podía dejar, y por qué no lo deja**: `cantidadIngresada` suma los
+> movimientos de la orden, y un corte de 40 bikinis que entra entero produce **80** movimientos.
+> Sumarlos daría la orden por COMPLETA con el primer lote y la mitad de las piezas afuera — el mismo
+> patrón que ya mordió tres veces acá (**un denominador que cambió de significado y nadie siguió**).
+> Ahora el avance lo marca **la pieza que MENOS entró** (`cantidadIngresadaPorPartes`), y la pantalla
+> lo dice: *"Van 8 de 32 cortadas"*.
+>
+> 🔴 **El SKU de la pieza se GUARDA, ⛔ no se deriva al leer** (`LoteCorte.sku`). Se compone una vez
+> al ingresar —2º segmento del SKU reemplazado por `PartePrenda.skuAbrev`, el mismo único dueño de
+> esa lectura, `lib/produccion/conjuntos.ts`— y queda congelado con el costo. **Falla cerrado**: si
+> no se puede componer, el ingreso se planta, porque `stockTerminado.upsert` **crea la fila que le
+> pidan** y mercadería en un código inventado no se nota hasta que alguien la busque y no esté. Por
+> eso además **el modal MUESTRA los dos SKU antes de ingresar**.
+>
+> 🏁 `prisma/sql/2026-09-18-lote-por-parte.sql` (idempotente, ⛔ **sin `db push`**).
+> ⚠️ El único de `lotes_corte` pasó a `(ordenId, numero, parte)` **con `NULLS NOT DISTINCT`**: para un
+> unique de Postgres dos NULL son **distintos**, así que sobre las órdenes sin partes —todas las de
+> hoy— un unique común **no defendería nada**. Prisma no lo sabe expresar; el SQL lo hace y avisa si
+> la base es < PG 15.
+>
+> 📊 **Ejercido, ⛔ no sólo tipado.** `prisma/check-lote-corte-ejercicio.ts` pasó de 24 a **38
+> chequeos**, verde **tres corridas seguidas** contra `areben_test`. Los nuevos: las dos piezas suman
+> exactamente el unitario del corte (si no, repartir pierde o inventa plata, y el lote lo congela) ·
+> los minutos medidos van a su pieza y los sueltos mitad y mitad, con el oráculo armado por SQL crudo
+> desde `tiempos_produccion` · una sola pieza entera **no** completa el corte · un conteo sin pieza se
+> planta · y el **chequeo 14**, que parsea con los validadores REALES lo que arman las dos pantallas:
+> sin eso, un cambio de forma del payload (`talles` → `conteos`) dejaba todo lo demás en verde.
+>
+> ✅ **Y se CAMINÓ con el dedo**, que es lo que faltaba de la Fase 1: `next start -p 3002` contra la
+> copia local (⛔ **no** el `next dev` del 3000, que apunta a PRODUCCIÓN), con una cookie de sesión
+> firmada a mano porque Chrome no tiene login. Se vio: la **ficha logueada de la OP** —lo que nunca se
+> había abierto— con las dos piezas y sus SKU · el form de terminar lote con **una columna por pieza**
+> · el freno del % **en pantalla, con su texto** · y el ingreso bueno: 6 corpiños + 5 bombachas,
+> $500/u y $750/u (40/60 de $1.250), *"Van 8 de 32"*. La copia local quedó restaurada.
+>
+> ▶️ **Lo que falta**:
+> - 🔴 **El % de material corpiño/bombacha** — mano de Bruno, hablándolo con el cortador. Se carga con
+>   `npx tsx prisma/seed-conjuntos-prenda.ts --aplicar --porcentajes BIK=40/60`.
+> - 🔴 **La ficha de corte de las dos OP de bikini** (sigue abierta del 18-sep a la mañana).
+> - **Sembrar `skuAbrev` en PRODUCCIÓN**: `npx tsx prisma/seed-conjuntos-prenda.ts --aplicar` (dry-run
+>   por defecto). Sin eso la bikini **no puede ingresar** — se planta, que es correcto, pero traba.
+> - ⚠️ **Los SKU de pieza (`ZAT-COR-…` / `ZAT-BOM-…`) no existen todavía en ningún lado**: ni en
+>   `sku_catalogo` (que sólo tiene "Bikini/BIK"), ni como escandallo, ni en Gestión Nube. El stock los
+>   crea al entrar. **Hay que decidir si ésos son los códigos con los que Zattia los va a vender.**
+> - **El ABM del catálogo de conjuntos** (hoy se siembra por script) — ahora tiene dos campos más.
+> - **Un umbral para el residuo de redondeo** del cartel de "quedan N minutos" (sigue abierto).
+
 > **En esta sesión (18-sep): LA TABLET REGISTRA POR PARTE — corpiño y bombacha en la misma sesión.**
 > Bruno decidió que la bikini **se vende por pieza** aunque **se tiza junta** (entran 6 en un espacio
 > en metros). Las dos OP de bikini (`ZAT-BIK-VER-001` 40 · `ZAT-BIK-MAR-001` 60) **arrancan producción

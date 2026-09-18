@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { getSession, requirePermiso } from '@/lib/auth';
 import { RegistrarCorteSchema } from '@/lib/validators/produccion';
 import { registrarCorteOrden, revertirCorteOrden, trazarEdicion, CorteError } from '@/lib/produccion/corte';
+import { partesDeOrden, skuDeParte } from '@/lib/produccion/conjuntos';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 
@@ -41,7 +42,18 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   });
 
   if (!orden) return NextResponse.json({ error: 'OP no encontrada' }, { status: 404 });
-  return NextResponse.json(orden);
+
+  // Las piezas con las que esta orden ingresa a stock, con el SKU al que va cada una.
+  // Va acá porque es el endpoint con el que el modal de "terminar costura" se prellena:
+  // la pantalla MUESTRA los dos SKU antes de ingresar, que es el único chequeo de que la
+  // abreviatura del catálogo compone el código que existe de verdad.
+  const partes = (await partesDeOrden(prisma, orden.sku)).map((p) => ({
+    nombre: p.nombre,
+    sku: skuDeParte(orden.sku, p.skuAbrev),
+    porcentajeMaterial: p.porcentajeMaterial,
+  }));
+
+  return NextResponse.json({ ...orden, partes });
 }
 
 export async function POST(req: NextRequest, { params }: Ctx) {

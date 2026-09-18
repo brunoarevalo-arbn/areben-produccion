@@ -30,11 +30,19 @@ export const CambioEstadoSchema = z.object({
 });
 
 // Terminar costura: conteo de lo que salió por talle → ingresa al stock de terminados.
-export const TerminarCosturaSchema = z.object({
+// Lo que salió de UNA pieza. `parte: null` = la prenda no se parte (todo lo que no sea
+// un conjunto). Que la pieza corresponda —y que una prenda por partes no entre sin
+// decir cuál— lo valida el núcleo contra el catálogo, que es quien lo sabe.
+const ConteoDeParteSchema = z.object({
+  parte:  z.string().min(1).nullable().default(null),
   talles: z.array(z.object({
     talle:    z.string().min(1),
     cantidad: z.number().int().nonnegative(),
   })).min(1, 'Cargá al menos un talle'),
+});
+
+export const TerminarCosturaSchema = z.object({
+  conteos: z.array(ConteoDeParteSchema).min(1, 'Cargá al menos un conteo'),
   // Ingresar un lote de una orden que todavía no tiene costo de material (sin ficha de
   // corte) congelaría ese lote en $0 para siempre. Por eso el default es plantarse y
   // esto tiene que venir AFIRMADO desde la pantalla, nunca preseleccionado.
@@ -128,10 +136,7 @@ export const CortarLoteSchema = z.object({
 export const TerminarLoteSchema = z.object({
   colores: z.array(z.object({
     ordenId: z.string().min(1),
-    talles:  z.array(z.object({
-      talle:    z.string().min(1),
-      cantidad: z.number().int().nonnegative(),
-    })).min(1),
+    conteos: z.array(ConteoDeParteSchema).min(1),
   })).min(1, 'Cargá al menos un color con su conteo'),
   // Mismo criterio que TerminarCosturaSchema: afirmado, nunca preseleccionado.
   permitirSinCosto: z.boolean().default(false),

@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { TerminarLoteForm } from '@/components/produccion/TerminarLoteForm';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { partesDeOrden, skuDeParte } from '@/lib/produccion/conjuntos';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,22 @@ export default async function TerminarLotePage({ params }: { params: Promise<{ l
 
   if (!lote) notFound();
   const titulo = lote.descripcion || lote.prenda || 'Lote';
+
+  // Las piezas de cada color: una prenda por partes (la bikini) se cuenta por pieza y
+  // cada una entra a su propio SKU. Todas las OP de un lote comparten el molde, así que
+  // en la práctica es la misma lista — pero se resuelve por OP, que es por SKU, porque
+  // `LoteProduccion.prenda` admite override manual y ahí ya no es la misma verdad.
+  const ordenes = await Promise.all(lote.ordenes.map(async (o) => ({
+    id: o.id,
+    sku: o.sku,
+    descripcion: o.descripcion,
+    cantidad: o.cantidad,
+    cortes: o.cortesPorTalle.map((c) => ({ talle: c.talle, cantidad: c.cantidad })),
+    partes: (await partesDeOrden(prisma, o.sku)).map((p) => ({
+      nombre: p.nombre,
+      sku: skuDeParte(o.sku, p.skuAbrev),
+    })),
+  })));
 
   if (lote.ordenes.length === 0) {
     return (
@@ -49,13 +66,7 @@ export default async function TerminarLotePage({ params }: { params: Promise<{ l
       />
       <TerminarLoteForm
         loteId={lote.id}
-        ordenes={lote.ordenes.map((o) => ({
-          id: o.id,
-          sku: o.sku,
-          descripcion: o.descripcion,
-          cantidad: o.cantidad,
-          cortes: o.cortesPorTalle.map((c) => ({ talle: c.talle, cantidad: c.cantidad })),
-        }))}
+        ordenes={ordenes}
       />
     </div>
   );

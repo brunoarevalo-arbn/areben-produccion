@@ -35,7 +35,7 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
     where: { id },
     include: {
       transiciones: { orderBy: { fecha: 'desc' } },
-      lotesCorte: { include: { talles: { orderBy: { talle: 'asc' } } }, orderBy: { numero: 'asc' } },
+      lotesCorte: { include: { talles: { orderBy: { talle: 'asc' } } }, orderBy: [{ numero: 'asc' }, { parte: 'asc' }] },
       cortesPorTalle: { orderBy: { talle: 'asc' } },
       pagoCorte: { select: { id: true, fecha: true, beneficiario: true, montoTotal: true, cortadorId: true } },
       edicionesCorte: { orderBy: { createdAt: 'desc' } },
@@ -197,6 +197,14 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
             {orden.lotesCorte.map((l) => (
               <div key={l.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm border-b border-stone-100 pb-2 last:border-0">
                 <span className="font-mono text-xs text-stone-400 w-14">#{l.numero}</span>
+                {/* La pieza y el SKU al que entró. Un corte de bikini deja dos filas con
+                    el mismo número: son el mismo lote, dos artículos distintos. */}
+                {l.parte && (
+                  <span className="text-xs text-stone-700 font-semibold w-20">
+                    {l.parte}
+                    <span className="block font-mono font-normal text-[10px] text-stone-400">{l.sku}</span>
+                  </span>
+                )}
                 <span className="text-xs text-stone-400 w-28 whitespace-nowrap">
                   {new Date(l.ingresadoAt).toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
                 </span>
@@ -216,7 +224,16 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
                         </span>
                       </>}
                   {' · '}MO ${fmt(l.costoMoUnit)}
-                  <span className="text-stone-400"> ({fmt(l.minutosImputados)} min a ${fmt(l.costoMinuto)})</span>
+                  <span className="text-stone-400"> ({fmt(l.minutosImputados)} min a ${fmt(l.costoMinuto)}</span>
+                  {/* 🔑 Cuántos de esos minutos NO estaban medidos en esta pieza: los
+                      'Compartido' y los que la tablet dejó sin etiquetar, repartidos mitad
+                      y mitad. Sin esto el número parece medido entero. */}
+                  {Number(l.minutosCompartidos) > 0 && (
+                    <span className="text-amber-700">
+                      {', '}{fmt(l.minutosCompartidos)} sin pieza repartidos
+                    </span>
+                  )}
+                  <span className="text-stone-400">)</span>
                   {' = '}<strong className="text-stone-800">${fmt(l.costoUnitario)}/u</strong>
                 </span>
               </div>

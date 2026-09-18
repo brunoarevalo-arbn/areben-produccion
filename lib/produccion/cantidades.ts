@@ -59,6 +59,35 @@ export async function cantidadIngresada(db: Db, ordenId: string): Promise<number
   return r._sum.cantidad ?? 0;
 }
 
+/**
+ * Lo ingresado de una orden **en unidades del corte**, que en una prenda por partes NO es
+ * la suma de las piezas.
+ *
+ * 🔴 Un corte de 40 bikinis que entra entero produce 80 movimientos (40 corpiños + 40
+ * bombachas). Sumarlos daría 80 contra 40 cortadas y la orden se daría por COMPLETA con
+ * el primer lote, aunque falte la mitad de las piezas: el denominador cambiaría de
+ * significado —de "bikinis" a "prendas"— y nadie lo seguiría. Por eso el avance lo marca
+ * la pieza que MENOS entró: mientras falte una bombacha, ese corte no está terminado.
+ *
+ * ⚠️ Sigue derivándose de los movimientos y no de los lotes, para que no pueda
+ * desincronizarse de lo que realmente movió el stock.
+ */
+export async function cantidadIngresadaPorPartes(
+  db: Db,
+  ordenId: string,
+  skusDePartes: string[],
+): Promise<number> {
+  if (skusDePartes.length === 0) return cantidadIngresada(db, ordenId);
+
+  const filas = await db.movimientoTerminado.groupBy({
+    by: ['sku'],
+    where: { ordenId, origen: 'produccion', sku: { in: skusDePartes } },
+    _sum: { cantidad: true },
+  });
+  const porSku = new Map(filas.map((f) => [f.sku, f._sum.cantidad ?? 0]));
+  return Math.min(...skusDePartes.map((s) => porSku.get(s) ?? 0));
+}
+
 /** Lo ingresado de varias órdenes de una sola consulta: `ordenId → unidades`. */
 export async function ingresadasPorOrden(db: Db, ordenIds: string[]): Promise<Map<string, number>> {
   if (ordenIds.length === 0) return new Map();

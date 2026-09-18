@@ -14,7 +14,10 @@
 // admite un override manual (`api/produccion/lote/agrupar`), así que el mismo
 // molde puede estar guardado ahí como otra cosa. Dos verdades, una sola correcta.
 
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
+
+type Db = PrismaClient | Prisma.TransactionClient;
 
 /** Mínimo de segmentos para creerle a la posición: MARCA-PRENDA-COLOR. */
 const SEGMENTOS_MINIMOS = 3;
@@ -34,10 +37,35 @@ export function prendaAbrevDeSku(sku: string | null | undefined): string | null 
   return abrev ? abrev : null;
 }
 
+export interface ParteDePrenda {
+  nombre: string;
+  /** 2º segmento del SKU de la pieza ("COR"). `null` = todavía no puede ir a stock sola. */
+  skuAbrev: string | null;
+  /** Qué % del material del corte se lleva. `null` = nadie lo declaró. */
+  porcentajeMaterial: number | null;
+}
+
 export interface ConjuntoConPartes {
   prendaAbrev: string;
   nombre: string;
-  partes: string[];
+  partes: ParteDePrenda[];
+}
+
+/**
+ * El SKU de una pieza: el de la orden con el 2º segmento reemplazado
+ * (`ZAT-BIK-VER-001` + `COR` → `ZAT-COR-VER-001`).
+ *
+ * 🔴 Devuelve `null` si el SKU de la orden no sigue la convención o si la parte no tiene
+ * abreviatura, y quien llame se tiene que plantar. Componer un SKU a medias acá dejaría
+ * mercadería ingresada a un código que no existe en ningún lado, y el stock no avisa:
+ * `stockTerminado.upsert` crea la fila que le pidan. Falla cerrado.
+ */
+export function skuDeParte(skuOrden: string | null | undefined, skuAbrev: string | null): string | null {
+  if (!skuOrden || !skuAbrev?.trim()) return null;
+  const segmentos = skuOrden.trim().split('-');
+  if (segmentos.length < SEGMENTOS_MINIMOS) return null;
+  segmentos[1] = skuAbrev.trim().toUpperCase();
+  return segmentos.join('-');
 }
 
 /**
@@ -57,14 +85,50 @@ export async function conjuntosActivos(): Promise<Map<string, ConjuntoConPartes>
       .filter((c) => c.partes.length > 0)
       .map((c) => [
         c.prendaAbrev.toUpperCase(),
-        { prendaAbrev: c.prendaAbrev, nombre: c.nombre, partes: c.partes.map((p) => p.nombre) },
+        {
+          prendaAbrev: c.prendaAbrev,
+          nombre: c.nombre,
+          partes: c.partes.map((p) => ({
+            nombre: p.nombre,
+            skuAbrev: p.skuAbrev,
+            porcentajeMaterial: p.porcentajeMaterial == null ? null : Number(p.porcentajeMaterial),
+          })),
+        },
       ]),
   );
 }
 
 /** Las partes que le corresponden a un SKU, o `[]` si no es una prenda por partes. */
-export function partesDeSku(sku: string | null | undefined, conjuntos: Map<string, ConjuntoConPartes>): string[] {
+export function partesDeSku(
+  sku: string | null | undefined,
+  conjuntos: Map<string, ConjuntoConPartes>,
+): ParteDePrenda[] {
   const abrev = prendaAbrevDeSku(sku);
   if (!abrev) return [];
   return conjuntos.get(abrev)?.partes ?? [];
+}
+
+/** Sólo los nombres — lo que la tablet le muestra a la costurera. */
+export function nombresDePartes(partes: ParteDePrenda[]): string[] {
+  return partes.map((p) => p.nombre);
+}
+
+/**
+ * Las partes de una orden, leídas dentro de una transacción (la tablet usa el mapa
+ * cacheado; el ingreso de un lote necesita el dato fresco y en la misma tx).
+ */
+export async function partesDeOrden(db: Db, sku: string | null | undefined): Promise<ParteDePrenda[]> {
+  const abrev = prendaAbrevDeSku(sku);
+  if (!abrev) return [];
+  const conjunto = await db.conjuntoPrenda.findUnique({
+    where: { prendaAbrev: abrev },
+    include: { partes: { orderBy: { orden: 'asc' } } },
+  });
+
+  if (!conjunto || !conjunto.activo) return [];
+  return conjunto.partes.map((p) => ({
+    nombre: p.nombre,
+    skuAbrev: p.skuAbrev,
+    porcentajeMaterial: p.porcentajeMaterial == null ? null : Number(p.porcentajeMaterial),
+  }));
 }

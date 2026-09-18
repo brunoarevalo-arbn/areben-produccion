@@ -19,8 +19,13 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   // Solo colores con conteo real (>0). Permite mandar el form con campos en cero.
   const colores = parsed.data.colores
-    .map((c) => ({ ordenId: c.ordenId, talles: c.talles.filter((t) => t.cantidad > 0) }))
-    .filter((c) => c.talles.length > 0);
+    .map((c) => ({
+      ordenId: c.ordenId,
+      conteos: c.conteos
+        .map((k) => ({ parte: k.parte, talles: k.talles.filter((t) => t.cantidad > 0) }))
+        .filter((k) => k.talles.length > 0),
+    }))
+    .filter((c) => c.conteos.length > 0);
   if (colores.length === 0) {
     return NextResponse.json({ error: 'Cargá la cantidad que salió de al menos un color' }, { status: 400 });
   }
@@ -45,7 +50,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const total = await prisma.$transaction(async (tx) => {
       let acum = 0;
       for (const c of colores) {
-        acum += await terminarCosturaOrden(tx, c.ordenId, c.talles, session, parsed.data.permitirSinCosto);
+        acum += await terminarCosturaOrden(tx, c.ordenId, c.conteos, session, parsed.data.permitirSinCosto);
       }
       return acum;
     });

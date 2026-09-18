@@ -16,6 +16,12 @@ import { EmptyState } from '@/components/ui/EmptyState';
 
 interface Transicion { fecha: string; estadoNuevo: string; }
 
+/** Una pieza de una prenda que se cose por partes, con el SKU al que ingresa. */
+interface PartePieza { nombre: string; sku: string | null; porcentajeMaterial: number | null; }
+
+/** Una fila del conteo: el talle y, en las prendas por partes, una cantidad por pieza. */
+interface TalleFila { talle: string; cantidad: string; porParte?: Record<string, string>; }
+
 interface Orden {
   id: string;
   sku: string;
@@ -144,7 +150,10 @@ export function ColaAdmin() {
   // arrancan apagados en cada apertura del modal: una afirmación no se hereda.
   const [terminarPideAfirmar, setTerminarPideAfirmar] = useState(false);
   const [terminarSinCosto,    setTerminarSinCosto]    = useState(false);
-  const [terminarTalles, setTerminarTalles] = useState<{ talle: string; cantidad: string }[]>([]);
+  // `porParte` sólo existe en las prendas que se cosen por partes: una cantidad por pieza
+  // en la misma fila de talle. `cantidad` queda para las demás, que son todas las otras.
+  const [terminarTalles, setTerminarTalles] = useState<TalleFila[]>([]);
+  const [terminarPartes, setTerminarPartes] = useState<PartePieza[]>([]);
   const [terminarSaving, setTerminarSaving] = useState(false);
   const [terminarError,  setTerminarError]  = useState('');
 
@@ -361,40 +370,74 @@ export function ColaAdmin() {
   };
 
   // Terminar costura: prellena el conteo por talle desde la ficha (si está), editable.
+  // Si la prenda se cose por partes (la bikini), el conteo es POR PIEZA: una columna por
+  // pieza, cada una con su propio SKU de destino. El prellenado de la ficha se repite en
+  // las dos —del corte salen las dos piezas— pero se cuentan por separado, porque pueden
+  // no salir iguales.
   const abrirTerminar = async (orden: Orden) => {
     setTerminarOrden(orden);
     setTerminarError('');
     setTerminarPideAfirmar(false);
     setTerminarSinCosto(false);
     let talles: { talle: string; cantidad: string }[] = [];
+    let partes: PartePieza[] = [];
     const r = await fetch(`/api/produccion/cola/${orden.id}/corte`);
     if (r.ok) {
       const data = await r.json();
       if (Array.isArray(data.cortesPorTalle) && data.cortesPorTalle.length > 0) {
         talles = data.cortesPorTalle.map((c: { talle: string; cantidad: number }) => ({ talle: c.talle, cantidad: String(c.cantidad) }));
       }
+      if (Array.isArray(data.partes)) partes = data.partes;
     }
-    setTerminarTalles(talles.length > 0 ? talles : [{ talle: '', cantidad: '' }]);
+    setTerminarPartes(partes);
+    const base = talles.length > 0 ? talles : [{ talle: '', cantidad: '' }];
+    setTerminarTalles(
+      partes.length > 0
+        // Una fila por talle con una cantidad POR PIEZA, prellenadas con lo cortado.
+        ? base.map((t) => ({ talle: t.talle, cantidad: t.cantidad, porParte: Object.fromEntries(partes.map((p) => [p.nombre, t.cantidad])) }))
+        : base,
+    );
   };
 
   const setTalleRow = (i: number, field: 'talle' | 'cantidad', val: string) =>
     setTerminarTalles((prev) => prev.map((t, idx) => idx === i ? { ...t, [field]: val } : t));
+  const setTalleParte = (i: number, parte: string, val: string) =>
+    setTerminarTalles((prev) => prev.map((t, idx) => idx === i ? { ...t, porParte: { ...(t.porParte ?? {}), [parte]: val } } : t));
   const addTalleRow = () => setTerminarTalles((prev) => [...prev, { talle: '', cantidad: '' }]);
   const rmTalleRow  = (i: number) => setTerminarTalles((prev) => prev.filter((_, idx) => idx !== i));
-  const totalTerminar = terminarTalles.reduce((s, t) => s + (parseInt(t.cantidad) || 0), 0);
+
+  // El total que se muestra es el de UNA pieza (la que más entró), no la suma: 40
+  // corpiños + 40 bombachas son 40 bikinis del corte, y compararlo contra las cortadas
+  // sumando las dos diría el doble.
+  const cantidadDe = (t: TalleFila, parte?: string) =>
+    parseInt(parte ? (t.porParte?.[parte] ?? '') : t.cantidad) || 0;
+  const totalTerminar = terminarPartes.length > 0
+    ? Math.max(0, ...terminarPartes.map((p) => terminarTalles.reduce((s, t) => s + cantidadDe(t, p.nombre), 0)))
+    : terminarTalles.reduce((s, t) => s + cantidadDe(t), 0);
 
   const confirmarTerminar = async () => {
     if (!terminarOrden) return;
-    const talles = terminarTalles
-      .filter((t) => t.talle.trim() && (parseInt(t.cantidad) || 0) > 0)
-      .map((t) => ({ talle: t.talle.trim().toUpperCase(), cantidad: parseInt(t.cantidad) }));
-    if (talles.length === 0) { setTerminarError('Cargá al menos un talle con cantidad'); return; }
+    const conteos = terminarPartes.length > 0
+      ? terminarPartes.map((p) => ({
+          parte: p.nombre,
+          talles: terminarTalles
+            .filter((t) => t.talle.trim() && cantidadDe(t, p.nombre) > 0)
+            .map((t) => ({ talle: t.talle.trim().toUpperCase(), cantidad: cantidadDe(t, p.nombre) })),
+        })).filter((c) => c.talles.length > 0)
+      : [{
+          parte: null,
+          talles: terminarTalles
+            .filter((t) => t.talle.trim() && cantidadDe(t) > 0)
+            .map((t) => ({ talle: t.talle.trim().toUpperCase(), cantidad: cantidadDe(t) })),
+        }].filter((c) => c.talles.length > 0);
+
+    if (conteos.length === 0) { setTerminarError('Cargá al menos un talle con cantidad'); return; }
     setTerminarSaving(true);
     setTerminarError('');
     const r = await fetch(`/api/produccion/cola/${terminarOrden.id}/terminar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ talles, permitirSinCosto: terminarSinCosto }),
+      body: JSON.stringify({ conteos, permitirSinCosto: terminarSinCosto }),
     });
     setTerminarSaving(false);
     if (r.ok) { setTerminarOrden(null); cargar(); }
@@ -873,27 +916,73 @@ export function ColaAdmin() {
       {/* Modal terminar costura: conteo por talle → stock de terminados */}
       {terminarOrden && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={() => setTerminarOrden(null)}>
-          <div className="bg-white rounded-2xl border border-stone-200 p-5 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <div className={`bg-white rounded-2xl border border-stone-200 p-5 w-full ${terminarPartes.length > 0 ? 'max-w-lg' : 'max-w-sm'} shadow-xl`} onClick={(e) => e.stopPropagation()}>
             <h3 className="text-sm font-bold text-stone-800 mb-1">Terminar costura <span className="font-mono text-stone-500">{terminarOrden.sku}</span></h3>
             <p className="text-xs text-stone-500 mb-3">
               ¿Cuántas salieron de cada talle? Ingresan al stock de terminados.
               Si entran menos de las {terminarOrden.cantidadCortada ?? terminarOrden.cantidad} cortadas,
               la orden <strong>sigue en costura</strong> y podés cargar otro lote después.
             </p>
+
+            {/* El corte produce DOS artículos: se cuentan por separado y cada uno entra a
+                su propio SKU. Los SKU se MUESTRAN antes de ingresar — es el único lugar
+                donde se ve que la abreviatura del catálogo compone un código real. */}
+            {terminarPartes.length > 0 && (
+              <p className="text-xs text-stone-600 mb-3 bg-stone-50 border border-stone-200 rounded-lg p-2.5">
+                Esta prenda se cose <strong>por partes</strong> y cada pieza se vende por separado:
+                se cuentan por separado y van a{' '}
+                {terminarPartes.map((p, i) => (
+                  <span key={p.nombre}>
+                    {i > 0 && ' y '}
+                    <span className="font-mono text-stone-800">{p.sku ?? '—'}</span>
+                  </span>
+                ))}
+                . El avance del corte lo marca <strong>la pieza que menos entró</strong>.
+              </p>
+            )}
+
+            {terminarPartes.length > 0 && (
+              <div className="flex items-center gap-2 mb-1 pl-1">
+                <span className="w-24 text-[11px] font-semibold text-stone-500">Talle</span>
+                {terminarPartes.map((p) => (
+                  <span key={p.nombre} className="flex-1 text-[11px] font-semibold text-stone-500">{p.nombre}</span>
+                ))}
+                <span className="w-5" />
+              </div>
+            )}
+
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {terminarTalles.map((t, i) => (
                 <div key={i} className="flex items-center gap-2">
                   <input value={t.talle} onChange={(e) => setTalleRow(i, 'talle', e.target.value.toUpperCase())} placeholder="Talle"
                     className="w-24 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
-                  <NumInput value={parseFloat(t.cantidad) || 0} onChange={(n) => setTalleRow(i, 'cantidad', n ? String(n) : '')} placeholder="Cant." min="0"
-                    className="flex-1 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
+                  {terminarPartes.length > 0
+                    ? terminarPartes.map((p) => (
+                        <NumInput key={p.nombre} value={cantidadDe(t, p.nombre)}
+                          onChange={(n) => setTalleParte(i, p.nombre, n ? String(n) : '')} placeholder={p.nombre} min="0"
+                          className="flex-1 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
+                      ))
+                    : (
+                      <NumInput value={parseFloat(t.cantidad) || 0} onChange={(n) => setTalleRow(i, 'cantidad', n ? String(n) : '')} placeholder="Cant." min="0"
+                        className="flex-1 px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outline-none focus:border-amber-400" />
+                    )}
                   <button type="button" aria-label="Eliminar talle" onClick={() => rmTalleRow(i)} className="text-stone-400 hover:text-red-500 px-1 text-lg leading-none">×</button>
                 </div>
               ))}
             </div>
             <div className="flex items-center justify-between mt-2">
               <button type="button" onClick={addTalleRow} className="text-xs text-stone-500 hover:text-stone-800 transition">+ Agregar talle</button>
-              <span className="text-xs text-stone-500">Total: <strong className="text-stone-800">{totalTerminar}</strong> u</span>
+              {terminarPartes.length > 0 ? (
+                <span className="text-xs text-stone-500">
+                  {terminarPartes.map((p) => (
+                    <span key={p.nombre} className="ml-2">
+                      {p.nombre}: <strong className="text-stone-800">{terminarTalles.reduce((s, t) => s + cantidadDe(t, p.nombre), 0)}</strong>
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span className="text-xs text-stone-500">Total: <strong className="text-stone-800">{totalTerminar}</strong> u</span>
+              )}
             </div>
             {terminarError && <p className="text-red-500 text-xs mt-2">{terminarError}</p>}
             {terminarPideAfirmar && (

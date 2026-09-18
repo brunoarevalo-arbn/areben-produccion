@@ -128,6 +128,20 @@ model PartePrenda {
   conjunto   ConjuntoPrenda @relation(fields: [conjuntoId], references: [id], onDelete: Cascade)
   orden      Int
   nombre     String // "Corpiño" | "Bombacha" — se guarda TAL CUAL en TiemposProduccion.parte
+
+  // El 2º segmento del SKU de la pieza: ZAT-BIK-VER-001 → ZAT-`COR`-VER-001. Guardado
+  // por parte y NO derivado del nombre ("Corpiño" → "COR" se rompe con la primera parte
+  // que no empiece igual, y en silencio). Sin esto la parte no puede ingresar a stock:
+  // el ingreso se planta en vez de inventar un SKU.
+  skuAbrev String?
+
+  // Qué % del material del corte se lleva esta parte. NULL = NADIE LO DIJO. No hay dato
+  // medido (la bikini es UN molde en `molderia_catalogo`, sin área por pieza), así que
+  // el número tiene que venir de una persona; mientras no venga, el ingreso se planta
+  // cuando hay material que repartir. Un 50/50 puesto por el sistema se lee después como
+  // si alguien lo hubiera medido.
+  porcentajeMaterial Decimal? @db.Decimal(5, 2)
+
   createdAt  DateTime       @default(now())
 
   @@unique([conjuntoId, orden])
@@ -1515,6 +1529,17 @@ model LoteCorte {
   orden   OrdenProduccion @relation(fields: [ordenId], references: [id], onDelete: Cascade)
   numero  Int // 1, 2, 3… dentro de la orden
 
+  // La parte de la prenda que entró en este lote, `null` si la prenda no se parte.
+  // Un corte de conjunto (la bikini) entra POR PARTE: un mismo ingreso deja un lote por
+  // parte, los dos con el mismo `numero` ("Lote 1 · Corpiño" y "Lote 1 · Bombacha"),
+  // cada uno con su SKU, sus talles y su costo — que NO es el mismo.
+  parte String?
+
+  // El SKU que efectivamente fue al stock. GUARDADO y no derivado: se deriva una vez al
+  // ingresar y se congela junto al costo, así que si mañana cambia la convención del SKU
+  // o la abreviatura de la parte, lo que entró sigue diciendo a dónde entró.
+  sku String?
+
   talles   LoteCorteTalle[]
   unidades Int // suma de los talles, desnormalizada para no recorrer la relación
 
@@ -1533,6 +1558,11 @@ model LoteCorte {
   minutosImputados Decimal @default(0)
   costoMinuto      Decimal @default(0)
 
+  // De los `minutosImputados`, cuántos NO tenían pieza y entraron por el reparto mitad y
+  // mitad (los 'Compartido' y los que la tablet dejó sin etiquetar). Sin esto el costo de
+  // MO de una pieza no se puede explicar: no se sabe qué parte de él fue medida.
+  minutosCompartidos Decimal @default(0)
+
   // Sobre qué se repartió el material, y cuántas unidades eran. Va GUARDADO y no derivado
   // porque el costo está congelado: si el denominador fue lo PLANIFICADO (la orden no tenía
   // corte cargado) el unitario puede estar lejos del real, y sin esto no hay forma de saber
@@ -1546,7 +1576,11 @@ model LoteCorte {
 
   createdAt DateTime @default(now())
 
-  @@unique([ordenId, numero])
+  // ⚠️ En la base este único va con NULLS NOT DISTINCT (ver
+  // `prisma/sql/2026-09-18-lote-por-parte.sql`): Prisma no lo sabe expresar, y sin eso
+  // las órdenes sin partes —todas las de hoy, con `parte` en NULL— no quedarían
+  // atajadas, porque para un unique de Postgres dos NULL son distintos.
+  @@unique([ordenId, numero, parte], map: "lotes_corte_orden_numero_parte_key")
   @@index([ordenId])
   @@map("lotes_corte")
 }
