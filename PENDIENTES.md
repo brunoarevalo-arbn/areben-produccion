@@ -90,6 +90,31 @@ _Última actualización: 2026-09-18_
 > reales; y `prisma.config.ts` lee `.env`, ⛔ no `.env.local`, así que a los comandos de prisma hay que
 > pasarles `DIRECT_URL` en la línea. (Lo levantó la sesión de la tablet.)
 >
+> 🗑️ **LA FASE 2 (el dije) QUEDA DESCARTADA — la decidió Bruno el 18-sep, y el motivo importa más
+> que la decisión.** El plan del 17-sep era que el lote entrara `RETENIDO` a `stock_terminado` con
+> **`tipo: 'retenido'`**, invisible para reposición y para el pasaje. **No se construye.**
+>
+> 🔑 **Porque la Fase 1 ya lo cubre sin código**: si lo ingresado no alcanza lo cortado, la OP **se
+> queda en COSTURA y acepta otro lote después**. Si el dije no llegó, **no se ingresa ese lote** — y
+> cuando llega, se ingresa y ahí la orden termina. Es exactamente el comportamiento que hoy defiende
+> el chequeo 3 del ejercicio (15 de 40 → sigue en costura, sin `terminadoAt`).
+>
+> 🔑 **Y es MÁS correcto en el costo, ⛔ no sólo más barato.** El lote congela los minutos **al
+> ingresar**: esperando al dije, los minutos de ponerlo **entran** al costo de esas prendas. Con
+> `tipo: 'retenido'` el lote ya habría congelado antes y esos minutos quedaban **afuera**.
+>
+> ⚠️ **Lo que costaba de verdad**: un `tipo` nuevo en `stock_terminado` obliga a revisar **toda**
+> consulta que hoy asume `liso | estampado` —reposición, el pasaje, los ajustes— para un caso que
+> Bruno describe como **ocasional**.
+>
+> 🔴 **El caso ÚNICO que la reviviría, anotado para no re-derivarlo**: que haga falta mandar a la
+> marca **una parte** del corte mientras la otra espera el dije. Ahí sí hacen falta las dos mitades
+> en stock con distinto estado. Mientras el dije sea de **la tanda entera**, no pasa.
+>
+> ⚠️ **Lo que queda sin resolver, y a propósito sin código**: una OP parada esperando el dije **se ve
+> igual** que una que la costurera está cosiendo. Se escribe *«esperando dije»* en `notas`, que ya
+> existe. No se le pone código hasta que moleste.
+>
 > ▶️ **Lo que falta**: **aplicar el SQL en producción** (probado sólo en la copia); **caminar el modal
 > con el dedo** —se ejerció el núcleo, ⛔ no el click ni el checkbox del freno—; y que el **pasaje a la
 > marca valorice por el costo del LOTE** en vez del escandallo, que es la Fase 4 y 🔴 **le cambia el
