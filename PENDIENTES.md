@@ -3,7 +3,35 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-09-18_
+_Última actualización: 2026-09-21_
+
+> 🔴 🔑 **LA TABLET SE CAÍA ENTERA AL TOCAR EL SKU DE LA BIKINI** (21-sep, `2c32bcf`, EN PROD).
+> Lo levantó Bruno desde la tablet: *«no me deja tipear lo de bikinis, me aparece una notificación
+> de Vercel, creo que dice this page couldn't load»* — y **apretás un SKU y tira el error**.
+> 📊 **Reproducido en producción** (Chrome, `/tiempos`, tocar `ZAT-BIK-VER-001`): pantalla en blanco
+> con el cartel de Next **"This page couldn't load"** y, en consola, **React error #31** con el
+> argumento que lo delata entero: `object with keys {nombre, skuAbrev, porcentajeMaterial}`.
+>
+> 🔑 **La causa la dejó `aa8ed5a`, el 18-sep, en el commit que la trajo**: `partesDeSku` pasó de
+> `string[]` a `ParteDePrenda[]` —el lote por pieza necesita `skuAbrev` y `porcentajeMaterial`— y
+> en ESE MISMO commit nació **`nombresDePartes()`, escrito justamente para la tablet**… que nunca
+> se enchufó: `GET /api/tiempos/cola` siguió mandando los objetos y `FormTiempos` los dibuja con
+> `{p}`. 🏁 Ahora manda `nombresDePartes(partesDeSku(...))`.
+>
+> 🔴 **Por qué ⛔ no lo cazó nada de lo que se corrió el 18-sep** (`tsc` + `lint` + `build`, los
+> tres verdes, y una caminata en Chrome): **entre la API y el cliente no hay contrato que el
+> compilador pueda mirar** — la ruta serializa a JSON y `FormTiempos` vuelve a tipear el resultado
+> **a mano** (`const data: OrdenActiva[] = await r.json()`, con `partes?: string[]`). Una anotación
+> a mano ⛔ no verifica nada: afirma. ⚠️ Y la caminata del 18-sep tocó la pantalla del LOTE, que sí
+> consume las partes como objeto y está bien; la tablet quedó del otro lado del mismo cambio.
+> 🔑 **El único oráculo era TOCAR EL SKU en la pantalla** — y era un clic.
+>
+> 🔴 **Lo caro ⛔ no fue el selector de pieza: fue que se lleva la TABLET ENTERA.** Un objeto
+> dibujado revienta el render, el error boundary global tapa todo y la costurera ⛔ no puede ni
+> arrancar el reloj. Un defecto en un bloque opcional apagó la herramienta completa.
+>
+> ▶️ **Queda abierto (mismo patrón, otra punta): lo que se DIBUJA se manda ya listo para dibujar.**
+> Si la tablet alguna vez necesita el SKU de la pieza, va un **campo nuevo**, ⛔ no el objeto crudo.
 
 > 🔴 🔑 **UN CAMPO QUE NADIE TOCA NO ESTÁ VACÍO: AFIRMA EL DEFAULT.** (18-sep, 2ª tanda del día)
 > `cantidad` en la tablet venía prellenada con `OrdenProduccion.cantidad` —lo **PLANIFICADO**— al
