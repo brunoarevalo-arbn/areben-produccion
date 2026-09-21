@@ -32,6 +32,36 @@ _Última actualización: 2026-09-21_
 >
 > ▶️ **Queda abierto (mismo patrón, otra punta): lo que se DIBUJA se manda ya listo para dibujar.**
 > Si la tablet alguna vez necesita el SKU de la pieza, va un **campo nuevo**, ⛔ no el objeto crudo.
+>
+> 🏁 **Y de paso se CAMINÓ la pantalla de lote que faltaba** (el ▶️ del 18-sep, "falta el CLIC en
+> prod"): `/produccion` → "Terminar lote" abre bien, muestra las dos piezas y sus SKU
+> (`ZAT-COR-VER-001` y `ZAT-BOM-VER-001`, `…-MAR-…`), sin errores de consola. **La caminata
+> encontró otras dos cosas, las dos arregladas y en prod:**
+>
+> 🔴 **(1) El rótulo decía "Cortadas" sobre lo PLANIFICADO** (`fa6b9f0`). La pantalla mostraba
+> `orden.cantidad`, que desde la Fase 0 es **lo planificado**; lo cortado vive en
+> `cantidadCortada`. 📊 En la bikini los dos difieren: **42 cortadas contra 40 planeadas** (VER) y
+> **62 contra 60** (MAR) ⇒ el que ingresa comparaba su conteo contra un número **2 unidades corto**,
+> con el rótulo afirmándole que era el corte — y **la cola de producción, en la otra pantalla, ya
+> mostraba 42**. 🔑 Ahora sale de **`baseDeRepartoConOrigen`**, el mismo dueño que reparte el costo,
+> que además devuelve **de dónde vino el número** ⇒ el rótulo puede decir la verdad: "Cortadas" con
+> corte cargado, **"Planificadas"** sin él, y "Sin cantidad cargada" cuando no hay ninguna.
+> 🔑 **Un número sin su procedencia ⛔ no se puede rotular.**
+>
+> 🔴 **(2) Terminar lote SIN ficha de corte era un callejón sin salida** (`3e63766`). El freno por
+> falta de ficha es **AFIRMABLE** —se ingresa igual, marcando el lote sin costo de material— pero
+> esa puerta existía **sólo en el modal por color** de la cola: la ruta del lote devolvía el error
+> **sin `requiereAfirmar`**, el form ⛔ no mandaba `permitirSinCosto` y no tenía casilla. ⚠️ **Y es
+> el caso de hoy**: las dos OP de bikini están en COSTURA con la **ficha de corte SIN CARGAR** (el
+> taller cargó la tizada y los talles —S 18 · M 18 · L 6 = 42— pero el corte ⛔ no se registró) ⇒
+> ingresarlas por la pantalla del lote habría rebotado sin puerta. 🔑 **El mismo freno tiene que
+> tener la misma salida en las dos pantallas.**
+> ⚠️ **Lo único NO caminado a mano: la casilla misma**, porque la única forma de hacerla aparecer es
+> mandar el ingreso, y eso ESCRIBE. Compilado y verificado el resto de la pantalla; **el oráculo es
+> el próximo ingreso real de Bruno** — si en vez de la casilla ve un error pelado, es esto.
+>
+> 📊 **Caminado además, sin errores**: `/produccion` (cola + lote expandido), la ficha de corte de
+> `ZAT-BIK-VER-001`, y `/tiempos` con las dos OP de bikini.
 
 > 🔴 🔑 **UN CAMPO QUE NADIE TOCA NO ESTÁ VACÍO: AFIRMA EL DEFAULT.** (18-sep, 2ª tanda del día)
 > `cantidad` en la tablet venía prellenada con `OrdenProduccion.cantidad` —lo **PLANIFICADO**— al
