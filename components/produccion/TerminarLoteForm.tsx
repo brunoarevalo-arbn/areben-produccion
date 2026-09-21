@@ -8,7 +8,9 @@ import { Button } from '@/components/ui/Button';
 
 interface PartePieza { nombre: string; sku: string | null; }
 interface OrdenLite {
-  id: string; sku: string | null; descripcion: string | null; cantidad: number;
+  id: string; sku: string | null; descripcion: string | null;
+  /** Lo cortado y DE DÓNDE salió; `null` = todavía no hay corte ni plan con unidades. */
+  base: { unidades: number; origen: 'cortado' | 'planificado' } | null;
   cortes: { talle: string; cantidad: number }[];
   /** Las piezas en que se parte la prenda (la bikini). `[]` = entra entera, como siempre. */
   partes: PartePieza[];
@@ -113,7 +115,14 @@ export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes:
             <div className="flex items-center gap-2 mb-4">
               <span className="font-mono font-bold text-sm px-2 py-1 rounded-lg bg-stone-100 text-stone-700">{orden.sku ?? 'S/SKU'}</span>
               {orden.descripcion && <span className="text-sm text-stone-500 truncate">{orden.descripcion}</span>}
-              <span className="ml-auto text-xs text-stone-400">Cortadas: {orden.cantidad}</span>
+              {/* El rótulo DICE cuál de los dos números es: "Cortadas" sobre lo planificado
+                  afirma un corte que nadie cargó, y si difieren manda a comparar contra el
+                  número equivocado. */}
+              <span className="ml-auto text-xs text-stone-400">
+                {orden.base
+                  ? `${orden.base.origen === 'cortado' ? 'Cortadas' : 'Planificadas'}: ${orden.base.unidades}`
+                  : 'Sin cantidad cargada'}
+              </span>
             </div>
 
             {/* El corte produce DOS artículos: se cuentan por separado y cada uno entra

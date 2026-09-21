@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { TerminarLoteForm } from '@/components/produccion/TerminarLoteForm';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { partesDeOrden, skuDeParte } from '@/lib/produccion/conjuntos';
+import { baseDeRepartoConOrigen } from '@/lib/produccion/cantidades';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,7 +18,7 @@ export default async function TerminarLotePage({ params }: { params: Promise<{ l
         where: { estado: 'COSTURA' },
         orderBy: { createdAt: 'asc' },
         select: {
-          id: true, sku: true, descripcion: true, cantidad: true,
+          id: true, sku: true, descripcion: true, cantidad: true, cantidadCortada: true,
           cortesPorTalle: { orderBy: { talle: 'asc' }, select: { talle: true, cantidad: true } },
         },
       },
@@ -31,11 +32,17 @@ export default async function TerminarLotePage({ params }: { params: Promise<{ l
   // cada una entra a su propio SKU. Todas las OP de un lote comparten el molde, así que
   // en la práctica es la misma lista — pero se resuelve por OP, que es por SKU, porque
   // `LoteProduccion.prenda` admite override manual y ahí ya no es la misma verdad.
+  // 🔴 El número de referencia es lo CORTADO, y el rótulo tiene que decir cuál de los dos
+  // es. `cantidad` es lo PLANIFICADO: mostrarlo como "Cortadas" afirma un corte que nadie
+  // cargó, y cuando los dos existen y difieren —ZAT-BIK-VER-001: 42 cortadas, 40 planeadas—
+  // el que ingresa compara su conteo contra el número equivocado. `baseDeRepartoConOrigen`
+  // es el mismo dueño que usa el reparto del costo, así que las dos pantallas ⛔ no pueden
+  // divergir en qué denominador miran.
   const ordenes = await Promise.all(lote.ordenes.map(async (o) => ({
     id: o.id,
     sku: o.sku,
     descripcion: o.descripcion,
-    cantidad: o.cantidad,
+    base: baseDeRepartoConOrigen(o),
     cortes: o.cortesPorTalle.map((c) => ({ talle: c.talle, cantidad: c.cantidad })),
     partes: (await partesDeOrden(prisma, o.sku)).map((p) => ({
       nombre: p.nombre,
