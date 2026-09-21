@@ -41,6 +41,10 @@ export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes:
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  // El freno por falta de ficha de corte se puede levantar, pero AFIRMÁNDOLO: la casilla
+  // aparece recién cuando el servidor lo pide, para que nadie la tenga tildada por costumbre.
+  const [pideAfirmar, setPideAfirmar] = useState(false);
+  const [sinCosto, setSinCosto] = useState(false);
 
   const setFila = (ordenId: string, i: number, field: 'talle' | 'cantidad', val: string) =>
     setConteo((p) => ({ ...p, [ordenId]: p[ordenId].map((f, idx) => idx === i ? { ...f, [field]: val } : f) }));
@@ -90,13 +94,14 @@ export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes:
     const r = await fetch(`/api/produccion/lote/${loteId}/terminar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ colores: payload }),
+      body: JSON.stringify({ colores: payload, permitirSinCosto: sinCosto }),
     });
     if (r.ok) {
       router.back(); // volver al contexto anterior (no saltar a la portada)
     } else {
       const d = await r.json().catch(() => ({}));
       setError(d.error || 'Error al terminar');
+      if (d.requiereAfirmar) setPideAfirmar(true);
       setSaving(false);
     }
   };
@@ -189,8 +194,18 @@ export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes:
 
       {error && <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">{error}</div>}
 
+      {pideAfirmar && (
+        <label className="flex items-start gap-2 p-3 rounded-xl bg-amber-50 border border-amber-200 cursor-pointer">
+          <input type="checkbox" checked={sinCosto} onChange={(e) => setSinCosto(e.target.checked)} className="mt-0.5 accent-amber-600" />
+          <span className="text-xs text-stone-700">
+            Ingresar igual, <strong>sin costo de material</strong>. El lote queda marcado y su costo
+            unitario va a tener sólo la mano de obra.
+          </span>
+        </label>
+      )}
+
       <div className="flex gap-3">
-        <Button type="submit" variant="primary" size="lg" isLoading={saving} disabled={completos.length === 0}>
+        <Button type="submit" variant="primary" size="lg" isLoading={saving} disabled={completos.length === 0 || (pideAfirmar && !sinCosto)}>
           {saving ? 'Terminando...' : `Terminar ${completos.length} ${completos.length === 1 ? 'color' : 'colores'}`}
         </Button>
         <Button type="button" variant="secondary" size="lg" onClick={() => router.back()}>Cancelar</Button>

@@ -56,7 +56,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     });
     return NextResponse.json({ ok: true, colores: colores.length, total }, { status: 201 });
   } catch (e) {
-    if (e instanceof CosturaError || e instanceof LoteCorteError) {
+    // 🔴 `requiereAfirmar` viaja también acá, igual que en el terminar de UNA orden.
+    // Sin él la pantalla del lote mostraba el freno por falta de ficha de corte como si
+    // fuera un error de carga: un callejón sin salida, con la única puerta —la casilla de
+    // "ingresar sin costo"— existiendo sólo en el modal por color. El freno es el mismo,
+    // así que la salida tiene que ser la misma. `CosturaError` ⛔ no es afirmable: ésos sí
+    // son errores de carga (OP sin SKU, pieza repetida, conteo vacío).
+    if (e instanceof LoteCorteError) {
+      return NextResponse.json({ error: e.message, requiereAfirmar: e.afirmable }, { status: 400 });
+    }
+    if (e instanceof CosturaError) {
       return NextResponse.json({ error: e.message }, { status: 400 });
     }
     throw e;
