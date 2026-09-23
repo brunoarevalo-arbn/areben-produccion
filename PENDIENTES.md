@@ -22,6 +22,15 @@ _Última actualización: 2026-09-23_
 > 🗣️ **Bruno (23-sep): el plan es un corte con VARIOS lotes (cortar 50, lote de 25 y otro de 25 —
 > eso YA ANDA, Fase 1) y más adelante repetir producción; ⛔ decidió aún si repetir = nuevo SKU o
 > nuevo corte del mismo SKU.** Recomendado: mismo SKU, corte nuevo (es el vocabulario del 17-sep).
+
+> 🗣️ **Bruno (23-sep): aumento a MARISOL de $5.000 a $5.500 la hora (+10%), «esta semana no, capaz la
+> otra»** (semana del 28-sep). Sus $5.000 pagados ⇒ **$5.520 por hora TRABAJADA** (45 min/día no
+> trabaja) = lo que tiene `costos_costureras` (883.200 / 160 h, **cargado el 7-may y sin tocar**, igual
+> que los $410.000 de `gastos_fijos_taller`). Con el aumento: **$971.520 / 160 = $6.070/h** ⇒
+> `costoMinuto` **$134,71 → $143,85**. ▶️ **Cuando Bruno confirme: actualizar `sueldoBruto` a 971.520**
+> (el lote congela el `costoMinuto` al ingresar ⇒ lo ingresado antes queda con el viejo, bien).
+> 📊 Bikini a **~20 min** (17,66 medidos en el marrón + la collareta del trasero, que falta en todas):
+> **$2.694 hoy → $2.878** con taller; sólo sueldo $1.840 → $2.023.
 > ▶️ **Mano de Bruno para el 1er lote real (0 lotes en prod al 23-sep):** ficha de corte de MAR y VER
 > **+ el % de material corpiño/bombacha** — 🔴 **cargar la ficha VUELVE OBLIGATORIO el %**
 > (`loteCorte.ts:269`, `afirmable:false`) ⇒ con ficha y sin % el ingreso queda SIN SALIDA.
