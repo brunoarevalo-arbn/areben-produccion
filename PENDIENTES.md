@@ -3,7 +3,99 @@
 > Bitácora de trabajo para no perder el avance ni el rumbo entre sesiones.
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
-_Última actualización: 2026-09-21_
+_Última actualización: 2026-09-23_
+
+> 🔴 🔑 **FASE 3 (repetir producción): sacar el `@unique` SOLO rompe la plata, callado** (23-sep, medido,
+> sin código). **`TiemposProduccion` ⛔ no tiene `ordenId`**: la tablet elige la OP por `id` y **manda
+> sólo el SKU** (`components/tiempos/FormTiempos.tsx:134`) ⇒ con dos OP del mismo SKU,
+> `minutosSinImputar`/`minutosSinImputarPorParte` (`lib/produccion/loteCorte.ts:84-98, 141-160`)
+> suman los minutos de TODA la vida del SKU y restan sólo los lotes de ESTA OP ⇒ **el 1er lote de la
+> 2ª OP cobra de nuevo la MO de la 1ª, y lo CONGELA**. Además: reportes por SKU (`api/reportes/sku`,
+> `reportes/sku`, `reportes/tiempo-sku`, `api/produccion/tiempo-sku`) inflados, y `aplicar-lote` /
+> `productos-producidos` / `fichaDetalleSku` toman UNA tanda (a veces sin `orderBy`).
+> ⇒ **La Fase 3 de verdad es**: 1) `ordenId` en `tiempos_produccion`, lo manda la tablet (y el flujo de
+> corrección) · 2) **backfill por SKU — HOY es EXACTO porque cada SKU tiene UNA OP; tras la primera
+> repetición ya ⛔ no se puede** · 3) recién ahí sacar el `@unique` + opción "repetir este SKU" al crear
+> · 4) reemplazar la defensa de carrera: `retryOnUniqueConflict` (lib/db/retry.ts) depende del índice.
+> ⚠️ **Hoy repetir YA anda, pero con SKU NUEVO**: `siguienteNumeroSku` (lib/produccion/sku.ts) da
+> `ZAT-BIK-MAR-002` solo ⇒ stock partido y el `-002` ⛔ distingue "otro modelo" de "otra tanda".
+> 🗣️ **Bruno (23-sep): el plan es un corte con VARIOS lotes (cortar 50, lote de 25 y otro de 25 —
+> eso YA ANDA, Fase 1) y más adelante repetir producción; ⛔ decidió aún si repetir = nuevo SKU o
+> nuevo corte del mismo SKU.** Recomendado: mismo SKU, corte nuevo (es el vocabulario del 17-sep).
+> ▶️ **Mano de Bruno para el 1er lote real (0 lotes en prod al 23-sep):** ficha de corte de MAR y VER
+> **+ el % de material corpiño/bombacha** — 🔴 **cargar la ficha VUELVE OBLIGATORIO el %**
+> (`loteCorte.ts:269`, `afirmable:false`) ⇒ con ficha y sin % el ingreso queda SIN SALIDA.
+> 📊 Collareta del marrón al 23-sep 10:19: **485,5 min = 7,83 min/u** (62), sigue en curso. El corte
+> de 60 del 23-sep todavía ⛔ existe como OP a esa hora.
+
+> 📊 **REMALLADO DE LAS DOS BIKINIS, CERRADO** (dictado por Bruno el 21-sep 11:55; el último
+> registro cerró 11:36). **623,04 min = 10,4 h** para **104 bikinis** (62 marrón + 42 verde) ⇒
+> **5,99 min por bikini**, todo de **Marisol** (es la única que registra: 261 de 261 desde el
+> 1-ago). Reparto: **bombacha 3,48 min/u** · **corpiño 2,39 min/u** · **0,13** de cortacollareta
+> compartida (13 min, cargados en `Compartido`). **Defectos: 0 en los 11 registros.**
+>
+> 🔑 **Contra el ÚNICO punto de comparación que existe —el relevamiento del 7-sep— viene por
+> DEBAJO**: corpiño 2,39 contra **2,90** (−18%), bombacha 3,48 contra **7,36** (−53%).
+> ⚠️ **Y esa vara casi no vale**: es **UNA unidad, talle L, la primera vez**, en modo
+> `relevamiento` —que sirve para descubrir los pasos, ⛔ no para fijar el estándar— y nunca pasó
+> por medición. **No hay estándar medido de la bikini**: sigue abierto el ▶️ del relevamiento REAL.
+>
+> 🔴 **La curva de aprendizaje aparece en la bombacha y ⛔ NO en el corpiño**: bombacha
+> **3,83 → 2,97** (−22% del marrón al verde), corpiño **2,29 → 2,53** (**+10%**, al revés).
+> El verde se partió entre el viernes a la tarde y el lunes a la mañana; no hay con qué separar
+> el arranque en frío del ruido con dos colores de muestra.
+>
+> ⚠️ **El denominador es `cantidadCortada` (62 y 42) y las dos OP siguen con la FICHA DE CORTE SIN
+> CARGAR** ⇒ si el conteo real no es ése, todos los min/u se mueven en la misma proporción.
+>
+> ▶️ **Lo que falta de estas dos: collareta (tubo) y recta (atraques/ruedo).** Proyectado con el
+> mismo relevamiento: **17,3 h** crudo, **12,3 h** si se repite la misma ventaja que en el
+> remallado ⇒ **entre 2 y 2,5 jornadas** de Marisol (el viernes 18 hizo 433 min productivos).
+> ⚠️ Es una **proyección desde una sola unidad relevada**, ⛔ no una medición.
+>
+> 📊 **COLLARETA DEL MARRÓN, casi cerrada** (dictado por Bruno el 22-sep 16:10: «por terminar,
+> quedarían ~4 h»). En la tablet: **342,6 min collareta + 32,5 cortacollareta = 375 min (6,25 h)**
+> entre el 21 (70 min) y el 22 (305 min), todo Marisol, 0 defectos ⇒ **6,05 min por bikini** (62).
+> 🔴 **Bruno aclaró: las ~4 h (o algo menos) son para el MARRÓN**, no para la verde. Contra la muestra
+> (relevamiento 7-sep, talle L, 1 u, el modelo de la OP: triangulito con ruedo **3,20** + bombacha para
+> atar **3,01** = **6,21 min/u** de collareta, sin cortacollareta) el marrón entero serían **385 min** y
+> ya van **342,6** ⇒ a ritmo de muestra le faltarían **~45 min**. Con 3-4 h más, la collareta saldría
+> **8,4-9,4 min/u (+35-50% sobre la muestra)**: al revés que el remallado, que vino por debajo.
+> ▶️ **El dato que decide: cuántas bikinis tienen ya la collareta hecha.** Después falta la **recta**.
+>
+> 🗓️ **PLAN DICTADO por Bruno (22-sep):** ⛔ **no se suma otra costurera**: Marisol, con la bikini
+> como PRIORIDAD. **Mañana 23-sep entra un corte nuevo de 60 bikinis** (Bruno estima ~2,5 días; con
+> 15,6-19,4 min/u y 433 min/día da **2,2-2,7** ⇒ cierra). **Después de ese corte, la producción de
+> lo SUBLIMADO, en SERIE** («por lo menos remallado y eso»). Orden: terminar las 104 (1,5-2,5
+> jornadas) → las 60 → sublimado ⇒ el sublimado arranca **~mar 29 / mié 30-sep** (lun-vie, sin desvíos).
+>
+> 🔑 **¿Los tiempos están bien? (22-sep):** el **remallado sí** (5,99 vs 10,5 de muestra, curva −22%,
+> 0 defectos, ~433 de ~437 min disponibles registrados). La **collareta es la sospechosa** (+35-50%
+> sobre la muestra si quedan 3-4 h). ▶️ **1) el conteo de marrones con collareta hecha** ·
+> ▶️ **2) una corrida en modo `medicion` de 3-5 bikinis al arrancar la collareta del verde** (23-sep)
+> ⇒ el primer estándar REAL. ⚠️ Los 146,65 min sin SKU del 21-sep siguen sin explicar.
+> ⚠️ **146,65 min del 21-sep (13:33–16:00) en Remalladora SIN SKU**: ⛔ no se sabe de qué fueron.
+>
+> 📊 **VERDE CONTRA MARRÓN: el TOTAL es parecido, el reparto POR PIEZA no.** Por bikini completa,
+> **marrón 6,11 min · verde 5,50 min (−10%)** —sin contar los 13 min de cortacollareta, que
+> quedaron cargados sólo en el marrón y son de los dos; con ellos, 6,32 vs 5,50 (−13%)—. En todo el
+> corte verde eso son **26 minutos**, ⛔ no una jornada.
+> 🔴 🔑 **Pero por pieza las dos diferencias van para lados OPUESTOS**: bombacha **−22%** (3,83 →
+> 2,97) y corpiño **+10%** (2,29 → 2,53). Que el total sea más estable que sus dos mitades es la
+> firma de un **reparto entre piezas ruidoso, ⛔ no de aprendizaje**: la costurera elige la pieza
+> **al cerrar** el tramo, así que un tramo de transición cae entero de un lado. ⇒ **con dos colores
+> la lectura por pieza no se sostiene; la que se sostiene es la de la bikini entera.**
+> ✅ **Lo que sí quedó DESCARTADO es la mezcla de talles**: marrón **S26/M26/L10** y verde
+> **S18/M18/L6** son la misma proporción (**42/42/16** contra **43/43/14**) ⇒ el marrón ⛔ no venía
+> cargado de talles grandes.
+> ⚠️ **Lo que queda abierto: 293 min SIN SKU el jueves 17**, el mismo día que se cortó el verde
+> (70 + 166 + 57, sin máquina, sin detalle). Si algo de eso fue bikini verde, la ventaja del verde
+> es en parte un agujero de registro. Por el orden de los tramos ⛔ no parece, pero nada lo prueba.
+>
+> 🔴 🔑 **Y de paso: los talles ESTÁN y las tres pantallas no coinciden.** `fichaCorteCargada` es
+> **false** en las dos OP y `cortes_por_talle` está **VACÍA**, pero **`fichaCorteData` trae los
+> talles y suman EXACTO lo cortado** (62 y 42). ⇒ el dato existe, el flag dice que no, y la tabla
+> que todos leen está vacía. **Un mismo hecho en tres lugares, dos de ellos negándolo.**
 
 > 🔴 🔑 **LA TABLET SE CAÍA ENTERA AL TOCAR EL SKU DE LA BIKINI** (21-sep, `2c32bcf`, EN PROD).
 > Lo levantó Bruno desde la tablet: *«no me deja tipear lo de bikinis, me aparece una notificación
