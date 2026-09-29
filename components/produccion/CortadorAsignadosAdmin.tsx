@@ -14,7 +14,10 @@ export interface OpAsignada {
   sku: string | null;
   descripcion: string | null;
   marca: string;
+  /** Lo cortado; mientras no haya corte cargado, lo planificado (lo dice `origenCantidad`). */
   cantidad: number;
+  origenCantidad: 'cortado' | 'planificado';
+  cantidadPlanificada: number;
   estado: string;
   fichaCorteCargada: boolean;
   corteEstado: string | null;
@@ -53,7 +56,7 @@ export function CortadorAsignadosAdmin({ cortadorId, asignados, listos, hechos, 
     const unidad = o.precioUnidad ?? 0;
     if (!(await confirmAsync({
       title: `Validar corte ${o.sku ?? 'S/SKU'}`,
-      message: `Cantidad: ${o.cantidad} u\nPrecio: ${fmt$(unidad)}/u  ·  Total: ${fmt$(total)}\n\nQueda cobrable para el cortador. La ficha de tela se puede hacer después.`,
+      message: `Cortadas: ${o.cantidad} u${o.origenCantidad === 'cortado' && o.cantidad !== o.cantidadPlanificada ? ` (plan ${o.cantidadPlanificada})` : ''}\nPrecio: ${fmt$(unidad)}/u  ·  Total: ${fmt$(total)}\n\nQueda cobrable para el cortador. La ficha de tela se puede hacer después.`,
       confirmLabel: 'Validar',
     }))) return;
     const r = await fetch(`/api/produccion/cola/${o.id}/validar-corte`, { method: 'POST' });
@@ -88,7 +91,10 @@ export function CortadorAsignadosAdmin({ cortadorId, asignados, listos, hechos, 
         </div>
         {o.descripcion && <p className="text-sm text-stone-600 mt-1 truncate">{o.descripcion}</p>}
       </div>
-      <span className="text-xs text-stone-400 tabular-nums shrink-0">{o.cantidad} u</span>
+      <span className="text-xs text-stone-400 tabular-nums shrink-0 text-right">
+        {o.origenCantidad === 'cortado' ? `${o.cantidad} u` : `${o.cantidad} u plan.`}
+        {o.origenCantidad === 'cortado' && o.cantidad !== o.cantidadPlanificada && <span className="block text-[10px]">plan {o.cantidadPlanificada}</span>}
+      </span>
       {right}
     </div>
   );

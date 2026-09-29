@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { CortadorAsignadosAdmin, type OpAsignada } from '@/components/produccion/CortadorAsignadosAdmin';
+import { baseDeRepartoConOrigen } from '@/lib/produccion/cantidades';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,7 +17,7 @@ export default async function CortadorAdminDetallePage({ params }: { params: Pro
     prisma.ordenProduccion.findMany({
       where: { cortadorId: id },
       orderBy: [{ createdAt: 'desc' }],
-      select: { id: true, sku: true, descripcion: true, marca: true, cantidad: true, estado: true, fichaCorteCargada: true, corteEstado: true, fechaCorte: true, costoCorte: true, fichaCorteData: true },
+      select: { id: true, sku: true, descripcion: true, marca: true, cantidad: true, cantidadCortada: true, estado: true, fichaCorteCargada: true, corteEstado: true, fechaCorte: true, costoCorte: true, fichaCorteData: true },
     }),
     prisma.cortador.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' }, select: { id: true, nombre: true } }),
   ]);
@@ -25,10 +26,14 @@ export default async function CortadorAdminDetallePage({ params }: { params: Pro
     // Precio que cargó el cortador (vive en el JSON hasta que se valida) para el confirm de "Validar".
     const fd = o.fichaCorteData as Record<string, unknown> | null;
     const precioCargado = Number(fd?.costoCorte) || 0;
-    const precioTotal = fd?.modoCosto === 'unidad' ? precioCargado * o.cantidad : precioCargado;
-    const precioUnidad = o.cantidad > 0 ? precioTotal / o.cantidad : precioTotal;
+    // Al cortador se le paga por lo CORTADO (igual que /validar-corte), no por lo planificado.
+    const base = baseDeRepartoConOrigen(o);
+    const unidades = base?.unidades ?? 0;
+    const precioTotal = fd?.modoCosto === 'unidad' ? precioCargado * unidades : precioCargado;
+    const precioUnidad = unidades > 0 ? precioTotal / unidades : precioTotal;
     return {
-      id: o.id, sku: o.sku, descripcion: o.descripcion, marca: o.marca, cantidad: o.cantidad,
+      id: o.id, sku: o.sku, descripcion: o.descripcion, marca: o.marca,
+      cantidad: unidades, origenCantidad: base?.origen ?? 'planificado', cantidadPlanificada: o.cantidad,
       estado: o.estado, fichaCorteCargada: o.fichaCorteCargada, corteEstado: o.corteEstado,
       fechaCorte: o.fechaCorte ? o.fechaCorte.toISOString() : null, costoCorte: Number(o.costoCorte),
       precioTotal, precioUnidad,
