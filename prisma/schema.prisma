@@ -820,7 +820,7 @@ model TelaCatalogo {
 
 model Gasto {
   id        String  @id @default(cuid())
-  categoria String // 'desarrollo' | 'produccion'
+  categoria String // 'desarrollo' | 'produccion' | 'taller' (trabajo libre de la tablet, ver lib/tiempos/registrar.ts)
   tipo      String // 'tela' | 'insumos' | 'periodo'
   marca     String? // 'Zattia' | 'Stunned' — para desarrollo
   sku       String?

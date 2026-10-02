@@ -19,9 +19,10 @@ export default async function GastosPage() {
     if (!user?.permisos.includes('gastos')) redirect('/dashboard');
   }
 
-  const [gastosDesarrollo, gastosProduccion, ordenes, costoMinuto] = await Promise.all([
+  const [gastosDesarrollo, gastosProduccion, gastosTaller, ordenes, costoMinuto] = await Promise.all([
     prisma.gasto.findMany({ where: { categoria: 'desarrollo' }, orderBy: { createdAt: 'desc' } }),
     prisma.gasto.findMany({ where: { categoria: 'produccion' }, orderBy: { createdAt: 'desc' } }),
+    prisma.gasto.findMany({ where: { categoria: 'taller' }, orderBy: { createdAt: 'desc' } }),
     prisma.ordenProduccion.findMany({
       where: { estado: { not: 'CERRADA' } },   // órdenes activas (todas menos las cerradas)
       orderBy: { createdAt: 'asc' },
@@ -32,11 +33,12 @@ export default async function GastosPage() {
 
   return (
     <div className="p-8">
-      <PageHeader eyebrow="Gastos" title="Gastos del taller" subtitle="Desarrollo y producción." />
+      <PageHeader eyebrow="Gastos" title="Gastos del taller" subtitle="Desarrollo, producción y taller." />
 
       <GastosClient
         gastosDesarrollo={gastosDesarrollo.map((g) => ({ ...g, createdAt: g.createdAt.toISOString() }))}
         gastosProduccion={gastosProduccion.map((g) => ({ ...g, createdAt: g.createdAt.toISOString() }))}
+        gastosTaller={gastosTaller.map((g) => ({ ...g, createdAt: g.createdAt.toISOString() }))}
         ordenes={ordenes}
         costoMinuto={costoMinuto}
       />

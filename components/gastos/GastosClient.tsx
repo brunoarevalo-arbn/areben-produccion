@@ -34,6 +34,7 @@ interface OrdenActiva {
 interface Props {
   gastosDesarrollo: Gasto[];
   gastosProduccion: Gasto[];
+  gastosTaller:     Gasto[];
   ordenes:          OrdenActiva[];
   costoMinuto:      number;
 }
@@ -48,7 +49,7 @@ function montoEfectivo(g: Gasto, costoMinuto: number): number {
   return g.monto;
 }
 
-type Tab = 'desarrollo' | 'produccion';
+type Tab = 'desarrollo' | 'produccion' | 'taller';
 type Tipo = 'tela' | 'insumos' | 'periodo';
 const TIPOS: Tipo[] = ['tela', 'insumos', 'periodo'];
 const MARCAS = ['Zattia', 'Stunned'] as const;
@@ -126,10 +127,11 @@ function GastoRow({ gasto, costoMinuto, onDelete }: { gasto: Gasto; costoMinuto:
   );
 }
 
-export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, costoMinuto }: Props) {
+export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, gastosTaller: gt0, costoMinuto }: Props) {
   const [tab,              setTab]              = useState<Tab>('desarrollo');
   const [gastosDesarrollo, setGastosDesarrollo] = useState<Gasto[]>(gd0);
   const [gastosProduccion, setGastosProduccion] = useState<Gasto[]>(gp0);
+  const [gastosTaller,     setGastosTaller]     = useState<Gasto[]>(gt0);
   const [filtroMarca,      setFiltroMarca]      = useState<string>('todas');
 
   const onCreado = (raw: unknown) => {
@@ -146,7 +148,7 @@ export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, cos
     <div>
       {/* Tabs */}
       <div className="flex gap-2 mb-7 border-b border-stone-200">
-        {(['desarrollo', 'produccion'] as Tab[]).map((t) => (
+        {(['desarrollo', 'produccion', 'taller'] as Tab[]).map((t) => (
           <button key={t} onClick={() => setTab(t)}
             className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition capitalize ${
               tab === t ? 'border-stone-900 text-stone-900' : 'border-transparent text-stone-400 hover:text-stone-700'
@@ -201,6 +203,24 @@ export function GastosClient({ gastosDesarrollo: gd0, gastosProduccion: gp0, cos
           </Card>
 
           <GastoCompraForm defaultCategoria="produccion" onCreado={onCreado} />
+        </div>
+      )}
+
+      {/* El trabajo libre de la tablet (planchado, arreglos): tiempo de costurera sin
+          orden. Es sólo automático —lo crea el registro—, así que no lleva alta a mano. */}
+      {tab === 'taller' && (
+        <div className="space-y-6">
+          <TotalCards gastos={gastosTaller} costoMinuto={costoMinuto} />
+
+          <Card padding="none" className="overflow-hidden">
+            {gastosTaller.length === 0 && (
+              <EmptyState message="Sin gastos de taller" />
+            )}
+            {gastosTaller.map((g) => (
+              <GastoRow key={g.id} gasto={g} costoMinuto={costoMinuto}
+                onDelete={(id) => setGastosTaller((prev) => prev.filter((x) => x.id !== id))} />
+            ))}
+          </Card>
         </div>
       )}
     </div>

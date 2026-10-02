@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/auth';
+import { sincronizarGastoDelTiempo } from '@/lib/tiempos/registrar';
 import { z } from 'zod';
 
 const Schema = z.object({ accion: z.enum(['aprobar', 'rechazar']) });
@@ -40,5 +41,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       data: { estado: 'aprobada', resueltaPor: session.nombre, resueltaAt: new Date() },
     }),
   ]);
+  // Un libre corregido a una orden deja de ser gasto de taller: sus minutos pasan
+  // al lote. Sin esto se cobraban dos veces.
+  await sincronizarGastoDelTiempo(sol.tiempoId);
   return NextResponse.json({ ok: true });
 }

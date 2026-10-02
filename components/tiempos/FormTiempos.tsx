@@ -6,6 +6,7 @@ import type { EstadoCronometro } from '@/lib/hooks/useTiempos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
 import { MAQUINAS, MAQUINA_NINGUNA } from '@/lib/constants/maquinas';
 import { PARTE_COMPARTIDA, MAQUINA_COMPARTIDA } from '@/lib/constants/partes';
+import { ACTIVIDAD_PROCESO } from '@/lib/constants/actividades';
 import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
 
@@ -33,7 +34,7 @@ interface OrdenActiva {
 }
 
 const ACTIVIDADES: { label: string; icon: string; color: string }[] = [
-  { label: 'Proceso Completado', icon: '✅', color: 'bg-emerald-50 border-emerald-400 text-emerald-800' },
+  { label: ACTIVIDAD_PROCESO,    icon: '✅', color: 'bg-emerald-50 border-emerald-400 text-emerald-800' },
   { label: 'Muestra Zattia',     icon: '📐', color: 'bg-violet-50 border-violet-400 text-violet-800' },
   { label: 'Muestra Stunned',    icon: '📐', color: 'bg-pink-50 border-pink-400 text-pink-800' },
   { label: 'Descanso',           icon: '☕', color: 'bg-sky-50 border-sky-400 text-sky-800' },
@@ -47,6 +48,7 @@ const LIBRE_ID = '__libre__';
 export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempos, onGuardar, onRefresh, onReiniciarReloj, loading }: FormTiemposProps) {
   const [actividad,   setActividad]   = useState('');
   const [ordenId,     setOrdenId]     = useState('');
+  const [detalleLibre, setDetalleLibre] = useState('');
   const [parte,       setParte]       = useState('');
   const [cambiando,   setCambiando]   = useState(false);
   const [confirmParte, setConfirmParte] = useState<{ nueva: string; minutos: number } | null>(null);
@@ -98,6 +100,16 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   // le rompería el orden de trabajo, igual que se lo rompió la pieza preseleccionada
   // el 18-sep. El trabajo libre (sin orden) ⛔ no la necesita.
   const faltaMaquina = !!ordenSeleccionada && !maquina;
+  // 🔴 Un Proceso Completado se guarda con una ORDEN o con "trabajo libre", nunca sin
+  // nada: el libre se cobra como gasto de taller (`gastoDelTiempo`), y si "no elegí"
+  // se guardara igual que "libre", un olvido se volvía gasto. Y el libre dice QUÉ
+  // se hizo (planchado, arreglos): es el concepto del gasto. Mismo criterio que la
+  // máquina: traba el GUARDAR, ⛔ nunca el reloj.
+  const esLibre = ordenId === LIBRE_ID;
+  const esProceso = actividad === ACTIVIDAD_PROCESO;
+  const faltaOrden = esProceso && !ordenId;
+  const faltaDetalle = esProceso && esLibre && !detalleLibre.trim();
+  const faltaAlgo = faltaMaquina || faltaOrden || faltaDetalle;
 
   const marcarCosturaTerminada = async () => {
     if (!ordenSeleccionada) return;
@@ -133,6 +145,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
     maquina:      maquina                   || undefined,
     sku:          ordenSeleccionada?.sku     || undefined,
     parte:        parteDelRegistro          || undefined,
+    detalle:      esProceso && esLibre ? detalleLibre.trim() : undefined,
     // ⛔ `cantidad` ⛔ NO se manda más. La tablet la copiaba de `OrdenProduccion.cantidad`
     // (lo PLANIFICADO) en cada registro y nadie la tocaba: el 18-sep los 7 registros de
     // la bikini decían "60" sobre un corte de 62, y el reporte del día sumaba 462
@@ -204,7 +217,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   };
 
   const handleGuardar = async () => {
-    if (!actividad || estado === 'idle' || faltaMaquina) return;
+    if (!actividad || estado === 'idle' || faltaAlgo) return;
 
     const t = onObtenerTiempos();
     if (!t) return;
@@ -213,6 +226,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       await onGuardar(armarRegistro(t, parte));
       setActividad('');
       setOrdenId('');
+      setDetalleLibre('');
       setParte('');
       setMaquina('');
       setDefectos('0');
@@ -318,6 +332,23 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
           >
             <span className="text-xs text-stone-400 font-medium">Sin orden — trabajo libre</span>
           </button>
+
+          {esLibre && (
+            <div>
+              <label className="block text-xs font-bold text-stone-500 mb-1 uppercase tracking-wide">
+                ¿Qué hiciste? {esProceso && <span className="text-amber-600">· obligatorio</span>}
+              </label>
+              <input
+                value={detalleLibre}
+                onChange={(e) => setDetalleLibre(e.target.value)}
+                maxLength={200}
+                placeholder="Planchado, arreglos…"
+                className={`w-full px-3 py-2 border rounded-lg text-sm bg-white text-stone-800 focus:outline-none focus:border-amber-400 ${
+                  faltaDetalle ? 'border-amber-400 ring-1 ring-amber-200' : 'border-stone-200'
+                }`}
+              />
+            </div>
+          )}
 
           {ordenSeleccionada && ordenSeleccionada.estado === 'COSTURA' && (
             <div className="pt-1">
@@ -536,6 +567,16 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
             Iniciá el cronómetro para registrar un trabajo
           </p>
         )}
+        {hayTarea && faltaOrden && (
+          <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
+            Elegí la orden — o &quot;Sin orden — trabajo libre&quot; ↑
+          </p>
+        )}
+        {hayTarea && !faltaOrden && faltaDetalle && (
+          <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
+            Escribí qué hiciste en el trabajo libre ↑
+          </p>
+        )}
         {hayTarea && actividad && faltaMaquina && (
           <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
             Elegí la máquina para guardar — si no usaste ninguna, poné &quot;{MAQUINA_NINGUNA}&quot; ↑
@@ -543,7 +584,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
         )}
         <button
           onClick={handleGuardar}
-          disabled={loading || !actividad || !hayTarea || faltaMaquina}
+          disabled={loading || !actividad || !hayTarea || faltaAlgo}
           className="w-full bg-stone-900 hover:bg-stone-800 disabled:bg-stone-300 disabled:text-stone-400 text-white py-3.5 rounded-xl font-bold text-sm uppercase tracking-widest transition-all active:scale-95"
         >
           {loading ? 'Guardando...' : '✓ Guardar registro'}

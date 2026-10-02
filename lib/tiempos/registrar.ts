@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { calcularCostoMinuto } from '@/lib/costoMinuto';
 import type { TiempoInput } from '@/lib/validators/tiempos';
+import { ACTIVIDAD_PROCESO } from '@/lib/constants/actividades';
 
 // Una corrida de muestra ES trabajo de costura: al terminarla, el tiempo medido
 // entra al registro del día de la costurera igual que si lo hubiera cargado a
@@ -22,46 +23,60 @@ export function marcaDeMuestra(actividad: string, marca?: string | null): string
   return MARCAS_MUESTRA[actividad] ?? null;
 }
 
+// El trabajo LIBRE (sin orden) también es tiempo de costurera que se paga: no
+// entra a ningún lote porque no tiene SKU, así que sin gasto se perdía —64
+// registros y ~95 h desde mayo—. Va a una categoría propia, `taller`, sin marca,
+// para no inflar desarrollo. Desde esta fecha la tablet obliga a elegir orden o
+// "trabajo libre", así que un Proceso Completado sin SKU ES libre; antes podía
+// ser un olvido, y por eso lo viejo ⛔ cobra gasto ni aunque se edite.
+export const TALLER_DESDE = '2026-10-02';
+
+type RegistroConGasto = {
+  actividad: string;
+  marca?: string | null;
+  sku?: string | null;
+  detalle?: string | null;
+  fecha: string;
+};
+
 /**
- * El registro de tiempo y —si es muestra— su gasto de desarrollo, en UN solo
- * lugar: lo llaman el alta manual de la tablet y el cierre de una corrida. Si
- * la regla viviera en el route handler, una muestra medida con el cronómetro
- * costaría plata y la misma muestra medida con la corrida saldría gratis.
+ * Qué gasto le corresponde a un registro, o null si ninguno. La regla vive acá
+ * y SÓLO acá: la usan el alta y la sincronización, así que corregir un libre a
+ * una orden le borra el gasto de taller —si no, se cobraría dos veces: gasto y
+ * minutos del lote—.
+ */
+export function gastoDelTiempo(t: RegistroConGasto): { categoria: string; marca: string | null; concepto: string } | null {
+  const marca = marcaDeMuestra(t.actividad, t.marca);
+  if (marca) {
+    return { categoria: 'desarrollo', marca, concepto: `Muestra ${marca}${t.sku ? ` — ${t.sku}` : ''}` };
+  }
+  // `!marca`: una orden sin SKU trae la marca de la orden, y eso ⛔ es libre.
+  if (t.actividad === ACTIVIDAD_PROCESO && !t.sku && !t.marca && t.fecha >= TALLER_DESDE) {
+    return { categoria: 'taller', marca: null, concepto: `Taller — ${t.detalle?.trim() || 'trabajo libre'}` };
+  }
+  return null;
+}
+
+/**
+ * El registro de tiempo y su gasto —de muestra o de taller—, en UN solo lugar:
+ * lo llaman el alta manual de la tablet y el cierre de una corrida. Si la regla
+ * viviera en el route handler, una muestra medida con el cronómetro costaría
+ * plata y la misma muestra medida con la corrida saldría gratis.
  */
 export async function crearTiempoConGasto(datos: TiempoInput) {
   const tiempo = await prisma.tiemposProduccion.create({ data: datos });
-
-  const marcaMuestra = marcaDeMuestra(datos.actividad, datos.marca);
-  if (marcaMuestra && datos.minutosNetos > 0) {
-    const costoMinuto = await calcularCostoMinuto();
-    const monto = Math.round(datos.minutosNetos * costoMinuto);
-    await prisma.gasto.create({
-      data: {
-        categoria: 'desarrollo',
-        tipo: 'periodo',
-        marca: marcaMuestra,
-        sku: datos.sku || null,
-        minutos: Math.round(datos.minutosNetos),
-        monto,
-        concepto: `Muestra ${marcaMuestra}${datos.sku ? ` — ${datos.sku}` : ''}`,
-        fecha: datos.fecha,
-        creadoPor: datos.usuario,
-        tiempoId: tiempo.id,
-      },
-    });
-  }
-
+  await sincronizarGastoDelTiempo(tiempo.id);
   return tiempo;
 }
 
 /**
- * Deja el gasto de muestra igual a lo que dice el registro. Se llama cuando se
- * EDITA un tiempo: sin esto el registro decía 0 minutos y el gasto seguía
- * cobrando los 20 originales —pasó el 4-sep con la corrida de Bombacha entera,
- * $2.694 que ya no correspondían—. Mismo criterio que el `movimientoId` de un
- * retiro de tela: el gasto automático sigue a su origen o se borra.
+ * Deja el gasto automático igual a lo que dice el registro. Se llama al crear y
+ * cuando se EDITA un tiempo: sin esto el registro decía 0 minutos y el gasto
+ * seguía cobrando los 20 originales —pasó el 4-sep con la corrida de Bombacha
+ * entera, $2.694 que ya no correspondían—. Mismo criterio que el `movimientoId`
+ * de un retiro de tela: el gasto automático sigue a su origen o se borra.
  */
-export async function sincronizarGastoDeMuestra(tiempoId: string) {
+export async function sincronizarGastoDelTiempo(tiempoId: string) {
   const t = await prisma.tiemposProduccion.findUnique({ where: { id: tiempoId } });
   if (!t) return;
 
@@ -71,27 +86,29 @@ export async function sincronizarGastoDeMuestra(tiempoId: string) {
     where: { tiempoId, proveedorId: null, estadoPago: null },
   });
 
-  const marca = marcaDeMuestra(t.actividad, t.marca);
+  const corresponde = gastoDelTiempo(t);
   const minutos = Math.round(t.minutosNetos);
 
-  if (!marca || minutos <= 0) {
+  if (!corresponde || minutos <= 0) {
     if (gasto) await prisma.gasto.delete({ where: { id: gasto.id } });
     return;
   }
 
   const costoMinuto = await calcularCostoMinuto();
   const monto = Math.round(minutos * costoMinuto);
-  const concepto = `Muestra ${marca}${t.sku ? ` — ${t.sku}` : ''}`;
+  // `categoria` va en el update: un libre que pasa a muestra (o al revés) cambia
+  // de categoría, no sólo de concepto.
+  const { categoria, marca, concepto } = corresponde;
 
   if (gasto) {
     await prisma.gasto.update({
       where: { id: gasto.id },
-      data: { marca, sku: t.sku, minutos, monto, concepto, fecha: t.fecha },
+      data: { categoria, marca, sku: t.sku, minutos, monto, concepto, fecha: t.fecha },
     });
   } else {
     await prisma.gasto.create({
       data: {
-        categoria: 'desarrollo', tipo: 'periodo', marca, sku: t.sku,
+        categoria, tipo: 'periodo', marca, sku: t.sku,
         minutos, monto, concepto, fecha: t.fecha, creadoPor: t.usuario, tiempoId: t.id,
       },
     });
