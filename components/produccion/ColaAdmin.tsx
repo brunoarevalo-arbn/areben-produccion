@@ -53,6 +53,7 @@ interface Orden {
   lote: { id: string; prenda: string | null; descripcion: string | null; marca: string } | null;
   /** Los lotes planificados ("Lote 1 / Lote 2"). Vacío = lote único. */
   lotesPlanificados?: { numero: number; activadoAt: string | null }[];
+  lotesDetalle?: (LotePlan & { talles: { talle: string; cantidad: number }[]; activadoAt: string | null; enTaller: boolean })[];
   /** En espera ("falta dije"): fuera de la tablet hasta que se retome. */
   enEsperaDesde?: string | null;
   enEsperaMotivo?: string | null;
@@ -487,6 +488,34 @@ export function ColaAdmin() {
     }
   };
 
+  /**
+   * Si la costurera ve la orden en la tablet, y si no, por qué. Es el MISMO criterio que
+   * `/api/tiempos/cola`: en costura, sin aviso de terminada, sin espera y —si está separada—
+   * con algún lote en el taller (o con la separación todavía programada).
+   */
+  const visibilidadTablet = (orden: Orden): { oculta: boolean; motivo: string | null } => {
+    if (orden.estado !== 'COSTURA') return { oculta: true, motivo: null };
+    if (orden.enEsperaDesde) return { oculta: true, motivo: orden.enEsperaMotivo ?? 'en espera' };
+    if (orden.avisoCosturaAt) return { oculta: true, motivo: 'avisó que terminó' };
+    const lotes = orden.lotesDetalle ?? [];
+    if (lotes.length > 0) {
+      const programada = lotes.some((l) => l.numero > 1 && !l.activadoAt);
+      if (!programada && !lotes.some((l) => l.activadoAt && l.enTaller && l.abierto)) {
+        return { oculta: true, motivo: 'ningún lote en el taller' };
+      }
+    }
+    return { oculta: false, motivo: null };
+  };
+
+  const moverLote = async (orden: Orden, numero: number, enTaller: boolean) => {
+    const r = await fetch(`/api/produccion/cola/${orden.id}/lotes`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ numero, enTaller }),
+    });
+    if (r.ok) cargar();
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo mover el lote'); }
+  };
+
   // En espera ("falta dije"): la orden sale de la tablet hasta que se retome.
   const ponerEnEspera = async () => {
     if (!esperaOrden || !esperaMotivo.trim()) return;
@@ -615,8 +644,14 @@ export function ColaAdmin() {
   const renderOrden = (orden: Orden, dentroDeGrupo = false) => {
     const dias = diasEnEstado(orden.transiciones);
     const siguientes = ESTADO_SIGUIENTE[orden.estado] || [];
+    const vis = visibilidadTablet(orden);
+    const lotes = orden.lotesDetalle ?? [];
+    const programada = lotes.some((l) => l.numero > 1 && !l.activadoAt);
+    const loteTablet = programada ? null
+      : lotes.filter((l) => l.activadoAt && l.enTaller && l.abierto).map((l) => l.numero).sort((a, b) => a - b)[0] ?? null;
     return (
-      <div key={orden.id}
+      <div key={orden.id}>
+      <div
         className={`px-4 md:px-5 py-2 ${GRID} items-center hover:bg-stone-50 transition border-t border-stone-100 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
         <div className="flex items-center gap-2">
           {esAgrupable(orden) && (
@@ -639,7 +674,7 @@ export function ColaAdmin() {
               </Badge>
             )}
             {orden.enEsperaDesde && (
-              <Badge variant="amber" size="sm">En espera: {orden.enEsperaMotivo ?? '—'}</Badge>
+              <Badge variant="amber" size="sm">🙈 Oculta: {orden.enEsperaMotivo ?? "—"}</Badge>
             )}
             {/* Si la orden está separada en lotes se tiene que saber ANTES de entrar: cambia
                 cómo se ingresa y qué bolsa cose la costurera. */}
@@ -649,6 +684,9 @@ export function ColaAdmin() {
               const programado = lotes.some((l) => l.numero > 1 && !l.activadoAt);
               return <Badge variant="violet" size="sm">{lotes.length} lotes{programado ? ' · programado' : ''}</Badge>;
             })()}
+            {(() => { const v = visibilidadTablet(orden); return v.oculta && v.motivo && !orden.enEsperaDesde ? (
+              <Badge variant="default" size="sm">🙈 {v.motivo}</Badge>
+            ) : null; })()}
             {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
               orden.corteEstado === 'validado'
                 ? <Badge variant="blue" size="sm">Validado</Badge>
@@ -721,14 +759,49 @@ export function ColaAdmin() {
               ))}
             </select>
           )}
+          {/* 👁 Si la costurera la ve en la tablet. Ocultar ⛔ es terminar: es "no la ven
+              más", y por qué. Sólo en costura, que es lo único que la tablet muestra. */}
+          {orden.estado === 'COSTURA' && (
+            <button type="button"
+              onClick={() => orden.enEsperaDesde ? retomar(orden) : !vis.oculta ? (setEsperaOrden(orden), setEsperaMotivo('')) : undefined}
+              title={vis.oculta ? `No la ven en la tablet: ${vis.motivo}${orden.enEsperaDesde ? ' — tocá para que vuelva' : ''}` : 'La ven en la tablet — tocá para ocultarla'}
+              aria-label={vis.oculta ? 'Mostrar en la tablet' : 'Ocultar de la tablet'}
+              className={`text-sm px-2 py-1 rounded-lg border transition leading-none ${vis.oculta ? 'border-amber-300 bg-amber-50' : 'border-stone-200 hover:bg-stone-50'}`}>
+              {vis.oculta ? '🙈' : '👁'}
+            </button>
+          )}
           <PopoverMenu items={[
             { label: 'Editar orden', onClick: () => abrirEdicion(orden) },
-            ...(orden.estado === 'CERRADA' ? [] : orden.enEsperaDesde
-              ? [{ label: 'Retomar (vuelve a la tablet)', onClick: () => retomar(orden) }]
-              : [{ label: 'Poner en espera…', onClick: () => { setEsperaOrden(orden); setEsperaMotivo(''); } }]),
             { label: 'Eliminar', onClick: () => eliminar(orden.id, orden.sku), danger: true },
           ]} />
         </div>
+      </div>
+      {/* Los lotes de una orden separada, listados acá: qué bolsa es cuál y cuál tiene la costurera. */}
+      {lotes.length > 0 && orden.estado !== 'CERRADA' && (
+        <div className={`px-4 md:px-5 pb-2 pt-0.5 space-y-1 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''}`}>
+          {lotes.map((l) => (
+            <div key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs pl-2 md:pl-28">
+              <span className="font-semibold text-stone-700 w-14">Lote {l.numero}</span>
+              <span className="text-stone-500">{l.talles.map((t) => `${t.talle} ${t.cantidad}`).join(' · ')} = {l.unidades} u</span>
+              <span className={l.abierto ? 'text-stone-400' : 'text-emerald-700 font-semibold'}>ingresado {l.ingresado}/{l.unidades}</span>
+              {programada && l.numero > 1 && <span className="text-sky-700 font-semibold">programado: {l.despuesDe}</span>}
+              {!programada && l.abierto && (
+                <span className={l.enTaller ? 'text-emerald-700 font-semibold' : 'text-stone-400'}>
+                  {l.enTaller ? 'en el taller' : 'fuera del taller'}{l.numero === loteTablet && ' · la tablet carga acá'}
+                </span>
+              )}
+              <span className="ml-auto flex gap-3">
+                {!programada && l.abierto && orden.estado === 'COSTURA' && (
+                  <button type="button" onClick={() => moverLote(orden, l.numero, !l.enTaller)} className="text-stone-500 hover:text-stone-800">
+                    {l.enTaller ? 'Sacar del taller' : 'Pasar al taller'}
+                  </button>
+                )}
+                <Link href={`/produccion/${orden.id}/lote/${l.numero}/etiqueta`} className="text-amber-600 hover:underline">Etiqueta</Link>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
       </div>
     );
   };
@@ -1100,15 +1173,15 @@ export function ColaAdmin() {
       {esperaOrden && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={() => setEsperaOrden(null)}>
           <div className="bg-white rounded-2xl border border-stone-200 p-5 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-sm font-bold text-stone-800 mb-1">Poner en espera <span className="font-mono text-stone-500">{esperaOrden.sku}</span></h3>
+            <h3 className="text-sm font-bold text-stone-800 mb-1">🙈 Ocultar de la tablet <span className="font-mono text-stone-500">{esperaOrden.sku}</span></h3>
             <p className="text-xs text-stone-500 mb-3">
-              Sale de la tablet hasta que la retomes. No cambia el estado: lo que ya esté listo se puede ingresar igual.
+              La costurera deja de verla hasta que la vuelvas a mostrar con el 👁. No la da por terminada: sigue en costura y lo que ya esté listo se puede ingresar igual.
             </p>
             <input autoFocus value={esperaMotivo} onChange={(e) => setEsperaMotivo(e.target.value)} maxLength={120}
-              placeholder="¿Qué falta? (ej. falta dije)" className={`${inputClass} mb-3`}
+              placeholder="¿Por qué? (ej. falta dije)" className={`${inputClass} mb-3`}
               onKeyDown={(e) => { if (e.key === 'Enter') ponerEnEspera(); }} />
             <div className="flex gap-2">
-              <Button variant="primary" disabled={!esperaMotivo.trim()} className="flex-1" onClick={ponerEnEspera}>Poner en espera</Button>
+              <Button variant="primary" disabled={!esperaMotivo.trim()} className="flex-1" onClick={ponerEnEspera}>Ocultar</Button>
               <Button variant="secondary" onClick={() => setEsperaOrden(null)}>Cancelar</Button>
             </div>
           </div>

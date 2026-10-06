@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { estadoDeLotes, lotesParaPantalla } from '@/lib/produccion/lotesPlanificados';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { requirePermiso } from '@/lib/auth';
 import { cortadorPredeterminado } from '@/lib/produccion/cortador-default';
@@ -29,7 +30,13 @@ export async function GET(req: NextRequest) {
       },
     });
 
-    return NextResponse.json(ordenes);
+    // Las órdenes separadas traen sus lotes enteros (talles, ingresado, en el taller) para
+    // listarlos debajo de la fila sin entrar a la OP. Son pocas: el resto no paga la consulta.
+    const conLotes = await Promise.all(ordenes.map(async (o) => o.lotesPlanificados.length > 0
+      ? { ...o, lotesDetalle: lotesParaPantalla(await estadoDeLotes(prisma, o)) }
+      : { ...o, lotesDetalle: [] }));
+
+    return NextResponse.json(conLotes);
   } catch (err) {
     console.error('[cola GET]', err);
     return NextResponse.json({ error: 'Error interno', detail: String(err) }, { status: 500 });
