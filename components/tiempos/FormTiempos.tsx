@@ -71,6 +71,8 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   const [ordenes,     setOrdenes]     = useState<OrdenActiva[]>(ordenesIniciales);
   const [finalizando, setFinalizando] = useState(false);
   const [confirmFin,  setConfirmFin]  = useState(false);
+  // El botón fijo "Terminé el remallado": se confirma igual que el aviso de terminé.
+  const [confirmProceso, setConfirmProceso] = useState(false);
   const [errorFin,    setErrorFin]    = useState<string | null>(null);
   const [inconveniente,      setInconveniente]      = useState<string>('');
   const [inconvenienteNotas, setInconvenienteNotas] = useState<string>('');
@@ -349,7 +351,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                   // Pasó en producción el 18-sep con 82 minutos.
                   setParte(estado === 'idle' ? (orden.partes?.[0] ?? '') : '');
                 }
-                setConfirmFin(false);
+                setConfirmFin(false); setConfirmProceso(false);
               }}
               aria-pressed={ordenId === claveFila(orden)}
               aria-label={`Orden ${orden.sku ?? ''} ${orden.marca}${orden.descripcion ? ' — ' + orden.descripcion : ''}`}
@@ -385,7 +387,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
             onClick={() => {
               setOrdenId(ordenId === LIBRE_ID ? '' : LIBRE_ID);
               setParte('');
-              setConfirmFin(false);
+              setConfirmFin(false); setConfirmProceso(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border-2 text-left transition-all active:scale-95 ${
               ordenId === LIBRE_ID ? 'bg-stone-100 border-stone-400' : 'bg-white border-dashed border-stone-200 hover:border-stone-300'
@@ -408,6 +410,47 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                   faltaDetalle ? 'border-amber-400 ring-1 ring-amber-200' : 'border-stone-200'
                 }`}
               />
+            </div>
+          )}
+
+          {/* "Terminé el remallado": fijo, al lado del aviso de terminé, sólo en las órdenes con
+              una separación programada. Además de la pregunta que sale al cambiar de máquina. */}
+          {ordenSeleccionada?.confirmarDespuesDe && maquinaDelProceso && (
+            <div className="pt-1">
+              {!confirmProceso ? (
+                <button
+                  onClick={() => setConfirmProceso(true)}
+                  className="w-full py-2.5 rounded-xl border-2 border-dashed border-sky-300 text-sky-700 text-xs font-bold uppercase tracking-wide hover:bg-sky-50 transition active:scale-95"
+                >
+                  ✓ Terminé el {ordenSeleccionada.confirmarDespuesDe.toLowerCase()} — {ordenSeleccionada.sku}
+                </button>
+              ) : (
+                <div className="bg-sky-50 border-2 border-sky-300 rounded-xl p-3 space-y-2">
+                  <p className="text-xs font-bold text-sky-900 text-center">
+                    ¿Terminaste el {ordenSeleccionada.confirmarDespuesDe.toLowerCase()} de <span className="underline">todo</span>{' '}
+                    <span className="font-mono">{ordenSeleccionada.sku}</span>?
+                  </p>
+                  <p className="text-[11px] text-sky-700 text-center leading-snug">
+                    La orden se separa en lotes y cada bolsa va con el suyo.
+                    {relojCorriendo && ' Lo que venías haciendo se guarda como ' + maquinaDelProceso + '.'}
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={async () => { await confirmarProcesoTerminado(); setConfirmProceso(false); }}
+                      disabled={activando}
+                      className="flex-1 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white py-2 rounded-lg text-xs font-bold transition active:scale-95"
+                    >
+                      {activando ? 'Guardando...' : 'Sí, terminé'}
+                    </button>
+                    <button
+                      onClick={() => setConfirmProceso(false)}
+                      className="px-4 py-2 rounded-lg border border-stone-200 text-stone-500 text-xs font-semibold hover:border-stone-400 transition"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
