@@ -39,6 +39,7 @@ export interface CostoCongelado {
   costoUnitario: number;
   minutosImputados: number;
   minutosCompartidos: number;
+  minutosComunes: number;
   costoMinuto: number;
   sinCostoMaterial: boolean;
   /** Entre cuántas unidades se repartió el material, y si ésas son las cortadas o las planificadas. */
@@ -96,7 +97,7 @@ export async function minutosSinImputar(
 async function minutosDeCostura(tx: Db, sku: string) {
   const registros = await tx.tiemposProduccion.findMany({
     where: { sku: sku.trim(), estado: 'guardado' },
-    select: { actividad: true, marca: true, minutosNetos: true, parte: true },
+    select: { actividad: true, marca: true, minutosNetos: true, parte: true, lote: true },
   });
   return registros.filter((r) => marcaDeMuestra(r.actividad, r.marca) === null);
 }
@@ -106,6 +107,109 @@ export interface MinutosDeParte {
   minutos: number;
   /** De esos minutos, cuántos vinieron del reparto mitad y mitad (no están medidos). */
   compartidos: number;
+  /**
+   * De esos minutos, cuántos vinieron de la bolsa COMÚN de una orden separada en lotes
+   * planificados: los registros sin lote, repartidos por unidades. 0 si la orden no está
+   * separada.
+   */
+  comunes?: number;
+}
+
+/** El lote planificado en el que entra un ingreso, con lo que hace falta para costearlo. */
+export interface LotePlanParaCostear {
+  id: string;
+  numero: number;
+  /** Las unidades planificadas de ESTE lote. */
+  unidades: number;
+  /** Las unidades planificadas de TODOS los lotes de la orden: el denominador de la bolsa común. */
+  unidadesTotales: number;
+  /** Los números de lote que existen: un registro con otro número cae a la bolsa común. */
+  numeros: number[];
+}
+
+/**
+ * Los minutos pendientes de UN LOTE PLANIFICADO, por pieza (o en `''` si la prenda no se
+ * parte).
+ *
+ * 🔑 Los minutos se parten por MARCA, no por fecha: la tablet no tiene lista de procesos
+ * ("remallado" es una máquina) y el costo nunca filtró por fecha.
+ *  - los registros con `lote = N` son del lote N, y de nadie más;
+ *  - los registros SIN lote (todo lo anterior a separar el corte, y lo que alguien cargó
+ *    sin decir el lote) son de todos: se reparten **por unidades planificadas** —un lote
+ *    de 20 sobre 62 se lleva 20/62 de la bolsa común—.
+ * Dentro del lote, el reparto por pieza es el mismo de `minutosSinImputarPorParte`.
+ *
+ * 🔴 La cuota de la bolsa común tiene DOS topes, y hacen falta los dos: lo que a este lote
+ * le toca por unidades, menos lo que ya se llevó; y lo que queda en la bolsa, menos lo
+ * que se llevaron TODOS. Sin el segundo, un ingreso hecho antes de separar (que se llevó
+ * la bolsa entera) más la cuota del lote nuevo contarían los mismos minutos dos veces.
+ */
+export async function minutosSinImputarDelLote(
+  tx: Db,
+  orden: Pick<OrdenParaCostear, 'id' | 'sku'>,
+  partes: string[],
+  lote: LotePlanParaCostear,
+): Promise<Map<string, MinutosDeParte>> {
+  const claves = partes.length > 0 ? partes : [''];
+  const salida = new Map<string, MinutosDeParte>();
+  if (!orden.sku?.trim() || lote.unidadesTotales <= 0) {
+    for (const k of claves) salida.set(k, { minutos: 0, compartidos: 0, comunes: 0 });
+    return salida;
+  }
+
+  const registros = await minutosDeCostura(tx, orden.sku);
+  const conocidas = new Set(partes);
+  const existentes = new Set(lote.numeros);
+
+  const loteIdent = new Map<string, number>(claves.map((k) => [k, 0]));
+  const comunIdent = new Map<string, number>(claves.map((k) => [k, 0]));
+  let lotePool = 0;
+  let comunPool = 0;
+  for (const r of registros) {
+    const esDelLote = r.lote === lote.numero;
+    const esComun = r.lote == null || !existentes.has(r.lote);
+    if (!esDelLote && !esComun) continue; // es de otro lote
+    const clave = partes.length === 0 ? '' : (r.parte && conocidas.has(r.parte) ? r.parte : null);
+    if (clave === null) {
+      if (esDelLote) lotePool += r.minutosNetos; else comunPool += r.minutosNetos;
+    } else {
+      const m = esDelLote ? loteIdent : comunIdent;
+      m.set(clave, (m.get(clave) ?? 0) + r.minutosNetos);
+    }
+  }
+
+  const sumas = { _sum: { minutosImputados: true, minutosCompartidos: true, minutosComunes: true } } as const;
+  const [delLote, deTodos] = await Promise.all([
+    tx.loteCorte.groupBy({ by: ['parte'], where: { ordenId: orden.id, lotePlanificadoId: lote.id }, ...sumas }),
+    tx.loteCorte.groupBy({ by: ['parte'], where: { ordenId: orden.id }, ...sumas }),
+  ]);
+  const leer = (filas: typeof delLote, k: string, campo: 'minutosImputados' | 'minutosCompartidos' | 'minutosComunes') =>
+    Number(filas.find((f) => (f.parte ?? '') === k)?._sum[campo] ?? 0);
+
+  const fraccion = lote.unidades / lote.unidadesTotales;
+  const n = claves.length;
+  for (const k of claves) {
+    const propiosBrutos = (loteIdent.get(k) ?? 0) + lotePool / n;
+    const comunBruto = (comunIdent.get(k) ?? 0) + comunPool / n;
+
+    const comunesYaDelLote = leer(delLote, k, 'minutosComunes');
+    const comunesYaDeTodos = leer(deTodos, k, 'minutosComunes');
+    const comunes = Math.max(0, Math.min(
+      comunBruto * fraccion - comunesYaDelLote,
+      comunBruto - comunesYaDeTodos,
+    ));
+    const propiosYa = leer(delLote, k, 'minutosImputados') - comunesYaDelLote;
+    const propios = Math.max(0, propiosBrutos - propiosYa);
+    const minutos = propios + comunes;
+
+    // Lo no medido por pieza (el mitad y mitad), tanto de los propios como de la cuota común.
+    const compartidosBrutos = partes.length === 0 ? 0
+      : lotePool / n + (comunBruto > 0 ? (comunPool / n) * (comunes / comunBruto) : 0);
+    const compartidos = Math.min(minutos, Math.max(0, compartidosBrutos - leer(delLote, k, 'minutosCompartidos')));
+
+    salida.set(k, { minutos, compartidos, comunes });
+  }
+  return salida;
 }
 
 /**
@@ -196,6 +300,7 @@ export async function calcularCostoCongelado(
   unidades: number,
   permitirSinCosto: boolean,
   parte: ParteDelLote | null,
+  minutosSinParte?: MinutosDeParte,
 ): Promise<CostoCongelado> {
   if (unidades <= 0) throw new LoteCorteError('Un lote no puede entrar con 0 unidades');
 
@@ -221,9 +326,9 @@ export async function calcularCostoCongelado(
     ? dosDecimales((costoMaterialTotal * proporcion) / base.unidades)
     : 0;
 
-  const { minutos, compartidos } = parte
+  const { minutos, compartidos, comunes = 0 } = parte
     ? parte.minutos
-    : { minutos: await minutosSinImputar(tx, orden), compartidos: 0 };
+    : minutosSinParte ?? { minutos: await minutosSinImputar(tx, orden), compartidos: 0 };
   const costoMinuto = await calcularCostoMinuto(tx);
   const costoMoUnit = dosDecimales((minutos * costoMinuto) / unidades);
 
@@ -233,6 +338,7 @@ export async function calcularCostoCongelado(
     costoUnitario: dosDecimales(costoMaterialUnit + costoMoUnit),
     minutosImputados: dosDecimales(minutos),
     minutosCompartidos: dosDecimales(compartidos),
+    minutosComunes: dosDecimales(comunes),
     costoMinuto: dosDecimales(costoMinuto),
     sinCostoMaterial: costoMaterialUnit === 0,
     unidadesBase: base?.unidades ?? 0,
@@ -257,6 +363,7 @@ export async function partesDelLote(
   orden: OrdenParaCostear,
   partesCatalogo: { nombre: string; skuAbrev: string | null; porcentajeMaterial: number | null }[],
   hayMaterial: boolean,
+  lotePlan: LotePlanParaCostear | null = null,
 ): Promise<ParteDelLote[]> {
   if (partesCatalogo.length === 0) return [];
 
@@ -293,7 +400,10 @@ export async function partesDelLote(
     }
   }
 
-  const minutos = await minutosSinImputarPorParte(tx, orden, partesCatalogo.map((p) => p.nombre));
+  const nombres = partesCatalogo.map((p) => p.nombre);
+  const minutos = lotePlan
+    ? await minutosSinImputarDelLote(tx, orden, nombres, lotePlan)
+    : await minutosSinImputarPorParte(tx, orden, nombres);
 
   return partesCatalogo.map((p) => ({
     nombre: p.nombre,
@@ -320,10 +430,12 @@ export async function crearLoteCongelado(
   permitirSinCosto: boolean,
   parte: ParteDelLote | null,
   numero: number,
+  /** El lote planificado en el que entra (null = la orden no está separada). */
+  lotePlan: { id: string; minutosSinParte?: MinutosDeParte } | null = null,
 ) {
   const positivos = talles.filter((t) => t.cantidad > 0);
   const unidades = positivos.reduce((s, t) => s + t.cantidad, 0);
-  const costo = await calcularCostoCongelado(tx, orden, unidades, permitirSinCosto, parte);
+  const costo = await calcularCostoCongelado(tx, orden, unidades, permitirSinCosto, parte, lotePlan?.minutosSinParte);
 
   return tx.loteCorte.create({
     data: {
@@ -338,6 +450,8 @@ export async function crearLoteCongelado(
       costoUnitario: costo.costoUnitario,
       minutosImputados: costo.minutosImputados,
       minutosCompartidos: costo.minutosCompartidos,
+      minutosComunes: costo.minutosComunes,
+      lotePlanificadoId: lotePlan?.id ?? null,
       costoMinuto: costo.costoMinuto,
       sinCostoMaterial: costo.sinCostoMaterial,
       unidadesBase: costo.unidadesBase,

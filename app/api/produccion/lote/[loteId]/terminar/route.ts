@@ -21,6 +21,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const colores = parsed.data.colores
     .map((c) => ({
       ordenId: c.ordenId,
+      lotePlanificadoId: c.lotePlanificadoId,
       conteos: c.conteos
         .map((k) => ({ parte: k.parte, talles: k.talles.filter((t) => t.cantidad > 0) }))
         .filter((k) => k.talles.length > 0),
@@ -50,7 +51,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const total = await prisma.$transaction(async (tx) => {
       let acum = 0;
       for (const c of colores) {
-        acum += await terminarCosturaOrden(tx, c.ordenId, c.conteos, session, parsed.data.permitirSinCosto);
+        acum += await terminarCosturaOrden(tx, c.ordenId, c.conteos, session, parsed.data.permitirSinCosto, c.lotePlanificadoId);
       }
       return acum;
     });

@@ -22,6 +22,12 @@ interface PartePieza { nombre: string; sku: string | null; porcentajeMaterial: n
 /** Una fila del conteo: el talle y, en las prendas por partes, una cantidad por pieza. */
 interface TalleFila { talle: string; cantidad: string; porParte?: Record<string, string>; }
 
+/** Un lote planificado tal como lo manda `/corte` (ver `LotePlanificadoDTO`). */
+interface LotePlan {
+  id: string; numero: number; despuesDe: string; unidades: number; ingresado: number; abierto: boolean;
+  pendientePorParte: Record<string, { talle: string; cantidad: number }[]>;
+}
+
 interface Orden {
   id: string;
   sku: string;
@@ -154,6 +160,10 @@ export function ColaAdmin() {
   // en la misma fila de talle. `cantidad` queda para las demás, que son todas las otras.
   const [terminarTalles, setTerminarTalles] = useState<TalleFila[]>([]);
   const [terminarPartes, setTerminarPartes] = useState<PartePieza[]>([]);
+  // Si la orden está separada en lotes, el ingreso dice en cuál entra. ⛔ Sin
+  // preselección: el lote decide qué minutos se lleva el costo.
+  const [terminarLotes,  setTerminarLotes]  = useState<LotePlan[]>([]);
+  const [terminarLoteId, setTerminarLoteId] = useState<string | null>(null);
   const [terminarSaving, setTerminarSaving] = useState(false);
   const [terminarError,  setTerminarError]  = useState('');
 
@@ -381,15 +391,21 @@ export function ColaAdmin() {
     setTerminarSinCosto(false);
     let talles: { talle: string; cantidad: string }[] = [];
     let partes: PartePieza[] = [];
+    let lotes: LotePlan[] = [];
+    setTerminarLoteId(null);
     const r = await fetch(`/api/produccion/cola/${orden.id}/corte`);
     if (r.ok) {
       const data = await r.json();
+      if (Array.isArray(data.lotesPlanificados)) lotes = data.lotesPlanificados;
       if (Array.isArray(data.cortesPorTalle) && data.cortesPorTalle.length > 0) {
         talles = data.cortesPorTalle.map((c: { talle: string; cantidad: number }) => ({ talle: c.talle, cantidad: String(c.cantidad) }));
       }
       if (Array.isArray(data.partes)) partes = data.partes;
     }
     setTerminarPartes(partes);
+    setTerminarLotes(lotes);
+    // Separada en lotes: la grilla se llena recién al elegir el lote, con lo que le falta a ése.
+    if (lotes.length > 0) { setTerminarTalles([]); return; }
     const base = talles.length > 0 ? talles : [{ talle: '', cantidad: '' }];
     setTerminarTalles(
       partes.length > 0
@@ -398,6 +414,18 @@ export function ColaAdmin() {
         : base,
     );
   };
+
+  /** Elegir el lote precarga lo que a ESE lote le falta, por pieza. */
+  const elegirLoteTerminar = (lote: LotePlan) => {
+    setTerminarLoteId(lote.id);
+    setTerminarError('');
+    const pendiente = (parte: string) => new Map((lote.pendientePorParte[parte] ?? []).map((t) => [t.talle, t.cantidad]));
+    const talles = (lote.pendientePorParte[terminarPartes[0]?.nombre ?? ''] ?? []).map((t) => t.talle);
+    setTerminarTalles(talles.map((talle) => terminarPartes.length > 0
+      ? { talle, cantidad: '', porParte: Object.fromEntries(terminarPartes.map((p) => [p.nombre, String(pendiente(p.nombre).get(talle) ?? 0)])) }
+      : { talle, cantidad: String(pendiente('').get(talle) ?? 0) }));
+  };
+  const loteTerminar = terminarLotes.find((l) => l.id === terminarLoteId) ?? null;
 
   const setTalleRow = (i: number, field: 'talle' | 'cantidad', val: string) =>
     setTerminarTalles((prev) => prev.map((t, idx) => idx === i ? { ...t, [field]: val } : t));
@@ -432,12 +460,13 @@ export function ColaAdmin() {
         }].filter((c) => c.talles.length > 0);
 
     if (conteos.length === 0) { setTerminarError('Cargá al menos un talle con cantidad'); return; }
+    if (terminarLotes.length > 0 && !terminarLoteId) { setTerminarError('Elegí en qué lote entra'); return; }
     setTerminarSaving(true);
     setTerminarError('');
     const r = await fetch(`/api/produccion/cola/${terminarOrden.id}/terminar`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conteos, permitirSinCosto: terminarSinCosto }),
+      body: JSON.stringify({ conteos, permitirSinCosto: terminarSinCosto, lotePlanificadoId: terminarLoteId }),
     });
     setTerminarSaving(false);
     if (r.ok) { setTerminarOrden(null); cargar(); }
@@ -924,6 +953,22 @@ export function ColaAdmin() {
               la orden <strong>sigue en costura</strong> y podés cargar otro lote después.
             </p>
 
+            {terminarLotes.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-semibold text-stone-600 mb-1.5">¿Qué lote entra? <span className="text-amber-600">· obligatorio</span></p>
+                <div className="flex flex-wrap gap-2">
+                  {terminarLotes.map((l) => (
+                    <button key={l.id} type="button" disabled={!l.abierto} onClick={() => elegirLoteTerminar(l)}
+                      className={`px-3 py-2 rounded-lg border-2 text-xs font-semibold transition disabled:opacity-40 ${
+                        terminarLoteId === l.id ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                      }`}>
+                      Lote {l.numero} · {l.ingresado}/{l.unidades} u{!l.abierto && ' · completo'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* El corte produce DOS artículos: se cuentan por separado y cada uno entra a
                 su propio SKU. Los SKU se MUESTRAN antes de ingresar — es el único lugar
                 donde se ve que la abreviatura del catálogo compone un código real. */}
@@ -997,10 +1042,12 @@ export function ColaAdmin() {
             )}
             <div className="flex gap-2 mt-4">
               <Button variant="primary" isLoading={terminarSaving}
-                disabled={totalTerminar === 0 || (terminarPideAfirmar && !terminarSinCosto)}
+                disabled={totalTerminar === 0 || (terminarPideAfirmar && !terminarSinCosto) || (terminarLotes.length > 0 && !terminarLoteId)}
                 onClick={confirmarTerminar} className="flex-1">
                 {terminarSaving
                   ? 'Ingresando...'
+                  : loteTerminar
+                    ? `Ingresar ${totalTerminar} u del Lote ${loteTerminar.numero}`
                   : totalTerminar > 0 && totalTerminar < (terminarOrden.cantidadCortada ?? terminarOrden.cantidad)
                     ? `Ingresar ${totalTerminar} u y seguir en costura`
                     : 'Terminar y mandar a stock'}

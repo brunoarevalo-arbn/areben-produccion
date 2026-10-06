@@ -47,6 +47,18 @@ export const TerminarCosturaSchema = z.object({
   // corte) congelaría ese lote en $0 para siempre. Por eso el default es plantarse y
   // esto tiene que venir AFIRMADO desde la pantalla, nunca preseleccionado.
   permitirSinCosto: z.boolean().default(false),
+  // En qué lote planificado entra. Obligatorio si la OP está separada en lotes (lo exige
+  // el núcleo, que es quien sabe si lo está); prohibido si no.
+  lotePlanificadoId: z.string().min(1).nullable().default(null),
+});
+
+// Separar un lote del Lote 1: los talles que van al lote nuevo y en qué punto se separa.
+export const SepararLoteSchema = z.object({
+  talles: z.array(z.object({
+    talle:    z.string().min(1),
+    cantidad: z.number().int().nonnegative(),
+  })).min(1, 'Cargá al menos un talle'),
+  despuesDe: z.string().trim().min(1, 'Elegí después de qué proceso se separa').max(60),
 });
 
 // Ajuste manual de stock de producto terminado (carga inicial, merma, corrección).
@@ -137,6 +149,7 @@ export const TerminarLoteSchema = z.object({
   colores: z.array(z.object({
     ordenId: z.string().min(1),
     conteos: z.array(ConteoDeParteSchema).min(1),
+    lotePlanificadoId: z.string().min(1).nullable().default(null),
   })).min(1, 'Cargá al menos un color con su conteo'),
   // Mismo criterio que TerminarCosturaSchema: afirmado, nunca preseleccionado.
   permitirSinCosto: z.boolean().default(false),

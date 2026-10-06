@@ -10,6 +10,10 @@ import { CargaTizadaBtn } from '@/components/produccion/CargaTizadaBtn';
 import { volverASeguro } from '@/lib/volverA';
 import { minutosSinImputar } from '@/lib/produccion/loteCorte';
 import { calcularCostoMinuto } from '@/lib/costoMinuto';
+import { estadoDeLotes } from '@/lib/produccion/lotesPlanificados';
+import { tallesCortados } from '@/lib/produccion/cantidades';
+import { ordenarTalles } from '@/lib/constants/lotes';
+import { LotesPlanificados } from '@/components/produccion/LotesPlanificados';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,7 +39,10 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
     where: { id },
     include: {
       transiciones: { orderBy: { fecha: 'desc' } },
-      lotesCorte: { include: { talles: { orderBy: { talle: 'asc' } } }, orderBy: [{ numero: 'asc' }, { parte: 'asc' }] },
+      lotesCorte: {
+        include: { talles: { orderBy: { talle: 'asc' } }, lotePlanificado: { select: { numero: true } } },
+        orderBy: [{ numero: 'asc' }, { parte: 'asc' }],
+      },
       cortesPorTalle: { orderBy: { talle: 'asc' } },
       pagoCorte: { select: { id: true, fecha: true, beneficiario: true, montoTotal: true, cortadorId: true } },
       edicionesCorte: { orderBy: { createdAt: 'desc' } },
@@ -66,6 +73,21 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
   // quién se los lleve. Callarlo los haría desaparecer.
   const minutosPendientes = orden.lotesCorte.length > 0 ? await minutosSinImputar(prisma, orden) : 0;
   const costoMinutoHoy = minutosPendientes > 0 ? await calcularCostoMinuto() : 0;
+
+  // Lotes planificados ("Lote 1 / Lote 2") y los minutos de la tablet de cada uno. Los
+  // registros sin lote —o con un número que ya no existe— son de todos.
+  const lotesPlan = await estadoDeLotes(prisma, orden);
+  const minutosPorLote = orden.sku?.trim()
+    ? await prisma.tiemposProduccion.groupBy({
+        by: ['lote'], where: { sku: orden.sku.trim(), estado: 'guardado' }, _sum: { minutosNetos: true },
+      })
+    : [];
+  const minutosDeLote = (n: number) => minutosPorLote.find((m) => m.lote === n)?._sum.minutosNetos ?? 0;
+  const numerosPlan = new Set(lotesPlan.map((l) => l.numero));
+  const minutosSinLote = minutosPorLote
+    .filter((m) => m.lote == null || !numerosPlan.has(m.lote))
+    .reduce((s, m) => s + (m._sum.minutosNetos ?? 0), 0);
+  const cortadoPorTalle = tallesCortados(orden);
 
   // Las sub-pantallas (ficha, corte) vuelven ACÁ, y esta página ya sabe volver a la cola:
   // el `volverA` se anida en vez de saltearse un escalón.
@@ -160,6 +182,22 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
         </Card>
       )}
 
+      {['CORTE', 'COSTURA', 'TERMINADO_SIN_ESTAMPA'].includes(orden.estado) && (
+        <LotesPlanificados
+          ordenId={orden.id}
+          sku={orden.sku}
+          enCostura={orden.estado === 'COSTURA'}
+          lotes={lotesPlan.map((l) => ({
+            id: l.id, numero: l.numero, despuesDe: l.despuesDe, separadoAt: l.separadoAt.toISOString(),
+            talles: l.talles, unidades: l.unidades, ingresado: l.ingresado, abierto: l.abierto,
+            minutos: minutosDeLote(l.numero),
+          }))}
+          tallesCortados={cortadoPorTalle ? ordenarTalles(cortadoPorTalle) : null}
+          minutosSinLote={minutosSinLote}
+          etiquetaQs={qs}
+        />
+      )}
+
       {/* Ediciones del corte con el pago ya imputado. Solo se escriben en ese caso: editar un
           corte sin pagar no necesita explicación, editarlo con pago mueve el saldo del cortador. */}
       {orden.edicionesCorte.length > 0 && (
@@ -196,7 +234,13 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
           <div className="space-y-2">
             {orden.lotesCorte.map((l) => (
               <div key={l.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm border-b border-stone-100 pb-2 last:border-0">
-                <span className="font-mono text-xs text-stone-400 w-14">#{l.numero}</span>
+                {/* Con lotes planificados, el nombre es el de la bolsa ("Lote 2"); el # es el
+                    orden en que se ingresó. */}
+                {l.lotePlanificado
+                  ? <span className="text-xs font-semibold text-stone-700 w-14">Lote {l.lotePlanificado.numero}
+                      <span className="block font-mono font-normal text-[10px] text-stone-400">ingreso #{l.numero}</span>
+                    </span>
+                  : <span className="font-mono text-xs text-stone-400 w-14">#{l.numero}</span>}
                 {/* La pieza y el SKU al que entró. Un corte de bikini deja dos filas con
                     el mismo número: son el mismo lote, dos artículos distintos. */}
                 {l.parte && (
@@ -233,6 +277,13 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
                       {', '}{fmt(l.minutosCompartidos)} sin pieza repartidos
                     </span>
                   )}
+                  {/* De una orden separada en lotes: cuántos fueron de la bolsa común (los
+                      minutos sin lote), repartidos por unidades. */}
+                  {Number(l.minutosComunes) > 0 && (
+                    <span className="text-stone-500">
+                      {', '}{fmt(l.minutosComunes)} sin lote repartidos por unidades
+                    </span>
+                  )}
                   <span className="text-stone-400">)</span>
                   {' = '}<strong className="text-stone-800">${fmt(l.costoUnitario)}/u</strong>
                 </span>
@@ -243,8 +294,9 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
             <p className="text-xs text-amber-700 mt-3 bg-amber-50 border border-amber-200 rounded-lg p-2.5">
               Quedan <strong>{fmt(minutosPendientes)} minutos</strong> de costura registrados a este SKU que
               todavía no se llevó ningún lote (${fmt(minutosPendientes * costoMinutoHoy)} al $/min de hoy).
-              Se los va a llevar el próximo lote que entre; si la orden ya no va a recibir más, esa plata
-              no está en el costo de ninguna unidad.
+              {lotesPlan.length > 0
+                ? 'Cada lote se lleva los suyos y su parte de los sin lote cuando ingresa; si la orden ya no va a recibir más, esa plata no está en el costo de ninguna unidad.'
+                : 'Se los va a llevar el próximo lote que entre; si la orden ya no va a recibir más, esa plata no está en el costo de ninguna unidad.'}
             </p>
           )}
         </Card>

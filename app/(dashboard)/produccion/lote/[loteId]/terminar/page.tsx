@@ -5,6 +5,7 @@ import { TerminarLoteForm } from '@/components/produccion/TerminarLoteForm';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { partesDeOrden, skuDeParte } from '@/lib/produccion/conjuntos';
 import { baseDeRepartoConOrigen } from '@/lib/produccion/cantidades';
+import { estadoDeLotes, lotesParaPantalla } from '@/lib/produccion/lotesPlanificados';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,8 @@ export default async function TerminarLotePage({ params }: { params: Promise<{ l
       nombre: p.nombre,
       sku: skuDeParte(o.sku, p.skuAbrev),
     })),
+    // Separada en lotes: el color dice en cuál entra, y se precarga lo que le falta a ése.
+    lotes: lotesParaPantalla(await estadoDeLotes(prisma, o)),
   })));
 
   if (lote.ordenes.length === 0) {

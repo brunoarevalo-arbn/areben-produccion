@@ -12,6 +12,8 @@ export interface TiemposProduccion {
   sku?: string;
   /** Qué parte se cosió ("Corpiño", "Bombacha"). Sólo en prendas por partes. */
   parte?: string;
+  /** A qué lote planificado fue ("Lote 2"). Sólo en órdenes separadas en lotes. */
+  lote?: number | null;
   /**
    * ⚠️ HISTÓRICO: la tablet ⛔ ya no la escribe (18-sep-2026). Era una copia de
    * `OrdenProduccion.cantidad` —lo PLANIFICADO— pegada en cada registro, así que

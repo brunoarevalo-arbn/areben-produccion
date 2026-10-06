@@ -18,6 +18,8 @@ interface Registro {
   actividad: string;
   maquina?: string;
   sku?: string;
+  /** A qué lote planificado fue (sólo en órdenes separadas en lotes). */
+  lote?: number | null;
   cantidad: number;
   defectos?: number;
   minutosNetos: number;
@@ -400,7 +402,10 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
                           </span>
                         )}
                       </td>
-                      <td className="px-5 py-2.5 text-stone-500 font-mono text-xs">{r.sku ?? '—'}</td>
+                      <td className="px-5 py-2.5 text-stone-500 font-mono text-xs">
+                        {r.sku ?? '—'}
+                        {r.lote != null && <span className="ml-1.5 font-sans font-semibold text-stone-700">· Lote {r.lote}</span>}
+                      </td>
                       <td className="px-5 py-2.5 text-stone-500 text-xs">{r.maquina ?? '—'}</td>
                       <td className="px-5 py-2.5 text-center text-stone-400 text-xs">
                         {r.horaInicio && r.horaFin ? `${r.horaInicio} – ${r.horaFin}` : '—'}
@@ -431,6 +436,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
 function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel: () => void; onSaved: () => void }) {
   const [actividad,  setActividad]  = useState(registro.actividad);
   const [sku,        setSku]        = useState(registro.sku ?? '');
+  const [lote,       setLote]       = useState(registro.lote != null ? String(registro.lote) : '');
   const [maquina,    setMaquina]    = useState(registro.maquina ?? '');
   const [horaInicio, setHoraInicio] = useState(registro.horaInicio ?? '');
   const [horaFin,    setHoraFin]    = useState(registro.horaFin ?? '');
@@ -449,6 +455,8 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
       cantidad: parseInt(cantidad) || 0,
       defectos: parseInt(defectos) || 0,
       sku:     sku.trim()     ? sku.trim()     : null,
+      // Vacío = sin lote: esos minutos son de todos los lotes y se reparten por unidades.
+      lote:    parseInt(lote) > 0 ? parseInt(lote) : null,
       maquina: maquina.trim() ? maquina.trim() : null,
       inconveniente:      inconv ? inconv : null,
       inconvenienteNotas: inconv && inconvNotas.trim() ? inconvNotas.trim() : null,
@@ -499,6 +507,10 @@ function EditRow({ registro, onCancel, onSaved }: { registro: Registro; onCancel
             <label className="text-xs text-stone-500">
               SKU
               <input type="text" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} className={inputCls + ' mt-0.5'} />
+            </label>
+            <label className="text-xs text-stone-500">
+              Lote <span className="text-stone-400">(vacío = sin lote)</span>
+              <NumInput min="1" value={parseFloat(lote) || 0} onChange={(n) => setLote(n ? String(n) : '')} className={inputCls + ' mt-0.5'} />
             </label>
             <label className="text-xs text-stone-500">
               Cantidad

@@ -23,6 +23,34 @@ _Última actualización: 2026-09-23_
 > eso YA ANDA, Fase 1) y más adelante repetir producción; ⛔ decidió aún si repetir = nuevo SKU o
 > nuevo corte del mismo SKU.** Recomendado: mismo SKU, corte nuevo (es el vocabulario del 17-sep).
 
+> 🆕 🔑 **LOTES PLANIFICADOS — separar un corte en «Lote 1 / Lote 2» (6-oct, SIN PUSHEAR: falta el SQL en prod).**
+> Lo trajo la AYLA (`ZAT-BIK-NG-001`): se cortaron 62 (S26·M26·L10, sólo en `fichaCorteData.talles`;
+> `cortes_por_talle` VACÍO) y en el taller hubo que separar **20 (S10·M10) después del remallado**.
+> 📊 En prod la OP tenía **plan 42 / cortadas 62 / 0 lotes ingresados** ⇒ no había «lote 1 con 62 o 42» que corregir.
+> 🗣️ Bruno: **dentro de la misma OP** (mismo artículo, mismo SKU), se separa en **cualquier momento**
+> (cortado, después de un proceso), alcanza con marcar **«después de qué»**, y tiene que quedar claro
+> qué bolsa es cuál **para etiquetarla**. Lo cortado (62) y el pago al cortador ⛔ no se tocan.
+> **Qué quedó**: tabla `lotes_planificados` (+ talles) · `tiempos_produccion.lote` · `lotes_corte.lotePlanificadoId`
+> + `minutosComunes` — SQL `prisma/sql/2026-10-06-lotes-planificados.sql` (idempotente). Núcleo en
+> `lib/produccion/lotesPlanificados.ts` (separar SIEMPRE del Lote 1, deshacer sólo el último y sin uso);
+> 🔑 **los minutos se parten por MARCA, ⛔ no por fecha**: `lote = N` → del lote N; **sin lote → bolsa
+> común repartida por unidades planificadas** (`minutosSinImputarDelLote`, con DOS topes para no contar
+> dos veces lo que se llevó un ingreso hecho antes de separar). Ingreso: una OP separada **exige el lote**
+> y el conteo no puede pasarse de lo que le falta. Tablet: botones «Lote 1 / Lote 2» **obligatorios y sin
+> preselección**, cambiar con el reloj andando confirma y cierra el tramo. OP: card «Lotes de producción»
+> (Separar · Deshacer · Etiqueta) y etiqueta imprimible 10×15 (`/produccion/[id]/lote/[n]/etiqueta`).
+> Reportes: el lote se ve y se corrige en la edición.
+> ✅ `prisma/check-lotes-planificados.ts` **35 chequeos verdes 3 corridas** contra `areben_test` (oráculo:
+> CONSERVACIÓN — cada minuto de cada pieza imputado una sola vez) + los 38 viejos sin regresión · `tsc` +
+> `build` verdes, lint sin hallazgos nuevos. **Caminado en Chrome** contra `next start -p 3002` con la base de
+> test: separar, etiqueta, tablet (Lote 2 → Lote 1 con confirmación, guardó `lote` 2 y 1), modal de ingreso
+> (precarga S10·M10 por pieza, «Ingresar 20 u del Lote 2», freno sin costo → casilla → entró con 48,39 min
+> comunes = 150×20/62). ⚠️ **NO caminados**: el form por color (`TerminarLoteForm`) y la edición en Reportes.
+> ▶️ **Orden de salida**: 1) **Bruno aplica el SQL en prod** (`npx prisma db execute --file prisma/sql/2026-10-06-lotes-planificados.sql`
+> con `.env`) → `migrate diff` (sólo el drift de `compras_dtf`) · 2) push · 3) `vercel ls --meta githubCommitSha=<sha>` ·
+> 4) separar en la AYLA **Lote 2 = S10·M10, después de Remallado** e imprimir las dos etiquetas.
+> 🔴 **Pushear ANTES del SQL rompe la OP, la cola de la tablet y el ingreso** (consultan la tabla nueva).
+
 > 🗣️ **Bruno (23-sep): aumento a MARISOL de $5.000 a $5.500 la hora (+10%), «esta semana no, capaz la
 > otra»** (semana del 28-sep). Sus $5.000 pagados ⇒ **$5.520 por hora TRABAJADA** (45 min/día no
 > trabaja) = lo que tiene `costos_costureras` (883.200 / 160 h, **cargado el 7-may y sin tocar**, igual

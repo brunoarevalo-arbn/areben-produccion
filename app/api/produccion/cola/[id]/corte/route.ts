@@ -4,6 +4,7 @@ import { getSession, requirePermiso } from '@/lib/auth';
 import { RegistrarCorteSchema } from '@/lib/validators/produccion';
 import { registrarCorteOrden, revertirCorteOrden, trazarEdicion, CorteError } from '@/lib/produccion/corte';
 import { partesDeOrden, skuDeParte } from '@/lib/produccion/conjuntos';
+import { estadoDeLotes, lotesParaPantalla } from '@/lib/produccion/lotesPlanificados';
 import { Prisma } from '@prisma/client';
 import { z } from 'zod';
 
@@ -53,7 +54,11 @@ export async function GET(req: NextRequest, { params }: Ctx) {
     porcentajeMaterial: p.porcentajeMaterial,
   }));
 
-  return NextResponse.json({ ...orden, partes });
+  // Si la orden está separada en lotes, el modal pregunta en cuál entra y precarga lo que
+  // le falta a ESE lote en vez del corte entero.
+  const lotesPlanificados = lotesParaPantalla(await estadoDeLotes(prisma, orden));
+
+  return NextResponse.json({ ...orden, partes, lotesPlanificados });
 }
 
 export async function POST(req: NextRequest, { params }: Ctx) {

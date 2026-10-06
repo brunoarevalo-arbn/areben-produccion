@@ -21,7 +21,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   try {
     const total = await prisma.$transaction((tx) =>
-      terminarCosturaOrden(tx, id, parsed.data.conteos, session, parsed.data.permitirSinCosto));
+      terminarCosturaOrden(tx, id, parsed.data.conteos, session, parsed.data.permitirSinCosto, parsed.data.lotePlanificadoId));
     return NextResponse.json({ ok: true, total }, { status: 201 });
   } catch (e) {
     // `requiereAfirmar` le dice a la pantalla que esto NO es un error de carga: es un

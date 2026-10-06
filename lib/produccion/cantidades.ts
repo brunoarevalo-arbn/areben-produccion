@@ -100,3 +100,27 @@ export async function ingresadasPorOrden(db: Db, ordenIds: string[]): Promise<Ma
   for (const f of filas) if (f.ordenId) m.set(f.ordenId, f._sum.cantidad ?? 0);
   return m;
 }
+
+/**
+ * Lo cortado **por talle**, o `null` si no hay de dónde sacarlo.
+ *
+ * 🔴 Hay DOS lugares y no siempre los dos: `cortes_por_talle` lo escribe la ficha de tela
+ * completa, pero la carga del cortador y la carga interna de tizada escriben sólo el JSON
+ * de la ficha (`fichaCorteData.talles`). La AYLA del 23-sep tiene 62 cortadas y
+ * `cortes_por_talle` vacío: leer sólo la tabla diría que no se cortó nada.
+ */
+export function tallesCortados(orden: {
+  cortesPorTalle?: { talle: string; cantidad: number }[];
+  fichaCorteData?: unknown;
+}): { talle: string; cantidad: number }[] | null {
+  const tabla = (orden.cortesPorTalle ?? []).filter((c) => c.cantidad > 0);
+  if (tabla.length > 0) return tabla.map((c) => ({ talle: c.talle, cantidad: c.cantidad }));
+
+  const fd = orden.fichaCorteData;
+  const talles = fd && typeof fd === 'object' ? (fd as { talles?: unknown }).talles : null;
+  if (!talles || typeof talles !== 'object') return null;
+  const filas = Object.entries(talles as Record<string, unknown>)
+    .map(([talle, v]) => ({ talle, cantidad: Number(v) }))
+    .filter((t) => Number.isInteger(t.cantidad) && t.cantidad > 0);
+  return filas.length > 0 ? filas : null;
+}

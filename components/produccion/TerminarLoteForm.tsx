@@ -14,6 +14,12 @@ interface OrdenLite {
   cortes: { talle: string; cantidad: number }[];
   /** Las piezas en que se parte la prenda (la bikini). `[]` = entra entera, como siempre. */
   partes: PartePieza[];
+  /** Los lotes planificados ("Lote 1 / Lote 2"). `[]` = la orden no está separada. */
+  lotes: LotePlan[];
+}
+interface LotePlan {
+  id: string; numero: number; unidades: number; ingresado: number; abierto: boolean;
+  pendientePorParte: Record<string, { talle: string; cantidad: number }[]>;
 }
 /** `porParte` sólo existe en las prendas por partes: una cantidad por pieza en la fila. */
 interface Fila { talle: string; cantidad: string; porParte?: Record<string, string>; }
@@ -22,6 +28,8 @@ const inpSm = 'px-2 py-1.5 border border-stone-200 rounded-lg text-sm focus:outl
 
 // Prellena las filas de cada color desde su ficha de corte (talles cortados), editable.
 function filasIniciales(o: OrdenLite): Fila[] {
+  // Separada en lotes: la grilla se llena recién al elegir el lote.
+  if (o.lotes.length > 0) return [];
   const base: Fila[] = o.cortes.length > 0
     ? o.cortes.map((c) => ({ talle: c.talle, cantidad: String(c.cantidad) }))
     : [{ talle: '', cantidad: '' }];
@@ -29,6 +37,15 @@ function filasIniciales(o: OrdenLite): Fila[] {
   // Del corte salen las dos piezas, así que las dos arrancan con lo cortado — pero se
   // cuentan por separado, porque no tienen por qué salir iguales.
   return base.map((f) => ({ ...f, porParte: Object.fromEntries(o.partes.map((p) => [p.nombre, f.cantidad])) }));
+}
+
+/** Lo que le falta a un lote, por pieza: así se precarga la grilla al elegirlo. */
+function filasDeLote(o: OrdenLite, lote: LotePlan): Fila[] {
+  const pendiente = (parte: string) => new Map((lote.pendientePorParte[parte] ?? []).map((t) => [t.talle, t.cantidad]));
+  const talles = (lote.pendientePorParte[o.partes[0]?.nombre ?? ''] ?? []).map((t) => t.talle);
+  return talles.map((talle) => o.partes.length > 0
+    ? { talle, cantidad: '', porParte: Object.fromEntries(o.partes.map((p) => [p.nombre, String(pendiente(p.nombre).get(talle) ?? 0)])) }
+    : { talle, cantidad: String(pendiente('').get(talle) ?? 0) });
 }
 
 const cantidadDe = (f: Fila, parte?: string) =>
@@ -39,6 +56,12 @@ export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes:
   const [conteo, setConteo] = useState<Record<string, Fila[]>>(
     () => Object.fromEntries(ordenes.map((o) => [o.id, filasIniciales(o)])),
   );
+  // ⛔ Sin preselección: el lote decide qué minutos se lleva el costo.
+  const [loteDe, setLoteDe] = useState<Record<string, string | null>>({});
+  const elegirLote = (o: OrdenLite, lote: LotePlan) => {
+    setLoteDe((p) => ({ ...p, [o.id]: lote.id }));
+    setConteo((p) => ({ ...p, [o.id]: filasDeLote(o, lote) }));
+  };
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   // El freno por falta de ficha de corte se puede levantar, pero AFIRMÁNDOLO: la casilla
@@ -79,8 +102,12 @@ export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes:
         .filter((f) => f.talle.trim() && cantidadDe(f, parte) > 0)
         .map((f) => ({ talle: f.talle.trim().toUpperCase(), cantidad: cantidadDe(f, parte) }));
 
+    if (completos.some(({ orden }) => orden.lotes.length > 0 && !loteDe[orden.id])) {
+      setError('Cada color separado en lotes tiene que decir en qué lote entra'); return;
+    }
     const payload = completos.map(({ orden }) => ({
       ordenId: orden.id,
+      lotePlanificadoId: loteDe[orden.id] ?? null,
       conteos: orden.partes.length > 0
         ? orden.partes
             .map((p) => ({ parte: p.nombre, talles: tallesDe(orden.id, p.nombre) }))
@@ -129,6 +156,22 @@ export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes:
                   : 'Sin cantidad cargada'}
               </span>
             </div>
+
+            {orden.lotes.length > 0 && (
+              <div className="mb-3">
+                <p className="text-xs font-semibold text-stone-600 mb-1.5">¿Qué lote entra? <span className="text-amber-600">· obligatorio</span></p>
+                <div className="flex flex-wrap gap-2">
+                  {orden.lotes.map((l) => (
+                    <button key={l.id} type="button" disabled={!l.abierto} onClick={() => elegirLote(orden, l)}
+                      className={`px-3 py-2 rounded-lg border-2 text-xs font-semibold transition disabled:opacity-40 ${
+                        loteDe[orden.id] === l.id ? 'bg-amber-50 border-amber-400 text-amber-800' : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                      }`}>
+                      Lote {l.numero} · {l.ingresado}/{l.unidades} u{!l.abierto && ' · completo'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* El corte produce DOS artículos: se cuentan por separado y cada uno entra
                 a su propio SKU, que se MUESTRA antes de ingresar. */}

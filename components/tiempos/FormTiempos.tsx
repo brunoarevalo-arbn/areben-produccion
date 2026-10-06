@@ -31,6 +31,8 @@ interface OrdenActiva {
   estado:      string;
   /** Las partes que se cosen por separado ("Corpiño", "Bombacha"). Vacío = prenda entera. */
   partes?:     string[];
+  /** Los lotes planificados que todavía tienen algo por coser (1, 2…). Vacío = orden sin separar. */
+  lotes?:      number[];
 }
 
 const ACTIVIDADES: { label: string; icon: string; color: string }[] = [
@@ -51,7 +53,9 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   const [detalleLibre, setDetalleLibre] = useState('');
   const [parte,       setParte]       = useState('');
   const [cambiando,   setCambiando]   = useState(false);
-  const [confirmParte, setConfirmParte] = useState<{ nueva: string; minutos: number } | null>(null);
+  const [lote,        setLote]        = useState<number | null>(null);
+  // Cambiar de pieza o de lote con el reloj andando CIERRA un registro: se confirma igual.
+  const [confirmParte, setConfirmParte] = useState<{ campo: 'parte' | 'lote'; nueva: string; minutos: number } | null>(null);
   const [maquina,     setMaquina]     = useState('');
   const [defectos,    setDefectos]    = useState('0');
   const [ordenes,     setOrdenes]     = useState<OrdenActiva[]>(ordenesIniciales);
@@ -81,6 +85,10 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
 
   const ordenSeleccionada = ordenes.find((o) => o.id === ordenId) ?? null;
   const partesDisponibles = ordenSeleccionada?.partes ?? [];
+  const lotesDisponibles = ordenSeleccionada?.lotes ?? [];
+  // Con un solo lote abierto no hay nada que preguntar: los minutos son de ése.
+  const loteDelRegistro = (elegido: number | null) =>
+    elegido ?? (lotesDisponibles.length === 1 ? lotesDisponibles[0] : undefined);
   const relojCorriendo = estado !== 'idle' && !!actividad;
   // El tubo sale de la cortacollareta de una vez y la tira va a las dos piezas ⇒
   // hay una opción más que ⛔ no es una pieza. Se OFRECE siempre (la máquina se
@@ -100,6 +108,10 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   // le rompería el orden de trabajo, igual que se lo rompió la pieza preseleccionada
   // el 18-sep. El trabajo libre (sin orden) ⛔ no la necesita.
   const faltaMaquina = !!ordenSeleccionada && !maquina;
+  // 🔴 Con la orden separada en lotes, decir el lote es obligatorio y ⛔ nunca viene
+  // preseleccionado: un lote que pone la pantalla le carga los minutos a la bolsa
+  // equivocada, y el costo de cada lote sale de ahí. Traba el GUARDAR, no el reloj.
+  const faltaLote = !!ordenSeleccionada && lotesDisponibles.length > 1 && lote == null;
   // 🔴 Un Proceso Completado se guarda con una ORDEN o con "trabajo libre", nunca sin
   // nada: el libre se cobra como gasto de taller (`gastoDelTiempo`), y si "no elegí"
   // se guardara igual que "libre", un olvido se volvía gasto. Y el libre dice QUÉ
@@ -109,7 +121,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   const esProceso = actividad === ACTIVIDAD_PROCESO;
   const faltaOrden = esProceso && !ordenId;
   const faltaDetalle = esProceso && esLibre && !detalleLibre.trim();
-  const faltaAlgo = faltaMaquina || faltaOrden || faltaDetalle;
+  const faltaAlgo = faltaMaquina || faltaOrden || faltaDetalle || faltaLote;
 
   const marcarCosturaTerminada = async () => {
     if (!ordenSeleccionada) return;
@@ -137,6 +149,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   const armarRegistro = (
     t: { horaInicio: string; horaFin: string; minutosNetos: number },
     parteDelRegistro: string,
+    loteElegido: number | null,
   ): TiemposProduccion => ({
     usuario,
     actividad,
@@ -145,6 +158,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
     maquina:      maquina                   || undefined,
     sku:          ordenSeleccionada?.sku     || undefined,
     parte:        parteDelRegistro          || undefined,
+    lote:         loteDelRegistro(loteElegido),
     detalle:      esProceso && esLibre ? detalleLibre.trim() : undefined,
     // ⛔ `cantidad` ⛔ NO se manda más. La tablet la copiaba de `OrdenProduccion.cantidad`
     // (lo PLANIFICADO) en cada registro y nadie la tocaba: el 18-sep los 7 registros de
@@ -176,7 +190,14 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
     // decir por primera vez qué se estuvo cosiendo. Cerrar un registro acá
     // inventaría una pieza anterior que nunca existió.
     if (!parte) { setParte(nueva); return; }
-    setConfirmParte({ nueva, minutos: onObtenerTiempos()?.minutosNetos ?? 0 });
+    setConfirmParte({ campo: 'parte', nueva, minutos: onObtenerTiempos()?.minutosNetos ?? 0 });
+  };
+
+  /** Igual que la pieza: elegir el lote por primera vez no cierra nada; cambiarlo, sí. */
+  const pedirCambioLote = (nuevo: number) => {
+    if (nuevo === lote || cambiando) return;
+    if (estado === 'idle' || !actividad || lote == null) { setLote(nuevo); return; }
+    setConfirmParte({ campo: 'lote', nueva: String(nuevo), minutos: onObtenerTiempos()?.minutosNetos ?? 0 });
   };
 
   /**
@@ -188,8 +209,11 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
     const pedido = confirmParte;
     if (!pedido || cambiando) return;
 
+    const aplicar = () => {
+      if (pedido.campo === 'lote') setLote(Number(pedido.nueva)); else setParte(pedido.nueva);
+    };
     const t = onObtenerTiempos();
-    if (!t) { setParte(pedido.nueva); setConfirmParte(null); return; }
+    if (!t) { aplicar(); setConfirmParte(null); return; }
 
     // Cambiar de pieza CIERRA un registro ⇒ pasa por la misma exigencia que guardar.
     if (faltaMaquina) {
@@ -197,12 +221,17 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       setConfirmParte(null);
       return;
     }
+    if (faltaLote) {
+      toast.error('Elegí el lote antes de cambiar de pieza: el registro que se cierra lo necesita.');
+      setConfirmParte(null);
+      return;
+    }
 
     setCambiando(true);
     try {
-      await onGuardar(armarRegistro(t, parte));
+      await onGuardar(armarRegistro(t, parte, lote));
       onReiniciarReloj();
-      setParte(pedido.nueva);
+      aplicar();
       setConfirmParte(null);
       setInconveniente('');
       setInconvenienteNotas('');
@@ -223,11 +252,12 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
     if (!t) return;
 
     try {
-      await onGuardar(armarRegistro(t, parte));
+      await onGuardar(armarRegistro(t, parte, lote));
       setActividad('');
       setOrdenId('');
       setDetalleLibre('');
       setParte('');
+      setLote(null);
       setMaquina('');
       setDefectos('0');
       setInconveniente('');
@@ -275,6 +305,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
             <button
               key={orden.id}
               onClick={() => {
+                setLote(null);
                 if (ordenId === orden.id) {
                   setOrdenId('');
                   setParte('');
@@ -324,6 +355,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
             onClick={() => {
               setOrdenId(ordenId === LIBRE_ID ? '' : LIBRE_ID);
               setParte('');
+              setLote(null);
               setConfirmFin(false);
             }}
             className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl border-2 text-left transition-all active:scale-95 ${
@@ -394,6 +426,41 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
         </div>
       </div>
 
+      {/* Lote — sólo en las órdenes separadas en lotes, con más de uno por coser */}
+      {lotesDisponibles.length > 1 && (
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-stone-400 mb-1.5">
+            Qué lote estás cosiendo <span className="text-amber-600 normal-case tracking-normal">· obligatorio</span>
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {lotesDisponibles.map((n) => (
+              <button
+                key={n}
+                onClick={() => pedirCambioLote(n)}
+                disabled={cambiando}
+                aria-pressed={lote === n}
+                className={`py-3 rounded-xl border-2 text-sm font-bold transition-all active:scale-95 disabled:opacity-50 ${
+                  lote === n
+                    ? 'bg-amber-50 border-amber-400 text-amber-800'
+                    : faltaLote
+                      ? 'bg-white border-amber-300 border-dashed text-stone-600'
+                      : 'bg-white border-stone-200 text-stone-600 hover:border-stone-300'
+                }`}
+              >
+                Lote {n}
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-stone-400 mt-1.5 leading-snug">
+            {relojCorriendo && lote == null
+              ? '👆 Decí de qué lote es la bolsa que estás cosiendo. Lo dice la etiqueta.'
+              : relojCorriendo
+                ? 'Tocá el otro lote y se cierra solo el que venías haciendo: no hace falta parar.'
+                : 'Lo dice la etiqueta de la bolsa.'}
+          </p>
+        </div>
+      )}
+
       {/* Parte de la prenda — sólo en las que se cosen por partes (bikini) */}
       {partesDisponibles.length > 0 && (
         <div>
@@ -450,11 +517,14 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
             ¿Cerrás {confirmParte.minutos >= 1
               ? `${Math.round(confirmParte.minutos)} min`
               : `${Math.round(confirmParte.minutos * 60)} seg`} de{' '}
-            <span className="underline">{parte || 'sin parte'}</span>
+            <span className="underline">
+              {confirmParte.campo === 'lote' ? `Lote ${lote}` : (parte || 'sin parte')}
+            </span>
             {ordenSeleccionada?.sku && <> en <span className="font-mono">{ordenSeleccionada.sku}</span></>}?
           </p>
           <p className="text-[11px] text-amber-700 text-center leading-snug">
-            Se guarda ese registro y el reloj sigue corriendo, ya en <strong>{confirmParte.nueva}</strong>.
+            Se guarda ese registro y el reloj sigue corriendo, ya en{' '}
+            <strong>{confirmParte.campo === 'lote' ? `Lote ${confirmParte.nueva}` : confirmParte.nueva}</strong>.
           </p>
           <div className="flex gap-2">
             <button
@@ -462,7 +532,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
               disabled={cambiando}
               className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white py-2.5 rounded-lg text-sm font-bold transition active:scale-95"
             >
-              {cambiando ? 'Guardando...' : `Sí, pasar a ${confirmParte.nueva}`}
+              {cambiando ? 'Guardando...' : `Sí, pasar a ${confirmParte.campo === 'lote' ? `Lote ${confirmParte.nueva}` : confirmParte.nueva}`}
             </button>
             <button
               onClick={() => setConfirmParte(null)}
@@ -580,6 +650,11 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
         {hayTarea && actividad && faltaMaquina && (
           <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
             Elegí la máquina para guardar — si no usaste ninguna, poné &quot;{MAQUINA_NINGUNA}&quot; ↑
+          </p>
+        )}
+        {hayTarea && actividad && !faltaMaquina && faltaLote && (
+          <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
+            Elegí de qué lote es la bolsa para guardar ↑
           </p>
         )}
         <button

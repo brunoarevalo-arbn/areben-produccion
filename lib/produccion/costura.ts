@@ -2,8 +2,9 @@ import type { Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/session';
 import { parseDatos } from '@/lib/costos/escandallo';
 import { cantidadCortada, cantidadIngresadaPorPartes, baseDeReparto } from './cantidades';
-import { crearLoteCongelado, partesDelLote, type ParteDelLote } from './loteCorte';
+import { crearLoteCongelado, partesDelLote, minutosSinImputarDelLote, type ParteDelLote } from './loteCorte';
 import { partesDeOrden } from './conjuntos';
+import { estadoDeLotes, excesoSobreLote, lotePlanParaCostear } from './lotesPlanificados';
 
 export class CosturaError extends Error {}
 
@@ -33,6 +34,11 @@ export interface ConteoDeParte { parte: string | null; talles: TalleConteo[]; }
  *
  * `permitirSinCosto` es obligatorio: ver `calcularCostoCongelado`.
  *
+ * 🔑 Una orden SEPARADA en lotes planificados ("Lote 1 / Lote 2") exige decir en cuál
+ * entra (`lotePlanificadoId`): el conteo se controla contra lo que le falta a ese lote, y
+ * los minutos de la mano de obra son los suyos más su cuota de los comunes. Una orden sin
+ * separar no lo acepta y funciona como siempre.
+ *
  * Se usa tanto en el terminar por orden (cola/[id]/terminar) como en el terminar
  * por lote (lote/[loteId]/terminar), que la invoca una vez por color en la misma tx.
  */
@@ -42,6 +48,7 @@ export async function terminarCosturaOrden(
   conteosInput: ConteoDeParte[],
   session: SessionPayload,
   permitirSinCosto: boolean,
+  lotePlanificadoId: string | null = null,
 ): Promise<number> {
   const orden = await tx.ordenProduccion.findUnique({ where: { id: ordenId } });
   if (!orden) throw new CosturaError('OP no encontrada');
@@ -79,10 +86,31 @@ export async function terminarCosturaOrden(
     throw new CosturaError(`Hay piezas repetidas en el conteo de ${sku}`);
   }
 
+  // ¿La orden está separada en lotes planificados? Entonces el ingreso dice en cuál entra.
+  const lotes = await estadoDeLotes(tx, orden);
+  let lotePlan = null;
+  if (lotes.length > 0) {
+    if (!lotePlanificadoId) {
+      throw new CosturaError(`${sku} está separada en ${lotes.length} lotes: elegí en cuál entra este ingreso.`);
+    }
+    const lote = lotes.find((l) => l.id === lotePlanificadoId);
+    if (!lote) throw new CosturaError(`Ese lote no es de ${sku}`);
+    const exceso = excesoSobreLote(lote, conteos);
+    if (exceso) throw new CosturaError(exceso);
+    lotePlan = lotePlanParaCostear(lotes, lote.id);
+  } else if (lotePlanificadoId) {
+    throw new CosturaError(`${sku} no está separada en lotes`);
+  }
+
   // El % de material sólo decide algo si hay material: una orden sin ficha de corte entra
   // en $0 igual (afirmándolo) y no habría nada que repartir.
   const hayMaterial = Number(orden.costoTotal) > 0 && baseDeReparto(orden) !== null;
-  const partesLote = await partesDelLote(tx, orden, partesCatalogo, hayMaterial);
+  const partesLote = await partesDelLote(tx, orden, partesCatalogo, hayMaterial, lotePlan);
+  // Una prenda que no se parte no pasa por `partesDelLote`: sus minutos del lote se
+  // resuelven acá. Sin lote planificado queda `undefined` y el costo sale como siempre.
+  const minutosSinParte = lotePlan && !esPorPartes
+    ? (await minutosSinImputarDelLote(tx, orden, [], lotePlan)).get('')
+    : undefined;
   const porNombre = new Map<string, ParteDelLote>(partesLote.map((p) => [p.nombre, p]));
 
   // El número de lote se calcula UNA vez para todo el ingreso: las dos piezas que entran
@@ -101,7 +129,8 @@ export async function terminarCosturaOrden(
 
     // El lote va PRIMERO: es el que se planta si la orden no tiene con qué costear, y
     // plantarse antes de mover stock deja la transacción sin nada a medio hacer.
-    await crearLoteCongelado(tx, orden, c.talles, session.nombre, permitirSinCosto, parte, numeroLote);
+    await crearLoteCongelado(tx, orden, c.talles, session.nombre, permitirSinCosto, parte, numeroLote,
+      lotePlan ? { id: lotePlan.id, minutosSinParte } : null);
 
     for (const t of c.talles) {
       await tx.stockTerminado.upsert({
@@ -201,6 +230,9 @@ export async function terminarCosturaOrden(
   const completo = ingresadoTotal >= meta;
 
   const detalleTalles = detallePorParte.join(' · ');
+  // Con lotes planificados el nombre del lote es el de la bolsa ("Lote 2"), no el orden
+  // en que se ingresó: si el Lote 2 terminó primero, igual es el Lote 2.
+  const nombreLote = lotePlan ? `Lote ${lotePlan.numero} de ${lotes.length}` : `Lote ${numeroLote}`;
 
   await tx.ordenProduccion.update({
     where: { id: ordenId },
@@ -232,7 +264,7 @@ export async function terminarCosturaOrden(
         estadoNuevo: 'TERMINADO_SIN_ESTAMPA',
         usuarioId: session.id,
         notas: `Costura terminada en ${numeroLote} lote${numeroLote > 1 ? 's' : ''}: ` +
-               `${ingresadoTotal} u de ${meta} cortadas. Último lote: ${detalleTalles} → stock`,
+               `${ingresadoTotal} u de ${meta} cortadas. Último ingreso (${nombreLote}): ${detalleTalles} → stock`,
       },
     });
   } else {
@@ -244,7 +276,7 @@ export async function terminarCosturaOrden(
         estadoAnterior: 'COSTURA',
         estadoNuevo: 'COSTURA',
         usuarioId: session.id,
-        notas: `Lote ${numeroLote}: ${detalleTalles} → stock. ` +
+        notas: `${nombreLote}: ${detalleTalles} → stock. ` +
                `Van ${ingresadoTotal} de ${meta} cortadas — la orden sigue en costura.`,
       },
     });

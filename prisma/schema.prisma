@@ -24,6 +24,10 @@ model TiemposProduccion {
   // primer día — repartirlos después es inventarlos. Las opciones salen de
   // `ConjuntoPrenda`, y quién las ofrece es `lib/produccion/conjuntos.ts`.
   parte              String?
+  // A qué LOTE PLANIFICADO de la orden fue ("Lote 1", "Lote 2"). Null = sin lote: lo
+  // anterior a separar el corte, y todas las órdenes que nunca se separaron. Lo nulo se
+  // reparte entre los lotes por unidades (ver `lib/produccion/loteCorte.ts`).
+  lote               Int?
   cantidad           Int      @default(0)
   defectos           Int      @default(0)
   horaInicio         String?
@@ -656,6 +660,7 @@ model OrdenProduccion {
   cortesPorTalle    CortePorTalle[]
   edicionesCorte    EdicionCorte[]
   lotesCorte        LoteCorte[]
+  lotesPlanificados LotePlanificado[]
 
   loteId String?
   lote   LoteProduccion? @relation(fields: [loteId], references: [id], onDelete: SetNull)
@@ -1574,6 +1579,13 @@ model LoteCorte {
   // Es un ingreso que alguien AFIRMÓ, no un silencio: el ingreso normal se planta.
   sinCostoMaterial Boolean @default(false)
 
+  // De qué lote PLANIFICADO salió este ingreso (null = la orden no estaba separada), y de
+  // los `minutosImputados` cuántos vinieron de la bolsa común: los registros de la tablet
+  // sin lote, repartidos entre los lotes por unidades.
+  lotePlanificadoId String?
+  lotePlanificado   LotePlanificado? @relation(fields: [lotePlanificadoId], references: [id], onDelete: SetNull)
+  minutosComunes    Decimal          @default(0)
+
   createdAt DateTime @default(now())
 
   // ⚠️ En la base este único va con NULLS NOT DISTINCT (ver
@@ -1582,7 +1594,42 @@ model LoteCorte {
   // atajadas, porque para un unique de Postgres dos NULL son distintos.
   @@unique([ordenId, numero, parte], map: "lotes_corte_orden_numero_parte_key")
   @@index([ordenId])
+  @@index([lotePlanificadoId])
   @@map("lotes_corte")
+}
+
+// La BOLSA de producción: una fracción del corte que se separa ANTES de ingresar ("Lote 1",
+// "Lote 2") para etiquetarla y para que la tablet le marque los minutos. Se separa en
+// cualquier momento de la costura —con todo cortado, después del remallado…—, y
+// `despuesDe` dice en qué punto.
+// ⚠️ NO es `LoteCorte`, que es lo que ya entró al stock con su costo congelado; tampoco
+// `LoteProduccion` (la tizada de varios colores). Una orden sin separar no tiene filas acá
+// y funciona exactamente como antes.
+model LotePlanificado {
+  id          String          @id @default(cuid())
+  ordenId     String
+  orden       OrdenProduccion @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  numero      Int
+  despuesDe   String
+  separadoAt  DateTime        @default(now())
+  separadoPor String
+
+  talles   LotePlanificadoTalle[]
+  ingresos LoteCorte[]
+
+  @@unique([ordenId, numero])
+  @@map("lotes_planificados")
+}
+
+model LotePlanificadoTalle {
+  id       String          @id @default(cuid())
+  loteId   String
+  lote     LotePlanificado @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  talle    String
+  cantidad Int
+
+  @@unique([loteId, talle])
+  @@map("lotes_planificados_talles")
 }
 
 model LoteCorteTalle {
