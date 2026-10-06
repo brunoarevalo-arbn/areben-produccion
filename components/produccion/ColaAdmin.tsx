@@ -51,6 +51,8 @@ interface Orden {
   transiciones: Transicion[];
   loteId: string | null;
   lote: { id: string; prenda: string | null; descripcion: string | null; marca: string } | null;
+  /** Los lotes planificados ("Lote 1 / Lote 2"). Vacío = lote único. */
+  lotesPlanificados?: { numero: number; activadoAt: string | null }[];
 }
 interface CortadorLite { id: string; nombre: string; activo: boolean; usuarioId: string | null }
 
@@ -614,6 +616,14 @@ export function ColaAdmin() {
                 {orden.avisoCosturaPor ? `${orden.avisoCosturaPor} avisó: falta contar` : 'Avisó: falta contar'}
               </Badge>
             )}
+            {/* Si la orden está separada en lotes se tiene que saber ANTES de entrar: cambia
+                cómo se ingresa y qué bolsa cose la costurera. */}
+            {orden.estado !== 'CERRADA' && (() => {
+              const lotes = orden.lotesPlanificados ?? [];
+              if (lotes.length === 0) return <Badge variant="default" size="sm">Lote único</Badge>;
+              const programado = lotes.some((l) => l.numero > 1 && !l.activadoAt);
+              return <Badge variant="violet" size="sm">{lotes.length} lotes{programado ? ' · programado' : ''}</Badge>;
+            })()}
             {!orden.fichaCorteCargada && orden.estado !== 'CERRADA' && (
               orden.corteEstado === 'validado'
                 ? <Badge variant="blue" size="sm">Validado</Badge>

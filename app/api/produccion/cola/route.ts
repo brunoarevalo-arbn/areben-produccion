@@ -24,6 +24,8 @@ export async function GET(req: NextRequest) {
           select: { fecha: true, estadoNuevo: true },
         },
         lote: { select: { id: true, prenda: true, descripcion: true, marca: true } },
+        // Para que la fila diga de entrada si la orden es un lote único o está separada.
+        lotesPlanificados: { select: { numero: true, activadoAt: true }, orderBy: { numero: 'asc' } },
       },
     });
 
