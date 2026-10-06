@@ -33,8 +33,8 @@ interface OrdenActiva {
   /** Las partes que se cosen por separado ("Corpiño", "Bombacha"). Vacío = prenda entera. */
   partes?:     string[];
   /**
-   * El lote planificado que se le pone a lo que se cosa: el más chico de los que el taller
-   * dejó EN EL TALLER. Lo decide el taller, ⛔ no la costurera. `null` = sin lote.
+   * El lote de ESTA fila: una orden separada aparece una vez por cada lote que el taller
+   * dejó visible, y la costurera toca la bolsa que tiene en la mano. `null` = sin lote.
    */
   lote?:       number | null;
   /** Si la orden tiene una separación PROGRAMADA: el proceso que, al terminar, la activa. */
@@ -52,6 +52,9 @@ const ACTIVIDADES: { label: string; icon: string; color: string }[] = [
 ];
 
 const LIBRE_ID = '__libre__';
+
+// Una orden separada aparece una vez por lote: la fila se identifica por orden Y lote.
+const claveFila = (o: { id: string; lote?: number | null }) => (o.lote != null ? `${o.id}#${o.lote}` : o.id);
 
 export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempos, onGuardar, onRefresh, onReiniciarReloj, loading }: FormTiemposProps) {
   const [actividad,   setActividad]   = useState('');
@@ -90,7 +93,9 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
     return () => clearInterval(interval);
   }, [fetchOrdenes]);
 
-  const ordenSeleccionada = ordenes.find((o) => o.id === ordenId) ?? null;
+  // `ordenId` guarda la CLAVE de la fila (orden + lote); las llamadas a la API usan
+  // `ordenSeleccionada.id`, que es la orden.
+  const ordenSeleccionada = ordenes.find((o) => claveFila(o) === ordenId) ?? null;
   const partesDisponibles = ordenSeleccionada?.partes ?? [];
   // 🔑 La separación programada ("el Lote 2 después del remallado") se pregunta cuando el
   // trabajo DEJA la máquina de ese proceso: Marisol elige otra. "Sin máquina" no cuenta —
@@ -326,13 +331,13 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
         <div className="space-y-1.5">
           {ordenes.map((orden) => (
             <button
-              key={orden.id}
+              key={claveFila(orden)}
               onClick={() => {
-                if (ordenId === orden.id) {
+                if (ordenId === claveFila(orden)) {
                   setOrdenId('');
                   setParte('');
                 } else {
-                  setOrdenId(orden.id);
+                  setOrdenId(claveFila(orden));
                   // 🔴 La parte se preselecciona SÓLO con el reloj parado.
                   //
                   // Con el reloj corriendo, la orden se elige AL FINAL —así trabaja
@@ -346,10 +351,10 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                 }
                 setConfirmFin(false);
               }}
-              aria-pressed={ordenId === orden.id}
+              aria-pressed={ordenId === claveFila(orden)}
               aria-label={`Orden ${orden.sku ?? ''} ${orden.marca}${orden.descripcion ? ' — ' + orden.descripcion : ''}`}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 text-left transition-all active:scale-95 ${
-                ordenId === orden.id ? 'bg-amber-50 border-amber-400' : 'bg-white border-stone-200 hover:border-stone-300'
+                ordenId === claveFila(orden) ? 'bg-amber-50 border-amber-400' : 'bg-white border-stone-200 hover:border-stone-300'
               }`}
             >
               <div className="flex-1 min-w-0">
@@ -368,7 +373,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                 )}
               </div>
               <span className="text-xs text-stone-400 shrink-0">×{orden.cantidad}</span>
-              {ordenId === orden.id && <span aria-hidden className="text-amber-500 text-base shrink-0">✓</span>}
+              {ordenId === claveFila(orden) && <span aria-hidden className="text-amber-500 text-base shrink-0">✓</span>}
             </button>
           ))}
 
@@ -413,7 +418,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                   onClick={() => setConfirmFin(true)}
                   className="w-full py-2.5 rounded-xl border-2 border-dashed border-emerald-300 text-emerald-600 text-xs font-bold uppercase tracking-wide hover:bg-emerald-50 transition active:scale-95"
                 >
-                  ✓ Avisar que terminé — {ordenSeleccionada.sku}
+                  ✓ Avisar que terminé {ordenSeleccionada.lote != null ? 'TODA la orden' : ''} — {ordenSeleccionada.sku}
                 </button>
               ) : (
                 <div className="bg-emerald-50 border-2 border-emerald-300 rounded-xl p-3 space-y-2">
@@ -454,7 +459,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       {ordenSeleccionada && loteDelRegistro != null && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-stone-900 text-white">
           <span className="text-sm font-bold">Lote {loteDelRegistro}</span>
-          <span className="text-[11px] opacity-70">es la bolsa que tenés en la mesa — si no es, avisale al taller</span>
+          <span className="text-[11px] opacity-70">lo que guardes va a esta bolsa — si cosés la otra, tocá su fila</span>
         </div>
       )}
 

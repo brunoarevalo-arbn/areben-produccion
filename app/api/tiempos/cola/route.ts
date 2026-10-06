@@ -34,25 +34,21 @@ export async function GET() {
     // para el compilador. Si la tablet algún día necesita el SKU de la pieza, se
     // manda un campo NUEVO: lo que se dibuja se manda ya listo para dibujar.
     //
-    // Los LOTES van igual, ya listos para usar y ⛔ nunca el lote entero: `lote` es el que
-    // la tablet le pone a lo que se cosa (el más chico de los que están en el taller) y
-    // `confirmarDespuesDe` el proceso que, al terminar, activa una separación programada.
-    // Una orden sin separar devuelve los dos en null y la pantalla no cambia.
+    // Los LOTES van igual, ya listos para usar y ⛔ nunca el lote entero: una orden
+    // separada sale UNA VEZ POR CADA LOTE VISIBLE (`lote: 1`, `lote: 2`) y la costurera toca
+    // la bolsa que tiene; `confirmarDespuesDe` es el proceso que, al terminar, activa una
+    // separación programada. Una orden sin separar sale una vez, con los dos en null.
+    // Una separada con todos los lotes ocultos no sale: no es algo que tenga en la mesa.
     const lotes = await lotesParaTablet(prisma, ordenes);
-    // Una orden separada que no tiene NINGÚN lote en el taller (se los sacaron todos) no
-    // es algo que la costurera tenga en la mesa: sale de la lista igual que una en espera.
-    const enLaMesa = ordenes.filter((o) => {
+    type Fila = (typeof ordenes)[number] & { partes: string[]; lote: number | null; confirmarDespuesDe: string | null };
+    const filas = ordenes.flatMap((o): Fila[] => {
+      const base = { ...o, partes: nombresDePartes(partesDeSku(o.sku, conjuntos)) };
       const l = lotes.get(o.id);
-      return !l || l.lote != null || l.confirmarDespuesDe != null;
+      if (!l) return [{ ...base, lote: null, confirmarDespuesDe: null }];
+      if (l.confirmarDespuesDe) return [{ ...base, lote: null, confirmarDespuesDe: l.confirmarDespuesDe }];
+      return l.lotes.map((n) => ({ ...base, lote: n, confirmarDespuesDe: null }));
     });
-    return NextResponse.json(
-      enLaMesa.map((o) => ({
-        ...o,
-        partes: nombresDePartes(partesDeSku(o.sku, conjuntos)),
-        lote: lotes.get(o.id)?.lote ?? null,
-        confirmarDespuesDe: lotes.get(o.id)?.confirmarDespuesDe ?? null,
-      })),
-    );
+    return NextResponse.json(filas);
   } catch (err) {
     console.error('[tiempos/cola GET]', err);
     return NextResponse.json({ error: 'Error interno' }, { status: 500 });

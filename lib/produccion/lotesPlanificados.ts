@@ -14,8 +14,8 @@
 // cuando termine el remallado"): queda con `activadoAt` en null y la orden sigue siendo un
 // solo lote para la tablet, así que todo lo cosido hasta ahí va a la bolsa común. La
 // costurera confirma en la tablet que terminó el proceso y recién ahí se activan.
-// Después, la tablet asigna sola el lote MÁS CHICO de los que están EN EL TALLER (el taller
-// decide cuál le da, incluso sacándole físicamente el otro).
+// Después, cada lote VISIBLE (`enTaller`) aparece en la tablet como su propia fila y la
+// costurera toca la bolsa que tiene en la mano. El taller decide qué ve con el ojo 👁/🙈.
 //
 // 🔑 Se separa siempre DEL LOTE 1: al separar por primera vez el Lote 1 nace con todo lo
 // cortado por talle, y cada separación le saca lo suyo. La cantidad cortada de la orden
@@ -340,7 +340,7 @@ export async function activarSeparacion(
   return estadoDeLotes(tx, orden);
 }
 
-/** El taller le da (o le saca) un lote a la costurera. */
+/** El taller muestra (u oculta) un lote en la tablet: el ojo 👁/🙈 del lote. */
 export async function ponerEnTaller(
   tx: Prisma.TransactionClient,
   ordenId: string,
@@ -359,21 +359,24 @@ export async function ponerEnTaller(
   await tx.estadoTransicion.create({
     data: {
       ordenId, estadoAnterior: orden.estado, estadoNuevo: orden.estado, usuarioId: session.id,
-      notas: `Lote ${numero} ${enTaller ? 'entra al taller' : 'sale del taller'}.`,
+      notas: `Lote ${numero} ${enTaller ? 'visible en la tablet' : 'oculto de la tablet'}.`,
     },
   });
   return estadoDeLotes(tx, orden);
 }
 
 /**
- * El lote que la tablet le asigna a un registro: el MÁS CHICO de los que están en el
- * taller, activos y con algo por ingresar. `null` = la orden no está separada (o la
- * separación sigue programada), o no hay ningún lote en el taller.
+ * Los lotes que la tablet muestra, cada uno como su propia fila: activos, VISIBLES (el
+ * taller no los ocultó) y con algo por ingresar. `[]` con la separación todavía
+ * programada (la orden es un solo lote) o con todos ocultos.
+ *
+ * 🗣️ Bruno (6-oct): antes la tablet tomaba sola "el más chico de los que están en el
+ * taller", y con los dos adentro el Lote 2 no aparecía. Se sacó: el taller oculta y
+ * desoculta, y la costurera elige la bolsa.
  */
-export function loteDeLaTablet(lotes: EstadoLote[]): number | null {
-  if (separacionProgramada(lotes) || lotes.length === 0) return null;
-  const candidatos = lotes.filter((l) => l.activadoAt && l.enTaller && l.abierto).map((l) => l.numero);
-  return candidatos.length > 0 ? Math.min(...candidatos) : null;
+export function lotesVisibles(lotes: EstadoLote[]): number[] {
+  if (separacionProgramada(lotes)) return [];
+  return lotes.filter((l) => l.activadoAt && l.enTaller && l.abierto).map((l) => l.numero);
 }
 
 /** Un lote planificado listo para mandar a una pantalla: sin Maps, sólo datos planos. */
@@ -407,8 +410,8 @@ export function lotesParaPantalla(lotes: EstadoLote[]): LotePlanificadoDTO[] {
 
 /** Lo que la tablet necesita saber de los lotes de una orden. */
 export interface LotesParaTablet {
-  /** El lote que se le asigna a lo que cosa ahora; `null` = sin lote. */
-  lote: number | null;
+  /** Los lotes visibles: una fila de la tablet por cada uno. */
+  lotes: number[];
   /** Si hay una separación esperando confirmación: el proceso que tiene que terminar. */
   confirmarDespuesDe: string | null;
 }
@@ -426,7 +429,7 @@ export async function lotesParaTablet(db: Db, ordenes: { id: string; sku: string
   });
   for (const { ordenId } of separadas) {
     const lotes = await estadoDeLotes(db, ordenes.find((o) => o.id === ordenId)!);
-    salida.set(ordenId, { lote: loteDeLaTablet(lotes), confirmarDespuesDe: separacionProgramada(lotes) });
+    salida.set(ordenId, { lotes: lotesVisibles(lotes), confirmarDespuesDe: separacionProgramada(lotes) });
   }
   return salida;
 }

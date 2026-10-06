@@ -61,8 +61,7 @@ export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lot
 
   const separada = lotes.length > 0;
   const programada = lotes.some((l) => l.numero > 1 && !l.activadoAt);
-  const loteTablet = programada ? null
-    : lotes.filter((l) => l.activadoAt && l.enTaller && l.abierto).map((l) => l.numero).sort((a, b) => a - b)[0] ?? null;
+  const algunoVisible = lotes.some((l) => l.activadoAt && l.enTaller && l.abierto);
   const lote1 = lotes.find((l) => l.numero === 1);
   // Lo separable: lo del Lote 1 que todavía no entró. Sin separar, es todo lo cortado.
   // ⚠️ Lo ya ingresado sin separar lo descuenta el servidor; acá se muestra el corte.
@@ -138,7 +137,7 @@ export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lot
         {separada
           ? (programada
               ? 'La separación está programada: hasta que la costurera confirme en la tablet que terminó el proceso, la orden es un solo lote y todo lo cosido se reparte entre los lotes por unidades.'
-              : 'La tablet le pone a cada registro el lote más chico de los que están en el taller: dale a la costurera la bolsa que querés que cosa. Los minutos sin lote (los de antes de separar) se reparten entre los lotes por unidades.')
+              : 'Cada lote visible (👁) es su propia fila en la tablet y la costurera toca la bolsa que tiene. Ocultá (🙈) el que no quieras que cosa. Los minutos sin lote (los de antes de separar) se reparten entre los lotes por unidades.')
           : 'Este corte es un solo lote. Si en el taller hay que separar una parte —con todo cortado, después del remallado…—, separala acá: cada bolsa lleva su etiqueta y la tablet le marca los minutos.'}
       </p>
 
@@ -167,8 +166,7 @@ export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lot
               <span className="text-xs text-stone-400">{fmtMin(l.minutos)} min marcados</span>
               {!programada && l.abierto && (
                 <span className={`text-xs font-semibold ${l.enTaller ? 'text-emerald-700' : 'text-stone-400'}`}>
-                  {l.enTaller ? 'en el taller' : 'fuera del taller'}
-                  {l.numero === loteTablet && ' · la tablet carga acá'}
+                  {l.enTaller ? 'la ven en la tablet' : 'oculto'}
                 </span>
               )}
               {programada && l.numero > 1 && (
@@ -177,8 +175,9 @@ export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lot
               <span className="ml-auto flex gap-3">
                 {!programada && l.abierto && enCostura && (
                   <button type="button" onClick={() => patch({ numero: l.numero, enTaller: !l.enTaller }, 'No se pudo cambiar')}
-                    className="text-xs text-stone-500 hover:text-stone-800">
-                    {l.enTaller ? 'Sacar del taller' : 'Pasar al taller'}
+                    title={l.enTaller ? 'La ven en la tablet — tocá para ocultarlo' : 'Oculto — tocá para que lo vean'}
+                    className={`text-sm px-2 py-0.5 rounded-lg border leading-none ${l.enTaller ? 'border-stone-200 hover:bg-stone-50' : 'border-amber-300 bg-amber-50'}`}>
+                    {l.enTaller ? '👁' : '🙈'}
                   </button>
                 )}
                 {l.numero === ultimo && (enCostura || programada) && l.ingresado === 0 && (
@@ -192,7 +191,7 @@ export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lot
             <div className="flex flex-wrap items-center gap-2 text-xs text-sky-800 bg-sky-50 border border-sky-200 rounded-lg p-2.5">
               <span>
                 Se activa cuando la costurera, al dejar la {MAQUINA_DEL_PROCESO[lotes.find((l) => l.numero > 1 && !l.activadoAt)?.despuesDe ?? '']?.toLowerCase() ?? 'máquina'},
-                confirme en la tablet que terminó. Al activarse, el Lote 1 queda en el taller y el resto afuera.
+                confirme en la tablet que terminó. Al activarse, el Lote 1 queda visible y el resto oculto.
               </span>
               {enCostura && (
                 <button type="button" onClick={() => patch({ activar: true }, 'No se pudo activar')}
@@ -200,8 +199,8 @@ export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lot
               )}
             </div>
           )}
-          {!programada && loteTablet == null && lotes.some((l) => l.abierto) && (
-            <p className="text-xs text-amber-700">Ningún lote abierto está en el taller: lo que cosa la costurera queda sin lote.</p>
+          {!programada && !algunoVisible && lotes.some((l) => l.abierto) && (
+            <p className="text-xs text-amber-700">Todos los lotes están ocultos: la orden no aparece en la tablet.</p>
           )}
           {minutosSinLote > 0 && (
             <p className="text-xs text-stone-500 pt-1">

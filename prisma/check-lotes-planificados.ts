@@ -251,7 +251,7 @@ async function main() {
   chequear('tablet con lote', p5.success && p5.data.lote === 2, JSON.stringify(p5.success));
 
   // ============ J. Separación PROGRAMADA: espera que la costurera deje la remalladora ============
-  console.log('\n=== J. Programar al cargar el corte, activar desde la tablet, el lote más chico en el taller ===');
+  console.log('\n=== J. Programar al cargar el corte, activar desde la tablet, una fila por lote visible ===');
   const prg = await prisma.ordenProduccion.create({
     data: { sku: PRG, descripcion: 'programada', marca: 'Zattia', estado: 'CORTE', cantidad: 40, cantidadCortada: 40,
             fichaCorteData: { talles: { S: '20', M: '20' } } },
@@ -267,26 +267,27 @@ async function main() {
   chequear('Lote 1 en el taller, Lote 2 afuera', r[0]?.enTaller === true && r[1]?.enTaller === false, JSON.stringify(r));
   await prisma.ordenProduccion.update({ where: { id: prg.id }, data: { estado: 'COSTURA' } });
   let t = await tablet();
-  chequear('mientras espera, la tablet NO pone lote y pregunta por el Remallado',
-    t?.lote === null && t?.confirmarDespuesDe === 'Remallado', JSON.stringify(t));
+  chequear('mientras espera, la tablet NO muestra lotes y pregunta por el Remallado',
+    t?.lotes.length === 0 && t?.confirmarDespuesDe === 'Remallado', JSON.stringify(t));
   msg = await plantado(() => prisma.$transaction((tx) => separarLote(tx, prg.id, [{ talle: 'S', cantidad: 1 }], 'Recta', ses)));
   chequear('con una programada, no se separa otra ya', msg.includes('programada'), msg || 'NO se plantó');
   await prisma.$transaction((tx) => activarSeparacion(tx, prg.id, ses, 'tablet'));
   t = await tablet();
-  chequear('confirmado: la tablet carga al Lote 1 y ya no pregunta', t?.lote === 1 && t?.confirmarDespuesDe === null, JSON.stringify(t));
+  chequear('confirmado: la tablet muestra el Lote 1 (el 2 nace oculto) y ya no pregunta',
+    JSON.stringify(t?.lotes) === '[1]' && t?.confirmarDespuesDe === null, JSON.stringify(t));
   r = await sql(`SELECT notas FROM estado_transiciones WHERE "ordenId"='${prg.id}' ORDER BY fecha DESC LIMIT 1`);
   chequear('el historial dice quién confirmó y qué', String(r[0]?.notas).includes('confirmó desde la tablet que terminó Remallado'), String(r[0]?.notas));
   msg = await plantado(() => prisma.$transaction((tx) => activarSeparacion(tx, prg.id, ses, 'tablet')));
   chequear('confirmar dos veces no hace nada', msg.includes('no tiene una separación esperando'), msg || 'NO se plantó');
   await prisma.$transaction((tx) => ponerEnTaller(tx, prg.id, 2, true, ses));
   t = await tablet();
-  chequear('los dos en el taller: la tablet toma el MÁS CHICO', t?.lote === 1, JSON.stringify(t));
+  chequear('los dos visibles: la tablet muestra LOS DOS (una fila cada uno)', JSON.stringify(t?.lotes) === '[1,2]', JSON.stringify(t));
   await prisma.$transaction((tx) => ponerEnTaller(tx, prg.id, 1, false, ses));
   t = await tablet();
-  chequear('sacan el Lote 1: la tablet pasa al Lote 2', t?.lote === 2, JSON.stringify(t));
+  chequear('ocultan el Lote 1: queda sólo el Lote 2', JSON.stringify(t?.lotes) === '[2]', JSON.stringify(t));
   await prisma.$transaction((tx) => ponerEnTaller(tx, prg.id, 2, false, ses));
   t = await tablet();
-  chequear('ninguno en el taller: sin lote', t?.lote === null, JSON.stringify(t));
+  chequear('todos ocultos: ninguna fila', t?.lotes.length === 0, JSON.stringify(t));
   const p6 = SepararLoteSchema.safeParse({ talles: [{ talle: 'S', cantidad: 1 }], despuesDe: 'Remallado', programado: true });
   chequear('validador de separar con programado', p6.success && p6.data.programado === true, JSON.stringify(p6.success));
 

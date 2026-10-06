@@ -501,7 +501,7 @@ export function ColaAdmin() {
     if (lotes.length > 0) {
       const programada = lotes.some((l) => l.numero > 1 && !l.activadoAt);
       if (!programada && !lotes.some((l) => l.activadoAt && l.enTaller && l.abierto)) {
-        return { oculta: true, motivo: 'ningún lote en el taller' };
+        return { oculta: true, motivo: 'todos los lotes ocultos' };
       }
     }
     return { oculta: false, motivo: null };
@@ -647,8 +647,6 @@ export function ColaAdmin() {
     const vis = visibilidadTablet(orden);
     const lotes = orden.lotesDetalle ?? [];
     const programada = lotes.some((l) => l.numero > 1 && !l.activadoAt);
-    const loteTablet = programada ? null
-      : lotes.filter((l) => l.activadoAt && l.enTaller && l.abierto).map((l) => l.numero).sort((a, b) => a - b)[0] ?? null;
     return (
       <div key={orden.id}>
       <div
@@ -776,7 +774,7 @@ export function ColaAdmin() {
           ]} />
         </div>
       </div>
-      {/* Los lotes de una orden separada, listados acá: qué bolsa es cuál y cuál tiene la costurera. */}
+      {/* Los lotes de una orden separada, listados acá: qué bolsa es cuál y cuáles ve la costurera. */}
       {lotes.length > 0 && orden.estado !== 'CERRADA' && (
         <div className={`px-4 md:px-5 pb-2 pt-0.5 space-y-1 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''}`}>
           {lotes.map((l) => (
@@ -787,16 +785,20 @@ export function ColaAdmin() {
               {programada && l.numero > 1 && <span className="text-sky-700 font-semibold">programado: {l.despuesDe}</span>}
               {!programada && l.abierto && (
                 <span className={l.enTaller ? 'text-emerald-700 font-semibold' : 'text-stone-400'}>
-                  {l.enTaller ? 'en el taller' : 'fuera del taller'}{l.numero === loteTablet && ' · la tablet carga acá'}
+                  {l.enTaller ? 'la ven en la tablet' : 'oculto'}
                 </span>
               )}
-              <span className="ml-auto flex gap-3">
+              <span className="ml-auto flex items-center gap-3">
+                <Link href={`/produccion/${orden.id}/lote/${l.numero}/etiqueta`} className="text-amber-600 hover:underline">Etiqueta</Link>
+                {/* 👁 del LOTE: cada lote visible es su propia fila en la tablet. */}
                 {!programada && l.abierto && orden.estado === 'COSTURA' && (
-                  <button type="button" onClick={() => moverLote(orden, l.numero, !l.enTaller)} className="text-stone-500 hover:text-stone-800">
-                    {l.enTaller ? 'Sacar del taller' : 'Pasar al taller'}
+                  <button type="button" onClick={() => moverLote(orden, l.numero, !l.enTaller)}
+                    title={l.enTaller ? 'La ven en la tablet — tocá para ocultarlo' : 'Oculto — tocá para que lo vean'}
+                    aria-label={l.enTaller ? `Ocultar Lote ${l.numero} de la tablet` : `Mostrar Lote ${l.numero} en la tablet`}
+                    className={`text-sm px-2 py-0.5 rounded-lg border transition leading-none ${l.enTaller ? 'border-stone-200 hover:bg-stone-50' : 'border-amber-300 bg-amber-50'}`}>
+                    {l.enTaller ? '👁' : '🙈'}
                   </button>
                 )}
-                <Link href={`/produccion/${orden.id}/lote/${l.numero}/etiqueta`} className="text-amber-600 hover:underline">Etiqueta</Link>
               </span>
             </div>
           ))}
