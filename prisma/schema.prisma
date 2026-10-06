@@ -662,6 +662,13 @@ model OrdenProduccion {
   lotesCorte        LoteCorte[]
   lotesPlanificados LotePlanificado[]
 
+  // EN ESPERA: se sacó del taller sin terminar porque falta algo ("falta dije") y se guarda
+  // para cerrar después. La tablet no la muestra; la cola sí, con el motivo. ⛔ No mueve el
+  // estado: sigue en COSTURA y se puede ingresar lo que ya esté listo.
+  enEsperaDesde  DateTime?
+  enEsperaMotivo String?
+  enEsperaPor    String?
+
   loteId String?
   lote   LoteProduccion? @relation(fields: [loteId], references: [id], onDelete: SetNull)
 

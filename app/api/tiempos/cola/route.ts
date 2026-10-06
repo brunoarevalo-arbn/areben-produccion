@@ -12,7 +12,8 @@ export async function GET() {
         // La tablet de costura solo muestra órdenes en costura, y sin el aviso de
         // "ya terminé": ésas salen de la cola aunque el estado no se haya movido (el
         // conteo por talle y el ingreso a stock los hace el taller).
-        where: { estado: 'COSTURA', avisoCosturaAt: null },
+        // Tampoco las que el taller puso EN ESPERA ("falta dije"): se guardaron para después.
+        where: { estado: 'COSTURA', avisoCosturaAt: null, enEsperaDesde: null },
         orderBy: [{ createdAt: 'asc' }],
         select: { id: true, sku: true, descripcion: true, marca: true, cantidad: true, cantidadCortada: true, estado: true },
       }),
@@ -38,8 +39,14 @@ export async function GET() {
     // `confirmarDespuesDe` el proceso que, al terminar, activa una separación programada.
     // Una orden sin separar devuelve los dos en null y la pantalla no cambia.
     const lotes = await lotesParaTablet(prisma, ordenes);
+    // Una orden separada que no tiene NINGÚN lote en el taller (se los sacaron todos) no
+    // es algo que la costurera tenga en la mesa: sale de la lista igual que una en espera.
+    const enLaMesa = ordenes.filter((o) => {
+      const l = lotes.get(o.id);
+      return !l || l.lote != null || l.confirmarDespuesDe != null;
+    });
     return NextResponse.json(
-      ordenes.map((o) => ({
+      enLaMesa.map((o) => ({
         ...o,
         partes: nombresDePartes(partesDeSku(o.sku, conjuntos)),
         lote: lotes.get(o.id)?.lote ?? null,

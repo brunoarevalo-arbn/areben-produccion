@@ -355,6 +355,9 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="font-mono font-bold text-sm text-stone-800">{orden.sku}</span>
+                  {orden.lote != null && (
+                    <span className="text-xs bg-stone-900 text-white px-1.5 py-0.5 rounded-full font-semibold">Lote {orden.lote}</span>
+                  )}
                   <span className="text-xs text-stone-400">{orden.marca}</span>
                   {orden.estado === 'COSTURA' && (
                     <span className="text-xs bg-emerald-100 text-emerald-700 px-1.5 py-0.5 rounded-full font-semibold">Costura</span>

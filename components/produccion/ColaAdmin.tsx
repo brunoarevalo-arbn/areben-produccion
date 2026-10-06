@@ -53,6 +53,9 @@ interface Orden {
   lote: { id: string; prenda: string | null; descripcion: string | null; marca: string } | null;
   /** Los lotes planificados ("Lote 1 / Lote 2"). Vacío = lote único. */
   lotesPlanificados?: { numero: number; activadoAt: string | null }[];
+  /** En espera ("falta dije"): fuera de la tablet hasta que se retome. */
+  enEsperaDesde?: string | null;
+  enEsperaMotivo?: string | null;
 }
 interface CortadorLite { id: string; nombre: string; activo: boolean; usuarioId: string | null }
 
@@ -168,6 +171,9 @@ export function ColaAdmin() {
   const [terminarLoteId, setTerminarLoteId] = useState<string | null>(null);
   const [terminarSaving, setTerminarSaving] = useState(false);
   const [terminarError,  setTerminarError]  = useState('');
+
+  const [esperaOrden,  setEsperaOrden]  = useState<Orden | null>(null);
+  const [esperaMotivo, setEsperaMotivo] = useState('');
 
   // Agrupar OPs sueltas existentes en un lote
   const [agrupando,    setAgrupando]    = useState(false);
@@ -481,6 +487,22 @@ export function ColaAdmin() {
     }
   };
 
+  // En espera ("falta dije"): la orden sale de la tablet hasta que se retome.
+  const ponerEnEspera = async () => {
+    if (!esperaOrden || !esperaMotivo.trim()) return;
+    const r = await fetch(`/api/produccion/cola/${esperaOrden.id}/espera`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ motivo: esperaMotivo.trim() }),
+    });
+    if (r.ok) { setEsperaOrden(null); cargar(); }
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo poner en espera'); }
+  };
+  const retomar = async (orden: Orden) => {
+    const r = await fetch(`/api/produccion/cola/${orden.id}/espera`, { method: 'DELETE' });
+    if (r.ok) cargar();
+    else { const d = await r.json().catch(() => ({})); toast.error(d.error || 'No se pudo retomar'); }
+  };
+
   const eliminar = async (id: string, sku: string | null) => {
     if (!(await confirmAsync({ message: `Eliminar la orden "${sku ?? 'sin SKU'}"?`, danger: true, confirmLabel: 'Eliminar' }))) return;
     const r = await fetch(`/api/produccion/cola/${id}`, { method: 'DELETE' });
@@ -616,6 +638,9 @@ export function ColaAdmin() {
                 {orden.avisoCosturaPor ? `${orden.avisoCosturaPor} avisó: falta contar` : 'Avisó: falta contar'}
               </Badge>
             )}
+            {orden.enEsperaDesde && (
+              <Badge variant="amber" size="sm">En espera: {orden.enEsperaMotivo ?? '—'}</Badge>
+            )}
             {/* Si la orden está separada en lotes se tiene que saber ANTES de entrar: cambia
                 cómo se ingresa y qué bolsa cose la costurera. */}
             {orden.estado !== 'CERRADA' && (() => {
@@ -698,6 +723,9 @@ export function ColaAdmin() {
           )}
           <PopoverMenu items={[
             { label: 'Editar orden', onClick: () => abrirEdicion(orden) },
+            ...(orden.estado === 'CERRADA' ? [] : orden.enEsperaDesde
+              ? [{ label: 'Retomar (vuelve a la tablet)', onClick: () => retomar(orden) }]
+              : [{ label: 'Poner en espera…', onClick: () => { setEsperaOrden(orden); setEsperaMotivo(''); } }]),
             { label: 'Eliminar', onClick: () => eliminar(orden.id, orden.sku), danger: true },
           ]} />
         </div>
@@ -1063,6 +1091,25 @@ export function ColaAdmin() {
                     : 'Terminar y mandar a stock'}
               </Button>
               <Button variant="secondary" onClick={() => setTerminarOrden(null)}>Cancelar</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Poner en espera: qué falta */}
+      {esperaOrden && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={() => setEsperaOrden(null)}>
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 w-full max-w-sm shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-stone-800 mb-1">Poner en espera <span className="font-mono text-stone-500">{esperaOrden.sku}</span></h3>
+            <p className="text-xs text-stone-500 mb-3">
+              Sale de la tablet hasta que la retomes. No cambia el estado: lo que ya esté listo se puede ingresar igual.
+            </p>
+            <input autoFocus value={esperaMotivo} onChange={(e) => setEsperaMotivo(e.target.value)} maxLength={120}
+              placeholder="¿Qué falta? (ej. falta dije)" className={`${inputClass} mb-3`}
+              onKeyDown={(e) => { if (e.key === 'Enter') ponerEnEspera(); }} />
+            <div className="flex gap-2">
+              <Button variant="primary" disabled={!esperaMotivo.trim()} className="flex-1" onClick={ponerEnEspera}>Poner en espera</Button>
+              <Button variant="secondary" onClick={() => setEsperaOrden(null)}>Cancelar</Button>
             </div>
           </div>
         </div>
