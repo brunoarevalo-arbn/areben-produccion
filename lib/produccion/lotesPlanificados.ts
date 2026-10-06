@@ -10,12 +10,19 @@
 // congelado) ni un `LoteProduccion` (la tizada de varios colores). Una orden que nunca
 // se separó no tiene filas acá y funciona exactamente como antes.
 //
+// 🔑 La separación se puede PROGRAMAR al cargar el corte ("el Lote 2 son estas curvas,
+// cuando termine el remallado"): queda con `activadoAt` en null y la orden sigue siendo un
+// solo lote para la tablet, así que todo lo cosido hasta ahí va a la bolsa común. La
+// costurera confirma en la tablet que terminó el proceso y recién ahí se activan.
+// Después, la tablet asigna sola el lote MÁS CHICO de los que están EN EL TALLER (el taller
+// decide cuál le da, incluso sacándole físicamente el otro).
+//
 // 🔑 Se separa siempre DEL LOTE 1: al separar por primera vez el Lote 1 nace con todo lo
 // cortado por talle, y cada separación le saca lo suyo. La cantidad cortada de la orden
 // (y con ella el pago al cortador) no se toca nunca.
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/session';
-import { DESPUES_DE_LOTE_1, ordenarTalles, textoTalles } from '@/lib/constants/lotes';
+import { DESPUES_DE_LOTE_1, MAQUINA_DEL_PROCESO, ordenarTalles, textoTalles } from '@/lib/constants/lotes';
 import { cantidadCortada, tallesCortados } from './cantidades';
 import { partesDeOrden } from './conjuntos';
 import type { LotePlanParaCostear } from './loteCorte';
@@ -41,6 +48,9 @@ export interface EstadoLote {
   /** Por talle, lo que todavía no entró de NINGUNA pieza: lo único que se puede mover a otro lote. */
   sinIngresar: TalleConteo[];
   abierto: boolean;
+  /** null = programado: espera que la costurera confirme que terminó `despuesDe`. */
+  activadoAt: Date | null;
+  enTaller: boolean;
 }
 
 /**
@@ -76,6 +86,7 @@ export async function estadoDeLotes(db: Db, orden: { id: string; sku: string | n
     return {
       id: l.id, numero: l.numero, despuesDe: l.despuesDe, separadoAt: l.separadoAt, separadoPor: l.separadoPor,
       talles, unidades, ingresadoPorParte, ingresado, sinIngresar, abierto: ingresado < unidades,
+      activadoAt: l.activadoAt, enTaller: l.enTaller,
     };
   });
 }
@@ -116,8 +127,18 @@ export function excesoSobreLote(lote: EstadoLote, conteos: { parte: string | nul
   return null;
 }
 
+/** La separación que espera confirmación, o `null`. Es UNA por orden: se activa entera. */
+export function separacionProgramada(lotes: EstadoLote[]): string | null {
+  const programado = lotes.find((l) => l.numero > 1 && !l.activadoAt);
+  return programado ? programado.despuesDe : null;
+}
+
 /**
  * Separa un lote nuevo del Lote 1. La primera vez arma el Lote 1 con todo lo cortado.
+ *
+ * Con `programado` la separación queda esperando que la costurera confirme en la tablet
+ * que terminó `despuesDe`; sin él, rige desde ya. El lote nuevo nace FUERA del taller: el
+ * taller se lo da a la costurera cuando quiere (ver `ponerEnTaller`).
  *
  * 🔴 Se planta si los talles del corte no suman lo cortado: el reparto de los minutos
  * comunes es por unidades planificadas, y unos talles que suman 60 sobre 62 cortadas
@@ -129,11 +150,16 @@ export async function separarLote(
   tallesInput: TalleConteo[],
   despuesDe: string,
   session: SessionPayload,
+  programado = false,
 ): Promise<EstadoLote[]> {
   const orden = await tx.ordenProduccion.findUnique({ where: { id: ordenId }, include: { cortesPorTalle: true } });
   if (!orden) throw new LotePlanificadoError('OP no encontrada');
-  if (orden.estado !== 'COSTURA') {
-    throw new LotePlanificadoError(`La OP ${orden.sku ?? ordenId} no está en costura: los lotes se separan mientras se cose`);
+  // Programar se puede desde que hay corte cargado; separar YA, sólo mientras se cose.
+  const estadosValidos = programado ? ['PENDIENTE', 'CORTE', 'COSTURA'] : ['COSTURA'];
+  if (!estadosValidos.includes(orden.estado)) {
+    throw new LotePlanificadoError(programado
+      ? `La OP ${orden.sku ?? ordenId} ya salió de costura: no hay nada que programar`
+      : `La OP ${orden.sku ?? ordenId} no está en costura: los lotes se separan mientras se cose (o se programan antes)`);
   }
 
   const talles = tallesInput.filter((t) => t.cantidad > 0);
@@ -141,6 +167,18 @@ export async function separarLote(
   if (new Set(talles.map((t) => t.talle)).size !== talles.length) throw new LotePlanificadoError('Hay talles repetidos');
 
   let lotes = await estadoDeLotes(tx, orden);
+  // Una separación programada se activa ENTERA con la confirmación de la tablet: mezclar
+  // lotes activos con programados dejaría la orden a medio separar.
+  const pendiente = separacionProgramada(lotes);
+  if (pendiente && !programado) {
+    throw new LotePlanificadoError(`Hay una separación programada para después de ${pendiente}: activala o deshacela antes de separar otra.`);
+  }
+  if (programado && !MAQUINA_DEL_PROCESO[despuesDe]) {
+    throw new LotePlanificadoError(`"${despuesDe}" no es un proceso de máquina: eso no se programa, se separa en el momento.`);
+  }
+  if (!pendiente && programado && lotes.some((l) => l.numero > 1)) {
+    throw new LotePlanificadoError('La orden ya está separada: lo que se separe ahora rige desde ya, no se puede programar.');
+  }
   if (lotes.length === 0) {
     const cortado = tallesCortados(orden);
     if (!cortado) {
@@ -159,6 +197,7 @@ export async function separarLote(
     const lote1 = await tx.lotePlanificado.create({
       data: {
         ordenId, numero: 1, despuesDe: DESPUES_DE_LOTE_1, separadoPor: session.nombre,
+        activadoAt: programado ? null : new Date(), enTaller: true,
         talles: { create: cortado.map((t) => ({ talle: t.talle, cantidad: t.cantidad })) },
       },
     });
@@ -203,14 +242,16 @@ export async function separarLote(
   await tx.lotePlanificado.create({
     data: {
       ordenId, numero, despuesDe, separadoPor: session.nombre,
+      activadoAt: programado ? null : new Date(), enTaller: false,
       talles: { create: talles.map((t) => ({ talle: t.talle, cantidad: t.cantidad })) },
     },
   });
 
   await tx.estadoTransicion.create({
     data: {
-      ordenId, estadoAnterior: 'COSTURA', estadoNuevo: 'COSTURA', usuarioId: session.id,
-      notas: `Separado Lote ${numero} (${textoTalles(talles)} = ${separadas} u) después de ${despuesDe}. ` +
+      ordenId, estadoAnterior: orden.estado, estadoNuevo: orden.estado, usuarioId: session.id,
+      notas: `${programado ? 'Programado' : 'Separado'} Lote ${numero} (${textoTalles(talles)} = ${separadas} u) ` +
+             `${programado ? 'para cuando termine' : 'después de'} ${despuesDe}. ` +
              `El Lote 1 queda con ${lote1.unidades - separadas} u.`,
     },
   });
@@ -271,6 +312,70 @@ export async function deshacerLote(
   return estadoDeLotes(tx, orden);
 }
 
+/**
+ * Activa la separación programada: la costurera confirmó en la tablet que terminó el
+ * proceso (o alguien la activó a mano desde la OP). Desde acá la tablet asigna los lotes.
+ */
+export async function activarSeparacion(
+  tx: Prisma.TransactionClient,
+  ordenId: string,
+  session: SessionPayload,
+  desde: 'tablet' | 'op',
+): Promise<EstadoLote[]> {
+  const orden = await tx.ordenProduccion.findUnique({ where: { id: ordenId } });
+  if (!orden) throw new LotePlanificadoError('OP no encontrada');
+  const lotes = await estadoDeLotes(tx, orden);
+  const pendiente = separacionProgramada(lotes);
+  if (!pendiente) throw new LotePlanificadoError('Esta orden no tiene una separación esperando confirmación');
+
+  await tx.lotePlanificado.updateMany({ where: { ordenId, activadoAt: null }, data: { activadoAt: new Date() } });
+  await tx.estadoTransicion.create({
+    data: {
+      ordenId, estadoAnterior: orden.estado, estadoNuevo: orden.estado, usuarioId: session.id,
+      notas: `${session.nombre} ${desde === 'tablet' ? 'confirmó desde la tablet' : 'confirmó desde la OP'} que terminó ` +
+             `${pendiente}: se activan ${lotes.map((l) => `Lote ${l.numero}`).join(' y ')}. ` +
+             `En el taller: ${lotes.filter((l) => l.enTaller).map((l) => `Lote ${l.numero}`).join(', ') || 'ninguno'}.`,
+    },
+  });
+  return estadoDeLotes(tx, orden);
+}
+
+/** El taller le da (o le saca) un lote a la costurera. */
+export async function ponerEnTaller(
+  tx: Prisma.TransactionClient,
+  ordenId: string,
+  numero: number,
+  enTaller: boolean,
+  session: SessionPayload,
+): Promise<EstadoLote[]> {
+  const orden = await tx.ordenProduccion.findUnique({ where: { id: ordenId } });
+  if (!orden) throw new LotePlanificadoError('OP no encontrada');
+  const lotes = await estadoDeLotes(tx, orden);
+  const lote = lotes.find((l) => l.numero === numero);
+  if (!lote) throw new LotePlanificadoError(`La OP no tiene Lote ${numero}`);
+  if (lote.enTaller === enTaller) return lotes;
+
+  await tx.lotePlanificado.update({ where: { id: lote.id }, data: { enTaller } });
+  await tx.estadoTransicion.create({
+    data: {
+      ordenId, estadoAnterior: orden.estado, estadoNuevo: orden.estado, usuarioId: session.id,
+      notas: `Lote ${numero} ${enTaller ? 'entra al taller' : 'sale del taller'}.`,
+    },
+  });
+  return estadoDeLotes(tx, orden);
+}
+
+/**
+ * El lote que la tablet le asigna a un registro: el MÁS CHICO de los que están en el
+ * taller, activos y con algo por ingresar. `null` = la orden no está separada (o la
+ * separación sigue programada), o no hay ningún lote en el taller.
+ */
+export function loteDeLaTablet(lotes: EstadoLote[]): number | null {
+  if (separacionProgramada(lotes) || lotes.length === 0) return null;
+  const candidatos = lotes.filter((l) => l.activadoAt && l.enTaller && l.abierto).map((l) => l.numero);
+  return candidatos.length > 0 ? Math.min(...candidatos) : null;
+}
+
 /** Un lote planificado listo para mandar a una pantalla: sin Maps, sólo datos planos. */
 export interface LotePlanificadoDTO {
   id: string;
@@ -282,6 +387,8 @@ export interface LotePlanificadoDTO {
   unidades: number;
   ingresado: number;
   abierto: boolean;
+  activadoAt: string | null;
+  enTaller: boolean;
   /** Lo que le falta ingresar por pieza (`''` si la prenda no se parte) y talle. */
   pendientePorParte: Record<string, TalleConteo[]>;
 }
@@ -290,6 +397,7 @@ export function lotesParaPantalla(lotes: EstadoLote[]): LotePlanificadoDTO[] {
   return lotes.map((l) => ({
     id: l.id, numero: l.numero, despuesDe: l.despuesDe, separadoAt: l.separadoAt.toISOString(),
     separadoPor: l.separadoPor, talles: l.talles, unidades: l.unidades, ingresado: l.ingresado, abierto: l.abierto,
+    activadoAt: l.activadoAt?.toISOString() ?? null, enTaller: l.enTaller,
     pendientePorParte: Object.fromEntries([...l.ingresadoPorParte.entries()].map(([parte, ya]) => [
       parte,
       l.talles.map((t) => ({ talle: t.talle, cantidad: Math.max(0, t.cantidad - (ya.get(t.talle) ?? 0)) })),
@@ -297,12 +405,19 @@ export function lotesParaPantalla(lotes: EstadoLote[]): LotePlanificadoDTO[] {
   }));
 }
 
+/** Lo que la tablet necesita saber de los lotes de una orden. */
+export interface LotesParaTablet {
+  /** El lote que se le asigna a lo que cosa ahora; `null` = sin lote. */
+  lote: number | null;
+  /** Si hay una separación esperando confirmación: el proceso que tiene que terminar. */
+  confirmarDespuesDe: string | null;
+}
+
 /**
- * Los lotes que todavía tienen algo por coser, de varias órdenes: `ordenId → [1, 2]`. Las
- * órdenes sin separar no aparecen. Es lo que la tablet ofrece como botones.
+ * Los lotes de varias órdenes, como los usa la tablet. Las órdenes sin separar no aparecen.
  */
-export async function lotesAbiertosPorOrden(db: Db, ordenes: { id: string; sku: string | null }[]): Promise<Map<string, number[]>> {
-  const salida = new Map<string, number[]>();
+export async function lotesParaTablet(db: Db, ordenes: { id: string; sku: string | null }[]): Promise<Map<string, LotesParaTablet>> {
+  const salida = new Map<string, LotesParaTablet>();
   if (ordenes.length === 0) return salida;
   const separadas = await db.lotePlanificado.findMany({
     where: { ordenId: { in: ordenes.map((o) => o.id) } },
@@ -310,8 +425,8 @@ export async function lotesAbiertosPorOrden(db: Db, ordenes: { id: string; sku: 
     distinct: ['ordenId'],
   });
   for (const { ordenId } of separadas) {
-    const orden = ordenes.find((o) => o.id === ordenId)!;
-    salida.set(ordenId, (await estadoDeLotes(db, orden)).filter((l) => l.abierto).map((l) => l.numero));
+    const lotes = await estadoDeLotes(db, ordenes.find((o) => o.id === ordenId)!);
+    salida.set(ordenId, { lote: loteDeLaTablet(lotes), confirmarDespuesDe: separacionProgramada(lotes) });
   }
   return salida;
 }

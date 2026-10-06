@@ -9,6 +9,15 @@ export const DESPUES_DE_LOTE_1 = 'Corte';
 /** En qué punto se separa. La tablet no tiene lista de procesos: son las máquinas, más el corte. */
 export const PUNTOS_DE_SEPARACION = ['Todo cortado', 'Recta', 'Remallado', 'Collareta', 'Cadeneta', 'Cortacollareta'] as const;
 
+/**
+ * La máquina de cada proceso. Una separación programada "para cuando termine el Remallado"
+ * se le pregunta a la costurera cuando el trabajo DEJA esa máquina: elige otra en la tablet.
+ * "Todo cortado" no tiene máquina: no se programa, se separa en el momento.
+ */
+export const MAQUINA_DEL_PROCESO: Record<string, string> = {
+  Recta: 'Recta', Remallado: 'Remalladora', Collareta: 'Collareta', Cadeneta: 'Cadeneta', Cortacollareta: 'Cortacollareta',
+};
+
 const ordenTalle = (t: string) => {
   const i = (TALLES_DEFAULT as readonly string[]).indexOf(t);
   return i === -1 ? 99 : i;

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { conjuntosActivos, partesDeSku, nombresDePartes } from '@/lib/produccion/conjuntos';
-import { lotesAbiertosPorOrden } from '@/lib/produccion/lotesPlanificados';
+import { lotesParaTablet } from '@/lib/produccion/lotesPlanificados';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,14 +33,17 @@ export async function GET() {
     // para el compilador. Si la tablet algún día necesita el SKU de la pieza, se
     // manda un campo NUEVO: lo que se dibuja se manda ya listo para dibujar.
     //
-    // Los LOTES van igual: sólo los números de los que tienen algo por coser (`[1, 2]`),
-    // ⛔ nunca el lote entero. Una orden sin separar devuelve [] y la pantalla no cambia.
-    const lotes = await lotesAbiertosPorOrden(prisma, ordenes);
+    // Los LOTES van igual, ya listos para usar y ⛔ nunca el lote entero: `lote` es el que
+    // la tablet le pone a lo que se cosa (el más chico de los que están en el taller) y
+    // `confirmarDespuesDe` el proceso que, al terminar, activa una separación programada.
+    // Una orden sin separar devuelve los dos en null y la pantalla no cambia.
+    const lotes = await lotesParaTablet(prisma, ordenes);
     return NextResponse.json(
       ordenes.map((o) => ({
         ...o,
         partes: nombresDePartes(partesDeSku(o.sku, conjuntos)),
-        lotes: lotes.get(o.id) ?? [],
+        lote: lotes.get(o.id)?.lote ?? null,
+        confirmarDespuesDe: lotes.get(o.id)?.confirmarDespuesDe ?? null,
       })),
     );
   } catch (err) {

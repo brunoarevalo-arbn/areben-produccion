@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
-import { PUNTOS_DE_SEPARACION, DESPUES_DE_LOTE_1, textoTalles } from '@/lib/constants/lotes';
+import { PUNTOS_DE_SEPARACION, DESPUES_DE_LOTE_1, MAQUINA_DEL_PROCESO, textoTalles } from '@/lib/constants/lotes';
 
 interface Talle { talle: string; cantidad: number }
 export interface LoteParaCard {
@@ -20,6 +20,9 @@ export interface LoteParaCard {
   unidades: number;
   ingresado: number;
   abierto: boolean;
+  /** null = programado: espera que la costurera confirme en la tablet. */
+  activadoAt: string | null;
+  enTaller: boolean;
   /** Minutos de la tablet marcados con este lote. */
   minutos: number;
 }
@@ -34,10 +37,12 @@ const fmtMin = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits:
  * Sin lotes, la orden es un solo lote y se ofrece separar. Lo que se puede separar es lo
  * que al Lote 1 le queda SIN INGRESAR, talle por talle: el servidor lo vuelve a controlar.
  */
-export function LotesPlanificados({ ordenId, sku, enCostura, lotes, tallesCortados, minutosSinLote, etiquetaQs }: {
+export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lotes, tallesCortados, minutosSinLote, etiquetaQs }: {
   ordenId: string;
   sku: string | null;
   enCostura: boolean;
+  /** Antes de costura (o en costura) se puede dejar programada la separación. */
+  puedeProgramar: boolean;
   lotes: LoteParaCard[];
   /** Lo cortado por talle (el Lote 1 implícito de una orden sin separar). `null` = no se sabe. */
   tallesCortados: Talle[] | null;
@@ -49,10 +54,15 @@ export function LotesPlanificados({ ordenId, sku, enCostura, lotes, tallesCortad
   const [abierto, setAbierto] = useState(false);
   const [cantidades, setCantidades] = useState<Record<string, number>>({});
   const [despuesDe, setDespuesDe] = useState('');
+  // 'ahora' | 'programado'. ⛔ Sin default: separar ya y programar son cosas distintas.
+  const [cuando, setCuando] = useState<'' | 'ahora' | 'programado'>('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
 
   const separada = lotes.length > 0;
+  const programada = lotes.some((l) => l.numero > 1 && !l.activadoAt);
+  const loteTablet = programada ? null
+    : lotes.filter((l) => l.activadoAt && l.enTaller && l.abierto).map((l) => l.numero).sort((a, b) => a - b)[0] ?? null;
   const lote1 = lotes.find((l) => l.numero === 1);
   // Lo separable: lo del Lote 1 que todavía no entró. Sin separar, es todo lo cortado.
   // ⚠️ Lo ya ingresado sin separar lo descuenta el servidor; acá se muestra el corte.
@@ -60,18 +70,19 @@ export function LotesPlanificados({ ordenId, sku, enCostura, lotes, tallesCortad
   const totalSeparar = Object.values(cantidades).reduce((s, n) => s + (n || 0), 0);
   const ultimo = lotes.length > 1 ? Math.max(...lotes.map((l) => l.numero)) : null;
 
-  const abrir = () => { setCantidades({}); setDespuesDe(''); setError(''); setAbierto(true); };
+  const abrir = () => { setCantidades({}); setDespuesDe(''); setCuando(enCostura ? '' : 'programado'); setError(''); setAbierto(true); };
 
   const separar = async () => {
     setError('');
     const talles = disponibles.map((t) => ({ talle: t.talle, cantidad: cantidades[t.talle] || 0 })).filter((t) => t.cantidad > 0);
     if (talles.length === 0) { setError('Cargá cuántas van al lote nuevo'); return; }
     if (!despuesDe) { setError('Elegí después de qué proceso se separa'); return; }
+    if (!cuando) { setError('Elegí si se separa ahora o cuando la costurera termine el proceso'); return; }
     setGuardando(true);
     const r = await fetch(`/api/produccion/cola/${ordenId}/lotes`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ talles, despuesDe }),
+      body: JSON.stringify({ talles, despuesDe, programado: cuando === 'programado' }),
     });
     setGuardando(false);
     if (!r.ok) {
@@ -80,7 +91,23 @@ export function LotesPlanificados({ ordenId, sku, enCostura, lotes, tallesCortad
       return;
     }
     setAbierto(false);
-    toast.success('Lote separado. Imprimí las etiquetas de las bolsas.');
+    toast.success(cuando === 'programado'
+      ? `Programado: se separa cuando la costurera confirme que terminó el ${despuesDe.toLowerCase()}.`
+      : 'Lote separado. Imprimí las etiquetas de las bolsas.');
+    router.refresh();
+  };
+
+  const patch = async (body: object, error: string) => {
+    const r = await fetch(`/api/produccion/cola/${ordenId}/lotes`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      toast.error(typeof d.error === 'string' ? d.error : error);
+      return;
+    }
     router.refresh();
   };
 
@@ -103,13 +130,15 @@ export function LotesPlanificados({ ordenId, sku, enCostura, lotes, tallesCortad
     <Card padding="none" className="p-6 mb-6">
       <div className="flex items-start justify-between gap-3 mb-1">
         <h3 className="text-sm font-bold text-stone-800">Lotes de producción</h3>
-        {enCostura && disponibles.length > 0 && !abierto && (
+        {(enCostura || puedeProgramar) && disponibles.length > 0 && !abierto && !programada && (
           <Button size="sm" variant="secondary" onClick={abrir}>Separar lote</Button>
         )}
       </div>
       <p className="text-xs text-stone-500 mb-3">
         {separada
-          ? 'Cada bolsa lleva su etiqueta y la tablet marca a qué lote van los minutos. Los minutos sin lote (los de antes de separar) se reparten entre los lotes por unidades.'
+          ? (programada
+              ? 'La separación está programada: hasta que la costurera confirme en la tablet que terminó el proceso, la orden es un solo lote y todo lo cosido se reparte entre los lotes por unidades.'
+              : 'La tablet le pone a cada registro el lote más chico de los que están en el taller: dale a la costurera la bolsa que querés que cosa. Los minutos sin lote (los de antes de separar) se reparten entre los lotes por unidades.')
           : 'Este corte es un solo lote. Si en el taller hay que separar una parte —con todo cortado, después del remallado…—, separala acá: cada bolsa lleva su etiqueta y la tablet le marca los minutos.'}
       </p>
 
@@ -136,14 +165,44 @@ export function LotesPlanificados({ ordenId, sku, enCostura, lotes, tallesCortad
                 ingresado {l.ingresado}/{l.unidades}
               </span>
               <span className="text-xs text-stone-400">{fmtMin(l.minutos)} min marcados</span>
+              {!programada && l.abierto && (
+                <span className={`text-xs font-semibold ${l.enTaller ? 'text-emerald-700' : 'text-stone-400'}`}>
+                  {l.enTaller ? 'en el taller' : 'fuera del taller'}
+                  {l.numero === loteTablet && ' · la tablet carga acá'}
+                </span>
+              )}
+              {programada && l.numero > 1 && (
+                <span className="text-xs font-semibold text-sky-700">programado</span>
+              )}
               <span className="ml-auto flex gap-3">
-                {l.numero === ultimo && enCostura && l.ingresado === 0 && (
+                {!programada && l.abierto && enCostura && (
+                  <button type="button" onClick={() => patch({ numero: l.numero, enTaller: !l.enTaller }, 'No se pudo cambiar')}
+                    className="text-xs text-stone-500 hover:text-stone-800">
+                    {l.enTaller ? 'Sacar del taller' : 'Pasar al taller'}
+                  </button>
+                )}
+                {l.numero === ultimo && (enCostura || programada) && l.ingresado === 0 && (
                   <button type="button" onClick={() => deshacer(l.numero)} className="text-xs text-stone-400 hover:text-red-600">Deshacer</button>
                 )}
                 <Link href={`/produccion/${ordenId}/lote/${l.numero}/etiqueta${etiquetaQs}`} className="text-xs text-amber-600 hover:underline">Etiqueta</Link>
               </span>
             </div>
           ))}
+          {programada && (
+            <div className="flex flex-wrap items-center gap-2 text-xs text-sky-800 bg-sky-50 border border-sky-200 rounded-lg p-2.5">
+              <span>
+                Se activa cuando la costurera, al dejar la {MAQUINA_DEL_PROCESO[lotes.find((l) => l.numero > 1 && !l.activadoAt)?.despuesDe ?? '']?.toLowerCase() ?? 'máquina'},
+                confirme en la tablet que terminó. Al activarse, el Lote 1 queda en el taller y el resto afuera.
+              </span>
+              {enCostura && (
+                <button type="button" onClick={() => patch({ activar: true }, 'No se pudo activar')}
+                  className="ml-auto font-semibold text-sky-700 hover:underline">Activar ahora</button>
+              )}
+            </div>
+          )}
+          {!programada && loteTablet == null && lotes.some((l) => l.abierto) && (
+            <p className="text-xs text-amber-700">Ningún lote abierto está en el taller: lo que cosa la costurera queda sin lote.</p>
+          )}
           {minutosSinLote > 0 && (
             <p className="text-xs text-stone-500 pt-1">
               {fmtMin(minutosSinLote)} min de {sku ?? 'esta orden'} no tienen lote: se reparten entre los lotes por unidades.
@@ -176,6 +235,18 @@ export function LotesPlanificados({ ordenId, sku, enCostura, lotes, tallesCortad
               {PUNTOS_DE_SEPARACION.map((p) => <option key={p}>{p}</option>)}
             </select>
           </label>
+          <fieldset className="text-xs text-stone-600 space-y-1">
+            <legend className="text-stone-500 mb-1">¿Cuándo rige?</legend>
+            <label className={`flex items-center gap-2 ${enCostura ? '' : 'opacity-40'}`}>
+              <input type="radio" name="cuando" disabled={!enCostura} checked={cuando === 'ahora'} onChange={() => setCuando('ahora')} className="accent-amber-600" />
+              Ahora — el proceso ya terminó
+            </label>
+            <label className={`flex items-center gap-2 ${despuesDe && !MAQUINA_DEL_PROCESO[despuesDe] ? 'opacity-40' : ''}`}>
+              <input type="radio" name="cuando" disabled={!!despuesDe && !MAQUINA_DEL_PROCESO[despuesDe]} checked={cuando === 'programado'}
+                onChange={() => setCuando('programado')} className="accent-amber-600" />
+              Cuando la costurera deje la {despuesDe && MAQUINA_DEL_PROCESO[despuesDe] ? MAQUINA_DEL_PROCESO[despuesDe].toLowerCase() : 'máquina'} y confirme en la tablet que terminó
+            </label>
+          </fieldset>
           {totalSeparar > 0 && (
             <p className="text-xs text-stone-600">
               Lote nuevo: <strong>{totalSeparar} u</strong> · el Lote 1 queda con{' '}

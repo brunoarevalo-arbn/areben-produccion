@@ -1613,6 +1613,12 @@ model LotePlanificado {
   despuesDe   String
   separadoAt  DateTime        @default(now())
   separadoPor String
+  // null = PROGRAMADO: la separación espera que la costurera confirme en la tablet que
+  // terminó `despuesDe` (p. ej. el remallado). Hasta entonces la orden es un solo lote.
+  activadoAt  DateTime?
+  // Si la costurera lo tiene en la mesa. La tablet asigna sola el lote más chico de los que
+  // están en el taller; el taller decide cuál le da.
+  enTaller    Boolean         @default(true)
 
   talles   LotePlanificadoTalle[]
   ingresos LoteCorte[]

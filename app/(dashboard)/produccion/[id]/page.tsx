@@ -182,14 +182,16 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
         </Card>
       )}
 
-      {['CORTE', 'COSTURA', 'TERMINADO_SIN_ESTAMPA'].includes(orden.estado) && (
+      {['PENDIENTE', 'CORTE', 'COSTURA', 'TERMINADO_SIN_ESTAMPA'].includes(orden.estado) && (
         <LotesPlanificados
           ordenId={orden.id}
           sku={orden.sku}
           enCostura={orden.estado === 'COSTURA'}
+          puedeProgramar={['PENDIENTE', 'CORTE', 'COSTURA'].includes(orden.estado)}
           lotes={lotesPlan.map((l) => ({
             id: l.id, numero: l.numero, despuesDe: l.despuesDe, separadoAt: l.separadoAt.toISOString(),
             talles: l.talles, unidades: l.unidades, ingresado: l.ingresado, abierto: l.abierto,
+            activadoAt: l.activadoAt?.toISOString() ?? null, enTaller: l.enTaller,
             minutos: minutosDeLote(l.numero),
           }))}
           tallesCortados={cortadoPorTalle ? ordenarTalles(cortadoPorTalle) : null}

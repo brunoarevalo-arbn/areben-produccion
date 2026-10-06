@@ -59,6 +59,8 @@ export const SepararLoteSchema = z.object({
     cantidad: z.number().int().nonnegative(),
   })).min(1, 'Cargá al menos un talle'),
   despuesDe: z.string().trim().min(1, 'Elegí después de qué proceso se separa').max(60),
+  // true = queda esperando que la costurera confirme en la tablet que terminó `despuesDe`.
+  programado: z.boolean().default(false),
 });
 
 // Ajuste manual de stock de producto terminado (carga inicial, merma, corrección).
