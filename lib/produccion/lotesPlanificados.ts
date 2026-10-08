@@ -255,6 +255,8 @@ export async function separarLote(
     await tx.$executeRaw`
       UPDATE "lotes_corte" SET "lotePlanificadoId" = ${lote1.id}, "minutosComunes" = "minutosImputados"
       WHERE "ordenId" = ${ordenId} AND "lotePlanificadoId" IS NULL`;
+    // Las fallas del corte entero son del Lote 1 por lo mismo: es el corte, y de ahí se separa.
+    await tx.fallaLote.updateMany({ where: { ordenId, loteId: null }, data: { loteId: lote1.id } });
     lotes = await estadoDeLotes(tx, orden);
   }
 
@@ -428,7 +430,8 @@ export async function ponerEnTaller(
  * desoculta, y la costurera elige la bolsa.
  */
 export interface FallaInput {
-  numero: number;
+  /** El lote planificado; `null` si la orden no está separada (la falla es del corte entero). */
+  numero: number | null;
   parte: string | null;
   talle: string;
   cantidad: number;
@@ -436,78 +439,169 @@ export interface FallaInput {
   motivo?: string | null;
 }
 
+/** Una falla para mandar a una pantalla. */
+export interface FallaDTO {
+  id: string;
+  numero: number | null;
+  parte: string | null;
+  talle: string;
+  cantidad: number;
+  proceso: string;
+  motivo: string | null;
+  registradoPor: string;
+  createdAt: string;
+}
+
 /**
- * Registra piezas perdidas en un lote. Sólo lo que todavía ⛔ entró: lo ingresado ya es
- * stock y una falla de ahí es otra cosa (un ajuste de stock).
+ * Todo lo que hace falta para registrar una falla en una orden, separada o no: a dónde puede
+ * ir (un destino por lote abierto, o uno solo —`numero: null`— con el corte entero) y cuánto
+ * le queda a cada pieza y talle de ese destino. Es lo que muestra el formulario y lo que
+ * controla `registrarFalla`: los dos leen lo mismo.
+ */
+export interface ContextoFallas {
+  separada: boolean;
+  /** Las piezas de la prenda (`[]` si no se cose por piezas). */
+  partes: string[];
+  destinos: { numero: number | null; talles: TalleConteo[]; quedaPorParte: Record<string, TalleConteo[]> }[];
+  fallas: FallaDTO[];
+  /** Por pieza (`''` si no se parte) y talle, las falladas de la orden entera. */
+  fallasPorParte: Record<string, TalleConteo[]>;
+}
+
+type OrdenParaFallas = { id: string; sku: string | null; cortesPorTalle?: TalleConteo[]; fichaCorteData?: unknown };
+
+const sumarEn = (m: Map<string, Map<string, number>>, k: string, talle: string, n: number) => {
+  const t = m.get(k);
+  if (t) t.set(talle, (t.get(talle) ?? 0) + n);
+};
+
+export async function contextoFallas(db: Db, orden: OrdenParaFallas): Promise<ContextoFallas> {
+  const lotes = await estadoDeLotes(db, orden);
+  const partes = (await partesDeOrden(db, orden.sku)).map((p) => p.nombre);
+  const claves = partes.length > 0 ? partes : [''];
+
+  const filas = await db.fallaLote.findMany({
+    where: { ordenId: orden.id }, orderBy: { createdAt: 'asc' }, include: { lote: { select: { numero: true } } },
+  });
+  const fallas: FallaDTO[] = filas.map((f) => ({
+    id: f.id, numero: f.lote?.numero ?? null, parte: f.parte, talle: f.talle, cantidad: f.cantidad,
+    proceso: f.proceso, motivo: f.motivo, registradoPor: f.registradoPor, createdAt: f.createdAt.toISOString(),
+  }));
+  const todas = new Map<string, Map<string, number>>(claves.map((k) => [k, new Map()]));
+  for (const f of filas) sumarEn(todas, f.parte ?? '', f.talle, f.cantidad);
+  const aConteo = (m: Map<string, Map<string, number>>) => Object.fromEntries([...m.entries()].map(([k, t]) => [
+    k, ordenarTalles([...t.entries()].map(([talle, cantidad]) => ({ talle, cantidad }))),
+  ]));
+
+  let destinos: ContextoFallas['destinos'];
+  if (lotes.length > 0) {
+    destinos = lotes.filter((l) => l.abierto).map((l) => ({
+      numero: l.numero,
+      talles: l.talles,
+      quedaPorParte: Object.fromEntries(claves.map((k) => [k, l.talles.map((t) => ({
+        talle: t.talle,
+        cantidad: Math.max(0, (l.esperadoPorParte.get(k)?.get(t.talle) ?? 0) - (l.ingresadoPorParte.get(k)?.get(t.talle) ?? 0)),
+      }))])),
+    }));
+  } else {
+    const cortado = ordenarTalles(tallesCortados(orden) ?? []);
+    const ingresado = new Map<string, Map<string, number>>(claves.map((k) => [k, new Map()]));
+    const ingresos = await db.loteCorte.findMany({ where: { ordenId: orden.id }, include: { talles: true } });
+    for (const ing of ingresos) for (const t of ing.talles) sumarEn(ingresado, ing.parte ?? '', t.talle, t.cantidad);
+    destinos = [{
+      numero: null,
+      talles: cortado,
+      quedaPorParte: Object.fromEntries(claves.map((k) => [k, cortado.map((t) => ({
+        talle: t.talle,
+        cantidad: Math.max(0, t.cantidad - (todas.get(k)?.get(t.talle) ?? 0) - (ingresado.get(k)?.get(t.talle) ?? 0)),
+      }))])),
+    }];
+  }
+  return { separada: lotes.length > 0, partes, destinos, fallas, fallasPorParte: aConteo(todas) };
+}
+
+/**
+ * Registra piezas perdidas en una orden: en su lote si está separada, o en el corte entero.
+ * Sólo lo que todavía ⛔ entró: lo ingresado ya es stock y una falla de ahí es un ajuste.
  */
 export async function registrarFalla(
   tx: Prisma.TransactionClient,
   ordenId: string,
   f: FallaInput,
   session: SessionPayload,
-): Promise<EstadoLote[]> {
-  const orden = await tx.ordenProduccion.findUnique({ where: { id: ordenId } });
+): Promise<ContextoFallas> {
+  const orden = await tx.ordenProduccion.findUnique({ where: { id: ordenId }, include: { cortesPorTalle: true } });
   if (!orden) throw new LotePlanificadoError('OP no encontrada');
-  const lotes = await estadoDeLotes(tx, orden);
-  if (lotes.length === 0) {
-    throw new LotePlanificadoError('La OP no está separada en lotes: las fallas se registran en un lote');
-  }
-  const lote = lotes.find((l) => l.numero === f.numero);
-  if (!lote) throw new LotePlanificadoError(`La OP no tiene Lote ${f.numero}`);
+  if (orden.estado === 'CERRADA') throw new LotePlanificadoError(`La OP ${orden.sku ?? ordenId} está cerrada`);
+  const ctx = await contextoFallas(tx, orden);
 
-  const partes = [...lote.esperadoPorParte.keys()].filter((k) => k !== '');
+  if (ctx.separada && f.numero === null) throw new LotePlanificadoError('La orden está separada en lotes: elegí en cuál fue la falla');
+  if (!ctx.separada && f.numero !== null) throw new LotePlanificadoError('La orden no está separada en lotes');
+  const destino = ctx.destinos.find((d) => d.numero === f.numero);
+  if (!destino) {
+    throw new LotePlanificadoError(f.numero === null
+      ? 'No hay lote abierto donde registrar la falla'
+      : `El Lote ${f.numero} no existe o ya entró completo`);
+  }
+  if (destino.talles.length === 0) {
+    throw new LotePlanificadoError(`${orden.sku ?? 'La OP'} no tiene cargado cuánto se cortó por talle: cargá la ficha de corte antes.`);
+  }
+
   const k = f.parte ?? '';
-  if (partes.length > 0 && !partes.includes(k)) {
-    throw new LotePlanificadoError(`Elegí la pieza que falló (${partes.join(' o ')})`);
+  if (ctx.partes.length > 0 && !ctx.partes.includes(k)) {
+    throw new LotePlanificadoError(`Elegí la pieza que falló (${ctx.partes.join(' o ')})`);
   }
-  if (partes.length === 0 && f.parte) throw new LotePlanificadoError('Esta prenda no se cose por piezas');
-  if (!lote.talles.some((t) => t.talle === f.talle)) {
-    throw new LotePlanificadoError(`El Lote ${f.numero} no tiene talle ${f.talle}`);
+  if (ctx.partes.length === 0 && f.parte) throw new LotePlanificadoError('Esta prenda no se cose por piezas');
+  if (!destino.talles.some((t) => t.talle === f.talle)) {
+    throw new LotePlanificadoError(`${f.numero === null ? 'El corte' : `El Lote ${f.numero}`} no tiene talle ${f.talle}`);
   }
-  const queda = (lote.esperadoPorParte.get(k)?.get(f.talle) ?? 0) - (lote.ingresadoPorParte.get(k)?.get(f.talle) ?? 0);
+  const queda = destino.quedaPorParte[k]?.find((t) => t.talle === f.talle)?.cantidad ?? 0;
   if (f.cantidad > queda) {
     throw new LotePlanificadoError(
-      `Al Lote ${f.numero} le quedan ${Math.max(0, queda)} ${f.parte ? `${f.parte.toLowerCase()}s ` : ''}talle ${f.talle} sin ingresar ` +
-      `y se quieren dar por falladas ${f.cantidad}.`,
+      `${f.numero === null ? 'Al corte' : `Al Lote ${f.numero}`} le quedan ${queda} ${f.parte ? `${f.parte.toLowerCase()}s ` : ''}` +
+      `talle ${f.talle} sin ingresar y se quieren dar por falladas ${f.cantidad}.`,
     );
   }
 
+  const loteId = f.numero === null ? null
+    : (await tx.lotePlanificado.findUniqueOrThrow({ where: { ordenId_numero: { ordenId, numero: f.numero } } })).id;
   await tx.fallaLote.create({
     data: {
-      loteId: lote.id, parte: f.parte, talle: f.talle, cantidad: f.cantidad, proceso: f.proceso,
+      ordenId, loteId, parte: f.parte, talle: f.talle, cantidad: f.cantidad, proceso: f.proceso,
       motivo: f.motivo?.trim() || null, registradoPor: session.nombre,
     },
   });
   await tx.estadoTransicion.create({
     data: {
       ordenId, estadoAnterior: orden.estado, estadoNuevo: orden.estado, usuarioId: session.id,
-      notas: `Falla en el Lote ${f.numero}: ${f.cantidad} ${f.parte ? `${f.parte.toLowerCase()}${f.cantidad > 1 ? 's' : ''} ` : ''}` +
+      notas: `Falla${f.numero === null ? '' : ` en el Lote ${f.numero}`}: ${f.cantidad} ` +
+             `${f.parte ? `${f.parte.toLowerCase()}${f.cantidad > 1 ? 's' : ''} ` : ''}` +
              `talle ${f.talle}, en ${f.proceso}${f.motivo?.trim() ? ` (${f.motivo.trim()})` : ''}.`,
     },
   });
-  return estadoDeLotes(tx, orden);
+  return contextoFallas(tx, orden);
 }
 
-/** Borra una falla cargada por error: esas piezas vuelven a esperarse en su lote. */
+/** Borra una falla cargada por error: esas piezas vuelven a esperarse. */
 export async function borrarFalla(
   tx: Prisma.TransactionClient,
   ordenId: string,
   fallaId: string,
   session: SessionPayload,
-): Promise<EstadoLote[]> {
-  const orden = await tx.ordenProduccion.findUnique({ where: { id: ordenId } });
+): Promise<ContextoFallas> {
+  const orden = await tx.ordenProduccion.findUnique({ where: { id: ordenId }, include: { cortesPorTalle: true } });
   if (!orden) throw new LotePlanificadoError('OP no encontrada');
-  const falla = await tx.fallaLote.findUnique({ where: { id: fallaId }, include: { lote: true } });
-  if (!falla || falla.lote.ordenId !== ordenId) throw new LotePlanificadoError('Esa falla no es de esta OP');
+  const falla = await tx.fallaLote.findUnique({ where: { id: fallaId }, include: { lote: { select: { numero: true } } } });
+  if (!falla || falla.ordenId !== ordenId) throw new LotePlanificadoError('Esa falla no es de esta OP');
   await tx.fallaLote.delete({ where: { id: fallaId } });
   await tx.estadoTransicion.create({
     data: {
       ordenId, estadoAnterior: orden.estado, estadoNuevo: orden.estado, usuarioId: session.id,
-      notas: `Borrada la falla del Lote ${falla.lote.numero} (${falla.cantidad} ${falla.parte ?? ''} talle ${falla.talle}, ` +
-             `${falla.proceso}): vuelven a esperarse.`,
+      notas: `Borrada la falla${falla.lote ? ` del Lote ${falla.lote.numero}` : ''} (${falla.cantidad} ${falla.parte ?? ''} ` +
+             `talle ${falla.talle}, ${falla.proceso}): vuelven a esperarse.`,
     },
   });
-  return estadoDeLotes(tx, orden);
+  return contextoFallas(tx, orden);
 }
 
 export function lotesVisibles(lotes: EstadoLote[]): number[] {

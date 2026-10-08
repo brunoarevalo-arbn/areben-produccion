@@ -10,7 +10,7 @@ import { CargaTizadaBtn } from '@/components/produccion/CargaTizadaBtn';
 import { volverASeguro } from '@/lib/volverA';
 import { minutosSinImputar } from '@/lib/produccion/loteCorte';
 import { calcularCostoMinuto } from '@/lib/costoMinuto';
-import { estadoDeLotes } from '@/lib/produccion/lotesPlanificados';
+import { contextoFallas, estadoDeLotes } from '@/lib/produccion/lotesPlanificados';
 import { tallesCortados } from '@/lib/produccion/cantidades';
 import { ordenarTalles } from '@/lib/constants/lotes';
 import { LotesPlanificados } from '@/components/produccion/LotesPlanificados';
@@ -77,6 +77,7 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
   // Lotes planificados ("Lote 1 / Lote 2") y los minutos de la tablet de cada uno. Los
   // registros sin lote —o con un número que ya no existe— son de todos.
   const lotesPlan = await estadoDeLotes(prisma, orden);
+  const fallasOrden = await contextoFallas(prisma, orden);
   const minutosPorLote = orden.sku?.trim()
     ? await prisma.tiemposProduccion.groupBy({
         by: ['lote'], where: { sku: orden.sku.trim(), estado: 'guardado' }, _sum: { minutosNetos: true },
@@ -199,6 +200,7 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
           tallesCortados={cortadoPorTalle ? ordenarTalles(cortadoPorTalle) : null}
           minutosSinLote={minutosSinLote}
           etiquetaQs={qs}
+          fallasSinSeparar={lotesPlan.length === 0 ? fallasOrden.fallas : []}
         />
       )}
 
@@ -268,7 +270,13 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
                         {/* De qué se dividió: 'planificado' significa que la orden no tenía corte
                             cargado y el unitario puede estar lejos del real. El número solo no lo dice. */}
                         <span className={l.baseMaterial === 'cortado' ? 'text-stone-400' : 'text-amber-700 font-semibold'}>
-                          {' '}(÷{l.unidadesBase} {l.baseMaterial === 'cortado' ? 'cortadas' : 'PLANIFICADAS'})
+                          {' '}(÷{l.unidadesBase} {l.baseMaterial === 'cortado'
+                            // Con piezas falladas el divisor es lo cortado MENOS ellas: decirlo, que
+                            // "÷47 cortadas" sobre un corte de 52 miente.
+                            ? (orden.cantidadCortada != null && l.unidadesBase < orden.cantidadCortada
+                                ? `= ${orden.cantidadCortada} cortadas − ${orden.cantidadCortada - l.unidadesBase} falladas`
+                                : 'cortadas')
+                            : 'PLANIFICADAS'})
                         </span>
                       </>}
                   {' · '}MO ${fmt(l.costoMoUnit)}

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParamState, useParamTexto, useParamSet, useVolverA } from '@/lib/hooks/useParamState';
 import Link from 'next/link';
 import { NumInput } from '@/components/ui/NumInput';
+import { FallaForm } from './FallaForm';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { CargaTizadaBtn } from '@/components/produccion/CargaTizadaBtn';
@@ -56,6 +57,8 @@ interface Orden {
   /** Los lotes planificados ("Lote 1 / Lote 2"). Vacío = lote único. */
   lotesPlanificados?: { numero: number; activadoAt: string | null }[];
   lotesDetalle?: (LotePlan & { talles: { talle: string; cantidad: number }[]; activadoAt: string | null; enTaller: boolean })[];
+  /** Fallas del corte entero (orden sin separar). Las de un lote vienen en `lotesDetalle`. */
+  fallas?: { parte: string | null; talle: string; cantidad: number; proceso: string }[];
   /** En espera ("falta dije"): fuera de la tablet hasta que se retome. */
   enEsperaDesde?: string | null;
   enEsperaMotivo?: string | null;
@@ -176,6 +179,8 @@ export function ColaAdmin() {
   const [terminarError,  setTerminarError]  = useState('');
 
   const [esperaOrden,  setEsperaOrden]  = useState<Orden | null>(null);
+  // «Registrar falla…» del ⋮: la orden donde está abierto.
+  const [fallaOrden,   setFallaOrden]   = useState<Orden | null>(null);
   const [esperaMotivo, setEsperaMotivo] = useState('');
 
   // Agrupar OPs sueltas existentes en un lote
@@ -418,11 +423,18 @@ export function ColaAdmin() {
     // Separada en lotes: la grilla se llena recién al elegir el lote, con lo que le falta a ése.
     if (lotes.length > 0) { setTerminarTalles([]); return; }
     const base = talles.length > 0 ? talles : [{ talle: '', cantidad: '' }];
+    // Lo cortado MENOS lo fallado de cada pieza: las falladas ya no van a entrar.
+    const fallado = (parte: string | null, talle: string) => (orden.fallas ?? [])
+      .filter((f) => (f.parte ?? null) === parte && f.talle === talle).reduce((s, f) => s + f.cantidad, 0);
+    const menos = (cant: string, parte: string | null, talle: string) => {
+      const n = parseInt(cant);
+      return Number.isFinite(n) ? String(Math.max(0, n - fallado(parte, talle))) : cant;
+    };
     setTerminarTalles(
       partes.length > 0
-        // Una fila por talle con una cantidad POR PIEZA, prellenadas con lo cortado.
-        ? base.map((t) => ({ talle: t.talle, cantidad: t.cantidad, porParte: Object.fromEntries(partes.map((p) => [p.nombre, t.cantidad])) }))
-        : base,
+        // Una fila por talle con una cantidad POR PIEZA, prellenadas con lo cortado (menos las falladas).
+        ? base.map((t) => ({ talle: t.talle, cantidad: t.cantidad, porParte: Object.fromEntries(partes.map((p) => [p.nombre, menos(t.cantidad, p.nombre, t.talle)])) }))
+        : base.map((t) => ({ ...t, cantidad: menos(t.cantidad, null, t.talle) })),
     );
   };
 
@@ -771,11 +783,18 @@ export function ColaAdmin() {
             </button>
           )}
           <PopoverMenu items={[
+            ...(['CORTE', 'COSTURA'].includes(orden.estado)
+              ? [{ label: 'Registrar falla…', onClick: () => setFallaOrden(orden) }] : []),
             { label: 'Editar orden', onClick: () => abrirEdicion(orden) },
             { label: 'Eliminar', onClick: () => eliminar(orden.id, orden.sku), danger: true },
           ]} />
         </div>
       </div>
+      {(orden.fallas?.length ?? 0) > 0 && (
+        <div className="px-4 md:px-5 pb-1 text-xs text-red-700 pl-6 md:pl-[8.25rem]" title="Piezas perdidas: la orden ya no las espera">
+          falla: {orden.fallas!.map((f) => `${f.cantidad} ${f.parte ? f.parte.toLowerCase() + ' ' : ''}${f.talle} (${f.proceso})`).join(' · ')}
+        </div>
+      )}
       {/* Los lotes de una orden separada, listados acá: qué bolsa es cuál y cuáles ve la costurera. */}
       {lotes.length > 0 && orden.estado !== 'CERRADA' && (
         <div className={`px-4 md:px-5 pb-2 pt-0.5 space-y-1 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''}`}>
@@ -1174,6 +1193,19 @@ export function ColaAdmin() {
               </Button>
               <Button variant="secondary" onClick={() => setTerminarOrden(null)}>Cancelar</Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Registrar falla: piezas perdidas, que la orden (o su lote) deja de esperar */}
+      {fallaOrden && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/40 px-4" onClick={() => setFallaOrden(null)}>
+          <div className="bg-white rounded-2xl border border-stone-200 p-5 w-full max-w-lg shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-stone-800 mb-1">Registrar falla <span className="font-mono text-stone-500">{fallaOrden.sku}</span></h3>
+            <p className="text-xs text-stone-500 mb-3">
+              Piezas que se perdieron y ya no van a salir. La orden deja de esperarlas: el ingreso las descuenta y su tela la pagan las buenas.
+            </p>
+            <FallaForm ordenId={fallaOrden.id} onGuardado={() => { setFallaOrden(null); cargar(); }} onCancelar={() => setFallaOrden(null)} />
           </div>
         </div>
       )}

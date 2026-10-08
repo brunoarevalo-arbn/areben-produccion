@@ -4,7 +4,7 @@ import { parseDatos } from '@/lib/costos/escandallo';
 import { cantidadCortada, cantidadIngresadaPorPartes, baseDeReparto } from './cantidades';
 import { crearLoteCongelado, partesDelLote, minutosSinImputarDelLote, type ParteDelLote } from './loteCorte';
 import { partesDeOrden } from './conjuntos';
-import { estadoDeLotes, excesoSobreLote, lotePlanParaCostear } from './lotesPlanificados';
+import { contextoFallas, estadoDeLotes, excesoSobreLote, lotePlanParaCostear } from './lotesPlanificados';
 
 export class CosturaError extends Error {}
 
@@ -230,9 +230,15 @@ export async function terminarCosturaOrden(
   // 🔴 Separada en lotes, la orden completa cuando NINGÚN lote espera nada: con piezas
   // falladas (registradas en su lote) lo ingresado ⛔ llega nunca a lo cortado, y por la
   // suma la orden quedaba en costura para siempre. Sin fallas, las dos cuentas coinciden.
+  // Sin separar y con fallas, lo mismo con el corte entero: completa cuando a ninguna pieza
+  // le queda nada por entrar.
   const completo = lotes.length > 0
     ? (await estadoDeLotes(tx, orden)).every((l) => !l.abierto)
-    : ingresadoTotal >= meta;
+    : ingresadoTotal >= meta || (
+      await tx.fallaLote.count({ where: { ordenId } }) > 0 &&
+      (await contextoFallas(tx, orden)).destinos.every((d) => d.talles.length > 0 &&
+        Object.values(d.quedaPorParte).every((ts) => ts.every((t) => t.cantidad === 0)))
+    );
 
   const detalleTalles = detallePorParte.join(' · ');
   // Con lotes planificados el nombre del lote es el de la bolsa ("Lote 2"), no el orden

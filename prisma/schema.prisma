@@ -661,6 +661,7 @@ model OrdenProduccion {
   edicionesCorte    EdicionCorte[]
   lotesCorte        LoteCorte[]
   lotesPlanificados LotePlanificado[]
+  fallas            FallaLote[]
 
   // EN ESPERA: se sacó del taller sin terminar porque falta algo ("falta dije") y se guarda
   // para cerrar después. La tablet no la muestra; la cola sí, con el motivo. ⛔ No mueve el
@@ -1638,9 +1639,13 @@ model LotePlanificado {
 // Piezas perdidas en un proceso, dentro de su lote (8-oct: 5 bombachas M de la RAYROS en
 // el remallado). El lote deja de esperarlas: ver lib/produccion/lotesPlanificados.ts.
 model FallaLote {
-  id            String          @id @default(cuid())
-  loteId        String
-  lote          LotePlanificado @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  id            String           @id @default(cuid())
+  ordenId       String
+  orden         OrdenProduccion  @relation(fields: [ordenId], references: [id], onDelete: Cascade)
+  // null = la orden no está separada: la falla es del corte entero. Al separar por primera
+  // vez pasa al Lote 1 (de donde se separa todo lo demás).
+  loteId        String?
+  lote          LotePlanificado? @relation(fields: [loteId], references: [id], onDelete: Cascade)
   parte         String? // null = la prenda no se cose por piezas
   talle         String
   cantidad      Int
@@ -1650,6 +1655,7 @@ model FallaLote {
   createdAt     DateTime        @default(now())
 
   @@index([loteId])
+  @@index([ordenId])
   @@map("fallas_lote")
 }
 

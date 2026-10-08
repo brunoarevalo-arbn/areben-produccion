@@ -17,7 +17,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { terminarCosturaOrden, CosturaError } from '../lib/produccion/costura';
 import { LoteCorteError } from '../lib/produccion/loteCorte';
-import { separarLote, deshacerLote, activarSeparacion, ponerEnTaller, lotesParaTablet, registrarFalla, borrarFalla, estadoDeLotes, lotesParaPantalla, LotePlanificadoError } from '../lib/produccion/lotesPlanificados';
+import { separarLote, deshacerLote, activarSeparacion, ponerEnTaller, lotesParaTablet, registrarFalla, borrarFalla, estadoDeLotes, lotesParaPantalla, contextoFallas, LotePlanificadoError } from '../lib/produccion/lotesPlanificados';
 import { TerminarCosturaSchema, TerminarLoteSchema, SepararLoteSchema } from '../lib/validators/produccion';
 import { TiempoSchema } from '../lib/validators/tiempos';
 
@@ -49,10 +49,12 @@ const BIK = 'ZAT-BIK-TST-901';
 const TOP = 'ZAT-TOP-TST-901';
 const PRG = 'ZAT-TOP-TST-903';
 const FAL = 'ZAT-BIK-TST-904';
+const FAL2 = 'ZAT-BIK-TST-905';
+const FAL3 = 'ZAT-BIK-TST-906';
 const PIEZAS = ['Corpiño', 'Bombacha'];
 
 async function limpiar() {
-  for (const sku of [BIK, TOP, PRG, FAL]) {
+  for (const sku of [BIK, TOP, PRG, FAL, FAL2, FAL3]) {
     await prisma.$executeRawUnsafe(`DELETE FROM tiempos_produccion WHERE sku = '${sku}'`);
     await prisma.$executeRawUnsafe(
       `DELETE FROM estado_transiciones WHERE "ordenId" IN (SELECT id FROM ordenes_produccion WHERE sku = '${sku}')`);
@@ -61,7 +63,7 @@ async function limpiar() {
     await prisma.$executeRawUnsafe(`DELETE FROM ordenes_produccion WHERE sku = '${sku}'`);
   }
   await prisma.$executeRawUnsafe(
-    `DELETE FROM stock_terminado WHERE sku IN ('${BIK}','${TOP}','${FAL}','ZAT-COR-TST-901','ZAT-BOM-TST-901','ZAT-COR-TST-904','ZAT-BOM-TST-904')`);
+    `DELETE FROM stock_terminado WHERE sku IN ('${BIK}','${TOP}','${FAL}','ZAT-COR-TST-901','ZAT-BOM-TST-901','ZAT-COR-TST-904','ZAT-BOM-TST-904','${FAL2}','ZAT-COR-TST-905','ZAT-BOM-TST-905')`);
 }
 
 async function crearOrden(sku: string, talles: Record<string, string>) {
@@ -344,6 +346,66 @@ async function main() {
   await prisma.$transaction((tx) => terminarCosturaOrden(tx, fal.id, piezas([{ talle: 'S', cantidad: 10 }, { talle: 'M', cantidad: 5 }]), ses, true, f1));
   r = await sql(`SELECT estado FROM ordenes_produccion WHERE id='${fal.id}'`);
   chequear('entra el Lote 1 entero: la orden TERMINA aunque entraron 17 bombachas de 20 cortadas', r[0].estado === 'TERMINADO_SIN_ESTAMPA', String(r[0].estado));
+
+  // ============ L. Fallas en una orden SIN separar, y la tela de las falladas la pagan las buenas ============
+  console.log('\n=== L. Sin separar: 4 bombachas M falladas; la tela de bombacha se divide entre 16, no 20 ===');
+  // El % de material por pieza hace falta para costear con tela; en la base de prueba está vacío.
+  // Se pone 45/55 para el ejercicio y se deja como estaba al final.
+  const pctAntes = await sql(`SELECT id, "porcentajeMaterial" FROM partes_prenda`);
+  await prisma.$executeRawUnsafe(`UPDATE partes_prenda SET "porcentajeMaterial" = CASE nombre WHEN 'Corpiño' THEN 45 ELSE 55 END
+    WHERE "conjuntoId" = (SELECT id FROM conjuntos_prenda WHERE "prendaAbrev"='BIK')`);
+  const fl2 = await crearOrden(FAL2, { S: '10', M: '10' });
+  await prisma.ordenProduccion.update({ where: { id: fl2.id }, data: { cantidad: 20, cantidadCortada: 20, costoTotal: 2000 } });
+  msg = await plantado(() => prisma.$transaction((tx) =>
+    registrarFalla(tx, fl2.id, { numero: 2, parte: 'Bombacha', talle: 'M', cantidad: 1, proceso: 'Remallado' }, ses)));
+  chequear('con número de lote en una orden sin separar, se planta', msg.includes('no está separada'), msg || 'NO se plantó');
+  await prisma.$transaction((tx) =>
+    registrarFalla(tx, fl2.id, { numero: null, parte: 'Bombacha', talle: 'M', cantidad: 4, proceso: 'Remallado' }, ses));
+  r = await sql(`SELECT "loteId", "ordenId" FROM fallas_lote WHERE "ordenId"='${fl2.id}'`);
+  chequear('la falla cuelga de la orden, sin lote (oráculo: SQL)', r.length === 1 && r[0].loteId === null, JSON.stringify(r));
+  let ctx = await contextoFallas(prisma, fl2);
+  const q = (parte: string, talle: string) => ctx.destinos[0].quedaPorParte[parte]?.find((t) => t.talle === talle)?.cantidad;
+  chequear('al corte le quedan Bombacha M 6 y Corpiño M 10', q('Bombacha', 'M') === 6 && q('Corpiño', 'M') === 10, JSON.stringify(ctx.destinos[0].quedaPorParte));
+  msg = await plantado(() => prisma.$transaction((tx) =>
+    registrarFalla(tx, fl2.id, { numero: null, parte: 'Bombacha', talle: 'M', cantidad: 7, proceso: 'Remallado' }, ses)));
+  chequear('más de las que quedan sin separar, se planta', msg.includes('le quedan 6'), msg || 'NO se plantó');
+  await prisma.$transaction((tx) => terminarCosturaOrden(tx, fl2.id, piezas([{ talle: 'S', cantidad: 10 }]), ses, true));
+  r = await sql(`SELECT parte, "unidadesBase", "costoMaterialUnit"::float AS cm FROM lotes_corte WHERE "ordenId"='${fl2.id}' ORDER BY parte`);
+  const pct = await sql(`SELECT p.nombre, p."porcentajeMaterial"::float AS pm FROM partes_prenda p JOIN conjuntos_prenda c ON c.id=p."conjuntoId" WHERE c."prendaAbrev"='BIK'`);
+  const pm = (n: string) => Number(pct.find((x) => x.nombre === n)?.pm ?? NaN);
+  const bomL = r.find((x) => x.parte === 'Bombacha'); const corL = r.find((x) => x.parte === 'Corpiño');
+  chequear('Bombacha: tela ÷ 16 (20 cortadas − 4 falladas)',
+    Number(bomL?.unidadesBase) === 16 && cerca(Number(bomL?.cm), 2000 * pm('Bombacha') / 100 / 16), `base=${bomL?.unidadesBase} cm=${bomL?.cm}`);
+  chequear('Corpiño: tela ÷ 20 (ninguna fallada)',
+    Number(corL?.unidadesBase) === 20 && cerca(Number(corL?.cm), 2000 * pm('Corpiño') / 100 / 20), `base=${corL?.unidadesBase} cm=${corL?.cm}`);
+  r = await sql(`SELECT estado FROM ordenes_produccion WHERE id='${fl2.id}'`);
+  chequear('falta el talle M: sigue en COSTURA', r[0].estado === 'COSTURA', String(r[0].estado));
+  await prisma.$transaction((tx) => terminarCosturaOrden(tx, fl2.id, [
+    { parte: 'Corpiño', talles: [{ talle: 'M', cantidad: 10 }] },
+    { parte: 'Bombacha', talles: [{ talle: 'M', cantidad: 6 }] },
+  ], ses, true));
+  r = await sql(`SELECT estado FROM ordenes_produccion WHERE id='${fl2.id}'`);
+  chequear('10 corpiños + 6 bombachas M: la orden TERMINA (16 de 20 bombachas)', r[0].estado === 'TERMINADO_SIN_ESTAMPA', String(r[0].estado));
+
+  for (const x of pctAntes) {
+    await prisma.$executeRawUnsafe(`UPDATE partes_prenda SET "porcentajeMaterial" = ${x.porcentajeMaterial === null ? 'NULL' : Number(x.porcentajeMaterial)} WHERE id = '${x.id}'`);
+  }
+
+  console.log('\n=== L2. Una falla sin lote pasa al Lote 1 al separar por primera vez ===');
+  const fl3 = await crearOrden(FAL3, { S: '10', M: '10' });
+  await prisma.ordenProduccion.update({ where: { id: fl3.id }, data: { cantidad: 20, cantidadCortada: 20 } });
+  await prisma.$transaction((tx) =>
+    registrarFalla(tx, fl3.id, { numero: null, parte: 'Corpiño', talle: 'S', cantidad: 2, proceso: 'Corte' }, ses));
+  await prisma.$transaction((tx) => separarLote(tx, fl3.id, [{ talle: 'M', cantidad: 10 }], 'Remallado', ses));
+  r = await sql(`SELECT lp.numero FROM fallas_lote f JOIN lotes_planificados lp ON lp.id=f."loteId" WHERE f."ordenId"='${fl3.id}'`);
+  chequear('la falla quedó en el Lote 1', r.length === 1 && Number(r[0].numero) === 1, JSON.stringify(r));
+  dto = lotesParaPantalla(await estadoDeLotes(prisma, fl3)).find((l) => l.numero === 1)!;
+  chequear('el Lote 1 espera 8 corpiños y 10 bombachas', dto.esperadoPorParte['Corpiño'] === 8 && dto.esperadoPorParte['Bombacha'] === 10, JSON.stringify(dto.esperadoPorParte));
+  ctx = await contextoFallas(prisma, fl3);
+  chequear('el contexto ofrece los dos lotes', JSON.stringify(ctx.destinos.map((d) => d.numero)) === '[1,2]', JSON.stringify(ctx.destinos.map((d) => d.numero)));
+  msg = await plantado(() => prisma.$transaction((tx) =>
+    registrarFalla(tx, fl3.id, { numero: null, parte: 'Corpiño', talle: 'S', cantidad: 1, proceso: 'Corte' }, ses)));
+  chequear('separada, sin lote se planta', msg.includes('elegí en cuál'), msg || 'NO se plantó');
 
   await limpiar();
   console.log(`\n${fallos === 0 ? '✅ TODO VERDE' : `❌ ${fallos} FALLO(S)`}`);

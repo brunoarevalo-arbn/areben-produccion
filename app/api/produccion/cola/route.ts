@@ -27,6 +27,8 @@ export async function GET(req: NextRequest) {
         lote: { select: { id: true, prenda: true, descripcion: true, marca: true } },
         // Para que la fila diga de entrada si la orden es un lote único o está separada.
         lotesPlanificados: { select: { numero: true, activadoAt: true }, orderBy: { numero: 'asc' } },
+        // Las fallas del corte entero (sin separar): la fila las muestra y el ingreso las descuenta.
+        fallas: { where: { loteId: null }, select: { parte: true, talle: true, cantidad: true, proceso: true } },
       },
     });
 
