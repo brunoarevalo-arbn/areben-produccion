@@ -5,6 +5,91 @@
 
 _Última actualización: 2026-09-23_
 
+> 🗣️ **Bruno (8-oct): REDISEÑO GRANDE de Producción › Órdenes** — «la sección es un desastre total, tiene que
+> ser un gran cambio». Lo que hace ahí todos los días: **mira cortes, costos, tiempo aprox., oculta/muestra
+> lotes de la tablet, imprime etiquetas de corte**, y hoy **saca la info de otras pantallas**. La usan 3-4
+> personas (Bruno + diseñadora). 🔑 **Estilo: estructura del POS del monitor, con los COLORES de areben hoy
+> (piedra/ámbar).** Plan: `~/.claude/plans/si-claro-hago-eso-hashed-sonnet.md` — Paso 0 = **mockup en
+> artifact con las 8 órdenes reales, aprobado ANTES de tocar código**. 📊 de 7 estados se usan 2 (COSTURA y
+> CERRADA): las 8 activas están en COSTURA. 🏁 **Mockup publicado**: https://claude.ai/artifact/TmRF2563Qt2LGPLAPEytf9 · 🔴 **las 8 abiertas tienen `costoTela=0` y sin escandallo** (las estampadas tampoco el sublimado) ⇒ el costo sólo es corte + MO · 🔴 **$198.200 de cortes de Fernando con `pagoCorteId` NULL** (¿pagados por cuenta corriente sin imputar?) · el único min/u de bikini entera es **TAYRA 20,6** (2.141 min ÷ 104, falta el dije). ▶️ **esperando el OK de Bruno + diseñadora y las 4 decisiones del mockup** antes del Paso 1.
+> 🗣️ **Bruno (8-oct, sobre el mockup v1)**: (1) **la diseñadora NO ve valores** —ni costo, ni corte, ni saldo— ⇒ regla: sin permiso `costos` no hay $; (2) **cada lote/color con su GEOMETRAL** para reconocerlo (los de las bikinis están en `~/Documents/bikinis-2027/img`; ⛔ hay campo en la base: `LoteProduccion`/`OrdenProduccion` no tienen imagen); (3) ⛔ **«faltan aprox.» SACADO**: «me da miedo que todos sean cortes únicos y no se use» ⇒ el Paso 1 ⛔ calcula restante; (4) costo de tela: lo ven en estos días; (5) **con Fernando es CUENTA CORRIENTE**: lo único pendiente es el último corte (AYLA estampada) — 📊 `cuentaDe` = saldo **$85.500** = los 4 cortes AYLA est. ⇒ ⛔ mostrar «sin imputar» por orden (`pagoCorteId`), mostrar el SALDO; (6) **«el sidebar está hecho un desastre»** (15 secciones, ~50 ítems, emojis) ⇒ entra al rediseño. 🏁 v2 publicada en el mismo link.
+> 🗣️ **Bruno (8-oct, sidebar)**: «⛔ me molestaba el oscuro, incluso me gustaba» · le gusta el **resaltado ámbar** · lo que molesta: **«los círculos muy grandes»** (las pastillas `rounded-xl py-2.5` con borde) · **«no tantos cambios le haría»** ⇒ ⛔ menú claro ni riel: **el de hoy AJUSTADO** (mismo stone-900, mismo ámbar, mismas secciones y orden; pastilla de 34 px sin borde, íconos de línea en vez de emoji, sub activo con rayita ámbar; Producción 8 → 4). Mockup v4 con «Menú de hoy» al lado para comparar.
+> 🏁 **8-oct, Bruno aprobó el mockup ⇒ EN PROD**: `e49e6c4` **menú ajustado** (NavIcon.tsx, pastilla 34 px, sin emojis) · `e87c4ab` **tablero nuevo detrás de `/produccion?nuevo=1`** (la cola vieja sigue de default) — `GET /api/produccion/tablero` + `lib/produccion/tablero.ts` + `components/produccion/tablero/`. 📊 oráculo: las 8 abiertas de prod coinciden con la extracción independiente (plan, cortado, ingresado, minutos, registros, corte, tela, lotes; $/min 153,04; saldo Fernando 85.500). Sin `costos` ⇒ 0 claves de plata en la respuesta. Ojo ocultar/mostrar caminado en local (base test) y reflejado en `/api/tiempos/cola`.
+> ▶️ **lo que falta del rediseño**: (a) **GEOMETRAL** = migración (`geometralUrl` en OrdenProduccion, ¿y LoteProduccion?) + ImageDrop al crear producción (lo sube la diseñadora) + mostrarlo en fila/panel/etiqueta; (b) **Ingresar** hoy linkea a `/produccion/lote/[loteId]/terminar` (sin `volverA`) ⇒ traer el modal al tablero; las órdenes SIN lote ⛔ tienen botón; (c) acciones que siguen sólo en la cola vieja: crear, validar corte, asignar cortador, tizada, editar, eliminar, agrupar, retroceder, **Registrar falla** (lo sumó otra sesión, `d3b62c6`); (d) menú Producción 8 → 4 cuando exista la pantalla Cortadores (cortes+cuenta+pagos); (e) cambiar el default cuando Bruno diga; (f) arreglos del plan: `validar-corte`/`carga-tizada` ⛔ recalculan `costoTotal`, y la edición rápida de corte escribe `cantidad` en vez de `cantidadCortada` (verificar antes). Decisiones tomadas por default: geometral lo sube la diseñadora; la diseñadora SÍ ve tiempos.
+> 🏁 **8-oct, 2ª tanda (Bruno: «sí al geometral, a las acciones, al menú y al default»)** — TODO EN PROD:
+> · `7a66820` **GEOMETRAL**: `geometralUrl` en `ordenes_produccion` (el del color) y `lotes_produccion` (el del modelo) — SQL `prisma/sql/2026-10-08-geometral.sql` **APLICADO en prod y test** (sólo columnas) · `PUT /api/produccion/geometral` (permiso produccion **o diseno**) · fila, panel (subir/cambiar) y **etiqueta de la bolsa** · **cargados los de las 8 bikinis** desde `bikinis-2027/img` (AYLA-1 RAYAZ, -2 LUNAMA, -3 RAYROS, -4 CUADNG, -5 NG encaje; **DOBLE-2 = DUA animal print**; TAYRA-1 como modelo de VER/MAR, que ⛔ tienen el suyo).
+> · `69edcae` **ACCIONES** en el tablero (mismos endpoints que la cola): ingresar en VENTANA (TerminarLoteForm con `onListo`), registrar falla (FallaForm), sacar/volver a la tablet, validar corte, cortador, mandar al taller, cerrar, volver atrás con motivo, editar, eliminar, **nueva producción** con geometral. 🔴 **arreglo de paso**: `/produccion/lote/[loteId]/terminar` leía sólo `cortes_por_talle` ⇒ las 8 bikinis llegaban SIN talles; ahora `datosTerminarLote` usa `tallesCortados()` (verificado en prod: las 8 con talles).
+> · `a3174bb` **DEFAULT**: `/produccion` = tablero; la cola vieja en `?vista=anterior` · **menú Producción 8 → 4** (Órdenes · Cortadores · Tiempos · Reportes) con pestañas (`PestanasProduccion.tsx`).
+> ▶️ **queda**: (1) **agrupar sueltas** sigue sólo en la vista anterior; (2) acciones de LOTE entero (cortar lote, cerrar lote, cortador a todo el lote) sólo en la vista anterior; (3) ⛔ hay estándar de tiempo (Bruno lo descartó); (4) los arreglos de costo del plan (`validar-corte`/`carga-tizada` ⛔ recalculan `costoTotal`; edición rápida de corte escribe `cantidad`) — verificar antes de tocar; (5) 🏁 **Stefania (diseñadora) tiene `produccion` y `costos` ⇒ VE los montos: Bruno, 8-oct: «ya fue, dejemos así»** (⛔ sacarle el permiso); (6) `AGENTS.md` todavía dice que Órdenes es `ColaAdmin.tsx`.
+> 🔴 **para correr SQL en test**: `prisma.config.ts` carga `.env` (PROD) ⇒ pasar `DIRECT_URL`/`DATABASE_URL` de `.env.local` explícitos. Y **el token de Blob ⛔ está en los .env locales**: `vercel env pull` a un temporal y borrarlo.
+
+> 🗣️ **Bruno (8-oct): AYLA ESTAMPADA — la dinámica CORRECTA de la tablet arranca con el registro que
+> corría el 8-oct desde ~11:15 (LUNAMA, Corpiño)**: desde ahí Marisol cambia de SKU y de pieza en la
+> tablet ⇒ **la proporción corpiño/bombacha se MIDE de ahí en adelante**. ▶️ **Después, corregir con
+> esa proporción lo registrado del 7-oct 11:13 al 8-oct 11:15** (todo cargado a `ZAT-BIK-RAYROS-001`
+> Remalladora: 160,45 min con Corpiño + 126,09 min SIN pieza) —⛔ antes, no hay vara—.
+> 🔴 **«Las rayadas ya estarían terminadas, pero para Bruno hubo un problema de registro»** — 📊 lo
+> sostiene la base: **`ZAT-BIK-RAYAZ-001` tiene 0 minutos**, y RAYROS sólo 286,5 min para que las
+> rayadas sumen 110 u (52+58); a ~6-8 min/u el remallado solo serían 660-880 min ⇒ **RAYAZ
+> probablemente quedó cargado como RAYROS** (y/o en el hueco de abajo). Repartir entre las dos.
+> 🔴 **Hueco 7-oct 13:31 → ~16:00 SIN REGISTRO**: a las 16:00 la sesión de la tablet (cookie de 7
+> días) venció y los 3 guardados devolvieron 307 al login (logs de Vercel); al volver a entrar el
+> 8-oct 07:41 el reloj de >9 h se descartó. Fue UN solo reloj con **remallado + pasaje** mezclados
+> ⇒ ▶️ Bruno mira las CÁMARAS: hora del cambio remalladora→pasaje, qué SKU/pieza, y fin; se cargan
+> 2 registros (Remalladora / Sin máquina) con script que corre Bruno con `!`.
+> 🏁 **HECHO el 8-oct (`cb7680c`, EN PROD: el dominio contesta 401 JSON)**: API sin sesión ⇒ 401 (antes 307,
+> que axios seguía y DABA POR GUARDADO); la cookie se estira 7 días con cada uso; la tablet muestra «Se cerró
+> la sesión / Volver a entrar» y el reloj sobrevive; `crearTiempo` exige registro con id; **pieza OBLIGATORIA**
+> en la bikini. Caminado en local contra la base de test (las 4 cosas + un guardado real, borrado).
+> 🗣️ **Bruno (8-oct): 5 BOMBACHAS FALLADAS en el remallado, RETIRADAS** ⇒ hay que bajarlas y que ⛔ aparezcan
+> en los lotes siguientes. Y el tema de fondo: **a veces una pieza se trabaja una parte del proceso y se abandona**
+> (sus minutos ya están en el SKU). 🔴 **Hueco del modelo**: el lote planificado es POR PRENDA×TALLE, ⛔ por pieza
+> ⇒ hoy ⛔ hay dónde decir «Lote 2: 37 corpiños / 32 bombachas»; recién el INGRESO (por pieza) lo dice.
+> 🏁 **HECHO (`ca85dcc`, EN PROD, SQL `prisma/sql/2026-10-08-fallas-lote.sql` aplicado por mí con ensayo+rollback antes)**: fallas por lote/pieza/talle/proceso (OP → «Registrar falla»). **Cargada la real: RAYROS (stripes fucsia) Lote 2, 5 bombachas M, Remallado** ⇒ el Lote 2 espera **37 corpiños · 32 bombachas** y el ingreso propone Bombacha M = 11. Chequeos sección K (15, verdes; 2 mutantes muertos). ⚠️ el MATERIAL de las falladas sigue repartido por lo CORTADO (52): no lo absorben las buenas — decisión de Bruno si cambia.
+> 🗣️ **Bruno (8-oct): «mi interés es que sea ACCESIBLE cargar incidencia en un corte, fácil y anexado a lo que
+> estamos haciendo»** · y: el 5% de fallas del escandallo ⛔ alcanza (9,6% de bombachas en RAYROS).
+> 🏁 **`d3b62c6` EN PROD (SQL `2026-10-08-fallas-orden.sql` aplicado con ensayo)**: «Registrar falla…» en el ⋮ de
+> cada orden (CORTE/COSTURA) y en la OP, un solo `FallaForm`; la falla cuelga de la ORDEN (lote opcional; al
+> separar pasa al Lote 1); el ingreso descuenta; la orden cierra; **la tela de cada pieza se divide entre las
+> BUENAS** (la OP dice «÷47 = 52 cortadas − 5 falladas»). Chequeos L/L2 verdes, 2 mutantes muertos, caminado local.
+> 🔴 **los % de material de Corpiño/Bombacha siguen en NULL en prod** ⇒ el ingreso de bikini con tela se planta
+> igual que antes: el costo por buenas recién corre cuando Bruno cargue el %.
+> 🏁 **(b) HECHO `049fc13` EN PROD** (🗣️ Bruno: «que pueda cargar o reportar falla, o sino nosotros»): botón
+> **«✕ Pieza fallada»** en la tablet con la orden elegida → mismo `FallaForm` en grande, `/api/tiempos/fallas/[id]`,
+> queda con el nombre de la costurera, borrar sólo producción, el reloj ⛔ se toca. Caminado en local.
+> 🔴 **y la tablet ya ⛔ preselecciona Corpiño con el reloj parado** (lo encontró la caminata: contradecía la pieza
+> obligatoria sin default).
+> ⏸️ **(a) POSPUESTO por Bruno (8-oct): «lo vemos después»**.
+> ▶️ **siguiente**: (a) tasa MEDIDA por prenda×pieza×proceso en el escandallo en lugar del 5% fijo (con N de
+> cortes y fallback al 5% mientras haya pocos) · (b) ¿la costurera reporta la falla desde la TABLET
+> («Reportar inconveniente» → pieza fallada)? — decisión de Bruno: quién es la autoridad · (c) el costo de la falla
+> hasta el PROCESO donde se perdió (último ajuste fino).
+> 🔍 **Para mirar**: `/api/cron/sync-gn` ⛔ está en `PUBLIC_PATHS` ⇒ el cron de Vercel llega sin cookie y el
+> proxy lo rebota (antes 307, ahora 401) ⇒ **¿corrió alguna vez?** (¿es el sync de ventas parado desde el 16-jul?)
+> 🏁 **8-oct, MEDIDO: NUNCA corrió.** Logs de Vercel: `GET /api/cron/sync-gn` → **307** el 6, 7 y 8-oct a las 03:00.
+> En prod `gn_ventas` = 16-jul (51 filas), `gn_stock` = **18-ago** (⛔ estaba fresco: también congelado), `gn_sync_estado`
+> = 30-jun, todo de los botones a mano ⇒ **ES el sync de ventas parado**. Arreglo en el árbol, **SIN COMMITEAR** (el
+> clasificador frenó el push): `/api/cron` en `PUBLIC_PATHS` + la ruta exige `CRON_SECRET` siempre (está en prod).
+> 🏁 **PUSHEADO `8b11f3c` (Bruno), deploy Ready; el dominio ya contesta `no autorizado` 401 de la RUTA** (y `/api/tiempos/cola` sigue con el 401 del proxy). ▶️ falta sólo el 2º oráculo · era: `curl` sin auth al dominio ⇒ `{"error":"no autorizado"}` (de la RUTA, ⛔ «Se cerró
+> la sesión» del proxy) y el 9-oct después de 03:00 `max(syncedAt)` de `gn_ventas` = 9-oct.
+
+> 🗣️ **Bruno (2-oct): el trabajo LIBRE de la tablet tiene que generar GASTO** —«de algún lado se paga
+> ese tiempo de costurera»—. Hoy un registro libre (sin orden ⇒ sin SKU) ⛔ va a ningún lote ni a
+> ningún gasto: **64 registros, 5.677 min (~$765.000) desde mayo, 3.683 sólo en septiembre**.
+> Decidido: **categoría nueva `taller`** (⛔ no `desarrollo`: no inflar muestras), **sin marca**,
+> **sólo de acá en adelante** (lo viejo sin gasto). ⚠️ `/gastos` hoy sólo tiene tabs desarrollo y
+> producción. 🏁 **HECHO el mismo día (`5023956`, en prod)**: la regla vive en `gastoDelTiempo`
+> (lib/tiempos/registrar.ts, `TALLER_DESDE='2026-10-02'`), la usan el alta y la sync —ponerle SKU
+> borra el gasto, sacárselo lo vuelve, pasarlo a muestra cambia la categoría: ejercido en prod con
+> un registro de prueba, borrado—; la aprobación de solicitudes ahora llama a la sync; la tablet
+> exige **orden o «trabajo libre»** en Proceso Completado y el libre pide **«¿Qué hiciste?»** (va a
+> `detalle` y al concepto); `/gastos` tiene tab Taller. ⚠️ **la tablet ⛔ se caminó en Chrome**.
+> 🔑 **Moldería de las bikinis (Bruno, 2-oct)**: en **MAR y VER** la parte manual es **pasaje de
+> tiritas, del corpiño** · la **NG es otra moldería**: lo manual es **pasaje de reguladores y argollas
+> del corpiño**, y **la bombacha NG SÍ lleva recta** (la Tayra no). Ambos van con máquina «Sin máquina».
+> ✅ Corregidos a mano el 30-sep y el 1-oct (SKU/parte/detalle, el tramo de la tarde del 1-oct partido
+> en 3, un toque de 5 seg borrado).
+
 > 🔴 🔑 **FASE 3 (repetir producción): sacar el `@unique` SOLO rompe la plata, callado** (23-sep, medido,
 > sin código). **`TiemposProduccion` ⛔ no tiene `ordenId`**: la tablet elige la OP por `id` y **manda
 > sólo el SKU** (`components/tiempos/FormTiempos.tsx:134`) ⇒ con dos OP del mismo SKU,
@@ -23,7 +108,7 @@ _Última actualización: 2026-09-23_
 > eso YA ANDA, Fase 1) y más adelante repetir producción; ⛔ decidió aún si repetir = nuevo SKU o
 > nuevo corte del mismo SKU.** Recomendado: mismo SKU, corte nuevo (es el vocabulario del 17-sep).
 
-> 🆕 🔑 **LOTES PLANIFICADOS — separar un corte en «Lote 1 / Lote 2» (6-oct, SIN PUSHEAR: falta el SQL en prod).**
+> 🆕 🔑 **LOTES PLANIFICADOS — separar un corte en «Lote 1 / Lote 2» (6-oct, EN PROD: SQL aplicado por Bruno, push `f03176b`, deploy Ready).**
 > Lo trajo la AYLA (`ZAT-BIK-NG-001`): se cortaron 62 (S26·M26·L10, sólo en `fichaCorteData.talles`;
 > `cortes_por_talle` VACÍO) y en el taller hubo que separar **20 (S10·M10) después del remallado**.
 > 📊 En prod la OP tenía **plan 42 / cortadas 62 / 0 lotes ingresados** ⇒ no había «lote 1 con 62 o 42» que corregir.
@@ -50,6 +135,48 @@ _Última actualización: 2026-09-23_
 > con `.env`) → `migrate diff` (sólo el drift de `compras_dtf`) · 2) push · 3) `vercel ls --meta githubCommitSha=<sha>` ·
 > 4) separar en la AYLA **Lote 2 = S10·M10, después de Remallado** e imprimir las dos etiquetas.
 > 🔴 **Pushear ANTES del SQL rompe la OP, la cola de la tablet y el ingreso** (consultan la tabla nueva).
+> 🏁 **6-oct: Bruno separó la AYLA** (Lote 2 = S10·M10, «después de Todo cortado») y como Marisol venía cosiendo
+> la tanda de 42, **los 22 registros previos (1.134 min, 25 al 30-sep) se marcaron `lote = 1`** (script corrido por Bruno).
+> 🆕 **Separación PROGRAMADA + «en el taller» (6-oct).** 🗣️ Bruno: cargar el corte, remallar TODO, y recién
+> **cuando el trabajo deja la remalladora** separar; y «nosotros gestionamos qué arma: le sacamos el Lote 2 del
+> taller» ⇒ la tablet toma **sola el lote MÁS CHICO de los que están en el taller**, sin preguntarle.
+> `lotes_planificados.activadoAt` (null = programado) + `enTaller` — SQL `prisma/sql/2026-10-06-lotes-programados.sql`
+> (la carga de los lotes existentes va DENTRO del guard de la columna: re-correrlo no activa una programada).
+> Programar se puede desde PENDIENTE/CORTE (sólo procesos de máquina: «Todo cortado» no se programa). Mientras
+> espera, la tablet no pone lote; al elegir **otra máquina que la del proceso** (⛔ «Sin máquina») pregunta
+> «¿Terminaste el remallado de todo?» → Sí cierra el tramo abierto **como Remalladora y sin lote** y activa.
+> Al activarse: Lote 1 en el taller, el resto afuera. OP: «Pasar al / Sacar del taller», «Activar ahora».
+> ✅ 13 chequeos nuevos (sección J), los 48 verdes 3 corridas; caminado en Chrome contra la base de test
+> (no pregunta en Remalladora, pregunta en Recta, Sí → tramo 0,46 min Remalladora sin lote + tramo Recta lote 1).
+> 🏁 EN PROD: SQL aplicado por Bruno, push `e725e22`, deploy Ready. ⚠️ La AYLA queda con los dos lotes «en el taller» (default): la tablet carga
+> al Lote 1 hasta que lo saquen.
+> 🆕 **Cola: «Lote único / N lotes (· programado)» en cada fila** (`efc2109`, en prod) — 🗣️ Bruno: «entrás
+> sabiendo si hay dos lotes». **Tablet: chip «Lote N» en la lista** (antes sólo al tocar la orden). **Orden EN
+> ESPERA** (🗣️ «se saca del taller sin terminar, falta dije»): menú ⋮ → «Poner en espera…» con motivo /
+> «Retomar»; sale de la tablet, ⛔ no mueve estado ni stock. Una orden separada sin ningún lote en el taller
+> también sale de la tablet. SQL `prisma/sql/2026-10-06-orden-en-espera.sql` (EN PROD, `0388769`). ✅ ejercido por API y visto en
+> Chrome contra la base de test.
+> 🆕 **Órdenes: 👁/🙈 en cada fila** (🗣️ «ocultar ⛔ es terminar: es que no la ven más, y por qué») — mismo criterio
+> que `/api/tiempos/cola` (`visibilidadTablet` en ColaAdmin): en espera, avisó que terminó, o separada sin lotes en
+> el taller; el 👁 pide el motivo y el 🙈 de una en espera la devuelve. **Los lotes se listan debajo de la fila**
+> (talles, ingresado, en el taller / fuera con su botón, etiqueta); la cola trae `lotesDetalle` sólo de las separadas.
+> 🔁 **Se SACÓ «la tablet toma el lote más chico en el taller»** (🗣️ Bruno: con los dos adentro el Lote 2 no
+> aparecía; «directamente ocultamos y desocultamos»). Ahora **cada lote visible es su propia fila en la tablet**
+> (clave orden#lote) y la costurera toca la bolsa; cada lote tiene su 👁/🙈 (mismo campo `enTaller`, sin SQL).
+> ✅ checks J actualizados, verdes 3 corridas; caminado: dos filas, cada registro quedó en el lote de su fila.
+> 🏁 **6-oct: CARGADA la AYLA ESTAMPADA** (ficha de corte 5-oct, Fernando $450/u = **$85.500**, validado) con
+> `prisma/cargar-ayla-estampas-oct26.ts` (corrido por Bruno): `ZAT-BIK-RAYROS/LUNAMA/RAYAZ/CUADNG-001` (52/40/58/40 = 190,
+> AYLA-3/2/1/4), 4 colores nuevos en `sku_catalogo`, un lote de colores, directo en COSTURA, tizadas lycra + muselina
+> 0,92×6. 🗣️ **Lote 1 = 3 curvas 2·2·1 = 15 por estampa (60) para lanzar**; el Lote 2 (130) programado «después de
+> Remallado». 📊 Estimado: ~15 min/u después del remallado (Tayra marrón 1.260 min/62, 379 de remalladora) ⇒ Lote 1 ≈
+> 15 h + ~12 cambios de hilo (mediana 4 min, sólo 9 registrados) ≈ 2 días. ⚠️ Falta la ficha de TELA (costo $0 ⇒ el
+> ingreso pide la casilla) y el ficha dice 190 donde el README decía 185.
+> 🔑 **Corrección de Bruno: la AYLA NEGRA lleva ENCAJE (3 piezas) ⇒ sus 8,0 min/u de remallado ⛔ sirven para la
+> estampada** (lycra + muselina). Estimado con la Tayra (5,5-6,1): **remallar 190 ≈ 19 h + terminar el Lote 1 ≈ 17 h
+> ≈ 5 días** de Marisol (7,2 h productivas/día, medido: 24 días sep-oct). Opción ofrecida: Lote 1 primero ≈ 3 días.
+> ▶️ **Mañana (7-oct) a la noche: recalcular con los minutos REALES de remalladora** de RAYROS/LUNAMA/RAYAZ/CUADNG.
+> 🆕 Tablet: **botón fijo «✓ Terminé el remallado — SKU»** (celeste, mismo formato que «Avisar que terminé», con su
+> confirmación), sólo en órdenes con separación programada; la pregunta al cambiar de máquina sigue. Caminado.
 
 > 🗣️ **Bruno (23-sep): aumento a MARISOL de $5.000 a $5.500 la hora (+10%), «esta semana no, capaz la
 > otra»** (semana del 28-sep). Sus $5.000 pagados ⇒ **$5.520 por hora TRABAJADA** (45 min/día no
@@ -64,6 +191,33 @@ _Última actualización: 2026-09-23_
 > (`loteCorte.ts:269`, `afirmable:false`) ⇒ con ficha y sin % el ingreso queda SIN SALIDA.
 > 📊 Collareta del marrón al 23-sep 10:19: **485,5 min = 7,83 min/u** (62), sigue en curso. El corte
 > de 60 del 23-sep todavía ⛔ existe como OP a esa hora.
+
+> 📊 **COLLARETA DE LAS DOS BIKINIS, CERRADA — AL REVÉS QUE EL REMALLADO, EL VERDE FUE MÁS LENTO**
+> (24-sep; el verde pasó a recta a las 14:23). Collareta sola: **marrón 495 min / 62 = 7,98 min/u** ·
+> **verde 374 min / 42 = 8,90 (+11%)**. Con cortacollareta: **8,75 vs 10,04 (+15%)**. Contra la
+> muestra (6,21, 1 u): marrón +28%, verde +43%. 🗣️ **Bruno (24-sep, lo vio en las cámaras): el
+> registro de cortacollareta del 24-sep 09:23:29 (16,73 min) cargado a `ZAT-BIK-MAR-001` era del
+> VERDE.** ✅ SKU corregido a `ZAT-BIK-VER-001` (id `cmufis1fm000104jz3z0zmlus`, lo corrió Bruno con `!`).
+> Recta: corpiño marrón 160,5 min (2,59/u); corpiño verde en curso (96,6 min al cierre del 24).
+> ✅ **La bombacha ⛔ lleva recta: la Tayra no tiene** (Bruno, 24-sep) ⇒ la recta es sólo del corpiño.
+>
+> 📊 **COMPARACIÓN POR PROCESO (24-sep, min/u sobre 62 y 42; el verde termina la recta el 25-sep):**
+>
+> | proceso | marrón | verde | verde vs marrón | peso marrón / verde |
+> |---|---|---|---|---|
+> | Remallado | 6,11 | 5,50 | −10% | 35% / 31% |
+> | Collareta | 7,98 | 8,90 | +11% | 45% / 50% |
+> | Cortacollareta | 0,97 | 1,14 | +17% | 6% / 6% |
+> | Recta (sólo corpiño) | 2,59 | 2,30 *en curso* | — | 15% / 13% |
+> | **Total** | **17,66** | **17,84** al 24-sep | ~+3% proyectado (~18,1) | |
+>
+> 🔑 Lo que el verde ganó en remallado lo devolvió en collareta ⇒ **el total es estable, los procesos
+> no**. **La collareta es la mitad del tiempo y la que viene por ENCIMA de la muestra** (+28% / +43%):
+> ahí está la palanca. Contra la muestra total (~20 min/u, 1 u talle L) marrón −12%, verde ~−9%.
+> 🗣️ **Bruno (24-sep): falta en AMBOS el RIBETE DELANTERO de la bombacha, que se pone cuando llega
+> el DIJE — «no más de 2 min por cada una»** ⇒ techo **~19,7 marrón · ~20,1 verde**. 🔴 Por la
+> decisión del 18-sep (Fase 2 descartada), **el lote se ingresa DESPUÉS del dije**: así esos minutos
+> entran al costo congelado. ▶️ Al cerrar la recta del verde: recalcular con el cierre real.
 
 > 📊 **REMALLADO DE LAS DOS BIKINIS, CERRADO** (dictado por Bruno el 21-sep 11:55; el último
 > registro cerró 11:36). **623,04 min = 10,4 h** para **104 bikinis** (62 marrón + 42 verde) ⇒
