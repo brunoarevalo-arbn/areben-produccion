@@ -7,7 +7,8 @@ export const maxDuration = 120;
 // stock cacheado y las ventas (90/30/7d) de los vinculados. Protegido con CRON_SECRET.
 export async function GET(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  if (secret && req.headers.get('authorization') !== `Bearer ${secret}`) {
+  // Sin secreto configurado ⛔ se abre: la ruta es pública en el proxy.
+  if (!secret || req.headers.get('authorization') !== `Bearer ${secret}`) {
     return NextResponse.json({ error: 'no autorizado' }, { status: 401 });
   }
   const productos = await runSyncBatch({ budgetMs: 30000, reiniciar: true });

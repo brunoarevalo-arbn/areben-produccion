@@ -4,7 +4,10 @@ import { verifySession, SESSION_COOKIE, sessionCookieOptions } from '@/lib/sessi
 // /auth/callback es la vuelta de Google: llega SIN sesión a propósito (trae el
 // code a canjear). Si no fuera pública, el proxy la mandaría al login y el
 // ingreso nunca cerraría (login → Google → callback → login → ...).
-const PUBLIC_PATHS = ['/login', '/auth/callback', '/api/auth/login', '/api/usuarios'];
+// /api/cron la llama Vercel Cron SIN cookie; la ruta se protege sola con CRON_SECRET.
+// 🔴 Afuera de esta lista el cron rebotó TODAS las noches (307) y las cachés de GN
+// quedaron congeladas: ventas desde el 16-jul, stock desde el 18-ago (medido 8-oct).
+const PUBLIC_PATHS = ['/login', '/auth/callback', '/api/auth/login', '/api/usuarios', '/api/cron'];
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
