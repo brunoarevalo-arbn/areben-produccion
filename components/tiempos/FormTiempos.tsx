@@ -11,6 +11,7 @@ import { MAQUINA_DEL_PROCESO } from '@/lib/constants/lotes';
 import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
 import { esSesionVencida } from '@/lib/api/tiempos';
+import { FallaForm } from '@/components/produccion/FallaForm';
 
 interface FormTiemposProps {
   usuario: string;
@@ -80,6 +81,9 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   const [showInconv,         setShowInconv]         = useState(false);
   // La API dijo 401: hay que volver a entrar. El reloj vive en localStorage y sobrevive.
   const [sesionVencida,      setSesionVencida]      = useState(false);
+  // «Pieza fallada»: la costurera reporta piezas perdidas de la orden que tiene elegida.
+  // ⛔ Toca el reloj: es un aviso aparte, el tramo sigue corriendo.
+  const [reportandoFalla,    setReportandoFalla]    = useState(false);
 
   // Un error al escribir: si es la sesión, se dice ESO (reintentar ⛔ sirve de nada).
   const avisarError = (err: unknown, mensaje: string) => {
@@ -358,16 +362,12 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
                   setParte('');
                 } else {
                   setOrdenId(claveFila(orden));
-                  // 🔴 La parte se preselecciona SÓLO con el reloj parado.
-                  //
-                  // Con el reloj corriendo, la orden se elige AL FINAL —así trabaja
-                  // Marisol: arranca a coser y recién después dice qué era—. Ahí
-                  // preseleccionar la primera pieza es AFIRMAR algo que nadie dijo:
-                  // los minutos que ya corrieron quedan puestos en Corpiño, y como
-                  // cambiar de pieza cierra el registro anterior, la única salida
-                  // era guardar esos minutos en la pieza equivocada.
-                  // Pasó en producción el 18-sep con 82 minutos.
-                  setParte(estado === 'idle' ? (orden.partes?.[0] ?? '') : '');
+                  // 🔴 La pieza ⛔ se preselecciona nunca (8-oct, Bruno: obligatoria, vacía y
+                  // sin default). Con el reloj corriendo preseleccionar ya había roto el
+                  // 18-sep (82 min puestos en Corpiño sin que nadie lo dijera); con el reloj
+                  // parado quedaba igual afirmada si Marisol no la tocaba, y la pieza
+                  // obligatoria se cumplía sola con un default.
+                  setParte('');
                 }
                 setConfirmFin(false); setConfirmProceso(false);
               }}
@@ -545,6 +545,24 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
               Todavía no
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Pieza fallada: se reporta desde la orden elegida, sin parar el reloj */}
+      {ordenSeleccionada && !reportandoFalla && (
+        <button type="button" onClick={() => setReportandoFalla(true)}
+          className="w-full py-2.5 rounded-xl border-2 border-dashed border-red-200 text-red-600 text-xs font-bold uppercase tracking-wide hover:bg-red-50 transition active:scale-95">
+          ✕ Pieza fallada — {ordenSeleccionada.sku}{ordenSeleccionada.lote != null ? ` · Lote ${ordenSeleccionada.lote}` : ''}
+        </button>
+      )}
+      {ordenSeleccionada && reportandoFalla && (
+        <div className="bg-red-50 border-2 border-red-200 rounded-xl p-3 space-y-2">
+          <p className="text-xs font-bold uppercase tracking-widest text-red-800">
+            Pieza fallada · {ordenSeleccionada.sku}{ordenSeleccionada.lote != null ? ` · Lote ${ordenSeleccionada.lote}` : ''}
+          </p>
+          <p className="text-xs text-red-700">Las piezas que se perdieron y ya no van a salir. El reloj sigue corriendo.</p>
+          <FallaForm key={claveFila(ordenSeleccionada)} tablet ordenId={ordenSeleccionada.id} numeroFijo={ordenSeleccionada.lote ?? undefined}
+            onGuardado={() => { setReportandoFalla(false); fetchOrdenes(); }} onCancelar={() => setReportandoFalla(false)} />
         </div>
       )}
 

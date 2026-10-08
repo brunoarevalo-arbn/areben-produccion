@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { requirePermiso } from '@/lib/auth';
-import { PROCESOS_DE_FALLA } from '@/lib/constants/lotes';
+import { FallaSchema } from '@/lib/validators/fallas';
 import { registrarFalla, borrarFalla, contextoFallas, LotePlanificadoError } from '@/lib/produccion/lotesPlanificados';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -18,14 +18,6 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   return NextResponse.json(await contextoFallas(prisma, orden));
 }
 
-const FallaSchema = z.object({
-  numero:   z.number().int().min(1).nullable(),
-  parte:    z.string().min(1).max(40).nullable(),
-  talle:    z.string().min(1).max(10),
-  cantidad: z.number().int().positive('La cantidad tiene que ser mayor a 0'),
-  proceso:  z.enum(PROCESOS_DE_FALLA),
-  motivo:   z.string().max(200).nullable().optional(),
-});
 
 export async function POST(req: NextRequest, { params }: Ctx) {
   const session = await requirePermiso(req, 'produccion');
