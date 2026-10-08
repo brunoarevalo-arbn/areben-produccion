@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { NuestrasApps } from './NuestrasApps';
+import { NavIcon, type NavIconName } from './NavIcon';
 
 interface SidebarProps {
   permisos: string[];
@@ -17,18 +18,18 @@ interface SubItem { label: string; href: string; nuevoHref?: string; seccion?: s
 const tienePermiso = (permisos: string[], seccion?: string | string[]) =>
   seccion == null ? true : Array.isArray(seccion) ? seccion.some((s) => permisos.includes(s)) : permisos.includes(seccion);
 
-const NAV: { label: string; href: string; icon: string; seccion: string | string[]; sub: SubItem[] }[] = [
+const NAV: { label: string; href: string; icon: NavIconName; seccion: string | string[]; sub: SubItem[] }[] = [
   {
     label: 'Inicio',
     href: '/dashboard',
-    icon: '⊞',
+    icon: 'inicio',
     seccion: 'dashboard',
     sub: [],
   },
   {
     label: 'Diseño',
     href: '/diseno',
-    icon: '📐',
+    icon: 'diseno',
     seccion: 'diseno',
     sub: [
       { label: 'Proyectos', href: '/diseno', nuevoHref: '/diseno/nuevo' },
@@ -40,7 +41,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
   {
     label: 'Inventario',
     href: '/inventario',
-    icon: '📦',
+    icon: 'inventario',
     seccion: 'insumos',
     sub: [
       { label: 'Telas',              href: '/inventario' },
@@ -57,14 +58,14 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
     // quien retira tela para muestras no necesita ver órdenes ni cortes.
     label: 'Retiro de tela',
     href: '/muestras',
-    icon: '✂',
+    icon: 'tijera',
     seccion: ['muestras', 'produccion'],
     sub: [],
   },
   {
     label: 'Compras',
     href: '/compras',
-    icon: '🛒',
+    icon: 'compras',
     seccion: ['insumos', 'gastos'],
     sub: [
       { label: 'Todas',            href: '/compras', nuevoHref: '/compras/nueva', seccion: ['insumos', 'gastos'] },
@@ -74,7 +75,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
   {
     label: 'Producción',
     href: '/produccion',
-    icon: '⏱',
+    icon: 'produccion',
     seccion: 'produccion',
     sub: [
       { label: 'Órdenes',          href: '/produccion', seccion: 'produccion' },
@@ -90,7 +91,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
   {
     label: 'Estampería',
     href: '/estamperia',
-    icon: '🖨',
+    icon: 'estamperia',
     seccion: 'estamperia',
     sub: [
       { label: 'Catálogo',            href: '/estamperia', seccion: 'estamperia' },
@@ -101,7 +102,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
   {
     label: 'Reposición',
     href: '/reposicion',
-    icon: '🔁',
+    icon: 'reposicion',
     seccion: 'reposicion',
     sub: [
       { label: 'Qué estampar',        href: '/reposicion' },
@@ -112,7 +113,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
   {
     label: 'Calculadora',
     href: '/calculadora',
-    icon: '⏱',
+    icon: 'calculadora',
     seccion: ['calculadora', 'costos'],
     sub: [
       { label: 'Corridas de muestra', href: '/calculadora' },
@@ -122,7 +123,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
   {
     label: 'Costos',
     href: '/costos',
-    icon: '💰',
+    icon: 'costos',
     seccion: 'costos',
     sub: [
       { label: 'Escandallos',           href: '/costos' },
@@ -135,7 +136,7 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
   {
     label: 'Precios',
     href: '/precios',
-    icon: '🏷',
+    icon: 'precios',
     seccion: 'precios',
     sub: [
       { label: 'Resumen',                    href: '/precios' },
@@ -147,21 +148,21 @@ const NAV: { label: string; href: string; icon: string; seccion: string | string
   {
     label: 'Gastos',
     href: '/gastos',
-    icon: '🧾',
+    icon: 'gastos',
     seccion: 'gastos',
     sub: [],
   },
   {
     label: 'Mis cortes',
     href: '/cortador',
-    icon: '✂',
+    icon: 'tijera',
     seccion: 'cortador',
     sub: [],
   },
   {
     label: 'Configuración',
     href: '/configuracion',
-    icon: '⚙',
+    icon: 'configuracion',
     seccion: ['configuracion', 'usuarios', 'cortadores', 'motivos', 'proveedores'],
     sub: [
       { label: 'Usuarios',            href: '/configuracion/usuarios', seccion: 'usuarios' },
@@ -210,16 +211,17 @@ export function Sidebar({ permisos, nombre }: SidebarProps) {
         <p className="text-stone-400 text-xs mt-2 truncate">{nombre}</p>
       </div>
 
-      <nav className="flex-1 px-2 py-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-2 py-2.5 space-y-px overflow-y-auto">
         {visible.map((item) => {
           const active = isActive(item.href);
           const tieneSub = item.sub.length > 0;
           const abierto = expanded.has(item.href);
-          const headerClass = `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all border ${
+          const headerClass = `group/nav flex items-center gap-2.5 px-2.5 h-[34px] rounded-lg text-[13.5px] font-medium transition-colors ${
             active
-              ? 'bg-amber-400/10 text-amber-400 border-amber-400/30'
-              : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60 border-transparent'
+              ? 'bg-amber-400/[.12] text-amber-400'
+              : 'text-stone-400 hover:text-stone-200 hover:bg-stone-800/60'
           }`;
+          const iconClass = `w-[17px] h-[17px] ${active ? 'text-amber-400' : 'text-stone-500 group-hover/nav:text-stone-300'}`;
           return (
             <div key={item.href}>
               {tieneSub ? (
@@ -229,9 +231,10 @@ export function Sidebar({ permisos, nombre }: SidebarProps) {
                   aria-expanded={abierto}
                   className={`w-full text-left ${headerClass}`}
                 >
-                  <span className="text-lg w-5 text-center flex-shrink-0">{item.icon}</span>
+                  <NavIcon name={item.icon} className={iconClass} />
                   <span className="flex-1">{item.label}</span>
-                  <span className="text-xs text-stone-500 flex-shrink-0">{abierto ? '▾' : '▸'}</span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden
+                    className={`w-3.5 h-3.5 flex-shrink-0 text-stone-600 transition-transform ${abierto ? 'rotate-90' : ''}`}><path d="m9 6 6 6-6 6" /></svg>
                 </button>
               ) : (
                 <Link
@@ -240,23 +243,23 @@ export function Sidebar({ permisos, nombre }: SidebarProps) {
                   aria-current={active ? 'page' : undefined}
                   className={headerClass}
                 >
-                  <span className="text-lg w-5 text-center flex-shrink-0">{item.icon}</span>
+                  <NavIcon name={item.icon} className={iconClass} />
                   <span className="flex-1">{item.label}</span>
                 </Link>
               )}
 
               {tieneSub && abierto && (
-                <div className="ml-4 mt-2 mb-2 pl-4 border-l border-stone-700 space-y-1">
+                <div className="ml-[18px] mt-0.5 mb-1.5 pl-3 border-l border-stone-800 space-y-px">
                   {item.sub.filter((s) => tienePermiso(permisos, s.seccion ?? item.seccion)).map((s) => (
                     <div key={s.href} className="flex items-center gap-2 group">
                       <Link
                         href={s.href}
                         onClick={close}
                         aria-current={pathname === s.href ? 'page' : undefined}
-                        className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                        className={`relative flex-1 flex items-center px-2.5 h-[30px] rounded-md text-[12.5px] transition-colors ${
                           pathname === s.href
-                            ? 'text-amber-400 bg-stone-800/60'
-                            : 'text-stone-500 group-hover:text-stone-300'
+                            ? 'text-amber-400 font-semibold before:absolute before:-left-[13px] before:top-[7px] before:bottom-[7px] before:w-0.5 before:rounded before:bg-amber-400'
+                            : 'text-stone-400 font-medium group-hover:text-stone-200'
                         }`}
                       >
                         {s.label}
