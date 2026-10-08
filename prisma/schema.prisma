@@ -1629,9 +1629,28 @@ model LotePlanificado {
 
   talles   LotePlanificadoTalle[]
   ingresos LoteCorte[]
+  fallas   FallaLote[]
 
   @@unique([ordenId, numero])
   @@map("lotes_planificados")
+}
+
+// Piezas perdidas en un proceso, dentro de su lote (8-oct: 5 bombachas M de la RAYROS en
+// el remallado). El lote deja de esperarlas: ver lib/produccion/lotesPlanificados.ts.
+model FallaLote {
+  id            String          @id @default(cuid())
+  loteId        String
+  lote          LotePlanificado @relation(fields: [loteId], references: [id], onDelete: Cascade)
+  parte         String? // null = la prenda no se cose por piezas
+  talle         String
+  cantidad      Int
+  proceso       String // dónde se perdió: "Remallado"
+  motivo        String?
+  registradoPor String
+  createdAt     DateTime        @default(now())
+
+  @@index([loteId])
+  @@map("fallas_lote")
 }
 
 model LotePlanificadoTalle {

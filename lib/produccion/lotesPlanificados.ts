@@ -20,6 +20,14 @@
 // 🔑 Se separa siempre DEL LOTE 1: al separar por primera vez el Lote 1 nace con todo lo
 // cortado por talle, y cada separación le saca lo suyo. La cantidad cortada de la orden
 // (y con ella el pago al cortador) no se toca nunca.
+//
+// 🔑 FALLAS (8-oct-2026): una pieza que se pierde en un proceso (5 bombachas M de la RAYROS
+// en el remallado) se registra EN SU LOTE, por pieza y talle. Desde ahí el lote espera
+// 37 corpiños y 32 bombachas: el ingreso propone eso, el control de exceso lo respeta y el
+// lote CIERRA cuando entra todo lo que quedó vivo — sin la falla, un lote con una pieza
+// perdida quedaba abierto para siempre (lo ingresado es la pieza que MENOS entró).
+// Los minutos ya trabajados en la pieza perdida ⛔ se descuentan: siguen en la bolsa y los
+// pagan las que sí salen.
 import type { Prisma, PrismaClient } from '@prisma/client';
 import type { SessionPayload } from '@/lib/session';
 import { DESPUES_DE_LOTE_1, MAQUINA_DEL_PROCESO, ordenarTalles, textoTalles } from '@/lib/constants/lotes';
@@ -33,6 +41,17 @@ export class LotePlanificadoError extends Error {}
 
 export interface TalleConteo { talle: string; cantidad: number }
 
+export interface FallaDeLote {
+  id: string;
+  parte: string | null;
+  talle: string;
+  cantidad: number;
+  proceso: string;
+  motivo: string | null;
+  registradoPor: string;
+  createdAt: Date;
+}
+
 export interface EstadoLote {
   id: string;
   numero: number;
@@ -45,8 +64,17 @@ export interface EstadoLote {
   ingresadoPorParte: Map<string, Map<string, number>>;
   /** Lo ingresado en unidades del corte: la pieza que MENOS entró (ver `cantidadIngresadaPorPartes`). */
   ingresado: number;
-  /** Por talle, lo que todavía no entró de NINGUNA pieza: lo único que se puede mover a otro lote. */
+  /**
+   * Por talle, las prendas ENTERAS que todavía no entraron ni fallaron en NINGUNA pieza: lo
+   * único que se puede mover a otro lote (la que tiene una pieza fallada se queda con su lote).
+   */
   sinIngresar: TalleConteo[];
+  /** Fallas por pieza (`''` si la prenda no se parte) y talle. */
+  fallasPorParte: Map<string, Map<string, number>>;
+  fallas: FallaDeLote[];
+  /** Lo que el lote espera de cada pieza: lo planificado menos sus fallas. */
+  esperadoPorParte: Map<string, Map<string, number>>;
+  /** Mientras a ALGUNA pieza le falte entrar algo de lo que espera. */
   abierto: boolean;
   /** null = programado: espera que la costurera confirme que terminó `despuesDe`. */
   activadoAt: Date | null;
@@ -61,7 +89,7 @@ export async function estadoDeLotes(db: Db, orden: { id: string; sku: string | n
   const lotes = await db.lotePlanificado.findMany({
     where: { ordenId: orden.id },
     orderBy: { numero: 'asc' },
-    include: { talles: true, ingresos: { include: { talles: true } } },
+    include: { talles: true, ingresos: { include: { talles: true } }, fallas: { orderBy: { createdAt: 'asc' } } },
   });
   if (lotes.length === 0) return [];
 
@@ -75,17 +103,35 @@ export async function estadoDeLotes(db: Db, orden: { id: string; sku: string | n
       if (!m) continue; // una pieza que hoy no está en el catálogo: no se puede afirmar de cuál es
       for (const t of ing.talles) m.set(t.talle, (m.get(t.talle) ?? 0) + t.cantidad);
     }
+    const fallasPorParte = new Map<string, Map<string, number>>(claves.map((k) => [k, new Map()]));
+    for (const f of l.fallas) {
+      const m = fallasPorParte.get(f.parte ?? '');
+      if (!m) continue;
+      m.set(f.talle, (m.get(f.talle) ?? 0) + f.cantidad);
+    }
     const talles = ordenarTalles(l.talles.map((t) => ({ talle: t.talle, cantidad: t.cantidad })));
     const unidades = talles.reduce((s, t) => s + t.cantidad, 0);
+    const de = (m: Map<string, Map<string, number>>, k: string, talle: string) => m.get(k)?.get(talle) ?? 0;
+    const esperadoPorParte = new Map(claves.map((k) => [
+      k, new Map(talles.map((t) => [t.talle, t.cantidad - de(fallasPorParte, k, t.talle)])),
+    ]));
     const totalDe = (k: string) => [...(ingresadoPorParte.get(k)?.values() ?? [])].reduce((s, n) => s + n, 0);
     const ingresado = Math.min(...claves.map(totalDe));
     const sinIngresar = talles.map((t) => ({
       talle: t.talle,
-      cantidad: Math.max(0, t.cantidad - Math.max(...claves.map((k) => ingresadoPorParte.get(k)?.get(t.talle) ?? 0))),
+      cantidad: Math.max(0, t.cantidad -
+        Math.max(...claves.map((k) => de(ingresadoPorParte, k, t.talle) + de(fallasPorParte, k, t.talle)))),
     }));
+    const abierto = claves.some((k) => talles.some((t) =>
+      de(ingresadoPorParte, k, t.talle) < de(esperadoPorParte, k, t.talle)));
     return {
       id: l.id, numero: l.numero, despuesDe: l.despuesDe, separadoAt: l.separadoAt, separadoPor: l.separadoPor,
-      talles, unidades, ingresadoPorParte, ingresado, sinIngresar, abierto: ingresado < unidades,
+      talles, unidades, ingresadoPorParte, ingresado, sinIngresar, abierto,
+      fallasPorParte, esperadoPorParte,
+      fallas: l.fallas.map((f) => ({
+        id: f.id, parte: f.parte, talle: f.talle, cantidad: f.cantidad, proceso: f.proceso, motivo: f.motivo,
+        registradoPor: f.registradoPor, createdAt: f.createdAt,
+      })),
       activadoAt: l.activadoAt, enTaller: l.enTaller,
     };
   });
@@ -112,15 +158,18 @@ export function lotePlanParaCostear(lotes: EstadoLote[], loteId: string): LotePl
  * todavía tiene sus 16 para entrar aunque el corpiño no tenga ninguno.
  */
 export function excesoSobreLote(lote: EstadoLote, conteos: { parte: string | null; talles: TalleConteo[] }[]): string | null {
-  const plan = new Map(lote.talles.map((t) => [t.talle, t.cantidad]));
   for (const c of conteos) {
-    const ya = lote.ingresadoPorParte.get(c.parte ?? '') ?? new Map<string, number>();
+    const k = c.parte ?? '';
+    const ya = lote.ingresadoPorParte.get(k) ?? new Map<string, number>();
+    const esperado = lote.esperadoPorParte.get(k) ?? new Map<string, number>();
     for (const t of c.talles) {
       if (t.cantidad <= 0) continue;
-      const queda = (plan.get(t.talle) ?? 0) - (ya.get(t.talle) ?? 0);
+      const queda = (esperado.get(t.talle) ?? 0) - (ya.get(t.talle) ?? 0);
       if (t.cantidad > queda) {
+        const fallas = lote.fallasPorParte.get(k)?.get(t.talle) ?? 0;
         return `El Lote ${lote.numero} ${c.parte ? `(${c.parte}) ` : ''}tiene ${Math.max(0, queda)} de talle ${t.talle} ` +
-          `para ingresar y el conteo dice ${t.cantidad}. Si salieron de otro lote, ingresalas en ese.`;
+          `para ingresar${fallas > 0 ? ` (${fallas} fallada${fallas > 1 ? 's' : ''})` : ''} y el conteo dice ${t.cantidad}. ` +
+          'Si salieron de otro lote, ingresalas en ese.';
       }
     }
   }
@@ -283,6 +332,10 @@ export async function deshacerLote(
   if ([...lote.ingresadoPorParte.values()].some((m) => m.size > 0)) {
     throw new LotePlanificadoError(`El Lote ${numero} ya tiene ingresos: no se puede deshacer`);
   }
+  // Las fallas viven en el lote: borrarlo se las llevaría sin que nadie lo vea.
+  if (lote.fallas.length > 0) {
+    throw new LotePlanificadoError(`El Lote ${numero} tiene fallas registradas: borralas antes de deshacerlo`);
+  }
   const minutos = orden.sku?.trim()
     ? await tx.tiemposProduccion.count({ where: { sku: orden.sku.trim(), lote: numero } })
     : 0;
@@ -374,6 +427,89 @@ export async function ponerEnTaller(
  * taller", y con los dos adentro el Lote 2 no aparecía. Se sacó: el taller oculta y
  * desoculta, y la costurera elige la bolsa.
  */
+export interface FallaInput {
+  numero: number;
+  parte: string | null;
+  talle: string;
+  cantidad: number;
+  proceso: string;
+  motivo?: string | null;
+}
+
+/**
+ * Registra piezas perdidas en un lote. Sólo lo que todavía ⛔ entró: lo ingresado ya es
+ * stock y una falla de ahí es otra cosa (un ajuste de stock).
+ */
+export async function registrarFalla(
+  tx: Prisma.TransactionClient,
+  ordenId: string,
+  f: FallaInput,
+  session: SessionPayload,
+): Promise<EstadoLote[]> {
+  const orden = await tx.ordenProduccion.findUnique({ where: { id: ordenId } });
+  if (!orden) throw new LotePlanificadoError('OP no encontrada');
+  const lotes = await estadoDeLotes(tx, orden);
+  if (lotes.length === 0) {
+    throw new LotePlanificadoError('La OP no está separada en lotes: las fallas se registran en un lote');
+  }
+  const lote = lotes.find((l) => l.numero === f.numero);
+  if (!lote) throw new LotePlanificadoError(`La OP no tiene Lote ${f.numero}`);
+
+  const partes = [...lote.esperadoPorParte.keys()].filter((k) => k !== '');
+  const k = f.parte ?? '';
+  if (partes.length > 0 && !partes.includes(k)) {
+    throw new LotePlanificadoError(`Elegí la pieza que falló (${partes.join(' o ')})`);
+  }
+  if (partes.length === 0 && f.parte) throw new LotePlanificadoError('Esta prenda no se cose por piezas');
+  if (!lote.talles.some((t) => t.talle === f.talle)) {
+    throw new LotePlanificadoError(`El Lote ${f.numero} no tiene talle ${f.talle}`);
+  }
+  const queda = (lote.esperadoPorParte.get(k)?.get(f.talle) ?? 0) - (lote.ingresadoPorParte.get(k)?.get(f.talle) ?? 0);
+  if (f.cantidad > queda) {
+    throw new LotePlanificadoError(
+      `Al Lote ${f.numero} le quedan ${Math.max(0, queda)} ${f.parte ? `${f.parte.toLowerCase()}s ` : ''}talle ${f.talle} sin ingresar ` +
+      `y se quieren dar por falladas ${f.cantidad}.`,
+    );
+  }
+
+  await tx.fallaLote.create({
+    data: {
+      loteId: lote.id, parte: f.parte, talle: f.talle, cantidad: f.cantidad, proceso: f.proceso,
+      motivo: f.motivo?.trim() || null, registradoPor: session.nombre,
+    },
+  });
+  await tx.estadoTransicion.create({
+    data: {
+      ordenId, estadoAnterior: orden.estado, estadoNuevo: orden.estado, usuarioId: session.id,
+      notas: `Falla en el Lote ${f.numero}: ${f.cantidad} ${f.parte ? `${f.parte.toLowerCase()}${f.cantidad > 1 ? 's' : ''} ` : ''}` +
+             `talle ${f.talle}, en ${f.proceso}${f.motivo?.trim() ? ` (${f.motivo.trim()})` : ''}.`,
+    },
+  });
+  return estadoDeLotes(tx, orden);
+}
+
+/** Borra una falla cargada por error: esas piezas vuelven a esperarse en su lote. */
+export async function borrarFalla(
+  tx: Prisma.TransactionClient,
+  ordenId: string,
+  fallaId: string,
+  session: SessionPayload,
+): Promise<EstadoLote[]> {
+  const orden = await tx.ordenProduccion.findUnique({ where: { id: ordenId } });
+  if (!orden) throw new LotePlanificadoError('OP no encontrada');
+  const falla = await tx.fallaLote.findUnique({ where: { id: fallaId }, include: { lote: true } });
+  if (!falla || falla.lote.ordenId !== ordenId) throw new LotePlanificadoError('Esa falla no es de esta OP');
+  await tx.fallaLote.delete({ where: { id: fallaId } });
+  await tx.estadoTransicion.create({
+    data: {
+      ordenId, estadoAnterior: orden.estado, estadoNuevo: orden.estado, usuarioId: session.id,
+      notas: `Borrada la falla del Lote ${falla.lote.numero} (${falla.cantidad} ${falla.parte ?? ''} talle ${falla.talle}, ` +
+             `${falla.proceso}): vuelven a esperarse.`,
+    },
+  });
+  return estadoDeLotes(tx, orden);
+}
+
 export function lotesVisibles(lotes: EstadoLote[]): number[] {
   if (separacionProgramada(lotes)) return [];
   return lotes.filter((l) => l.activadoAt && l.enTaller && l.abierto).map((l) => l.numero);
@@ -392,8 +528,11 @@ export interface LotePlanificadoDTO {
   abierto: boolean;
   activadoAt: string | null;
   enTaller: boolean;
-  /** Lo que le falta ingresar por pieza (`''` si la prenda no se parte) y talle. */
+  /** Lo que le falta ingresar por pieza (`''` si la prenda no se parte) y talle: ya sin las fallas. */
   pendientePorParte: Record<string, TalleConteo[]>;
+  /** Cuántas espera de cada pieza (lo planificado menos las fallas). */
+  esperadoPorParte: Record<string, number>;
+  fallas: { id: string; parte: string | null; talle: string; cantidad: number; proceso: string; motivo: string | null; registradoPor: string; createdAt: string }[];
 }
 
 export function lotesParaPantalla(lotes: EstadoLote[]): LotePlanificadoDTO[] {
@@ -403,8 +542,15 @@ export function lotesParaPantalla(lotes: EstadoLote[]): LotePlanificadoDTO[] {
     activadoAt: l.activadoAt?.toISOString() ?? null, enTaller: l.enTaller,
     pendientePorParte: Object.fromEntries([...l.ingresadoPorParte.entries()].map(([parte, ya]) => [
       parte,
-      l.talles.map((t) => ({ talle: t.talle, cantidad: Math.max(0, t.cantidad - (ya.get(t.talle) ?? 0)) })),
+      l.talles.map((t) => ({
+        talle: t.talle,
+        cantidad: Math.max(0, (l.esperadoPorParte.get(parte)?.get(t.talle) ?? 0) - (ya.get(t.talle) ?? 0)),
+      })),
     ])),
+    esperadoPorParte: Object.fromEntries([...l.esperadoPorParte.entries()].map(([parte, m]) => [
+      parte, [...m.values()].reduce((s, n) => s + n, 0),
+    ])),
+    fallas: l.fallas.map((f) => ({ ...f, createdAt: f.createdAt.toISOString() })),
   }));
 }
 

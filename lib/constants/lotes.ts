@@ -28,3 +28,6 @@ export const ordenarTalles = <T extends { talle: string }>(ts: T[]) =>
 /** "S 10 · M 10": como se escribe en la etiqueta y en el historial. */
 export const textoTalles = (ts: { talle: string; cantidad: number }[]) =>
   ordenarTalles(ts.filter((t) => t.cantidad > 0)).map((t) => `${t.talle} ${t.cantidad}`).join(' · ');
+
+/** Dónde se puede perder una pieza: lo que se elige al registrar una falla en un lote. */
+export const PROCESOS_DE_FALLA = ['Corte', 'Remallado', 'Recta', 'Collareta', 'Cadeneta', 'Cortacollareta', 'Manual', 'Otro'] as const;

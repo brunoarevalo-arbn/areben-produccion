@@ -17,7 +17,7 @@ import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { terminarCosturaOrden, CosturaError } from '../lib/produccion/costura';
 import { LoteCorteError } from '../lib/produccion/loteCorte';
-import { separarLote, deshacerLote, activarSeparacion, ponerEnTaller, lotesParaTablet, LotePlanificadoError } from '../lib/produccion/lotesPlanificados';
+import { separarLote, deshacerLote, activarSeparacion, ponerEnTaller, lotesParaTablet, registrarFalla, borrarFalla, estadoDeLotes, lotesParaPantalla, LotePlanificadoError } from '../lib/produccion/lotesPlanificados';
 import { TerminarCosturaSchema, TerminarLoteSchema, SepararLoteSchema } from '../lib/validators/produccion';
 import { TiempoSchema } from '../lib/validators/tiempos';
 
@@ -48,10 +48,11 @@ async function plantado(fn: () => Promise<unknown>): Promise<string> {
 const BIK = 'ZAT-BIK-TST-901';
 const TOP = 'ZAT-TOP-TST-901';
 const PRG = 'ZAT-TOP-TST-903';
+const FAL = 'ZAT-BIK-TST-904';
 const PIEZAS = ['Corpiño', 'Bombacha'];
 
 async function limpiar() {
-  for (const sku of [BIK, TOP, PRG]) {
+  for (const sku of [BIK, TOP, PRG, FAL]) {
     await prisma.$executeRawUnsafe(`DELETE FROM tiempos_produccion WHERE sku = '${sku}'`);
     await prisma.$executeRawUnsafe(
       `DELETE FROM estado_transiciones WHERE "ordenId" IN (SELECT id FROM ordenes_produccion WHERE sku = '${sku}')`);
@@ -60,7 +61,7 @@ async function limpiar() {
     await prisma.$executeRawUnsafe(`DELETE FROM ordenes_produccion WHERE sku = '${sku}'`);
   }
   await prisma.$executeRawUnsafe(
-    `DELETE FROM stock_terminado WHERE sku IN ('${BIK}','${TOP}','ZAT-COR-TST-901','ZAT-BOM-TST-901')`);
+    `DELETE FROM stock_terminado WHERE sku IN ('${BIK}','${TOP}','${FAL}','ZAT-COR-TST-901','ZAT-BOM-TST-901','ZAT-COR-TST-904','ZAT-BOM-TST-904')`);
 }
 
 async function crearOrden(sku: string, talles: Record<string, string>) {
@@ -290,6 +291,59 @@ async function main() {
   chequear('todos ocultos: ninguna fila', t?.lotes.length === 0, JSON.stringify(t));
   const p6 = SepararLoteSchema.safeParse({ talles: [{ talle: 'S', cantidad: 1 }], despuesDe: 'Remallado', programado: true });
   chequear('validador de separar con programado', p6.success && p6.data.programado === true, JSON.stringify(p6.success));
+
+  // ============ K. FALLAS: piezas perdidas que el lote deja de esperar ============
+  console.log('\n=== K. Fallas: 3 bombachas M perdidas en el remallado del Lote 2 ===');
+  const fal = await crearOrden(FAL, { S: '10', M: '10' });
+  await prisma.ordenProduccion.update({ where: { id: fal.id }, data: { cantidad: 20, cantidadCortada: 20 } });
+  await prisma.$transaction((tx) => separarLote(tx, fal.id, [{ talle: 'M', cantidad: 5 }], 'Remallado', ses));
+  const lf = await sql(`SELECT id, numero FROM lotes_planificados WHERE "ordenId"='${fal.id}' ORDER BY numero`);
+  const [f1, f2] = [String(lf[0].id), String(lf[1].id)];
+  msg = await plantado(() => prisma.$transaction((tx) =>
+    registrarFalla(tx, fal.id, { numero: 2, parte: null, talle: 'M', cantidad: 1, proceso: 'Remallado' }, ses)));
+  chequear('en la bikini, sin pieza se planta', msg.includes('Elegí la pieza'), msg || 'NO se plantó');
+  msg = await plantado(() => prisma.$transaction((tx) =>
+    registrarFalla(tx, fal.id, { numero: 2, parte: 'Bombacha', talle: 'S', cantidad: 1, proceso: 'Remallado' }, ses)));
+  chequear('un talle que el lote no tiene, se planta', msg.includes('no tiene talle S'), msg || 'NO se plantó');
+  msg = await plantado(() => prisma.$transaction((tx) =>
+    registrarFalla(tx, fal.id, { numero: 2, parte: 'Bombacha', talle: 'M', cantidad: 6, proceso: 'Remallado' }, ses)));
+  chequear('más de las que quedan, se planta', msg.includes('le quedan 5'), msg || 'NO se plantó');
+  await prisma.$transaction((tx) =>
+    registrarFalla(tx, fal.id, { numero: 2, parte: 'Bombacha', talle: 'M', cantidad: 3, proceso: 'Remallado', motivo: 'se cortó la tela' }, ses));
+  r = await sql(`SELECT parte, talle, cantidad, proceso FROM fallas_lote WHERE "loteId"='${f2}'`);
+  chequear('la falla quedó en el Lote 2 (oráculo: SQL)', r.length === 1 && r[0].parte === 'Bombacha' && r[0].talle === 'M' && Number(r[0].cantidad) === 3, JSON.stringify(r));
+  let dto = lotesParaPantalla(await estadoDeLotes(prisma, fal)).find((l) => l.numero === 2)!;
+  chequear('el Lote 2 espera 5 corpiños y 2 bombachas', dto.esperadoPorParte['Corpiño'] === 5 && dto.esperadoPorParte['Bombacha'] === 2, JSON.stringify(dto.esperadoPorParte));
+  chequear('el ingreso propone Bombacha M = 2 y Corpiño M = 5',
+    dto.pendientePorParte['Bombacha']?.find((t) => t.talle === 'M')?.cantidad === 2 &&
+    dto.pendientePorParte['Corpiño']?.find((t) => t.talle === 'M')?.cantidad === 5, JSON.stringify(dto.pendientePorParte));
+  r = await sql(`SELECT notas FROM estado_transiciones WHERE "ordenId"='${fal.id}' ORDER BY fecha DESC LIMIT 1`);
+  chequear('el historial dice la falla', String(r[0]?.notas).startsWith('Falla en el Lote 2: 3 bombachas talle M, en Remallado (se cortó la tela)'), String(r[0]?.notas));
+  msg = await plantado(() => prisma.$transaction((tx) => deshacerLote(tx, fal.id, 2, ses)));
+  chequear('un lote con fallas no se deshace', msg.includes('tiene fallas registradas'), msg || 'NO se plantó');
+  // La que tiene una pieza fallada se queda en su lote: del Lote 1 M (5) con 1 bombacha fallada se separan 4, no 5.
+  await prisma.$transaction((tx) =>
+    registrarFalla(tx, fal.id, { numero: 1, parte: 'Bombacha', talle: 'M', cantidad: 1, proceso: 'Collareta' }, ses));
+  msg = await plantado(() => prisma.$transaction((tx) => separarLote(tx, fal.id, [{ talle: 'M', cantidad: 5 }], 'Recta', ses)));
+  chequear('separar no se lleva la prenda con la pieza fallada', msg.includes('le quedan 4 de talle M'), msg || 'NO se plantó');
+  const idF1 = String((await sql(`SELECT id FROM fallas_lote WHERE "loteId"='${f1}'`))[0].id);
+  await prisma.$transaction((tx) => borrarFalla(tx, fal.id, idF1, ses));
+  dto = lotesParaPantalla(await estadoDeLotes(prisma, fal)).find((l) => l.numero === 1)!;
+  chequear('borrar la falla: el Lote 1 vuelve a esperar 15 bombachas', dto.esperadoPorParte['Bombacha'] === 15 && dto.fallas.length === 0, JSON.stringify(dto.esperadoPorParte));
+  msg = await plantado(() => prisma.$transaction((tx) =>
+    terminarCosturaOrden(tx, fal.id, piezas([{ talle: 'M', cantidad: 3 }]), ses, true, f2)));
+  chequear('ingresar 3 bombachas M al Lote 2 (espera 2), se planta y dice la falla', msg.includes('tiene 2 de talle M para ingresar (3 falladas)'), msg || 'NO se plantó');
+  await prisma.$transaction((tx) => terminarCosturaOrden(tx, fal.id, [
+    { parte: 'Corpiño', talles: [{ talle: 'M', cantidad: 5 }] },
+    { parte: 'Bombacha', talles: [{ talle: 'M', cantidad: 2 }] },
+  ], ses, true, f2));
+  dto = lotesParaPantalla(await estadoDeLotes(prisma, fal)).find((l) => l.numero === 2)!;
+  chequear('5 corpiños + 2 bombachas: el Lote 2 CIERRA', dto.abierto === false, JSON.stringify({ ingresado: dto.ingresado, abierto: dto.abierto }));
+  r = await sql(`SELECT estado FROM ordenes_produccion WHERE id='${fal.id}'`);
+  chequear('con el Lote 1 todavía abierto, la orden sigue en COSTURA', r[0].estado === 'COSTURA', String(r[0].estado));
+  await prisma.$transaction((tx) => terminarCosturaOrden(tx, fal.id, piezas([{ talle: 'S', cantidad: 10 }, { talle: 'M', cantidad: 5 }]), ses, true, f1));
+  r = await sql(`SELECT estado FROM ordenes_produccion WHERE id='${fal.id}'`);
+  chequear('entra el Lote 1 entero: la orden TERMINA aunque entraron 17 bombachas de 20 cortadas', r[0].estado === 'TERMINADO_SIN_ESTAMPA', String(r[0].estado));
 
   await limpiar();
   console.log(`\n${fallos === 0 ? '✅ TODO VERDE' : `❌ ${fallos} FALLO(S)`}`);

@@ -193,6 +193,8 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
             talles: l.talles, unidades: l.unidades, ingresado: l.ingresado, abierto: l.abierto,
             activadoAt: l.activadoAt?.toISOString() ?? null, enTaller: l.enTaller,
             minutos: minutosDeLote(l.numero),
+            esperadoPorParte: Object.fromEntries([...l.esperadoPorParte.entries()].map(([k, m]) => [k, [...m.values()].reduce((a, n) => a + n, 0)])),
+            fallas: l.fallas.map((f) => ({ id: f.id, parte: f.parte, talle: f.talle, cantidad: f.cantidad, proceso: f.proceso, motivo: f.motivo })),
           }))}
           tallesCortados={cortadoPorTalle ? ordenarTalles(cortadoPorTalle) : null}
           minutosSinLote={minutosSinLote}

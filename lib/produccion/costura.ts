@@ -227,7 +227,12 @@ export async function terminarCosturaOrden(
   // de las piezas adentro. El avance lo marca la pieza que menos entró.
   const ingresadoTotal = await cantidadIngresadaPorPartes(tx, ordenId, partesLote.map((p) => p.sku));
   const meta = cantidadCortada(orden);
-  const completo = ingresadoTotal >= meta;
+  // 🔴 Separada en lotes, la orden completa cuando NINGÚN lote espera nada: con piezas
+  // falladas (registradas en su lote) lo ingresado ⛔ llega nunca a lo cortado, y por la
+  // suma la orden quedaba en costura para siempre. Sin fallas, las dos cuentas coinciden.
+  const completo = lotes.length > 0
+    ? (await estadoDeLotes(tx, orden)).every((l) => !l.abierto)
+    : ingresadoTotal >= meta;
 
   const detalleTalles = detallePorParte.join(' · ');
   // Con lotes planificados el nombre del lote es el de la bolsa ("Lote 2"), no el orden

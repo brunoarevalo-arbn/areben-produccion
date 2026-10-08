@@ -26,6 +26,8 @@ interface TalleFila { talle: string; cantidad: string; porParte?: Record<string,
 interface LotePlan {
   id: string; numero: number; despuesDe: string; unidades: number; ingresado: number; abierto: boolean;
   pendientePorParte: Record<string, { talle: string; cantidad: number }[]>;
+  esperadoPorParte?: Record<string, number>;
+  fallas?: { parte: string | null; talle: string; cantidad: number; proceso: string }[];
 }
 
 interface Orden {
@@ -782,6 +784,11 @@ export function ColaAdmin() {
               <span className="font-semibold text-stone-700 w-14">Lote {l.numero}</span>
               <span className="text-stone-500">{l.talles.map((t) => `${t.talle} ${t.cantidad}`).join(' · ')} = {l.unidades} u</span>
               <span className={l.abierto ? 'text-stone-400' : 'text-emerald-700 font-semibold'}>ingresado {l.ingresado}/{l.unidades}</span>
+              {(l.fallas?.length ?? 0) > 0 && (
+                <span className="text-red-700" title="Piezas perdidas: el lote ya no las espera">
+                  falla: {l.fallas!.map((f) => `${f.cantidad} ${f.parte ? f.parte.toLowerCase() + ' ' : ''}${f.talle}`).join(' · ')}
+                </span>
+              )}
               {programada && l.numero > 1 && <span className="text-sky-700 font-semibold">programado: {l.despuesDe}</span>}
               {!programada && l.abierto && (
                 <span className={l.enTaller ? 'text-emerald-700 font-semibold' : 'text-stone-400'}>

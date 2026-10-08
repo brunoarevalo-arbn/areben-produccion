@@ -8,7 +8,7 @@ import { Card } from '@/components/ui/Card';
 import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
-import { PUNTOS_DE_SEPARACION, DESPUES_DE_LOTE_1, MAQUINA_DEL_PROCESO, textoTalles } from '@/lib/constants/lotes';
+import { PUNTOS_DE_SEPARACION, DESPUES_DE_LOTE_1, MAQUINA_DEL_PROCESO, PROCESOS_DE_FALLA, textoTalles } from '@/lib/constants/lotes';
 
 interface Talle { talle: string; cantidad: number }
 export interface LoteParaCard {
@@ -25,7 +25,12 @@ export interface LoteParaCard {
   enTaller: boolean;
   /** Minutos de la tablet marcados con este lote. */
   minutos: number;
+  /** Cuántas espera de cada pieza (`''` si la prenda no se parte), ya sin las fallas. */
+  esperadoPorParte: Record<string, number>;
+  fallas: { id: string; parte: string | null; talle: string; cantidad: number; proceso: string; motivo: string | null }[];
 }
+
+interface FallaForm { numero: number; parte: string; talle: string; cantidad: number; proceso: string; motivo: string }
 
 const fmtMin = (n: number) => n.toLocaleString('es-AR', { maximumFractionDigits: n < 10 ? 1 : 0 });
 
@@ -58,6 +63,8 @@ export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lot
   const [cuando, setCuando] = useState<'' | 'ahora' | 'programado'>('');
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
+  // ⛔ Sin defaults: la pieza, el talle y el proceso los dice quien vio la falla.
+  const [falla, setFalla] = useState<FallaForm | null>(null);
 
   const separada = lotes.length > 0;
   const programada = lotes.some((l) => l.numero > 1 && !l.activadoAt);
@@ -110,6 +117,49 @@ export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lot
     router.refresh();
   };
 
+  const guardarFalla = async (partes: string[]) => {
+    if (!falla) return;
+    if (partes.length > 0 && !falla.parte) { toast.error('Elegí la pieza que falló'); return; }
+    if (!falla.talle) { toast.error('Elegí el talle'); return; }
+    if (!(falla.cantidad > 0)) { toast.error('Cargá cuántas fallaron'); return; }
+    if (!falla.proceso) { toast.error('Elegí en qué proceso se perdieron'); return; }
+    setGuardando(true);
+    try {
+      const r = await fetch(`/api/produccion/cola/${ordenId}/fallas`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          numero: falla.numero, parte: falla.parte || null, talle: falla.talle, cantidad: falla.cantidad,
+          proceso: falla.proceso, motivo: falla.motivo.trim() || null,
+        }),
+      });
+      if (!r.ok) {
+        const d = await r.json().catch(() => ({}));
+        toast.error(typeof d.error === 'string' ? d.error : 'No se pudo registrar la falla');
+        return;
+      }
+      setFalla(null);
+      router.refresh();
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const borrarFalla = async (fallaId: string, texto: string) => {
+    if (!(await confirmAsync({ message: `¿Borrar la falla (${texto})? Esas piezas vuelven a esperarse en el lote.`, danger: true, confirmLabel: 'Borrar' }))) return;
+    const r = await fetch(`/api/produccion/cola/${ordenId}/fallas`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ fallaId }),
+    });
+    if (!r.ok) {
+      const d = await r.json().catch(() => ({}));
+      toast.error(typeof d.error === 'string' ? d.error : 'No se pudo borrar');
+      return;
+    }
+    router.refresh();
+  };
+
   const deshacer = async (numero: number) => {
     if (!(await confirmAsync({ message: `¿Deshacer el Lote ${numero}? Sus talles vuelven al Lote 1.`, danger: true, confirmLabel: 'Deshacer' }))) return;
     const r = await fetch(`/api/produccion/cola/${ordenId}/lotes`, {
@@ -153,8 +203,13 @@ export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lot
 
       {separada && (
         <div className="space-y-2">
-          {lotes.map((l) => (
-            <div key={l.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm border-b border-stone-100 pb-2 last:border-0">
+          {lotes.map((l) => {
+            const partes = Object.keys(l.esperadoPorParte).filter((k) => k !== '');
+            const conFallas = l.fallas.length > 0;
+            const formAbierto = falla?.numero === l.numero;
+            return (
+            <div key={l.id} className="border-b border-stone-100 pb-2 last:border-0">
+            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
               <span className="font-semibold text-stone-800 w-24">Lote {l.numero} <span className="font-normal text-stone-400">de {lotes.length}</span></span>
               <span className="text-xs text-stone-600">{textoTalles(l.talles)} = <strong>{l.unidades} u</strong></span>
               <span className="text-xs text-stone-400">
@@ -180,13 +235,74 @@ export function LotesPlanificados({ ordenId, sku, enCostura, puedeProgramar, lot
                     {l.enTaller ? '👁' : '🙈'}
                   </button>
                 )}
-                {l.numero === ultimo && (enCostura || programada) && l.ingresado === 0 && (
+                {enCostura && l.abierto && !formAbierto && (
+                  <button type="button" onClick={() => setFalla({ numero: l.numero, parte: '', talle: '', cantidad: 0, proceso: '', motivo: '' })}
+                    className="text-xs text-stone-500 hover:text-red-600">Registrar falla</button>
+                )}
+                {l.numero === ultimo && (enCostura || programada) && l.ingresado === 0 && !conFallas && (
                   <button type="button" onClick={() => deshacer(l.numero)} className="text-xs text-stone-400 hover:text-red-600">Deshacer</button>
                 )}
                 <Link href={`/produccion/${ordenId}/lote/${l.numero}/etiqueta${etiquetaQs}`} className="text-xs text-amber-600 hover:underline">Etiqueta</Link>
               </span>
             </div>
-          ))}
+            {conFallas && (
+              <div className="mt-1 ml-0 sm:ml-[6.75rem] space-y-0.5 text-xs">
+                {partes.length > 0 && (
+                  <p className="text-stone-600">
+                    Espera {partes.map((p) => `${l.esperadoPorParte[p]} ${p.toLowerCase()}${l.esperadoPorParte[p] === 1 ? '' : 's'}`).join(' · ')}
+                  </p>
+                )}
+                {l.fallas.map((f) => {
+                  const texto = `${f.cantidad} ${f.parte ? f.parte.toLowerCase() + (f.cantidad > 1 ? 's' : '') + ' ' : ''}talle ${f.talle}`;
+                  return (
+                    <p key={f.id} className="text-red-700">
+                      Falla: {texto} · en {f.proceso}{f.motivo ? ` · ${f.motivo}` : ''}
+                      {enCostura && (
+                        <button type="button" onClick={() => borrarFalla(f.id, texto)} className="ml-2 text-stone-400 hover:text-red-600">borrar</button>
+                      )}
+                    </p>
+                  );
+                })}
+              </div>
+            )}
+            {formAbierto && falla && (
+              <div className="mt-2 p-3 rounded-xl border border-red-200 bg-red-50/40 space-y-2">
+                <p className="text-xs font-semibold text-stone-700">Falla en el Lote {l.numero}: piezas que se perdieron y ya no se esperan</p>
+                {partes.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {partes.map((p) => (
+                      <button key={p} type="button" onClick={() => setFalla({ ...falla, parte: p })} aria-pressed={falla.parte === p}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-semibold ${falla.parte === p ? 'bg-red-100 border-red-400 text-red-800' : 'bg-white border-stone-200 text-stone-600'}`}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <select value={falla.talle} onChange={(e) => setFalla({ ...falla, talle: e.target.value })} aria-label="Talle"
+                    className="px-2 py-1.5 border border-stone-200 rounded-lg text-xs bg-white">
+                    <option value="">— Talle —</option>
+                    {l.talles.map((t) => <option key={t.talle} value={t.talle}>{t.talle}</option>)}
+                  </select>
+                  <NumInput value={falla.cantidad} onChange={(n) => setFalla({ ...falla, cantidad: n || 0 })}
+                    aria-label="Cantidad" placeholder="Cantidad" className="w-24 px-2 py-1.5 border border-stone-200 rounded-lg text-xs bg-white" />
+                  <select value={falla.proceso} onChange={(e) => setFalla({ ...falla, proceso: e.target.value })} aria-label="Proceso"
+                    className="px-2 py-1.5 border border-stone-200 rounded-lg text-xs bg-white">
+                    <option value="">— Dónde se perdieron —</option>
+                    {PROCESOS_DE_FALLA.map((p) => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <input value={falla.motivo} onChange={(e) => setFalla({ ...falla, motivo: e.target.value })} maxLength={200}
+                    placeholder="Motivo (opcional)" className="flex-1 min-w-40 px-2 py-1.5 border border-stone-200 rounded-lg text-xs bg-white" />
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => guardarFalla(partes)} disabled={guardando}>{guardando ? 'Guardando…' : 'Registrar falla'}</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setFalla(null)}>Cancelar</Button>
+                </div>
+              </div>
+            )}
+            </div>
+            );
+          })}
           {programada && (
             <div className="flex flex-wrap items-center gap-2 text-xs text-sky-800 bg-sky-50 border border-sky-200 rounded-lg p-2.5">
               <span>
