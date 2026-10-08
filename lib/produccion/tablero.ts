@@ -46,6 +46,9 @@ export interface TableroOrden {
   id: string;
   sku: string | null;
   descripcion: string | null;
+  /** La descripción tal cual está guardada (para editarla) y las notas de la orden. */
+  descripcionCompleta: string | null;
+  notas: string | null;
   color: string;
   marca: string;
   estado: string;
@@ -169,6 +172,8 @@ export async function cargarTablero(db: Db, { conValores }: { conValores: boolea
       id: o.id,
       sku: o.sku,
       descripcion: modelo,
+      descripcionCompleta: o.descripcion,
+      notas: o.notas,
       color: colorDesc ?? nombreColor.get(abrevColor) ?? (abrevColor || 'Sin color'),
       marca: o.marca,
       estado: o.estado,

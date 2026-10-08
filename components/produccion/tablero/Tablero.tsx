@@ -10,6 +10,8 @@ import { PanelOrden } from './PanelOrden';
 import { CHIP, CHIP_TONO, avisosDe, horasMin, lotesVista, num, pesos, type LoteVista } from './formato';
 import { LoteBoton } from './Lote';
 import { Geo } from './Geometral';
+import { MenuAcciones, ModalIngresar, useAccionesOrden } from './Acciones';
+import { NuevaProduccion } from './NuevaProduccion';
 
 // El tablero de Producción › Órdenes (rediseño oct-2026). Convive con ColaAdmin detrás de
 // `?nuevo=1` hasta que Bruno lo dé por bueno.
@@ -28,6 +30,7 @@ export function Tablero() {
   const [q, setQ] = useState('');
   const [sel, setSel] = useState<string | null>(null);
   const [espera, setEspera] = useState<TableroOrden | null>(null);
+  const [nueva, setNueva] = useState(false);
 
   const cargar = useCallback(async () => {
     const r = await fetch('/api/produccion/tablero', { cache: 'no-store' });
@@ -97,11 +100,11 @@ export function Tablero() {
                 className="flex-1 min-w-0 bg-transparent text-[13px] outline-none" />
             </label>
             <Link href="/produccion" className="h-[34px] px-3 inline-flex items-center rounded-lg text-[13px] font-semibold text-stone-500 hover:bg-stone-100 hover:text-stone-700">Vista anterior</Link>
-            <Link href="/produccion#nueva" className="h-[34px] px-3 inline-flex items-center gap-1.5 rounded-lg text-[13px] font-semibold bg-amber-400 text-stone-900 hover:bg-amber-500">+ Nueva producción</Link>
+            <button type="button" onClick={() => setNueva(true)} className="h-[34px] px-3 inline-flex items-center gap-1.5 rounded-lg text-[13px] font-semibold bg-amber-400 text-stone-900 hover:bg-amber-500">+ Nueva producción</button>
           </div>
         </header>
 
-        <div className="grid gap-2.5 grid-cols-[repeat(auto-fit,minmax(190px,1fr))]">
+        <div className="grid gap-2.5 grid-cols-2 2xl:grid-cols-4">
           <Tile titulo="En el taller" valor={`${num(cortadas)} u`} bajada={`cortadas · ${num(ingresadas)} ingresadas a stock`} />
           <Tile titulo="Tiempo registrado" valor={`${num(minutos / 60, 1)} h`} bajada={<>en la tablet{sinMinutos > 0 && <b className="text-orange-800 font-semibold"> · {sinMinutos} {sinMinutos === 1 ? 'color' : 'colores'} sin minutos</b>}</>} />
           <Tile titulo="En la tablet" valor={`${lotes.filter((l) => l.enTablet).length} de ${lotes.length} lotes`} bajada="lo que las costureras ven hoy" />
@@ -129,7 +132,7 @@ export function Tablero() {
               </div>
               {arts.length === 0
                 ? <p className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-3 text-[13px] text-stone-500">{texto ? 'Nada coincide con la búsqueda.' : vacio}</p>
-                : arts.map((a) => <Articulo key={a.id} a={a} conValores={data.conValores} sel={sel} onSel={setSel} onLote={alternar} />)}
+                : arts.map((a) => <Articulo key={a.id} a={a} conValores={data.conValores} sel={sel} onSel={setSel} onLote={alternar} onCambio={cargar} />)}
             </section>
           );
         })}
@@ -156,6 +159,7 @@ export function Tablero() {
           volverA={VOLVER} onCerrar={() => setSel(null)} onLote={alternar} onRecargar={cargar} />
       )}
 
+      {nueva && <NuevaProduccion onCerrar={() => setNueva(false)} onCreada={() => { setNueva(false); cargar(); }} />}
       {espera && <ModalEspera o={espera} onCerrar={() => setEspera(null)} onListo={() => { setEspera(null); cargar(); }} />}
     </div>
   );
@@ -171,18 +175,22 @@ function Tile({ titulo, valor, bajada }: { titulo: string; valor: string; bajada
   );
 }
 
-function Articulo({ a, conValores, sel, onSel, onLote }: {
-  a: TableroArticulo; conValores: boolean; sel: string | null; onSel: (id: string) => void; onLote: (o: TableroOrden, l: LoteVista) => void;
+function Articulo({ a, conValores, sel, onSel, onLote, onCambio }: {
+  a: TableroArticulo; conValores: boolean; sel: string | null; onSel: (id: string) => void; onLote: (o: TableroOrden, l: LoteVista) => void; onCambio: () => void;
 }) {
+  const [ingresarTodos, setIngresarTodos] = useState(false);
+  const enTaller = a.ordenes.filter((o) => o.estado === 'COSTURA' && o.loteId);
   const cort = a.ordenes.reduce((s, o) => s + o.cortado, 0);
   const ing = a.ordenes.reduce((s, o) => s + o.ingresado, 0);
   const min = a.ordenes.reduce((s, o) => s + o.tiempo.minutos, 0);
   const costo = a.ordenes.reduce((s, o) => s + (o.costos?.total ?? 0), 0);
+  // Las columnas siguen el ancho de la TARJETA (container query), no el de la ventana:
+  // con el panel abierto la tarjeta se angosta y pasa a dos columnas en vez de cortarse.
   const cols = conValores
-    ? 'md:grid-cols-[minmax(170px,1.3fr)_minmax(140px,1fr)_110px_92px_minmax(190px,1.4fr)_auto]'
-    : 'md:grid-cols-[minmax(170px,1.3fr)_minmax(140px,1fr)_110px_minmax(190px,1.4fr)_auto]';
+    ? '@3xl:grid-cols-[minmax(160px,1.3fr)_minmax(110px,1fr)_96px_84px_minmax(200px,1.6fr)]'
+    : '@3xl:grid-cols-[minmax(160px,1.3fr)_minmax(110px,1fr)_96px_minmax(200px,1.6fr)]';
   return (
-    <article className="rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
+    <article className="@container rounded-2xl border border-stone-200 bg-white shadow-sm overflow-hidden">
       <header className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 border-b border-stone-200">
         <div className="flex-1 min-w-[240px]">
           <h3 className="text-[15.5px] font-bold text-stone-900 flex flex-wrap items-center gap-2">
@@ -196,12 +204,16 @@ function Articulo({ a, conValores, sel, onSel, onLote }: {
           <Met titulo="Llevamos" valor={horasMin(min)} bajada={cort ? `${num(min / cort, 1)} min por u cortada` : ''} />
           {conValores && <Met titulo="Costo/u hoy" valor={cort ? pesos(costo / cort) : '—'} bajada={a.ordenes.some((o) => !o.costos?.telaCargada) ? 'sin tela' : 'con tela'} />}
         </div>
+        {enTaller.length > 1 && (
+          <button type="button" onClick={() => setIngresarTodos(true)} className="h-8 px-3 rounded-lg border border-stone-300 bg-white text-[12.5px] font-semibold text-stone-700 hover:bg-stone-50">Ingresar varios colores</button>
+        )}
       </header>
-      <div className={`hidden md:grid ${cols} gap-x-3.5 px-4 pt-2 pb-1.5 text-[10.5px] uppercase tracking-wider font-semibold text-stone-400`}>
-        <span>Color</span><span>Avance</span><span>Tiempo</span>{conValores && <span>$/u hoy</span>}<span>Lotes · tablet y etiqueta</span><span />
+      {ingresarTodos && <ModalIngresar loteId={enTaller[0].loteId!} onCerrar={() => setIngresarTodos(false)} onListo={() => { setIngresarTodos(false); onCambio(); }} />}
+      <div className={`hidden @3xl:grid ${cols} gap-x-3.5 px-4 pt-2 pb-1.5 text-[10.5px] uppercase tracking-wider font-semibold text-stone-400`}>
+        <span>Color</span><span>Avance</span><span>Tiempo</span>{conValores && <span>$/u hoy</span>}<span>Lotes · tablet y etiqueta</span>
       </div>
       {a.ordenes.map((o) => (
-        <Fila key={o.id} o={o} cols={cols} conValores={conValores} activa={sel === o.id} onSel={onSel} onLote={onLote} />
+        <Fila key={o.id} o={o} cols={cols} conValores={conValores} activa={sel === o.id} onSel={onSel} onLote={onLote} onCambio={onCambio} />
       ))}
     </article>
   );
@@ -217,14 +229,16 @@ function Met({ titulo, valor, bajada }: { titulo: string; valor: string; bajada:
   );
 }
 
-function Fila({ o, cols, conValores, activa, onSel, onLote }: {
-  o: TableroOrden; cols: string; conValores: boolean; activa: boolean; onSel: (id: string) => void; onLote: (o: TableroOrden, l: LoteVista) => void;
+function Fila({ o, cols, conValores, activa, onSel, onLote, onCambio }: {
+  o: TableroOrden; cols: string; conValores: boolean; activa: boolean; onSel: (id: string) => void; onLote: (o: TableroOrden, l: LoteVista) => void; onCambio: () => void;
 }) {
+  const acciones = useAccionesOrden(o, onCambio);
+  const [ingresar, setIngresar] = useState(false);
   const avisos = avisosDe(o);
   const pct = o.cortado ? Math.min(100, o.ingresado / o.cortado * 100) : 0;
   return (
     <div className={`grid grid-cols-2 ${cols} gap-x-3.5 gap-y-2.5 items-center px-4 py-3 border-t border-stone-100 ${activa ? 'bg-amber-50' : 'hover:bg-stone-50'}`}>
-      <button type="button" onClick={() => onSel(o.id)} className="col-span-2 md:col-span-1 min-w-0 text-left group flex gap-2.5 items-start">
+      <button type="button" onClick={() => onSel(o.id)} className="col-span-2 @3xl:col-span-1 min-w-0 text-left group flex gap-2.5 items-start">
         <Geo o={o} />
         <span className="min-w-0">
           <b className="block text-[13.5px] font-semibold text-stone-900 group-hover:text-amber-600">{o.color}</b>
@@ -250,18 +264,17 @@ function Fila({ o, cols, conValores, activa, onSel, onLote }: {
           <small className="text-[11.5px] text-stone-500">corte {o.costos && o.cortado ? pesos(o.costos.corte / o.cortado) : '—'}</small>
         </div>
       )}
-      <div className="col-span-2 md:col-span-1 flex flex-wrap gap-1.5">
+      <div className="col-span-2 @3xl:col-span-1 flex flex-wrap items-center gap-1.5">
         {lotesVista(o).map((l) => <LoteBoton key={l.numero} o={o} l={l} onLote={onLote} />)}
-      </div>
-      <div className="col-span-2 md:col-span-1 flex gap-1.5 md:justify-end">
-        {o.loteId && o.etapa !== 'corte' && (
-          <Link href={`/produccion/lote/${o.loteId}/terminar`} className="h-7 px-2.5 inline-flex items-center rounded-lg border border-stone-300 bg-white text-[12.5px] font-semibold text-stone-700 hover:bg-stone-50">Ingresar</Link>
+        <span className="ml-auto flex gap-1.5">
+        {o.loteId && o.estado === 'COSTURA' && (
+          <button type="button" onClick={() => setIngresar(true)} className="h-7 px-2.5 inline-flex items-center rounded-lg border border-stone-300 bg-white text-[12.5px] font-semibold text-stone-700 hover:bg-stone-50">Ingresar</button>
         )}
-        <button type="button" onClick={() => onSel(o.id)} aria-label={`Abrir ${o.color}`}
-          className="w-7 h-7 grid place-items-center rounded-lg border border-stone-200 bg-white text-stone-500 hover:bg-stone-100 hover:text-stone-900">
-          <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor" aria-hidden><circle cx="5" cy="12" r="1.4" /><circle cx="12" cy="12" r="1.4" /><circle cx="19" cy="12" r="1.4" /></svg>
-        </button>
+        <MenuAcciones items={acciones.items} />
+        </span>
       </div>
+      {acciones.ventana}
+      {ingresar && <ModalIngresar o={o} onCerrar={() => setIngresar(false)} onListo={() => { setIngresar(false); onCambio(); }} />}
     </div>
   );
 }

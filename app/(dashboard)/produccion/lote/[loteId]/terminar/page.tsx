@@ -3,57 +3,18 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { TerminarLoteForm } from '@/components/produccion/TerminarLoteForm';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { partesDeOrden, skuDeParte } from '@/lib/produccion/conjuntos';
-import { baseDeRepartoConOrigen } from '@/lib/produccion/cantidades';
-import { estadoDeLotes, lotesParaPantalla } from '@/lib/produccion/lotesPlanificados';
+import { datosTerminarLote } from '@/lib/produccion/terminarLote';
 
 export const dynamic = 'force-dynamic';
 
 export default async function TerminarLotePage({ params }: { params: Promise<{ loteId: string }> }) {
   const { loteId } = await params;
 
-  const lote = await prisma.loteProduccion.findUnique({
-    where: { id: loteId },
-    include: {
-      ordenes: {
-        where: { estado: 'COSTURA' },
-        orderBy: { createdAt: 'asc' },
-        select: {
-          id: true, sku: true, descripcion: true, cantidad: true, cantidadCortada: true,
-          cortesPorTalle: { orderBy: { talle: 'asc' }, select: { talle: true, cantidad: true } },
-        },
-      },
-    },
-  });
-
+  const lote = await datosTerminarLote(prisma, loteId);
   if (!lote) notFound();
-  const titulo = lote.descripcion || lote.prenda || 'Lote';
+  const { titulo, ordenes } = lote;
 
-  // Las piezas de cada color: una prenda por partes (la bikini) se cuenta por pieza y
-  // cada una entra a su propio SKU. Todas las OP de un lote comparten el molde, así que
-  // en la práctica es la misma lista — pero se resuelve por OP, que es por SKU, porque
-  // `LoteProduccion.prenda` admite override manual y ahí ya no es la misma verdad.
-  // 🔴 El número de referencia es lo CORTADO, y el rótulo tiene que decir cuál de los dos
-  // es. `cantidad` es lo PLANIFICADO: mostrarlo como "Cortadas" afirma un corte que nadie
-  // cargó, y cuando los dos existen y difieren —ZAT-BIK-VER-001: 42 cortadas, 40 planeadas—
-  // el que ingresa compara su conteo contra el número equivocado. `baseDeRepartoConOrigen`
-  // es el mismo dueño que usa el reparto del costo, así que las dos pantallas ⛔ no pueden
-  // divergir en qué denominador miran.
-  const ordenes = await Promise.all(lote.ordenes.map(async (o) => ({
-    id: o.id,
-    sku: o.sku,
-    descripcion: o.descripcion,
-    base: baseDeRepartoConOrigen(o),
-    cortes: o.cortesPorTalle.map((c) => ({ talle: c.talle, cantidad: c.cantidad })),
-    partes: (await partesDeOrden(prisma, o.sku)).map((p) => ({
-      nombre: p.nombre,
-      sku: skuDeParte(o.sku, p.skuAbrev),
-    })),
-    // Separada en lotes: el color dice en cuál entra, y se precarga lo que le falta a ése.
-    lotes: lotesParaPantalla(await estadoDeLotes(prisma, o)),
-  })));
-
-  if (lote.ordenes.length === 0) {
+  if (ordenes.length === 0) {
     return (
       <div className="p-8 max-w-4xl">
         <PageHeader eyebrow="Producción / Terminar lote" title={titulo} subtitle={lote.marca} />
@@ -72,7 +33,7 @@ export default async function TerminarLotePage({ params }: { params: Promise<{ l
       <PageHeader
         eyebrow="Producción / Terminar lote"
         title={titulo}
-        subtitle={`${lote.marca} · ${lote.ordenes.length} ${lote.ordenes.length === 1 ? 'color' : 'colores'} en costura`}
+        subtitle={`${lote.marca} · ${ordenes.length} ${ordenes.length === 1 ? 'color' : 'colores'} en costura`}
       />
       <TerminarLoteForm
         loteId={lote.id}

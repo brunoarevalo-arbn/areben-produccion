@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { TableroArticulo, TableroOrden } from '@/lib/produccion/tablero';
 import { LoteBoton, Ojo } from './Lote';
 import { Geo, ModalGeometral } from './Geometral';
+import { MenuAcciones, ModalIngresar, useAccionesOrden } from './Acciones';
 import { CHIP, CHIP_TONO, avisosDe, fechaCorta, horasMin, lotesVista, num, ordenarTalles, pesos, type LoteVista } from './formato';
 
 const ESTADO_HISTORIAL: Record<string, string> = {
@@ -18,6 +19,8 @@ export function PanelOrden({ o, articulo, costoMinuto, volverA, onCerrar, onLote
   onCerrar: () => void; onLote: (o: TableroOrden, l: LoteVista) => void; onRecargar: () => void;
 }) {
   const [geoAbierto, setGeoAbierto] = useState(false);
+  const [ingresar, setIngresar] = useState(false);
+  const acciones = useAccionesOrden(o, onRecargar);
   const conValores = !!o.costos;
   const pestanas = ['Resumen', 'Lotes', ...(conValores ? ['Costos'] : []), 'Tiempo', 'Corte', 'Historial'];
   const [tab, setTab] = useState('Resumen');
@@ -116,12 +119,15 @@ export function PanelOrden({ o, articulo, costoMinuto, volverA, onCerrar, onLote
       </div>
 
       <div className="flex gap-2 px-4 py-3 border-t border-stone-200 bg-stone-50">
-        {o.loteId && o.etapa !== 'corte'
-          ? <Link href={`/produccion/lote/${o.loteId}/terminar`} className="flex-1 h-9 inline-flex items-center justify-center rounded-lg bg-amber-400 text-[13px] font-semibold text-stone-900 hover:bg-amber-500">Ingresar a stock</Link>
+        {o.loteId && o.estado === 'COSTURA'
+          ? <button type="button" onClick={() => setIngresar(true)} className="flex-1 h-9 inline-flex items-center justify-center rounded-lg bg-amber-400 text-[13px] font-semibold text-stone-900 hover:bg-amber-500">Ingresar a stock</button>
           : <span className="flex-1" />}
         <Link href={`/produccion/${o.id}/lote/${lotes[0].numero}/etiqueta?volverA=${volver}`} className="h-9 px-3 inline-flex items-center rounded-lg border border-stone-300 bg-white text-[13px] font-semibold text-stone-700 hover:bg-stone-50">Etiqueta</Link>
         <Link href={`/produccion/${o.id}?volverA=${volver}`} className="h-9 px-3 inline-flex items-center rounded-lg border border-stone-300 bg-white text-[13px] font-semibold text-stone-700 hover:bg-stone-50">Ficha</Link>
+        <MenuAcciones items={acciones.items} arriba grande />
       </div>
+      {acciones.ventana}
+      {ingresar && <ModalIngresar o={o} onCerrar={() => setIngresar(false)} onListo={() => { setIngresar(false); onRecargar(); }} />}
       {geoAbierto && <ModalGeometral o={o} onCerrar={() => setGeoAbierto(false)} onCambio={onRecargar} />}
     </aside>
   );

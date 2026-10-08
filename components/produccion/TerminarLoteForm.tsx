@@ -51,7 +51,11 @@ function filasDeLote(o: OrdenLite, lote: LotePlan): Fila[] {
 const cantidadDe = (f: Fila, parte?: string) =>
   parseInt(parte ? (f.porParte?.[parte] ?? '') : f.cantidad) || 0;
 
-export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes: OrdenLite[] }) {
+export function TerminarLoteForm({ loteId, ordenes, onListo, onCancelar }: {
+  loteId: string; ordenes: OrdenLite[];
+  /** En una ventana (tablero): qué hacer al terminar o cancelar, en vez de volver atrás. */
+  onListo?: () => void; onCancelar?: () => void;
+}) {
   const router = useRouter();
   const [conteo, setConteo] = useState<Record<string, Fila[]>>(
     () => Object.fromEntries(ordenes.map((o) => [o.id, filasIniciales(o)])),
@@ -124,7 +128,7 @@ export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes:
       body: JSON.stringify({ colores: payload, permitirSinCosto: sinCosto }),
     });
     if (r.ok) {
-      router.back(); // volver al contexto anterior (no saltar a la portada)
+      if (onListo) onListo(); else router.back(); // volver al contexto anterior (no saltar a la portada)
     } else {
       const d = await r.json().catch(() => ({}));
       setError(d.error || 'Error al terminar');
@@ -251,7 +255,7 @@ export function TerminarLoteForm({ loteId, ordenes }: { loteId: string; ordenes:
         <Button type="submit" variant="primary" size="lg" isLoading={saving} disabled={completos.length === 0 || (pideAfirmar && !sinCosto)}>
           {saving ? 'Terminando...' : `Terminar ${completos.length} ${completos.length === 1 ? 'color' : 'colores'}`}
         </Button>
-        <Button type="button" variant="secondary" size="lg" onClick={() => router.back()}>Cancelar</Button>
+        <Button type="button" variant="secondary" size="lg" onClick={() => (onCancelar ? onCancelar() : router.back())}>Cancelar</Button>
       </div>
     </form>
   );

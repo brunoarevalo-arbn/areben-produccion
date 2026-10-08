@@ -4,8 +4,18 @@ import { requirePermiso } from '@/lib/auth';
 import { TerminarLoteSchema } from '@/lib/validators/produccion';
 import { terminarCosturaOrden, CosturaError } from '@/lib/produccion/costura';
 import { LoteCorteError } from '@/lib/produccion/loteCorte';
+import { datosTerminarLote } from '@/lib/produccion/terminarLote';
 
 type Ctx = { params: Promise<{ loteId: string }> };
+
+// Los datos del formulario de ingreso (el tablero lo abre en una ventana). `?orden=` = un solo color.
+export async function GET(req: NextRequest, { params }: Ctx) {
+  if (!(await requirePermiso(req, 'produccion'))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  const { loteId } = await params;
+  const datos = await datosTerminarLote(prisma, loteId, req.nextUrl.searchParams.get('orden') ?? undefined);
+  if (!datos) return NextResponse.json({ error: 'No existe ese lote' }, { status: 404 });
+  return NextResponse.json(datos);
+}
 
 // Termina la costura de varios colores de un lote en una sola transacción. Parcial:
 // solo se mandan los colores cargados (con al menos un talle > 0); el resto sigue en COSTURA.
