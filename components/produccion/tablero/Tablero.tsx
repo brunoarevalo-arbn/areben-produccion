@@ -10,7 +10,7 @@ import { PanelOrden } from './PanelOrden';
 import { CHIP, CHIP_TONO, avisosDe, horasMin, lotesVista, num, pesos, type LoteVista } from './formato';
 import { LoteBoton } from './Lote';
 import { Geo } from './Geometral';
-import { MenuAcciones, ModalIngresar, useAccionesOrden } from './Acciones';
+import { MenuAcciones, ModalIngresar, useAccionesLote, useAccionesOrden } from './Acciones';
 import { NuevaProduccion } from './NuevaProduccion';
 
 // El tablero de Producción › Órdenes (rediseño oct-2026): es la pantalla de Órdenes; la
@@ -179,6 +179,7 @@ function Articulo({ a, conValores, sel, onSel, onLote, onCambio }: {
   a: TableroArticulo; conValores: boolean; sel: string | null; onSel: (id: string) => void; onLote: (o: TableroOrden, l: LoteVista) => void; onCambio: () => void;
 }) {
   const [ingresarTodos, setIngresarTodos] = useState(false);
+  const accionesLote = useAccionesLote(a, onCambio);
   const enTaller = a.ordenes.filter((o) => o.estado === 'COSTURA' && o.loteId);
   const cort = a.ordenes.reduce((s, o) => s + o.cortado, 0);
   const ing = a.ordenes.reduce((s, o) => s + o.ingresado, 0);
@@ -207,7 +208,9 @@ function Articulo({ a, conValores, sel, onSel, onLote, onCambio }: {
         {enTaller.length > 1 && (
           <button type="button" onClick={() => setIngresarTodos(true)} className="h-8 px-3 rounded-lg border border-stone-300 bg-white text-[12.5px] font-semibold text-stone-700 hover:bg-stone-50">Ingresar varios colores</button>
         )}
+        {accionesLote.items.length > 0 && <MenuAcciones items={accionesLote.items} grande />}
       </header>
+      {accionesLote.ventana}
       {ingresarTodos && <ModalIngresar loteId={enTaller[0].loteId!} onCerrar={() => setIngresarTodos(false)} onListo={() => { setIngresarTodos(false); onCambio(); }} />}
       <div className={`hidden @3xl:grid ${cols} gap-x-3.5 px-4 pt-2 pb-1.5 text-[10.5px] uppercase tracking-wider font-semibold text-stone-400`}>
         <span>Color</span><span>Avance</span><span>Tiempo</span>{conValores && <span>$/u hoy</span>}<span>Lotes · tablet y etiqueta</span>

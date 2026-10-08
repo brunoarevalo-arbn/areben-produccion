@@ -11,8 +11,8 @@
 // tablet se comporta igual que siempre. **Falla cerrado.**
 //
 // ⚠️ Y se deriva SIEMPRE del SKU, nunca de `LoteProduccion.prenda`: ese campo
-// admite un override manual (`api/produccion/lote/agrupar`), así que el mismo
-// molde puede estar guardado ahí como otra cosa. Dos verdades, una sola correcta.
+// admitía un override manual (el «agrupar» que se retiró en oct-2026), así que hay
+// lotes viejos con el molde guardado como otra cosa. Dos verdades, una sola correcta.
 
 import type { Prisma, PrismaClient } from '@prisma/client';
 import { prisma } from '@/lib/prisma';

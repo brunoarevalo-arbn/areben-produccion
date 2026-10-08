@@ -183,12 +183,6 @@ export function ColaAdmin() {
   const [fallaOrden,   setFallaOrden]   = useState<Orden | null>(null);
   const [esperaMotivo, setEsperaMotivo] = useState('');
 
-  // Agrupar OPs sueltas existentes en un lote
-  const [agrupando,    setAgrupando]    = useState(false);
-  const [seleccionadas, setSeleccionadas] = useState<Set<string>>(new Set());
-  const [destinoLote,  setDestinoLote]  = useState(''); // '' = lote nuevo; si no, id de lote existente
-  const [agrupSaving,  setAgrupSaving]  = useState(false);
-
   // Lotes colapsados por defecto; se despliegan con el chevron.
   const [lotesAbiertos, toggleLote] = useParamSet('lotes');
 
@@ -198,25 +192,8 @@ export function ColaAdmin() {
   const prendas = catalogo.filter((c) => c.categoria === 'prenda' && c.activo);
   const colores = catalogo.filter((c) => c.categoria === 'color' && c.activo);
 
-  // Cuántas OPs tiene cada lote (para permitir agrupar OPs solas en su lote).
-  const loteSizes = ordenes.reduce<Record<string, number>>((acc, o) => {
-    if (o.loteId) acc[o.loteId] = (acc[o.loteId] ?? 0) + 1;
-    return acc;
-  }, {});
-  // Se puede tildar para agrupar: activa, suelta o SOLA en su lote (no multicolor).
-  const esAgrupable = (o: Orden) => agrupando && o.estado !== 'CERRADA' && (!o.loteId || loteSizes[o.loteId] === 1);
-
   const prendaNombre = (abrev?: string | null) =>
     abrev ? (prendas.find((p) => p.abreviatura === abrev)?.nombre ?? abrev) : null;
-
-  // Lotes existentes (para "agregar a un lote ya creado" como destino del agrupado).
-  const lotesExistentes = Object.values(ordenes.reduce<Record<string, { id: string; label: string; count: number }>>((acc, o) => {
-    if (o.loteId && o.lote) {
-      if (!acc[o.loteId]) acc[o.loteId] = { id: o.loteId, label: `${prendaNombre(o.lote.prenda) || o.lote.descripcion || 'Molde'} · ${o.lote.marca}`, count: 0 };
-      acc[o.loteId].count++;
-    }
-    return acc;
-  }, {})).sort((a, b) => a.label.localeCompare(b.label));
 
   useEffect(() => {
     fetch('/api/sku-catalogo').then((r) => r.ok ? r.json() : []).then(setCatalogo).catch(() => {});
@@ -582,38 +559,6 @@ export function ColaAdmin() {
     setEditSaving(false);
   };
 
-  // --- Agrupar OPs sueltas en un lote ---
-  const toggleSel = (id: string) =>
-    setSeleccionadas((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
-
-  const salirAgrupar = () => { setAgrupando(false); setSeleccionadas(new Set()); setDestinoLote(''); };
-
-  const agruparSeleccionadas = async () => {
-    const ids = [...seleccionadas];
-    const minReq = destinoLote ? 1 : 2;
-    if (ids.length < minReq) return;
-    const elegidas = ordenes.filter((o) => seleccionadas.has(o.id));
-    if (new Set(elegidas.map((o) => o.marca)).size > 1) {
-      toast.error('Elegí órdenes de la misma marca');
-      return;
-    }
-    setAgrupSaving(true);
-    const r = await fetch('/api/produccion/lote/agrupar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ordenIds: ids, loteId: destinoLote || undefined }),
-    });
-    setAgrupSaving(false);
-    if (r.ok) {
-      toast.success(`${ids.length} órdenes agrupadas en un lote`);
-      salirAgrupar();
-      cargar();
-    } else {
-      const d = await r.json().catch(() => ({}));
-      toast.error(d.error || 'No se pudo agrupar');
-    }
-  };
-
   const q = busqueda.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
   const esCorteListo = (o: Orden) => o.corteEstado === 'cargado' && !o.fichaCorteCargada;
   const filtradas = (
@@ -666,10 +611,6 @@ export function ColaAdmin() {
       <div
         className={`px-4 md:px-5 py-2 ${GRID} items-center hover:bg-stone-50 transition border-t border-stone-100 ${dentroDeGrupo ? 'border-l-2 border-l-amber-200 bg-amber-50/20' : ''} ${orden.estado === 'CERRADA' ? 'opacity-60' : ''}`}>
         <div className="flex items-center gap-2">
-          {esAgrupable(orden) && (
-            <input type="checkbox" checked={seleccionadas.has(orden.id)} onChange={() => toggleSel(orden.id)}
-              aria-label={`Seleccionar ${orden.sku ?? orden.id}`} className="rounded border-stone-300 accent-amber-500" />
-          )}
           <Link href={`/produccion/${orden.id}?volverA=${encodeURIComponent(volverA)}`}
             className={`font-mono font-bold text-sm px-2 py-0.5 rounded-lg transition ${orden.sku ? 'bg-stone-100 text-stone-700 hover:text-amber-600' : 'bg-amber-50 text-amber-600 hover:text-amber-700'}`}>
             {orden.sku ?? 'S/SKU'}
@@ -848,40 +789,8 @@ export function ColaAdmin() {
             {label} <span className="ml-1 opacity-70">{n}</span>
           </Button>
         ))}
-        <Button variant={agrupando ? 'primary' : 'ghost'} size="sm" onClick={() => agrupando ? salirAgrupar() : setAgrupando(true)} className="ml-auto">
-          {agrupando ? 'Cancelar' : '🧷 Agrupar sueltas'}
-        </Button>
-        <Button variant="ghost" size="sm" onClick={cargar}>🔄 Actualizar</Button>
+        <Button variant="ghost" size="sm" onClick={cargar} className="ml-auto">🔄 Actualizar</Button>
       </div>
-
-      {/* Barra de agrupado */}
-      {agrupando && (() => {
-        const n = seleccionadas.size;
-        const minOk = n >= (destinoLote ? 1 : 2);
-        return (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 space-y-2.5">
-          {/* Paso 1: marcar */}
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <span className="text-sm font-semibold text-amber-900">1. Marcá las órdenes a juntar</span>
-            <span className="text-xs text-amber-800/70">(mismo molde y marca — solo se pueden marcar las sueltas o las que están solas en su lote)</span>
-            <span className="ml-auto text-sm text-amber-900">{n > 0 ? <><strong>{n}</strong> marcada{n === 1 ? '' : 's'}</> : <span className="text-amber-700/70">ninguna marcada</span>}</span>
-          </div>
-          {/* Paso 2: destino + acción */}
-          <div className="flex items-center gap-2 flex-wrap border-t border-amber-200 pt-2.5">
-            <span className="text-sm font-semibold text-amber-900">2. ¿Dónde van?</span>
-            <select value={destinoLote} onChange={(e) => setDestinoLote(e.target.value)}
-              className="px-2 py-1.5 border border-stone-200 rounded-lg text-sm bg-white focus:outline-none focus:border-amber-400 max-w-[18rem]">
-              <option value="">Crear un lote nuevo</option>
-              {lotesExistentes.map((l) => <option key={l.id} value={l.id}>Sumar a: {l.label} ({l.count} color{l.count === 1 ? '' : 'es'})</option>)}
-            </select>
-            <Button variant="primary" size="sm" onClick={agruparSeleccionadas} isLoading={agrupSaving} disabled={!minOk}>
-              {destinoLote ? `Sumar ${n || ''} al lote` : `Crear lote con ${n || ''}`}
-            </Button>
-            {!minOk && <span className="text-xs text-amber-700">{destinoLote ? 'marcá al menos 1' : 'marcá al menos 2 para un lote nuevo'}</span>}
-          </div>
-        </div>
-        );
-      })()}
 
       {/* Tabla */}
       <Card padding="none" className="overflow-hidden">
@@ -913,7 +822,7 @@ export function ColaAdmin() {
               const loteCortadorId   = idsCortador.length === 1 ? (idsCortador[0] ?? '') : '';
               const nCorteListo      = fila.ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado === 'cargado').length;
               const nValidado        = fila.ordenes.filter((o) => !o.fichaCorteCargada && o.corteEstado === 'validado').length;
-              const abierto          = lotesAbiertos.has(fila.loteId) || busqueda.trim() !== '' || agrupando;
+              const abierto          = lotesAbiertos.has(fila.loteId) || busqueda.trim() !== '';
               return (
                 <div key={fila.loteId} className="border-t border-stone-100">
                   <div className="px-4 md:px-5 py-2 bg-amber-50/60 flex items-center gap-2 text-xs flex-wrap">

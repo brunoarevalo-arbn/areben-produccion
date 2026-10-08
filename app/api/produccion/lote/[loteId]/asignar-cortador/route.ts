@@ -20,13 +20,15 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     if (!c) return NextResponse.json({ error: 'Cortador no encontrado' }, { status: 400 });
   }
 
-  // Solo las que están sin ficha; no piso las que el cortador ya cargó.
-  // Ojo: `{ not: 'cargado' }` en SQL no matchea NULL, así que incluyo el null explícito.
+  // Solo las que están sin ficha y sin corte cargado: ni lo que el cortador ya cargó
+  // ('cargado') ni lo que ya es cobrable ('validado'). 🔴 Antes sólo excluía 'cargado', así
+  // que un cortador para el lote devolvía los VALIDADOS a 'asignado' y quitarlo los dejaba
+  // en null: el corte salía de la cuenta corriente del cortador sin que nadie lo pidiera.
   const res = await prisma.ordenProduccion.updateMany({
     where: {
       loteId,
       fichaCorteCargada: false,
-      ...(cortadorId ? { OR: [{ corteEstado: null }, { corteEstado: { not: 'cargado' } }] } : {}),
+      OR: [{ corteEstado: null }, { corteEstado: 'asignado' }],
     },
     data: { cortadorId, corteEstado: cortadorId ? 'asignado' : null },
   });

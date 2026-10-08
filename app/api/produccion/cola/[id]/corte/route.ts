@@ -6,6 +6,7 @@ import { registrarCorteOrden, revertirCorteOrden, trazarEdicion, CorteError } fr
 import { partesDeOrden, skuDeParte } from '@/lib/produccion/conjuntos';
 import { estadoDeLotes, lotesParaPantalla } from '@/lib/produccion/lotesPlanificados';
 import { Prisma } from '@prisma/client';
+import { cantidadCortada } from '@/lib/produccion/cantidades';
 import { z } from 'zod';
 
 type Ctx = { params: Promise<{ id: string }> };
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   // otra cuenta y el pago se queda en la primera — así que eso sigue pidiendo anular el pago.
   const previo = await prisma.ordenProduccion.findUnique({
     where: { id },
-    select: { pagoCorteId: true, cortadorId: true, costoCorte: true, cantidad: true },
+    select: { pagoCorteId: true, cortadorId: true, costoCorte: true, cantidad: true, cantidadCortada: true },
   });
   if (!previo) return NextResponse.json({ error: 'OP no encontrada' }, { status: 404 });
   if (previo.pagoCorteId && (parsed.data.cortadorId ?? null) !== previo.cortadorId) {
@@ -92,7 +93,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       // permitirImputado: el revert intermedio no se ve desde afuera (misma transacción).
       await revertirCorteOrden(tx, id, session, true, !!previo.pagoCorteId);
       const orden = await registrarCorteOrden(tx, id, parsed.data, session);
-      if (previo.pagoCorteId) await trazarEdicion(tx, id, previo, orden, session.nombre);
+      // La traza compara lo CORTADO: `cantidad` es el plan y la ficha no lo toca.
+      if (previo.pagoCorteId) {
+        await trazarEdicion(tx, id, { ...previo, cantidad: cantidadCortada(previo) },
+          { costoCorte: orden.costoCorte, cantidad: cantidadCortada(orden) }, session.nombre);
+      }
       return orden;
     }, { timeout: 30000, maxWait: 15000 });
     return NextResponse.json(result, { status: 201 });
@@ -159,14 +164,16 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         cortadorId: cortadorId ?? null,
         costoCorte: new Prisma.Decimal(costoCorteTotal),
         costoTotal: new Prisma.Decimal(costoTotal),
-        cantidad,
+        // Los talles son lo CORTADO. 🔴 Antes escribía `cantidad`, que es el PLAN: editar un
+        // talle pisaba lo planificado y dejaba `cantidadCortada` con el número viejo.
+        cantidadCortada: cantidad,
         fichaCorteData: fichaData,
         ...(fechaCorte ? { fechaCorte: new Date(`${fechaCorte}T12:00:00Z`) } : {}),
         ...(notas?.trim() ? { notas: (orden.notas ? orden.notas + '\n' : '') + `[Corte] ${notas.trim()}` } : {}),
       },
     });
     if (orden.pagoCorteId) {
-      await trazarEdicion(tx, id, orden, { costoCorte: costoCorteTotal, cantidad }, session.nombre);
+      await trazarEdicion(tx, id, { ...orden, cantidad: cantidadCortada(orden) }, { costoCorte: costoCorteTotal, cantidad }, session.nombre);
     }
   });
 

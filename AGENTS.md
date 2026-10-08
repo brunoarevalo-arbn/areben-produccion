@@ -43,8 +43,8 @@ queda viva. El resto de la app no sabe que hubo Google de por medio.
 **SKU: código operativo `MARCA-PRENDA-COLOR-NNN` (sin talle) durante producción.** El talle se
 agrega recién al cerrar la OP (`MARCA-PRENDA-COLOR-NNN-TALLE`), momento en que nace el SKU
 comercial. `LoteProduccion` agrupa OPs por marca + 2º segmento del SKU (la prenda/molde): dos
-prendas con abreviatura distinta no se agrupan aunque compartan marca y color, ni se puede mover
-una OP a un lote que ya tiene varios colores sin desarmarlo (`api/produccion/lote/agrupar`).
+prendas con abreviatura distinta no se agrupan aunque compartan marca y color. El lote nace al
+crear la producción con varios colores; «agrupar sueltas» se retiró (oct-2026).
 
 **El costo de Precios sale del Escandallo vinculado por `skuLiso`, no de Gestión Nube.**
 `preciosData.ts` matchea `Escandallo.sku` contra `ReposicionMapeo.skuLiso`; si no coinciden letra
@@ -86,8 +86,10 @@ completo antes de tocar ese módulo — las decisiones ya están discutidas ahí
   `produccion`), catálogo. Modelo de dos pistas: telas trazables por `Rollo` (peso/costo por kg),
   avíos por `Lote` (FIFO automático)
 - **Compras** (`insumos` u `gastos`) — altas de factura, cuentas por pagar
-- **Producción** (`produccion`) — `ColaAdmin.tsx` (929 líneas, no fragmentar) crea OP/lote; fichas
-  de corte, tiempos, muestras, reportes, solicitudes de cambio, cortes/pagos por cortador
+- **Producción** (`produccion`) — Órdenes es el **tablero** (`components/produccion/tablero/`, datos en
+  `lib/produccion/tablero.ts`, `GET /api/produccion/tablero`): crea OP/lote, acciones por color y por
+  lote. La cola vieja (`ColaAdmin.tsx`) sigue en `/produccion?vista=anterior`. Además: fichas de
+  corte, tiempos, muestras, reportes, solicitudes de cambio, cortes/pagos por cortador
 - **Estampería** (`estamperia`) — catálogo DTF, tiempos de estampado, tablet en `/estampado`
 - **Reposición** (`reposicion`) — qué estampar, órdenes de estampa, vínculo SKU↔GN
 - **Costos** (`costos`) — `Escandallos.tsx` (1.189 líneas, el más grande del repo), productos con
@@ -114,7 +116,7 @@ Todo lo que entra al contexto se re-paga en cada turno, así que un output largo
 varias veces su tamaño.
 
 - **Los archivos caros se leen por rango, no enteros.** Los peores: `components/costos/Escandallos.tsx`
-  (1.189 líneas) · `components/produccion/ColaAdmin.tsx` (929) · `components/diseno/ProyectoView.tsx`
+  (1.189 líneas) · `components/produccion/ColaAdmin.tsx` (~1.200) · `components/diseno/ProyectoView.tsx`
   (751) · `components/produccion/ReportesClient.tsx` (652) · `docs/CAPITAL_PRODUCCION.md` (746 — leer
   completo solo si se toca ese módulo, no de arrastre).
 - **Comandos largos van cortados**: `git log`, builds con `| tail -30`.

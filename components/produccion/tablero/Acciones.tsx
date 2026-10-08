@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { TableroOrden } from '@/lib/produccion/tablero';
+import { useRouter } from 'next/navigation';
+import type { TableroArticulo, TableroOrden } from '@/lib/produccion/tablero';
 import { toast } from '@/components/ui/Toaster';
 import { confirmAsync } from '@/components/ui/ConfirmProvider';
 import { FallaForm } from '@/components/produccion/FallaForm';
@@ -85,6 +86,48 @@ export function useAccionesOrden(o: TableroOrden, onCambio: () => void) {
         onGuardar={async (notas) => { if (await cambiarEstado(modal.estado, `${o.color}: ${modal.titulo.toLowerCase()}`, notas)) cerrar(); }} />
   );
 
+  return { items, ventana };
+}
+
+/**
+ * Las acciones del LOTE entero (un artículo con varios colores). Mismos endpoints que la
+ * cola de siempre: cortador a todos, fichas de corte, mandar todo al taller y cerrar los
+ * listos. Ingresar varios colores ya está como botón en la cabecera.
+ */
+export function useAccionesLote(a: TableroArticulo, onCambio: () => void) {
+  const router = useRouter();
+  const [cortador, setCortador] = useState(false);
+  const loteId = a.ordenes[0]?.loteId;
+  const items: { label: string; onClick: () => void; danger?: boolean }[] = [];
+  if (!loteId || a.ordenes.length < 2) return { items, ventana: null };
+
+  // Sólo los colores sin corte cargado: lo cargado o validado ya es del cortador que lo cortó.
+  const asignables = a.ordenes.filter((o) => !o.corte.fichaTela && (o.corte.estado === null || o.corte.estado === 'asignado'));
+  const sinFicha = a.ordenes.filter((o) => !o.corte.fichaTela);
+  const alTaller = a.ordenes.filter((o) => o.etapa === 'corte' && o.sku);
+  const listos = a.ordenes.filter((o) => o.estado === 'TERMINADO_SIN_ESTAMPA');
+  const ids = new Set(asignables.map((o) => o.corte.cortadorId ?? ''));
+
+  const estadoLote = async (estado: 'COSTURA' | 'CERRADA', n: number) => {
+    const que = estado === 'COSTURA' ? `Mandar ${n} ${n === 1 ? 'color' : 'colores'} al taller: la tablet los empieza a mostrar.` : `Cerrar ${n} ${n === 1 ? 'color listo' : 'colores listos'}: pasan a Cerradas.`;
+    if (!(await confirmAsync({ message: que, confirmLabel: estado === 'COSTURA' ? 'Mandar al taller' : 'Cerrar', danger: estado === 'CERRADA' }))) return;
+    const r = await fetch(`/api/produccion/lote/${loteId}/estado`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ estado }) });
+    if (!r.ok) { toast.error((await r.json().catch(() => ({}))).error || 'No se pudo cambiar el lote'); return; }
+    const d = await r.json().catch(() => ({}));
+    toast.success(`${d.avanzados ?? n} ${d.avanzados === 1 ? 'color' : 'colores'} ${estado === 'COSTURA' ? 'en el taller' : 'cerrados'}`);
+    onCambio();
+  };
+
+  if (asignables.length > 0) items.push({ label: `Cortador para ${asignables.length === a.ordenes.length ? 'todo el lote' : `${asignables.length} colores`}…`, onClick: () => setCortador(true) });
+  if (sinFicha.length > 0) items.push({ label: 'Fichas de corte del lote', onClick: () => router.push(`/produccion/lote/${loteId}/corte`) });
+  if (alTaller.length > 0) items.push({ label: `Mandar ${alTaller.length === 1 ? '1 color' : `${alTaller.length} colores`} al taller`, onClick: () => estadoLote('COSTURA', alTaller.length) });
+  if (listos.length > 0) items.push({ label: `Cerrar ${listos.length === 1 ? 'el listo' : `los ${listos.length} listos`}`, onClick: () => estadoLote('CERRADA', listos.length) });
+
+  const ventana = cortador && (
+    <ElegirCortador titulo={`Cortador · ${a.nombre}`} actual={ids.size === 1 ? [...ids][0] : ''} url={`/api/produccion/lote/${loteId}/asignar-cortador`}
+      ayuda={`Se asigna a ${asignables.length} ${asignables.length === 1 ? 'color' : 'colores'} sin corte cargado. Los que ya cargó o validó el cortador no se tocan.`}
+      onCerrar={() => setCortador(false)} onListo={() => { setCortador(false); onCambio(); }} />
+  );
   return { items, ventana };
 }
 
@@ -197,23 +240,30 @@ function ModalEditar({ o, onCerrar, onListo }: { o: TableroOrden; onCerrar: () =
 }
 
 function ModalCortador({ o, onCerrar, onListo }: { o: TableroOrden; onCerrar: () => void; onListo: () => void }) {
+  return <ElegirCortador titulo={`Cortador · ${o.color}`} actual={o.corte.cortadorId ?? ''} url={`/api/produccion/cola/${o.id}/asignar-cortador`}
+    ayuda="El cortador lo ve en “Mis cortes” y carga ahí lo que cortó." onCerrar={onCerrar} onListo={onListo} />;
+}
+
+function ElegirCortador({ titulo, actual, url, ayuda, onCerrar, onListo }: {
+  titulo: string; actual: string; url: string; ayuda: string; onCerrar: () => void; onListo: () => void;
+}) {
   const [cortadores, setCortadores] = useState<{ id: string; nombre: string; activo: boolean }[] | null>(null);
-  const [elegido, setElegido] = useState(o.corte.cortadorId ?? '');
+  const [elegido, setElegido] = useState(actual);
   useEffect(() => {
     fetch('/api/cortadores').then((r) => r.json()).then((d) => setCortadores(Array.isArray(d) ? d.filter((c) => c.activo) : [])).catch(() => setCortadores([]));
   }, []);
   const guardar = async () => {
-    if (await pedir(`/api/produccion/cola/${o.id}/asignar-cortador`, { method: 'POST', body: JSON.stringify({ cortadorId: elegido || null }) }, elegido ? 'Cortador asignado' : 'Cortador quitado', () => {})) onListo();
+    if (await pedir(url, { method: 'POST', body: JSON.stringify({ cortadorId: elegido || null }) }, elegido ? 'Cortador asignado' : 'Cortador quitado', () => {})) onListo();
   };
   return (
-    <Ventana titulo={`Cortador · ${o.color}`} onCerrar={onCerrar}>
+    <Ventana titulo={titulo} onCerrar={onCerrar}>
       {!cortadores ? <LoadingState /> : (
         <div className="grid gap-3">
           <select value={elegido} onChange={(e) => setElegido(e.target.value)} className={CAMPO} aria-label="Cortador">
             <option value="">Sin cortador</option>
             {cortadores.map((c) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
           </select>
-          <p className="text-[12.5px] text-stone-500">El cortador lo ve en “Mis cortes” y carga ahí lo que cortó.</p>
+          <p className="text-[12.5px] text-stone-500">{ayuda}</p>
           <div className="flex justify-end gap-2">
             <button type="button" onClick={onCerrar} className={BOTON_2}>Cancelar</button>
             <button type="button" onClick={guardar} className={BOTON}>Guardar</button>
