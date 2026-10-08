@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import type { TableroArticulo, TableroOrden } from '@/lib/produccion/tablero';
 import { LoteBoton, Ojo } from './Lote';
+import { Geo, ModalGeometral } from './Geometral';
 import { CHIP, CHIP_TONO, avisosDe, fechaCorta, horasMin, lotesVista, num, ordenarTalles, pesos, type LoteVista } from './formato';
 
 const ESTADO_HISTORIAL: Record<string, string> = {
@@ -12,10 +13,11 @@ const ESTADO_HISTORIAL: Record<string, string> = {
 };
 const CORTE_ESTADO: Record<string, string> = { asignado: 'Asignado, falta que lo cargue', cargado: 'Cargado, falta validar', validado: 'Validado' };
 
-export function PanelOrden({ o, articulo, costoMinuto, volverA, onCerrar, onLote }: {
+export function PanelOrden({ o, articulo, costoMinuto, volverA, onCerrar, onLote, onRecargar }: {
   o: TableroOrden; articulo: TableroArticulo; costoMinuto?: number; volverA: string;
-  onCerrar: () => void; onLote: (o: TableroOrden, l: LoteVista) => void;
+  onCerrar: () => void; onLote: (o: TableroOrden, l: LoteVista) => void; onRecargar: () => void;
 }) {
+  const [geoAbierto, setGeoAbierto] = useState(false);
   const conValores = !!o.costos;
   const pestanas = ['Resumen', 'Lotes', ...(conValores ? ['Costos'] : []), 'Tiempo', 'Corte', 'Historial'];
   const [tab, setTab] = useState('Resumen');
@@ -28,10 +30,15 @@ export function PanelOrden({ o, articulo, costoMinuto, volverA, onCerrar, onLote
       className="fixed inset-y-0 right-0 z-40 w-full max-w-[420px] xl:sticky xl:top-0 xl:h-screen xl:z-auto border-l border-stone-200 bg-white flex flex-col shadow-2xl xl:shadow-none">
       <div className="px-4 pt-3.5 grid gap-2">
         <div className="flex gap-2.5 items-start">
+          <Geo o={o} grande />
           <div className="min-w-0">
             <h2 className="text-[17px] font-bold leading-tight text-stone-900">{articulo.nombre}</h2>
             <p className="text-[13px] font-semibold text-stone-700">{o.color}</p>
             <p className="font-mono text-xs text-stone-500">{o.sku ?? 'Sin SKU'}</p>
+            <button type="button" onClick={() => setGeoAbierto(true)}
+              className={`mt-1 ${CHIP} ${!o.geometral || o.geometral.delModelo ? CHIP_TONO.warn : CHIP_TONO['']}`}>
+              {!o.geometral ? 'Subir geometral' : o.geometral.delModelo ? 'Falta el geometral del color · subir' : 'Cambiar geometral'}
+            </button>
           </div>
           <button type="button" onClick={onCerrar} aria-label="Cerrar" className="ml-auto w-8 h-8 grid place-items-center rounded-lg text-stone-500 hover:bg-stone-100">
             <svg viewBox="0 0 24 24" className="w-[18px] h-[18px]" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden><path d="M18 6 6 18M6 6l12 12" /></svg>
@@ -115,6 +122,7 @@ export function PanelOrden({ o, articulo, costoMinuto, volverA, onCerrar, onLote
         <Link href={`/produccion/${o.id}/lote/${lotes[0].numero}/etiqueta?volverA=${volver}`} className="h-9 px-3 inline-flex items-center rounded-lg border border-stone-300 bg-white text-[13px] font-semibold text-stone-700 hover:bg-stone-50">Etiqueta</Link>
         <Link href={`/produccion/${o.id}?volverA=${volver}`} className="h-9 px-3 inline-flex items-center rounded-lg border border-stone-300 bg-white text-[13px] font-semibold text-stone-700 hover:bg-stone-50">Ficha</Link>
       </div>
+      {geoAbierto && <ModalGeometral o={o} onCerrar={() => setGeoAbierto(false)} onCambio={onRecargar} />}
     </aside>
   );
 }

@@ -59,6 +59,8 @@ export interface TableroOrden {
   ingresado: number;
   talles: { talle: string; cantidad: number }[] | null;
   partes: string[];
+  /** El del color, o el del modelo (`delModelo`) si el color no tiene el suyo. */
+  geometral: { url: string; delModelo: boolean } | null;
   corte: { estado: string | null; cortador: string | null; cortadorId: string | null; fecha: string | null; fichaTela: boolean; monto?: number };
   enEspera: { desde: string; motivo: string | null } | null;
   avisoCostura: { at: string; por: string | null } | null;
@@ -110,7 +112,7 @@ export async function cargarTablero(db: Db, { conValores }: { conValores: boolea
       where: { estado: { not: 'CERRADA' } },
       orderBy: { createdAt: 'asc' },
       include: {
-        lote: { select: { id: true, descripcion: true, marca: true } },
+        lote: { select: { id: true, descripcion: true, marca: true, geometralUrl: true } },
         cortesPorTalle: { select: { talle: true, cantidad: true } },
         lotesPlanificados: { select: { id: true } },
         fallas: { where: { loteId: null }, select: { cantidad: true } },
@@ -179,6 +181,8 @@ export async function cargarTablero(db: Db, { conValores }: { conValores: boolea
       ingresado,
       talles: tallesCortados(o),
       partes: partes.map((p) => p.nombre),
+      geometral: o.geometralUrl ? { url: o.geometralUrl, delModelo: false }
+        : o.lote?.geometralUrl ? { url: o.lote.geometralUrl, delModelo: true } : null,
       corte: {
         estado: o.corteEstado, cortador: o.cortador, cortadorId: o.cortadorId,
         fecha: o.fechaCorte?.toISOString() ?? null, fichaTela: o.fichaCorteCargada,

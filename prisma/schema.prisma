@@ -673,6 +673,10 @@ model OrdenProduccion {
   loteId String?
   lote   LoteProduccion? @relation(fields: [loteId], references: [id], onDelete: SetNull)
 
+  // El geometral de ESTE color (Vercel Blob). Null ⇒ se usa el del LoteProduccion, marcado
+  // como "del modelo". SQL: prisma/sql/2026-10-08-geometral.sql
+  geometralUrl String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -689,6 +693,8 @@ model LoteProduccion {
   descripcion String?
   notas       String?
   creadoPor   String            @default("admin")
+  // El geometral del modelo, para los colores que no tienen el suyo.
+  geometralUrl String?
   ordenes     OrdenProduccion[]
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt

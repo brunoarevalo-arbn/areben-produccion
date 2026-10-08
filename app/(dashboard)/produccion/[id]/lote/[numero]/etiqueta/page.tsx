@@ -21,8 +21,9 @@ export default async function EtiquetaLotePage({ params, searchParams }: {
   const numero = Number(numeroTxt);
   if (!Number.isInteger(numero) || numero < 1) notFound();
 
-  const orden = await prisma.ordenProduccion.findUnique({ where: { id }, include: { cortesPorTalle: true } });
+  const orden = await prisma.ordenProduccion.findUnique({ where: { id }, include: { cortesPorTalle: true, lote: { select: { geometralUrl: true } } } });
   if (!orden) notFound();
+  const geometral = orden.geometralUrl ?? orden.lote?.geometralUrl ?? null;
 
   const lotes = await estadoDeLotes(prisma, orden);
   let talles: { talle: string; cantidad: number }[];
@@ -52,10 +53,17 @@ export default async function EtiquetaLotePage({ params, searchParams }: {
       </div>
 
       <div className="etiqueta bg-white rounded-xl border-2 border-stone-900 p-6 space-y-4 print:rounded-none">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-stone-500 font-bold">{orden.marca} · Producción</p>
-          <h1 className="text-2xl font-bold font-mono text-stone-900 mt-1 break-all">{orden.sku ?? 'S/SKU'}</h1>
-          {orden.descripcion && <p className="text-sm text-stone-700 mt-1 leading-snug">{orden.descripcion}</p>}
+        <div className="flex gap-4 items-start">
+          {/* El geometral, para reconocer la bolsa sin leer el SKU (Bruno, 8-oct). */}
+          {geometral && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={geometral} alt="" className="w-20 h-24 object-contain border border-stone-300 rounded-md shrink-0" />
+          )}
+          <div className="min-w-0">
+            <p className="text-xs uppercase tracking-widest text-stone-500 font-bold">{orden.marca} · Producción</p>
+            <h1 className="text-2xl font-bold font-mono text-stone-900 mt-1 break-all">{orden.sku ?? 'S/SKU'}</h1>
+            {orden.descripcion && <p className="text-sm text-stone-700 mt-1 leading-snug">{orden.descripcion}</p>}
+          </div>
         </div>
 
         <div className="bg-stone-900 text-white rounded-lg px-4 py-3 text-center">

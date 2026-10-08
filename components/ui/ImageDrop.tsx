@@ -7,7 +7,7 @@ import type { Foto } from '@/lib/diseno/fotos';
 
 // Cuadrado para cargar una imagen: drag & drop o click, con preview y subida a
 // Vercel Blob (/api/upload-imagen). onChange recibe la URL pública (o null).
-export function ImageDrop({ value, onChange }: { value: string | null; onChange: (url: string | null) => void }) {
+export function ImageDrop({ value, onChange, contain = false }: { value: string | null; onChange: (url: string | null) => void; contain?: boolean }) {
   const [subiendo, setSubiendo] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -38,7 +38,7 @@ export function ImageDrop({ value, onChange }: { value: string | null; onChange:
       >
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={src} alt="estampa" className="w-full h-full object-cover" />
+          <img src={src} alt="estampa" className={`w-full h-full ${contain ? 'object-contain p-1 bg-white' : 'object-cover'}`} />
         ) : (
           <span className="text-[11px] text-stone-400 text-center px-2 leading-tight">Arrastrá una imagen<br />o hacé click</span>
         )}

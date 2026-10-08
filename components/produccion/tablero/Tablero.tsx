@@ -9,6 +9,7 @@ import { ErrorState } from '@/components/ui/ErrorState';
 import { PanelOrden } from './PanelOrden';
 import { CHIP, CHIP_TONO, avisosDe, horasMin, lotesVista, num, pesos, type LoteVista } from './formato';
 import { LoteBoton } from './Lote';
+import { Geo } from './Geometral';
 
 // El tablero de Producción › Órdenes (rediseño oct-2026). Convive con ColaAdmin detrás de
 // `?nuevo=1` hasta que Bruno lo dé por bueno.
@@ -152,7 +153,7 @@ export function Tablero() {
 
       {seleccionada && (
         <PanelOrden o={seleccionada} articulo={data.articulos.find((a) => a.ordenes.includes(seleccionada))!} costoMinuto={data.costoMinuto}
-          volverA={VOLVER} onCerrar={() => setSel(null)} onLote={alternar} />
+          volverA={VOLVER} onCerrar={() => setSel(null)} onLote={alternar} onRecargar={cargar} />
       )}
 
       {espera && <ModalEspera o={espera} onCerrar={() => setEspera(null)} onListo={() => { setEspera(null); cargar(); }} />}
@@ -223,12 +224,15 @@ function Fila({ o, cols, conValores, activa, onSel, onLote }: {
   const pct = o.cortado ? Math.min(100, o.ingresado / o.cortado * 100) : 0;
   return (
     <div className={`grid grid-cols-2 ${cols} gap-x-3.5 gap-y-2.5 items-center px-4 py-3 border-t border-stone-100 ${activa ? 'bg-amber-50' : 'hover:bg-stone-50'}`}>
-      <button type="button" onClick={() => onSel(o.id)} className="col-span-2 md:col-span-1 min-w-0 text-left group">
-        <b className="block text-[13.5px] font-semibold text-stone-900 group-hover:text-amber-600">{o.color}</b>
-        <span className="block font-mono text-xs text-stone-500">{o.sku ?? 'Sin SKU'}</span>
-        {avisos.length > 0 && (
-          <span className="mt-1 flex flex-wrap gap-1">{avisos.map((x) => <span key={x.texto} className={`${CHIP} ${CHIP_TONO[x.tono]}`}>{x.texto}</span>)}</span>
-        )}
+      <button type="button" onClick={() => onSel(o.id)} className="col-span-2 md:col-span-1 min-w-0 text-left group flex gap-2.5 items-start">
+        <Geo o={o} />
+        <span className="min-w-0">
+          <b className="block text-[13.5px] font-semibold text-stone-900 group-hover:text-amber-600">{o.color}</b>
+          <span className="block font-mono text-xs text-stone-500">{o.sku ?? 'Sin SKU'}</span>
+          {avisos.length > 0 && (
+            <span className="mt-1 flex flex-wrap gap-1">{avisos.map((x) => <span key={x.texto} className={`${CHIP} ${CHIP_TONO[x.tono]}`}>{x.texto}</span>)}</span>
+          )}
+        </span>
       </button>
       <div className="grid gap-1">
         <div className="relative h-2 rounded-full bg-amber-100 border border-stone-200 overflow-hidden">
