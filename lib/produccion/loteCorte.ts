@@ -102,6 +102,29 @@ async function minutosDeCostura(tx: Db, sku: string) {
   return registros.filter((r) => marcaDeMuestra(r.actividad, r.marca) === null);
 }
 
+/**
+ * Los mismos registros que `minutosDeCostura` (guardados, sin muestras), de varios SKUs en
+ * una sola consulta y con máquina y fecha: lo que el tablero de Órdenes muestra por color.
+ * 🔑 Es la misma regla a propósito: los minutos que ve el tablero son los que después
+ * se imputan al costo del lote.
+ */
+export async function registrosDeCosturaPorSku(db: Db, skus: string[]) {
+  const limpios = [...new Set(skus.map((s) => s.trim()).filter(Boolean))];
+  const porSku = new Map<string, { minutosNetos: number; parte: string | null; lote: number | null; maquina: string | null; fecha: string }[]>();
+  if (limpios.length === 0) return porSku;
+  const registros = await db.tiemposProduccion.findMany({
+    where: { sku: { in: limpios }, estado: 'guardado' },
+    select: { sku: true, actividad: true, marca: true, minutosNetos: true, parte: true, lote: true, maquina: true, fecha: true },
+  });
+  for (const r of registros) {
+    if (!r.sku || marcaDeMuestra(r.actividad, r.marca) !== null) continue;
+    const lista = porSku.get(r.sku) ?? [];
+    lista.push({ minutosNetos: r.minutosNetos, parte: r.parte, lote: r.lote, maquina: r.maquina, fecha: r.fecha });
+    porSku.set(r.sku, lista);
+  }
+  return porSku;
+}
+
 /** Lo que le toca a una parte de los minutos que ningún lote se llevó. */
 export interface MinutosDeParte {
   minutos: number;

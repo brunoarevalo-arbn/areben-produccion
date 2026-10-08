@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import { ColaAdmin } from '@/components/produccion/ColaAdmin';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { LoadingState } from '@/components/ui/LoadingState';
+import { Tablero } from '@/components/produccion/tablero/Tablero';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,7 +14,10 @@ const ACCESOS = [
   { label: 'Catálogo de SKU',  href: '/produccion/catalogo-sku', icon: '🏷', color: 'bg-violet-50 border-violet-200 hover:border-violet-400' },
 ];
 
-export default function ProduccionPage() {
+export default async function ProduccionPage({ searchParams }: { searchParams: Promise<{ nuevo?: string }> }) {
+  // El tablero nuevo convive con la cola detrás de `?nuevo=1` hasta que Bruno lo dé por bueno.
+  if ((await searchParams).nuevo === '1') return <Tablero />;
+
   return (
     <div className="p-6 md:p-8 max-w-7xl">
       <PageHeader eyebrow="Producción" title="Control de Producción" subtitle="Cola de trabajo, tiempos y reportes del taller." />
