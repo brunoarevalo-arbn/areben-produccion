@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createSupabaseServerClient } from '@/lib/supabase-server';
 import { prisma } from '@/lib/prisma';
-import { signSession, SESSION_COOKIE, type SessionPayload } from '@/lib/session';
+import { signSession, SESSION_COOKIE, sessionCookieOptions, type SessionPayload } from '@/lib/session';
 
 /**
  * Vuelta del ingreso con Google. El flujo:
@@ -51,13 +51,7 @@ export async function GET(request: Request) {
   const token = await signSession(payload);
 
   const res = NextResponse.redirect(`${origin}${destinoPorRol(usuario.rol, usuario.permisos)}`);
-  res.cookies.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: 'lax',
-    path: '/',
-    maxAge: 60 * 60 * 24 * 7, // 7 días, igual que el login por contraseña
-    secure: process.env.NODE_ENV === 'production',
-  });
+  res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
   return res;
 }
 

@@ -1,4 +1,20 @@
 export const SESSION_COOKIE = 'areben_session';
+
+// La cookie dura 7 días DESDE EL ÚLTIMO USO: `proxy.ts` la vuelve a poner en cada
+// request con sesión. Antes vencía a los 7 días del login aunque se usara todo el
+// día, y el 7-oct la tablet de Marisol se quedó sin sesión a media tarde: los
+// guardados rebotaban al login y se perdió el tramo de 13:31 a 16:00.
+export const SESSION_MAX_AGE = 60 * 60 * 24 * 7;
+
+export function sessionCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    path:     '/',
+    maxAge:   SESSION_MAX_AGE,
+    secure:   process.env.NODE_ENV === 'production',
+  };
+}
 // En producción exigimos SESSION_SECRET seteada: con el fallback hardcodeado se
 // podrían forjar tokens (incluido admin). En dev usa un secreto local.
 const SECRET = process.env.SESSION_SECRET

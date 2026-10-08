@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyPassword } from '@/lib/password';
-import { signSession, SESSION_COOKIE, type SessionPayload } from '@/lib/session';
+import { signSession, SESSION_COOKIE, sessionCookieOptions, type SessionPayload } from '@/lib/session';
 
 export async function POST(req: NextRequest) {
   try {
@@ -37,13 +37,7 @@ export async function POST(req: NextRequest) {
     const token = await signSession(payload);
 
     const res = NextResponse.json({ ok: true, rol: usuario.rol, nombre: usuario.nombre, permisos: usuario.permisos });
-    res.cookies.set(SESSION_COOKIE, token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path:     '/',
-      maxAge:   60 * 60 * 24 * 7, // 7 días
-      secure:   process.env.NODE_ENV === 'production',
-    });
+    res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
 
     return res;
   } catch (err) {

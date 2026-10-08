@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifySession, SESSION_COOKIE } from '@/lib/session';
+import { verifySession, SESSION_COOKIE, sessionCookieOptions } from '@/lib/session';
 
 // /auth/callback es la vuelta de Google: llega SIN sesión a propósito (trae el
 // code a canjear). Si no fuera pública, el proxy la mandaría al login y el
@@ -20,6 +20,14 @@ export async function proxy(req: NextRequest) {
 
   const token = req.cookies.get(SESSION_COOKIE)?.value;
   const session = token ? await verifySession(token) : null;
+
+  // 🔴 Una API sin sesión contesta 401, ⛔ no un redirect al login: el redirect lo
+  // seguía axios y le devolvía la página de login con un 200 ⇒ la tablet creía
+  // haber guardado (7-oct, 3 guardados perdidos así). Con 401 el cliente SABE que
+  // se cerró la sesión y el reloj no se toca.
+  if (!session && pathname.startsWith('/api/')) {
+    return NextResponse.json({ error: 'Se cerró la sesión', sesionVencida: true }, { status: 401 });
+  }
 
   // Not logged in → redirect to login
   if (!session) {
@@ -63,7 +71,13 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return NextResponse.next();
+  // Sesión deslizante: cada uso la estira otros 7 días (ver `SESSION_MAX_AGE`).
+  // `/api/auth` queda afuera: el logout borra la cookie y no hay que pisarlo.
+  const res = NextResponse.next();
+  if (token && !pathname.startsWith('/api/auth')) {
+    res.cookies.set(SESSION_COOKIE, token, sessionCookieOptions());
+  }
+  return res;
 }
 
 export const config = {

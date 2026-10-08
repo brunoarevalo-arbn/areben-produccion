@@ -10,6 +10,7 @@ import { ACTIVIDAD_PROCESO } from '@/lib/constants/actividades';
 import { MAQUINA_DEL_PROCESO } from '@/lib/constants/lotes';
 import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
+import { esSesionVencida } from '@/lib/api/tiempos';
 
 interface FormTiemposProps {
   usuario: string;
@@ -77,6 +78,14 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   const [inconveniente,      setInconveniente]      = useState<string>('');
   const [inconvenienteNotas, setInconvenienteNotas] = useState<string>('');
   const [showInconv,         setShowInconv]         = useState(false);
+  // La API dijo 401: hay que volver a entrar. El reloj vive en localStorage y sobrevive.
+  const [sesionVencida,      setSesionVencida]      = useState(false);
+
+  // Un error al escribir: si es la sesión, se dice ESO (reintentar ⛔ sirve de nada).
+  const avisarError = (err: unknown, mensaje: string) => {
+    if (esSesionVencida(err)) setSesionVencida(true);
+    else toast.error(mensaje);
+  };
 
   const fetchOrdenes = useCallback(async () => {
     try {
@@ -84,6 +93,10 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       if (r.ok) {
         const data: OrdenActiva[] = await r.json();
         setOrdenes(data);
+        setSesionVencida(false);
+      } else if (r.status === 401) {
+        // La cola se pide cada 30 s ⇒ el aviso sale ANTES de que intente guardar.
+        setSesionVencida(true);
       }
     } catch { /* silencioso */ }
   }, []);
@@ -136,7 +149,12 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   const esProceso = actividad === ACTIVIDAD_PROCESO;
   const faltaOrden = esProceso && !ordenId;
   const faltaDetalle = esProceso && esLibre && !detalleLibre.trim();
-  const faltaAlgo = faltaMaquina || faltaOrden || faltaDetalle;
+  // 🔴 En la prenda que se cose por partes (bikini), la PIEZA también es obligatoria
+  // (Bruno, 8-oct): el 8-oct se guardaron 126 min de RAYROS sin pieza y esos minutos
+  // ⛔ se pueden repartir entre corpiño y bombacha. Vacía y SIN default —preseleccionar
+  // la 1ª rompió el 18-sep—, y traba el GUARDAR, ⛔ nunca el reloj.
+  const faltaParte = esProceso && partesDisponibles.length > 0 && !parte;
+  const faltaAlgo = faltaMaquina || faltaOrden || faltaDetalle || faltaParte;
 
   const marcarCosturaTerminada = async () => {
     if (!ordenSeleccionada) return;
@@ -238,10 +256,10 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       setInconveniente('');
       setInconvenienteNotas('');
       setShowInconv(false);
-    } catch {
+    } catch (err) {
       // El registro no se guardó ⇒ NO se cambia de parte ni se toca el reloj:
       // los minutos que corrieron siguen siendo de la pieza que venía.
-      toast.error('No se pudo cerrar la parte anterior. El reloj sigue corriendo.');
+      avisarError(err, 'No se pudo cerrar la parte anterior. El reloj sigue corriendo.');
     } finally {
       setCambiando(false);
     }
@@ -269,8 +287,8 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       }
       await fetchOrdenes();
       toast.success('Listo: desde ahora cada bolsa va con su lote.');
-    } catch {
-      toast.error('No se pudo cerrar el tramo anterior. Probá de nuevo.');
+    } catch (err) {
+      avisarError(err, 'No se pudo cerrar el tramo anterior. Probá de nuevo.');
     } finally {
       setActivando(false);
     }
@@ -293,8 +311,8 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       setInconveniente('');
       setInconvenienteNotas('');
       setShowInconv(false);
-    } catch {
-      toast.error('No se pudo guardar el registro. Probá de nuevo.');
+    } catch (err) {
+      avisarError(err, 'No se pudo guardar el registro. Probá de nuevo.');
     }
   };
 
@@ -693,6 +711,18 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
       </div>
 
       <div className="sticky bottom-0 -mx-4 px-4 pt-3 pb-1 bg-gradient-to-t from-white via-white to-transparent">
+        {sesionVencida && (
+          <div role="alert" className="mb-2 bg-red-50 border-2 border-red-300 rounded-xl p-3 text-center">
+            <p className="text-sm font-bold text-red-800">Se cerró la sesión</p>
+            <p className="text-xs text-red-700 mt-0.5">
+              El reloj queda guardado en esta tablet. Volvé a entrar y guardá el registro.
+            </p>
+            <a href="/login"
+              className="mt-2 inline-block bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide">
+              Volver a entrar
+            </a>
+          </div>
+        )}
         {hayTarea && !actividad && (
           <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
             Elegí una actividad arriba para guardar ↑
@@ -711,6 +741,11 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
         {hayTarea && !faltaOrden && faltaDetalle && (
           <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
             Escribí qué hiciste en el trabajo libre ↑
+          </p>
+        )}
+        {hayTarea && faltaParte && (
+          <p className="text-xs text-amber-600 text-center mb-1.5 font-semibold">
+            Elegí qué parte cosiste (corpiño, bombacha o las dos) para guardar ↑
           </p>
         )}
         {hayTarea && actividad && faltaMaquina && (
