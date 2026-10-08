@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { FichasCorteClient } from '@/components/produccion/FichasCorteClient';
+import { PestanasProduccion } from '@/components/produccion/PestanasProduccion';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,7 @@ export default async function FichasPage() {
 
   return (
     <div className="p-8 max-w-4xl">
+      <PestanasProduccion grupo="cortadores" />
       <PageHeader
         eyebrow="Producción"
         title="Fichas de corte"

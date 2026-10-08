@@ -4,6 +4,7 @@ import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { prisma } from '@/lib/prisma';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { SolicitudesCambioClient } from '@/components/produccion/SolicitudesCambioClient';
+import { PestanasProduccion } from '@/components/produccion/PestanasProduccion';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ export default async function SolicitudesCambioPage() {
 
   return (
     <div className="p-6 md:p-8 max-w-3xl">
+      <PestanasProduccion grupo="reportes" />
       <PageHeader eyebrow="Producción" title="Solicitudes de cambio" subtitle="Correcciones de SKU/máquina que piden las costureras. Aprobalas o rechazalas." />
       <SolicitudesCambioClient inicial={solicitudes} />
     </div>

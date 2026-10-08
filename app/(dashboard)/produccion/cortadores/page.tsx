@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PestanasProduccion } from '@/components/produccion/PestanasProduccion';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +29,7 @@ export default async function CortadoresAdminHubPage() {
 
   return (
     <div className="p-8 max-w-3xl space-y-6">
+      <PestanasProduccion grupo="cortadores" />
       <PageHeader eyebrow="Producción" title="Cortes por cortador" subtitle="Qué tiene asignado cada cortador y qué está listo para validar." />
       {cortadores.length === 0 ? (
         <EmptyState title="No hay cortadores activos" message="Dá de alta cortadores en Configuración → Cortadores." />

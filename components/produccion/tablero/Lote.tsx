@@ -5,7 +5,7 @@ import type { TableroOrden } from '@/lib/produccion/tablero';
 import type { LoteVista } from './formato';
 
 // Dónde vuelve la etiqueta al imprimir.
-const VOLVER = '/produccion?nuevo=1';
+const VOLVER = '/produccion';
 
 export function LoteBoton({ o, l, onLote }: { o: TableroOrden; l: LoteVista; onLote: (o: TableroOrden, l: LoteVista) => void }) {
   const nombre = l.unico ? 'Lote único' : `L${l.numero}`;

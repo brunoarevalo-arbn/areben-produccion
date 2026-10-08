@@ -11,6 +11,7 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Card } from '@/components/ui/Card';
+import { PestanasProduccion } from '@/components/produccion/PestanasProduccion';
 
 interface Registro {
   id: string;
@@ -99,6 +100,7 @@ export function ReportesClient({ isAdmin }: { isAdmin: boolean }) {
 
   return (
     <div className="p-8 max-w-4xl">
+      <PestanasProduccion grupo="reportes" />
       {/* Header */}
       <PageHeader
         eyebrow="Producción"

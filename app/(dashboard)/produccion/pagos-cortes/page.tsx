@@ -4,6 +4,7 @@ import { PagosCortesClient } from '@/components/produccion/PagosCortesClient';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { prisma } from '@/lib/prisma';
 import { cuentaPorCortador } from '@/lib/produccion/cuenta-cortador';
+import { PestanasProduccion } from '@/components/produccion/PestanasProduccion';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,7 @@ export default async function PagosCortesPage() {
 
   return (
     <div className="p-8 max-w-6xl">
+      <PestanasProduccion grupo="cortadores" />
       <PageHeader
         eyebrow="Producción"
         title="Pagos de cortes"

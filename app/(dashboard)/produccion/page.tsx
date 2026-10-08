@@ -14,13 +14,15 @@ const ACCESOS = [
   { label: 'Catálogo de SKU',  href: '/produccion/catalogo-sku', icon: '🏷', color: 'bg-violet-50 border-violet-200 hover:border-violet-400' },
 ];
 
-export default async function ProduccionPage({ searchParams }: { searchParams: Promise<{ nuevo?: string }> }) {
-  // El tablero nuevo convive con la cola detrás de `?nuevo=1` hasta que Bruno lo dé por bueno.
-  if ((await searchParams).nuevo === '1') return <Tablero />;
+export default async function ProduccionPage({ searchParams }: { searchParams: Promise<{ vista?: string }> }) {
+  // El tablero es la pantalla de Órdenes desde el 8-oct-2026 (Bruno). La cola de antes queda
+  // en `?vista=anterior` mientras haga falta.
+  if ((await searchParams).vista !== 'anterior') return <Tablero />;
 
   return (
     <div className="p-6 md:p-8 max-w-7xl">
-      <PageHeader eyebrow="Producción" title="Control de Producción" subtitle="Cola de trabajo, tiempos y reportes del taller." />
+      <PageHeader eyebrow="Producción · vista anterior" title="Control de Producción" subtitle="Cola de trabajo, tiempos y reportes del taller." />
+      <Link href="/produccion" className="inline-block -mt-3 mb-5 text-sm font-semibold text-amber-600 hover:text-amber-700">← Volver al tablero</Link>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6 max-w-2xl">
         {ACCESOS.map((a) => (

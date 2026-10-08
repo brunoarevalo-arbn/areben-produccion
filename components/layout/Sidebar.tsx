@@ -12,7 +12,11 @@ interface SidebarProps {
   rol:      string;
 }
 
-interface SubItem { label: string; href: string; nuevoHref?: string; seccion?: string | string[]; }
+interface SubItem {
+  label: string; href: string; nuevoHref?: string; seccion?: string | string[];
+  /** Otras rutas que marcan este ítem (las pestañas que agrupa). Un prefijo con `/` final abarca lo de abajo. */
+  incluye?: string[];
+}
 
 // seccion puede ser una key o varias (OR) para módulos de unión (ej. Compras).
 const tienePermiso = (permisos: string[], seccion?: string | string[]) =>
@@ -78,14 +82,12 @@ const NAV: { label: string; href: string; icon: NavIconName; seccion: string | s
     icon: 'produccion',
     seccion: 'produccion',
     sub: [
-      { label: 'Órdenes',          href: '/produccion', seccion: 'produccion' },
-      { label: 'Fichas de corte',  href: '/produccion/fichas', seccion: 'produccion' },
+      // 8 → 4 (oct-2026): Cortadores y Reportes agrupan sus pantallas con pestañas
+      // (components/produccion/PestanasProduccion.tsx). Órdenes se queda con el resto de /produccion.
+      { label: 'Órdenes',          href: '/produccion', seccion: 'produccion', incluye: ['/produccion/'] },
+      { label: 'Cortadores',       href: '/produccion/cortadores', seccion: 'produccion', incluye: ['/produccion/cortadores/', '/produccion/cuenta-cortadores', '/produccion/pagos-cortes', '/produccion/fichas'] },
       { label: 'Tiempos',          href: '/tiempos', seccion: 'produccion' },
-      { label: 'Reportes',         href: '/produccion/reportes', seccion: 'produccion' },
-      { label: 'Solicitudes de cambio', href: '/produccion/solicitudes-cambio', seccion: 'produccion' },
-      { label: 'Cortes por cortador', href: '/produccion/cortadores', seccion: 'produccion' },
-      { label: 'Pagos de cortes', href: '/produccion/pagos-cortes', seccion: 'produccion' },
-      { label: 'Cuenta de cortadores', href: '/produccion/cuenta-cortadores', seccion: 'produccion' },
+      { label: 'Reportes',         href: '/produccion/reportes', seccion: 'produccion', incluye: ['/produccion/reportes/', '/produccion/solicitudes-cambio'] },
     ],
   },
   {
@@ -183,6 +185,16 @@ export function Sidebar({ permisos, nombre }: SidebarProps) {
   const isActive = (href: string) =>
     href === '/dashboard' ? pathname === '/dashboard' : pathname.startsWith(href);
 
+  // Qué sub-ítem marcar: el que coincide con la ruta MÁS LARGA (su `href` o algo de `incluye`).
+  // Así /produccion/fichas es de Cortadores aunque Órdenes abarque todo '/produccion/'.
+  const largoCoincidencia = (s: SubItem) => Math.max(0, ...[s.href, ...(s.incluye ?? [])]
+    .filter((p) => pathname === p || pathname.startsWith(p.endsWith('/') ? p : p + '/'))
+    .map((p) => p.length));
+  const subActivo = (subs: SubItem[], s: SubItem) => {
+    const mejor = Math.max(...subs.map(largoCoincidencia));
+    return mejor > 0 && largoCoincidencia(s) === mejor;
+  };
+
   // Acordeón: qué secciones están desplegadas. La sección activa arranca (y se mantiene) abierta.
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (href: string) => setExpanded((prev) => {
@@ -250,14 +262,14 @@ export function Sidebar({ permisos, nombre }: SidebarProps) {
 
               {tieneSub && abierto && (
                 <div className="ml-[18px] mt-0.5 mb-1.5 pl-3 border-l border-stone-800 space-y-px">
-                  {item.sub.filter((s) => tienePermiso(permisos, s.seccion ?? item.seccion)).map((s) => (
+                  {item.sub.filter((s) => tienePermiso(permisos, s.seccion ?? item.seccion)).map((s, _i, subs) => ({ ...s, activo: subActivo(subs, s) })).map((s) => (
                     <div key={s.href} className="flex items-center gap-2 group">
                       <Link
                         href={s.href}
                         onClick={close}
-                        aria-current={pathname === s.href ? 'page' : undefined}
+                        aria-current={s.activo ? 'page' : undefined}
                         className={`relative flex-1 flex items-center px-2.5 h-[30px] rounded-md text-[12.5px] transition-colors ${
-                          pathname === s.href
+                          s.activo
                             ? 'text-amber-400 font-semibold before:absolute before:-left-[13px] before:top-[7px] before:bottom-[7px] before:w-0.5 before:rounded before:bg-amber-400'
                             : 'text-stone-400 font-medium group-hover:text-stone-200'
                         }`}

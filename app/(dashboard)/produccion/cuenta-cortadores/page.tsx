@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Card } from '@/components/ui/Card';
 import { cuentaPorCortador, pagosSinCortador } from '@/lib/produccion/cuenta-cortador';
+import { PestanasProduccion } from '@/components/produccion/PestanasProduccion';
 
 export const dynamic = 'force-dynamic';
 const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
@@ -29,6 +30,7 @@ export default async function CuentaCortadoresPage() {
 
   return (
     <div className="p-8 max-w-3xl">
+      <PestanasProduccion grupo="cortadores" />
       <PageHeader eyebrow="Producción" title="Cuenta de cortadores" subtitle="Cuenta corriente: todo lo cortado menos todo lo pagado. Entrá para ver el detalle y pagar." />
 
       {huerfanos.length > 0 && (

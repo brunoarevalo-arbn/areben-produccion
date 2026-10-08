@@ -13,9 +13,9 @@ import { Geo } from './Geometral';
 import { MenuAcciones, ModalIngresar, useAccionesOrden } from './Acciones';
 import { NuevaProduccion } from './NuevaProduccion';
 
-// El tablero de Producción › Órdenes (rediseño oct-2026). Convive con ColaAdmin detrás de
-// `?nuevo=1` hasta que Bruno lo dé por bueno.
-const VOLVER = '/produccion?nuevo=1';
+// El tablero de Producción › Órdenes (rediseño oct-2026): es la pantalla de Órdenes; la
+// cola de antes (ColaAdmin) queda en `?vista=anterior`.
+const VOLVER = '/produccion';
 
 const ETAPAS: { etapa: Etapa; titulo: string; bajada: string; vacio?: string }[] = [
   { etapa: 'corte', titulo: 'Corte', bajada: 'Creadas, asignadas o esperando el corte', vacio: 'No hay nada esperando corte.' },
@@ -99,7 +99,7 @@ export function Tablero() {
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar artículo, color o SKU" aria-label="Buscar artículo, color o SKU"
                 className="flex-1 min-w-0 bg-transparent text-[13px] outline-none" />
             </label>
-            <Link href="/produccion" className="h-[34px] px-3 inline-flex items-center rounded-lg text-[13px] font-semibold text-stone-500 hover:bg-stone-100 hover:text-stone-700">Vista anterior</Link>
+            <Link href="/produccion?vista=anterior" className="h-[34px] px-3 inline-flex items-center rounded-lg text-[13px] font-semibold text-stone-500 hover:bg-stone-100 hover:text-stone-700">Vista anterior</Link>
             <button type="button" onClick={() => setNueva(true)} className="h-[34px] px-3 inline-flex items-center gap-1.5 rounded-lg text-[13px] font-semibold bg-amber-400 text-stone-900 hover:bg-amber-500">+ Nueva producción</button>
           </div>
         </header>
