@@ -9,7 +9,9 @@ const Schema = z.object({
   tiempoId:     z.string().min(1),
   skuNuevo:     z.string().optional(),
   maquinaNueva: z.string().optional(),
-}).refine((d) => d.skuNuevo !== undefined || d.maquinaNueva !== undefined, { message: 'Elegí qué corregir' });
+  // '' = sacarle la pieza (el SKU nuevo no se cose por partes).
+  parteNueva:   z.string().max(40).optional(),
+}).refine((d) => d.skuNuevo !== undefined || d.maquinaNueva !== undefined || d.parteNueva !== undefined, { message: 'Elegí qué corregir' });
 
 // GET: admin → todas las pendientes (con el registro); costurera → sus pendientes.
 export async function GET(req: NextRequest) {
@@ -19,7 +21,7 @@ export async function GET(req: NextRequest) {
   if (session.rol === 'admin') {
     const solicitudes = await prisma.solicitudCambioTiempo.findMany({
       where: { estado: 'pendiente' },
-      include: { tiempo: { select: { id: true, usuario: true, actividad: true, fecha: true, sku: true, maquina: true, minutosNetos: true } } },
+      include: { tiempo: { select: { id: true, usuario: true, actividad: true, fecha: true, sku: true, maquina: true, parte: true, minutosNetos: true } } },
       orderBy: { createdAt: 'asc' },
     });
     return NextResponse.json(solicitudes);
@@ -32,14 +34,14 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(solicitudes);
 }
 
-// POST: la costurera pide corregir un registro PROPIO (sku y/o máquina).
+// POST: la costurera pide corregir un registro PROPIO (sku, máquina y/o pieza).
 export async function POST(req: NextRequest) {
   const session = await getSession(req);
   if (!session) return NextResponse.json({ error: 'Sin acceso' }, { status: 401 });
 
   const parsed = Schema.safeParse(await req.json());
   if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-  const { tiempoId, skuNuevo, maquinaNueva } = parsed.data;
+  const { tiempoId, skuNuevo, maquinaNueva, parteNueva } = parsed.data;
 
   const registro = await prisma.tiemposProduccion.findUnique({ where: { id: tiempoId } });
   if (!registro) return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 });
@@ -56,6 +58,8 @@ export async function POST(req: NextRequest) {
       maquinaAnterior: registro.maquina,
       skuNuevo: skuNuevo?.trim() || null,
       maquinaNueva: maquinaNueva?.trim() || null,
+      parteAnterior: registro.parte,
+      parteNueva: parteNueva === undefined ? null : parteNueva.trim(),
       estado: 'pendiente',
     },
   });

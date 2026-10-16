@@ -33,6 +33,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const cambios: Record<string, unknown> = {};
   if (sol.skuNuevo !== null) cambios.sku = sol.skuNuevo;
   if (sol.maquinaNueva !== null) cambios.maquina = sol.maquinaNueva;
+  if (sol.parteNueva !== null) cambios.parte = sol.parteNueva || null;
 
   await prisma.$transaction([
     prisma.tiemposProduccion.update({ where: { id: sol.tiempoId }, data: cambios }),

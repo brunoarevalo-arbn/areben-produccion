@@ -24,13 +24,14 @@ export default async function SolicitudesCambioPage() {
     solicitadaPor: s.solicitadaPor,
     skuAnterior: s.skuAnterior, maquinaAnterior: s.maquinaAnterior,
     skuNuevo: s.skuNuevo, maquinaNueva: s.maquinaNueva,
+    parteAnterior: s.parteAnterior, parteNueva: s.parteNueva,
     usuario: s.tiempo.usuario, actividad: s.tiempo.actividad, fecha: s.tiempo.fecha, minutos: s.tiempo.minutosNetos,
   }));
 
   return (
     <div className="p-6 md:p-8 max-w-3xl">
       <PestanasProduccion grupo="reportes" />
-      <PageHeader eyebrow="Producción" title="Solicitudes de cambio" subtitle="Correcciones de SKU/máquina que piden las costureras. Aprobalas o rechazalas." />
+      <PageHeader eyebrow="Producción" title="Solicitudes de cambio" subtitle="Correcciones de SKU, máquina o pieza que piden las costureras. Aprobalas o rechazalas." />
       <SolicitudesCambioClient inicial={solicitudes} />
     </div>
   );

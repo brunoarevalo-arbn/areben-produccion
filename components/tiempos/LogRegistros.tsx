@@ -5,7 +5,7 @@ import { TiemposProduccion } from '@/types/tiempos';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { PedirCorreccionModal } from './PedirCorreccionModal';
 
-interface OrdenCola { id: string; sku: string | null; marca: string }
+interface OrdenCola { id: string; sku: string | null; marca: string; partes?: string[] }
 interface LogRegistrosProps {
   registros: TiemposProduccion[];
   loading: boolean;

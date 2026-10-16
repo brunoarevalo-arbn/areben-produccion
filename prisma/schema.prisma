@@ -55,6 +55,9 @@ model SolicitudCambioTiempo {
   maquinaAnterior String?
   skuNuevo        String? // null = ese campo no se cambia
   maquinaNueva    String?
+  // La pieza de la bikini. `parteNueva`: null = no se cambia; '' = sacarle la pieza.
+  parteAnterior   String?
+  parteNueva      String?
   estado          String            @default("pendiente") // 'pendiente' | 'aprobada' | 'rechazada'
   resueltaPor     String?
   resueltaAt      DateTime?

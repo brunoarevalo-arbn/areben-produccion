@@ -11,6 +11,7 @@ interface Solicitud {
   solicitadaPor: string;
   skuAnterior: string | null; maquinaAnterior: string | null;
   skuNuevo: string | null; maquinaNueva: string | null;
+  parteAnterior: string | null; parteNueva: string | null;
   usuario: string; actividad: string; fecha: string; minutos: number;
 }
 
@@ -43,6 +44,9 @@ export function SolicitudesCambioClient({ inicial }: { inicial: Solicitud[] }) {
               <div className="mt-2 space-y-1 text-sm">
                 {s.skuNuevo !== null && (
                   <p className="text-stone-700">SKU: <span className="font-mono text-stone-400 line-through">{val(s.skuAnterior)}</span> <span className="text-stone-400">→</span> <span className="font-mono font-semibold text-emerald-700">{val(s.skuNuevo)}</span></p>
+                )}
+                {s.parteNueva !== null && (
+                  <p className="text-stone-700">Pieza: <span className="text-stone-400 line-through">{val(s.parteAnterior)}</span> <span className="text-stone-400">→</span> <span className="font-semibold text-emerald-700">{val(s.parteNueva)}</span></p>
                 )}
                 {s.maquinaNueva !== null && (
                   <p className="text-stone-700">Máquina: <span className="text-stone-400 line-through">{val(s.maquinaAnterior)}</span> <span className="text-stone-400">→</span> <span className="font-semibold text-emerald-700">{val(s.maquinaNueva)}</span></p>
