@@ -1,7 +1,7 @@
 import { prisma } from '@/lib/prisma';
 import { calcularCostoMinuto } from '@/lib/costoMinuto';
 import type { TiempoInput } from '@/lib/validators/tiempos';
-import { ACTIVIDAD_PROCESO } from '@/lib/constants/actividades';
+import { ACTIVIDAD_PROCESO, limpiarSegunActividad } from '@/lib/constants/actividades';
 
 // Una corrida de muestra ES trabajo de costura: al terminarla, el tiempo medido
 // entra al registro del día de la costurera igual que si lo hubiera cargado a
@@ -64,7 +64,7 @@ export function gastoDelTiempo(t: RegistroConGasto): { categoria: string; marca:
  * plata y la misma muestra medida con la corrida saldría gratis.
  */
 export async function crearTiempoConGasto(datos: TiempoInput) {
-  const tiempo = await prisma.tiemposProduccion.create({ data: datos });
+  const tiempo = await prisma.tiemposProduccion.create({ data: limpiarSegunActividad(datos) });
   await sincronizarGastoDelTiempo(tiempo.id);
   return tiempo;
 }

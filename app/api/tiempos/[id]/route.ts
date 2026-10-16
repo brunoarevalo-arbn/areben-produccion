@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma';
 import { verifySession, SESSION_COOKIE } from '@/lib/session';
 import { sincronizarGastoDelTiempo } from '@/lib/tiempos/registrar';
 import { minutosEntre } from '@/lib/tiempos/minutos';
+import { llevaMaquina, llevaOrden } from '@/lib/constants/actividades';
 
 const PatchSchema = z.object({
   actividad:          z.string().min(1).optional(),
@@ -37,6 +38,12 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!actual) return NextResponse.json({ error: 'Registro no encontrado' }, { status: 404 });
 
   const data: Record<string, unknown> = { ...parsed.data };
+
+  // Una pausa o una parada ⛔ lleva orden (ver `limpiarSegunActividad`): ni al editarla, ni
+  // al cambiar un proceso a «Almuerzo».
+  const actividad = parsed.data.actividad ?? actual.actividad;
+  if (!llevaOrden(actividad)) Object.assign(data, { sku: null, parte: null, lote: null, marca: null });
+  if (!llevaMaquina(actividad)) data.maquina = null;
 
   // Los minutos se recalculan SÓLO si una hora efectivamente CAMBIÓ.
   //

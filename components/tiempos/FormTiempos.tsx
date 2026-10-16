@@ -6,7 +6,7 @@ import type { EstadoCronometro } from '@/lib/hooks/useTiempos';
 import { INCONVENIENTES } from '@/lib/constants/inconvenientes';
 import { MAQUINAS, MAQUINA_NINGUNA } from '@/lib/constants/maquinas';
 import { PARTE_COMPARTIDA, MAQUINA_COMPARTIDA } from '@/lib/constants/partes';
-import { ACTIVIDAD_PROCESO } from '@/lib/constants/actividades';
+import { ACTIVIDAD_PROCESO, limpiarSegunActividad, llevaOrden } from '@/lib/constants/actividades';
 import { MAQUINA_DEL_PROCESO } from '@/lib/constants/lotes';
 import { NumInput } from '@/components/ui/NumInput';
 import { toast } from '@/components/ui/Toaster';
@@ -143,7 +143,10 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
   // —Marisol arranca a coser y recién después dice qué era—, así que exigirla antes
   // le rompería el orden de trabajo, igual que se lo rompió la pieza preseleccionada
   // el 18-sep. El trabajo libre (sin orden) ⛔ no la necesita.
-  const faltaMaquina = !!ordenSeleccionada && !maquina;
+  // Una pausa ⛔ lleva orden ni máquina, y una parada ⛔ lleva orden: la orden sigue
+  // seleccionada en pantalla (para volver a ella), pero no se manda ni se exige.
+  const conOrden = llevaOrden(actividad);
+  const faltaMaquina = conOrden && !!ordenSeleccionada && !maquina;
   // 🔴 Un Proceso Completado se guarda con una ORDEN o con "trabajo libre", nunca sin
   // nada: el libre se cobra como gasto de taller (`gastoDelTiempo`), y si "no elegí"
   // se guardara igual que "libre", un olvido se volvía gasto. Y el libre dice QUÉ
@@ -188,7 +191,7 @@ export function FormTiempos({ usuario, ordenesIniciales, estado, onObtenerTiempo
     parteDelRegistro: string,
     // Para cerrar el tramo del proceso que terminó: con SU máquina y sin lote (es de todos).
     cierre?: { maquina: string },
-  ): TiemposProduccion => ({
+  ): TiemposProduccion => limpiarSegunActividad({
     usuario,
     actividad,
     fecha:        new Date().toISOString().split('T')[0],
