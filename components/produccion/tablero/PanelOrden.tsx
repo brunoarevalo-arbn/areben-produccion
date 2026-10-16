@@ -6,7 +6,7 @@ import type { TableroArticulo, TableroOrden } from '@/lib/produccion/tablero';
 import { LoteBoton, Ojo } from './Lote';
 import { Geo, ModalGeometral } from './Geometral';
 import { MenuAcciones, ModalIngresar, useAccionesOrden } from './Acciones';
-import { CHIP, CHIP_TONO, avisosDe, fechaCorta, horasMin, lotesVista, num, ordenarTalles, pesos, type LoteVista } from './formato';
+import { CHIP, CHIP_TONO, avisosDe, fechaCorta, horasMin, lotesVista, minPorUDe, num, ordenarTalles, pesos, type LoteVista } from './formato';
 
 const ESTADO_HISTORIAL: Record<string, string> = {
   PENDIENTE: 'Creada', CORTE: 'En corte', COSTURA: 'En el taller', TERMINADO_SIN_ESTAMPA: 'Lista',
@@ -77,7 +77,8 @@ export function PanelOrden({ o, articulo, costoMinuto, volverA, onCerrar, onLote
                       {l.fallas.map((f) => `${f.cantidad} ${f.parte ? f.parte.toLowerCase() : 'u'} ${f.talle} en ${f.proceso.toLowerCase()}`).join(' · ')} · espera {Object.entries(l.esperadoPorParte).map(([p, n]) => `${n}${p ? ` ${p.toLowerCase()}s` : ''}`).join(' y ')}
                     </p>
                   )}
-                  <p className="text-[12.5px] text-stone-500">Ingresado {l.ingresado} de {l.unidades}</p>
+                  <p className="text-[12.5px] text-stone-500">Ingresado {l.ingresado} de {l.unidades}{minPorUDe(vista) ? ` · ${minPorUDe(vista)!.texto}` : ''}</p>
+                  {minPorUDe(vista)?.detalle && <p className="text-[11.5px] text-stone-400">{minPorUDe(vista)!.detalle}</p>}
                 </div>
               );
             }) : (
@@ -175,6 +176,8 @@ function Costos({ o, costoMinuto }: { o: TableroOrden; costoMinuto: number }) {
 }
 
 function Tiempo({ o }: { o: TableroOrden }) {
+  const lotes = lotesVista(o);
+  const porU = (l: LoteVista) => minPorUDe(l)?.texto.replace(' min/u', '') ?? '—';
   const barras = (obj: Record<string, number>, etiqueta = (k: string) => k) => {
     const filas = Object.entries(obj).sort((a, b) => b[1] - a[1]);
     const max = Math.max(1, ...filas.map((f) => f[1]));
@@ -192,7 +195,7 @@ function Tiempo({ o }: { o: TableroOrden }) {
     <>
       <div className="grid grid-cols-3 gap-2">
         <Grande t="Llevamos" v={horasMin(o.tiempo.minutos)} />
-        <Grande t="min/u cortada" v={o.cortado ? num(o.tiempo.minutos / o.cortado, 1) : '—'} />
+        <Grande t={lotes.length > 1 ? 'min/u por lote' : 'min/u'} v={lotes.length > 1 ? lotes.map((l) => `L${l.numero} ${porU(l)}`).join(' · ') : porU(lotes[0])} />
         <Grande t="Registros" v={String(o.tiempo.registros)} />
       </div>
       {o.tiempo.registros === 0 && o.etapa === 'taller' && (

@@ -7,7 +7,7 @@ import { toast } from '@/components/ui/Toaster';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { PanelOrden } from './PanelOrden';
-import { CHIP, CHIP_TONO, avisosDe, horasMin, lotesVista, num, pesos, type LoteVista } from './formato';
+import { CHIP, CHIP_TONO, avisosDe, horasMin, lotesVista, minPorUDe, num, pesos, type LoteVista } from './formato';
 import { LoteBoton } from './Lote';
 import { Geo } from './Geometral';
 import { MenuAcciones, ModalIngresar, useAccionesLote, useAccionesOrden } from './Acciones';
@@ -202,7 +202,7 @@ function Articulo({ a, conValores, sel, onSel, onLote, onCambio }: {
         </div>
         <div className="flex flex-wrap gap-5">
           <Met titulo="Ingresadas" valor={`${ing} / ${cort}`} bajada={cort ? `${Math.round(ing / cort * 100)}%` : ''} />
-          <Met titulo="Llevamos" valor={horasMin(min)} bajada={cort ? `${num(min / cort, 1)} min por u cortada` : ''} />
+          <Met titulo="Llevamos" valor={horasMin(min)} bajada={cort ? `en ${num(cort)} u cortadas` : ''} />
           {conValores && <Met titulo="Costo/u hoy" valor={cort ? pesos(costo / cort) : '—'} bajada={a.ordenes.some((o) => !o.costos?.telaCargada) ? 'sin tela' : 'con tela'} />}
         </div>
         {enTaller.length > 1 && (
@@ -259,7 +259,8 @@ function Fila({ o, cols, conValores, activa, onSel, onLote, onCambio }: {
       </div>
       <div className="grid text-[13px]">
         <b className="font-semibold tabular-nums">{o.tiempo.minutos ? horasMin(o.tiempo.minutos) : '0 min'}</b>
-        <small className="text-[11.5px] text-stone-500">{o.tiempo.minutos && o.cortado ? `${num(o.tiempo.minutos / o.cortado, 1)} min/u cortada` : 'nada registrado'}</small>
+        {/* El min/u va debajo de cada LOTE: el de toda la orden dividía un remallado de 52 y una terminación de 15 por 52. */}
+        <small className="text-[11.5px] text-stone-500">{o.tiempo.minutos ? `${o.tiempo.registros} registros` : 'nada registrado'}</small>
       </div>
       {conValores && (
         <div className="grid text-[13px]">
@@ -268,7 +269,15 @@ function Fila({ o, cols, conValores, activa, onSel, onLote, onCambio }: {
         </div>
       )}
       <div className="col-span-2 @3xl:col-span-1 flex flex-wrap items-center gap-1.5">
-        {lotesVista(o).map((l) => <LoteBoton key={l.numero} o={o} l={l} onLote={onLote} />)}
+        {lotesVista(o).map((l) => {
+          const mu = minPorUDe(l);
+          return (
+            <span key={l.numero} className="grid gap-0.5 justify-items-start">
+              <LoteBoton o={o} l={l} onLote={onLote} />
+              <small className="pl-1 text-[11.5px] text-stone-500 tabular-nums" title={mu?.detalle}>{mu?.texto ?? 'sin minutos'}</small>
+            </span>
+          );
+        })}
         <span className="ml-auto flex gap-1.5">
         {o.loteId && o.estado === 'COSTURA' && (
           <button type="button" onClick={() => setIngresar(true)} className="h-7 px-2.5 inline-flex items-center rounded-lg border border-stone-300 bg-white text-[12.5px] font-semibold text-stone-700 hover:bg-stone-50">Ingresar</button>

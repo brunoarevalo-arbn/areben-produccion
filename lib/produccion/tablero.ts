@@ -68,6 +68,14 @@ export interface TableroOrden {
   enEspera: { desde: string; motivo: string | null } | null;
   avisoCostura: { at: string; por: string | null } | null;
   lotes: LotePlanificadoDTO[];
+  /**
+   * Los minutos de cada lote (clave: número; `1` en una orden sin separar): los propios y su
+   * cuota de los COMUNES —los registros sin lote, p. ej. el remallado de todo el corte—, por
+   * unidades planificadas. Es la regla de `minutosSinImputarDelLote`: lo que se ve acá es lo
+   * que después se imputa. Sin esto, «min/u» dividía todo por todo lo cortado y mezclaba un
+   * remallado de 52 con una terminación de 15.
+   */
+  minutosDeLote: Record<number, { propios: number; comunes: number }>;
   /** Fallas del corte entero (sin lote), por pieza. */
   fallasSinLote: number;
   tiempo: TiempoDeOrden;
@@ -196,6 +204,7 @@ export async function cargarTablero(db: Db, { conValores }: { conValores: boolea
       enEspera: o.enEsperaDesde ? { desde: o.enEsperaDesde.toISOString(), motivo: o.enEsperaMotivo } : null,
       avisoCostura: o.avisoCosturaAt ? { at: o.avisoCosturaAt.toISOString(), por: o.avisoCosturaPor } : null,
       lotes: lotesDe.get(o.id) ?? [],
+      minutosDeLote: minutosDeLote(lotesDe.get(o.id) ?? [], tiempo),
       fallasSinLote: o.fallas.reduce((s, f) => s + f.cantidad, 0),
       tiempo,
       transiciones: o.transiciones.map((t) => ({ fecha: t.fecha.toISOString(), estado: t.estadoNuevo, notas: t.notas })),
@@ -247,4 +256,16 @@ export async function cargarTablero(db: Db, { conValores }: { conValores: boolea
       })),
     },
   };
+}
+
+function minutosDeLote(lotes: LotePlanificadoDTO[], tiempo: TiempoDeOrden): TableroOrden['minutosDeLote'] {
+  if (lotes.length === 0) return { 1: { propios: tiempo.minutos, comunes: 0 } };
+  const numeros = new Set(lotes.map((l) => String(l.numero)));
+  // Un registro con un número de lote que no existe cae a la bolsa común, igual que al costear.
+  const comunes = Object.entries(tiempo.porLote).filter(([k]) => !numeros.has(k)).reduce((s, [, v]) => s + v, 0);
+  const total = lotes.reduce((s, l) => s + l.unidades, 0);
+  return Object.fromEntries(lotes.map((l) => [l.numero, {
+    propios: tiempo.porLote[String(l.numero)] ?? 0,
+    comunes: total > 0 ? comunes * l.unidades / total : 0,
+  }]));
 }

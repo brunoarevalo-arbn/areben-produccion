@@ -14,13 +14,15 @@ export const ordenarTalles = <T extends { talle: string }>(a: T[]) =>
   [...a].sort((x, y) => (ORDEN_TALLES.indexOf(x.talle) + 1 || 99) - (ORDEN_TALLES.indexOf(y.talle) + 1 || 99) || x.talle.localeCompare(y.talle));
 
 /** Un lote para mostrar: los planificados tal cual, o "Lote único" con todo lo cortado. */
-export interface LoteVista { numero: number; unico: boolean; unidades: number; ingresado: number; enTablet: boolean; despuesDe: string | null; motivo: string | null }
+export interface LoteVista { numero: number; unico: boolean; unidades: number; ingresado: number; enTablet: boolean; despuesDe: string | null; motivo: string | null;
+  /** Minutos del lote: los propios + su cuota de los comunes (ver `minutosDeLote`). */
+  minutos: { propios: number; comunes: number } }
 
 export function lotesVista(o: TableroOrden): LoteVista[] {
   if (o.lotes.length > 0) {
-    return o.lotes.map((l) => ({ numero: l.numero, unico: false, unidades: l.unidades, ingresado: l.ingresado, enTablet: l.enTaller && !o.enEspera, despuesDe: l.despuesDe, motivo: o.enEspera?.motivo ?? null }));
+    return o.lotes.map((l) => ({ numero: l.numero, unico: false, unidades: l.unidades, ingresado: l.ingresado, enTablet: l.enTaller && !o.enEspera, despuesDe: l.despuesDe, motivo: o.enEspera?.motivo ?? null, minutos: o.minutosDeLote[l.numero] ?? { propios: 0, comunes: 0 } }));
   }
-  return [{ numero: 1, unico: true, unidades: o.cortado, ingresado: o.ingresado, enTablet: !o.enEspera, despuesDe: null, motivo: o.enEspera?.motivo ?? null }];
+  return [{ numero: 1, unico: true, unidades: o.cortado, ingresado: o.ingresado, enTablet: !o.enEspera, despuesDe: null, motivo: o.enEspera?.motivo ?? null, minutos: o.minutosDeLote[1] ?? { propios: o.tiempo.minutos, comunes: 0 } }];
 }
 
 /** Lo que la fila tiene que gritar. `tono`: '' neutro · warn · err. */
@@ -45,3 +47,16 @@ export const CHIP_TONO = {
   err: 'bg-red-50 border-red-200 text-red-700',
   ok: 'bg-emerald-50 border-emerald-200 text-emerald-700',
 } as const;
+
+/** «19,4 min/u» del lote, y el detalle para el tooltip. `null` si no hay minutos o unidades. */
+export function minPorUDe(l: LoteVista): { texto: string; detalle: string } | null {
+  const { propios, comunes } = l.minutos;
+  if (!l.unidades || propios + comunes <= 0) return null;
+  const p = propios / l.unidades, c = comunes / l.unidades;
+  return {
+    texto: `${num(p + c, 1)} min/u`,
+    detalle: c > 0
+      ? `${num(c, 1)} min/u de lo hecho antes de separar (todo el corte) + ${p > 0 ? `${num(p, 1)} min/u del lote` : 'nada del lote todavía'}, sobre ${l.unidades} u`
+      : `${num(p, 1)} min/u sobre ${l.unidades} u`,
+  };
+}
