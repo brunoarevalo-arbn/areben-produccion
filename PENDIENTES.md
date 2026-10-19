@@ -1364,7 +1364,7 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
   dije descuenta 3 por 3 bikinis y satén 6; `check-lote-corte-ejercicio.ts` 0 ❌; build limpio verde. Núcleo del escandallo ⛔ tocado.
   ▶️ **Bruno**: `npx tsx --env-file=.env prisma/aplicar-sql-avios-al-costo.ts` (SQL `2026-10-19-avios-al-costo.sql`) → recién ahí push ·
   🏁 SQL aplicado (Bruno) · `babeec8` EN PROD · dije marcado «sólo Bombacha» (Bruno) · 🗣️ **AYLA sublimadas SÍ llevan dije** ⇒ cargado en las 4 (`prisma/dije-ayla-sublimadas.ts --aplicar`, releído 4/4) ⇒ avíos $778,14 en TAYRA, AYLA sublimadas, VER y MAR. ▶️ NG y DUA: Bruno ⛔ sabe si llevan.
-  🔴 19-oct 08:35 hay **20,8 min de Cortacollareta SIN SKU** (Compartido) ⇒ ⛔ los costea ninguna orden: ¿de qué TAYRA eran, o se reparten entre las 5?
+  🏁 el Cortacollareta del 19-oct 08:35 (20,8 min, sin SKU) era de **RAYVIO** (Bruno) ⇒ SKU + lote 1 (`prisma/cortacollareta-rayvio-19oct.ts --aplicar`, releído).
   ⚠️ `ficha-resumen` (escandallo) sigue sumando los avíos ×1 por prenda (el satén de la bikini da 1, no 2): la bikini ⛔ tiene escandallo con SKU todavía.
 - 🗣️ **TIRA PRESTADA ENTRE ENVÍOS (Bruno, 19-oct)**: cada OP estampada lleva TODOS los metros sublimados de su estampa (piezas + tira). Si a una orden le falta tira y sale del envío siguiente (las AYLA se cortaron sin el 10%), sumar esos metros a la ficha de la orden que los USA ⇒ si no, una queda barata y la otra cara.
   🔑 19-oct: **⛔ hace falta código**: la ficha ofrece cualquier rollo DISPONIBLE o EN USO PARCIAL ⇒ se carga como una tizada más («Tira · envío N») con ese rollo y sus metros sublimados, y se le restan a la que los tenía. ⚠️ un rollo AGOTADO ⛔ aparece para elegir.
