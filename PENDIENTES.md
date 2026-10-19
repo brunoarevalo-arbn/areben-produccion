@@ -4,6 +4,16 @@
 > **Actualizar este archivo al cerrar cada sesión de trabajo.**
 
 _Última actualización: 2026-09-23_
+> ▶️ **Bruno (19-oct): LEER DEL ERP EN VEZ DE GN — pendiente, «luego vemos qué hacen con esa información»** (hoy
+> Reposición ⛔ se usa). El ERP ya contesta lo MISMO que la API de GN que lee `lib/gestionnube/client.ts`:
+> `https://erp.arebensrl.com/api/v1/{productos,inventario,ventas}/obtener` (misma respuesta, mismos parámetros:
+> `page`, `per_page`, `q`, `from`, `to`). Sólo lee la base de Zattia (con Stunned). 📊 comparado contra GN el 19-oct:
+> productos 28/28 · stock 32/32 talles · ventas iguales día por día (90 días: espejo de GN + libro del ERP desde el 14-oct).
+> **El cambio, cuando se decida**: en `lib/gestionnube/client.ts`, `BASE` ⇒ `https://erp.arebensrl.com/api/v1` y el
+> token ⇒ `ERP_LLAVE_PRODUCCION` (Bitwarden, «ERP — llave del lector de producción»; va igual en `Authorization: Bearer`).
+> ⚠️ `code` del producto viene en null (sólo se muestra) · la escritura de precios (`prisma/gn-precios-stunned.ts`, PATCH)
+> ⛔ pasa por acá: sigue contra GN. Detalle: `~/Documents/erp-monitor/PENDIENTES.md` (19-oct, «LECTOR CON FORMA DE GN»).
+
 
 > 🗣️ **Bruno (8-oct): REDISEÑO GRANDE de Producción › Órdenes** — «la sección es un desastre total, tiene que
 > ser un gran cambio». Lo que hace ahí todos los días: **mira cortes, costos, tiempo aprox., oculta/muestra
