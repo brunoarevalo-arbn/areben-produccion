@@ -5,6 +5,8 @@
 import { prisma } from '@/lib/prisma';
 import { consumoNetoPorRollo } from '@/lib/produccion/consumo';
 import { cantidadCortada } from './cantidades';
+import { partesDeOrden } from './conjuntos';
+import { porPrenda } from './avios';
 
 export interface FichaTelaFila {
   rolloId: string;
@@ -43,7 +45,7 @@ export async function fichaDetalleSku(sku: string | null | undefined): Promise<F
     where: { sku: { equals: sku.trim(), mode: 'insensitive' }, fichaCorteCargada: true },
     orderBy: { createdAt: 'desc' },
     include: {
-      avios: { include: { etiqueta: { select: { nombre: true, precio: true } } } },
+      avios: { include: { etiqueta: { select: { nombre: true, precio: true, parte: true } } } },
       movimientosInsumo: {
         where: { rolloId: { not: null } },
         include: {
@@ -98,6 +100,7 @@ export async function fichaDetalleSku(sku: string | null | undefined): Promise<F
   telas.sort((a, b) => a.articulo.localeCompare(b.articulo, 'es') || a.codigo.localeCompare(b.codigo, 'es'));
 
   const cant = cantidadCortada(orden) || 0;
+  const partes = (await partesDeOrden(prisma, orden.sku)).map((p) => p.nombre);
   return {
     orden: { id: orden.id, sku: orden.sku, marca: orden.marca, descripcion: orden.descripcion, cantidad: cant, fechaCorte: orden.fechaCorte, cortador: orden.cortador },
     telas,
@@ -107,10 +110,13 @@ export async function fichaDetalleSku(sku: string | null | undefined): Promise<F
       metrosUnit: cant > 0 ? metros / cant : 0,
       kgUnit: cant > 0 ? kg / cant : 0,
     },
-    // La cantidad de OrdenAvio ya es POR PRENDA.
+    // La cantidad de OrdenAvio es POR PIEZA: en una prenda por partes (la bikini) el satén
+    // va en las dos (2 por prenda) y el dije sólo en la bombacha (1). Lo resuelve `porPrenda`,
+    // el mismo que usa el costo del lote: si no, el escandallo daba $767 contra $778 del lote.
     avios: orden.avios.map((a) => {
       const precio = Number(a.etiqueta.precio) || 0;
-      return { nombre: a.etiqueta.nombre, cantidad: a.cantidad, precio, costo: precio * a.cantidad };
+      const cantidad = porPrenda({ etiquetaId: a.etiquetaId, nombre: a.etiqueta.nombre, cantidad: a.cantidad, precio, stock: null, parte: a.etiqueta.parte }, partes);
+      return { nombre: a.etiqueta.nombre, cantidad, precio, costo: precio * cantidad };
     }),
   };
 }
