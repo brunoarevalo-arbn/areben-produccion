@@ -5,6 +5,7 @@ import { estadoDeLotes, lotesParaPantalla, type LotePlanificadoDTO } from './lot
 import { registrosDeCosturaPorSku } from './loteCorte';
 import { cuentaPorCortador } from './cuenta-cortador';
 import { calcularCostoMinuto } from '@/lib/costoMinuto';
+import { costoAviosDePrenda, recetaDeAvios } from './avios';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -38,6 +39,13 @@ export interface CostosDeOrden {
   corte: number;
   manoDeObra: number;
   total: number;
+  /** Los avíos de UNA prenda (en la bikini: satén ×2 + dije ×1). No entran en `total`: se consumen al ingresar. */
+  aviosUnit: number;
+  /**
+   * Lo que NO depende de la costura, por prenda: (tela + sublimado + corte) ÷ cortadas +
+   * avíos. Es la base del costo en curso de cada lote (+ su min/u × $/min).
+   */
+  materialUnit: number | null;
   /** Sin ficha de tela el costo de la tela es 0 porque NADIE LO CARGÓ, no porque sea gratis. */
   telaCargada: boolean;
 }
@@ -214,7 +222,13 @@ export async function cargarTablero(db: Db, { conValores }: { conValores: boolea
       const sublimacion = Number(o.costoSublimacion);
       const corte = Number(o.costoCorte);
       const manoDeObra = tiempo.minutos * costoMinuto;
-      fila.costos = { tela, sublimacion, corte, manoDeObra, total: tela + sublimacion + corte + manoDeObra, telaCargada: o.fichaCorteCargada };
+      const aviosUnit = costoAviosDePrenda(await recetaDeAvios(db, o.id, o.sku), partes.map((p) => p.nombre));
+      const cortado = cantidadCortada(o);
+      fila.costos = {
+        tela, sublimacion, corte, manoDeObra, total: tela + sublimacion + corte + manoDeObra,
+        aviosUnit, materialUnit: cortado ? (tela + sublimacion + corte) / cortado + aviosUnit : null,
+        telaCargada: o.fichaCorteCargada,
+      };
     }
     ordenes.push(fila);
   }

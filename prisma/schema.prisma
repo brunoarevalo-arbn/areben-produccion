@@ -533,6 +533,10 @@ model EtiquetaCatalogo {
   marca       String? // 'Zattia' | 'Stunned' | null
   precio      Decimal          @default(0)
   stock       Int? // null = sin seguimiento / ilimitado. Se descuenta al terminar producción.
+  // En una prenda por partes (la bikini), la ÚNICA pieza en la que va: 'Bombacha' = el dije.
+  // null = va en todas (la etiqueta de satén: una por pieza). En una prenda que no se parte
+  // no aplica. Es el nombre de `ParteConjunto.nombre`.
+  parte       String?
   activo      Boolean          @default(true)
   proveedorId String?
   proveedor   Proveedor?       @relation(fields: [proveedorId], references: [id])
@@ -1573,6 +1577,10 @@ model LoteCorte {
   // consumió entera el día del corte.
   costoMaterialUnit Decimal @default(0)
   costoMoUnit       Decimal @default(0)
+  // Los avíos de UNA pieza de este lote (precio del catálogo al ingresar × cuántos lleva).
+  // Aparte del material: el material se reparte entre las BUENAS del corte, el avío va por
+  // pieza que entra. Hasta el 19-oct-2026 no entraban al costo (ver `recetaDeAvios`).
+  costoAviosUnit    Decimal @default(0)
   costoUnitario     Decimal @default(0)
 
   // El instrumento, guardado al lado del número: cuántos minutos se le imputaron a este

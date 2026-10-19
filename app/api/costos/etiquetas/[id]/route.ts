@@ -21,6 +21,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (body.proveedorId !== undefined) data.proveedorId = body.proveedorId || null;
   if (body.precio !== undefined) data.precio = parseFloat(body.precio) || 0;
   if (body.activo !== undefined) data.activo = !!body.activo;
+  // La única pieza en la que va (el dije: 'Bombacha'). Vacío = en todas.
+  if (body.parte  !== undefined) data.parte  = body.parte?.trim() || null;
   // stock: null = sin seguimiento / ilimitado; número = empieza a trackear
   if (body.stock  !== undefined) data.stock  = body.stock === null ? null : Math.max(0, Math.trunc(Number(body.stock) || 0));
   const item = await prisma.etiquetaCatalogo.update({ where: { id }, data });

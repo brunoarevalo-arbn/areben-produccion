@@ -279,6 +279,7 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
                             : 'PLANIFICADAS'})
                         </span>
                       </>}
+                  {Number(l.costoAviosUnit) > 0 && <>{' · '}avíos ${fmt(l.costoAviosUnit)}</>}
                   {' · '}MO ${fmt(l.costoMoUnit)}
                   <span className="text-stone-400"> ({fmt(l.minutosImputados)} min a ${fmt(l.costoMinuto)}</span>
                   {/* 🔑 Cuántos de esos minutos NO estaban medidos en esta pieza: los

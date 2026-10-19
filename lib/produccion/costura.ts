@@ -1,9 +1,9 @@
 import type { Prisma } from '@prisma/client';
 import type { SessionPayload } from '@/lib/session';
-import { parseDatos } from '@/lib/costos/escandallo';
 import { cantidadCortada, cantidadIngresadaPorPartes, baseDeReparto } from './cantidades';
 import { crearLoteCongelado, partesDelLote, minutosSinImputarDelLote, type ParteDelLote } from './loteCorte';
 import { partesDeOrden } from './conjuntos';
+import { aviosFueraDeLasPartes, porPieza, recetaDeAvios } from './avios';
 import { contextoFallas, estadoDeLotes, excesoSobreLote, lotePlanParaCostear } from './lotesPlanificados';
 
 export class CosturaError extends Error {}
@@ -86,6 +86,17 @@ export async function terminarCosturaOrden(
     throw new CosturaError(`Hay piezas repetidas en el conteo de ${sku}`);
   }
 
+  // La receta se lee ANTES de crear el lote: el lote la usa para costear y acá se usa para
+  // descontar, y tienen que ser la misma.
+  const receta = await recetaDeAvios(tx, ordenId, sku);
+  const fuera = aviosFueraDeLasPartes(receta, partesCatalogo.map((p) => p.nombre));
+  if (fuera.length > 0) {
+    throw new CosturaError(
+      `${fuera.map((a) => `«${a.nombre}» va sólo en «${a.parte}»`).join(' · ')}, y ${sku} no tiene esa pieza ` +
+      `(${partesCatalogo.map((p) => p.nombre).join(' + ')}): no iría en ninguna. Corregí la pieza del avío en el catálogo.`,
+    );
+  }
+
   // ¿La orden está separada en lotes planificados? Entonces el ingreso dice en cuál entra.
   const lotes = await estadoDeLotes(tx, orden);
   let lotePlan = null;
@@ -119,6 +130,8 @@ export async function terminarCosturaOrden(
   const numeroLote = (ultimo._max.numero ?? 0) + 1;
 
   let totalProducido = 0;
+  // Cuántos de cada avío llevan las piezas de este ingreso: el dije sólo cuenta las bombachas.
+  const consumoPorAvio = new Map<string, number>();
   const detallePorParte: string[] = [];
 
   for (const c of conteos) {
@@ -126,6 +139,7 @@ export async function terminarCosturaOrden(
     const skuDestino = parte?.sku ?? sku;
     const unidades = c.talles.reduce((s, t) => s + t.cantidad, 0);
     totalProducido += unidades;
+    for (const a of receta) consumoPorAvio.set(a.etiquetaId, (consumoPorAvio.get(a.etiquetaId) ?? 0) + porPieza(a, c.parte) * unidades);
 
     // El lote va PRIMERO: es el que se planta si la orden no tiene con qué costear, y
     // plantarse antes de mover stock deja la transacción sin nada a medio hacer.
@@ -159,9 +173,9 @@ export async function terminarCosturaOrden(
   //
   // 🔑 En una prenda por partes son las piezas y no las prendas (decisión de Bruno,
   // 18-sep-2026): el corpiño y la bombacha se venden por separado, así que cada uno sale
-  // con su etiqueta. 40 bikinis descuentan 80. Por eso `totalProducido` suma TODAS las
-  // piezas del ingreso y no las unidades del corte.
-  // Receta: lo cargado en el corte; si está vacío, fallback al escandallo del SKU.
+  // con su etiqueta. 40 bikinis descuentan 80 —salvo un avío de UNA sola pieza (el dije,
+  // sólo en la bombacha: 40)—. Por eso se cuenta por pieza en `consumoPorAvio`.
+  // Receta: `recetaDeAvios` (lo cargado en el corte; si está vacío, el escandallo del SKU).
   //
   // 🔴 Antes el guard era `aviosDescontados` (una sola vez por ORDEN) y eso alcanzaba
   // mientras una orden entraba entera de una vez. Con ingreso parcial el primer lote se
@@ -170,19 +184,6 @@ export async function terminarCosturaOrden(
   // es el LOTE que entra, no la orden.
   let descontado = false;
   {
-    const receta: { etiquetaId: string; cantidad: number }[] =
-      (await tx.ordenAvio.findMany({ where: { ordenId } }))
-        .map((a) => ({ etiquetaId: a.etiquetaId, cantidad: a.cantidad }));
-
-    if (receta.length === 0) {
-      const escandallo = await tx.escandallo.findFirst({ where: { sku } });
-      if (escandallo) {
-        const datos = parseDatos(escandallo.datos);
-        if (datos.avios.etiquetaPrincipalId)   receta.push({ etiquetaId: datos.avios.etiquetaPrincipalId,   cantidad: 1 });
-        if (datos.avios.etiquetaComposicionId) receta.push({ etiquetaId: datos.avios.etiquetaComposicionId, cantidad: 1 });
-      }
-    }
-
     // 🔴 Antes esto descontaba con `Math.max(0, stock - consumido)`: si el avío no
     // alcanzaba, el stock quedaba en 0, el faltante se perdía y NADA lo decía. La tela sí
     // se planta cuando los kg no alcanzan (`registrarCorteOrden`); los avíos no lo hacían.
@@ -190,15 +191,18 @@ export async function terminarCosturaOrden(
     // obligaría a descubrirlos de a uno.
     const aDescontar: { etiquetaId: string; nombre: string; consumido: number; stock: number }[] = [];
     const faltantes: string[] = [];
+    const vistos = new Set<string>(); // el consumo ya viene sumado por avío
     for (const a of receta) {
-      const et = await tx.etiquetaCatalogo.findUnique({ where: { id: a.etiquetaId } });
-      if (!et || et.stock == null) continue; // sin seguimiento / ilimitado
-      const consumido = a.cantidad * totalProducido;
-      if (consumido > et.stock) {
-        faltantes.push(`${et.nombre}: hacen falta ${consumido} y hay ${et.stock} (faltan ${consumido - et.stock})`);
+      if (vistos.has(a.etiquetaId)) continue;
+      vistos.add(a.etiquetaId);
+      if (a.stock == null) continue; // sin seguimiento / ilimitado
+      const consumido = consumoPorAvio.get(a.etiquetaId) ?? 0;
+      if (consumido === 0) continue;
+      if (consumido > a.stock) {
+        faltantes.push(`${a.nombre}: hacen falta ${consumido} y hay ${a.stock} (faltan ${consumido - a.stock})`);
         continue;
       }
-      aDescontar.push({ etiquetaId: a.etiquetaId, nombre: et.nombre, consumido, stock: et.stock });
+      aDescontar.push({ etiquetaId: a.etiquetaId, nombre: a.nombre, consumido, stock: a.stock });
     }
     if (faltantes.length > 0) {
       throw new CosturaError(

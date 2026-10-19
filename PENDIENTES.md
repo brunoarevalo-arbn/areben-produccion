@@ -1352,6 +1352,23 @@ jun-2026 (GET sin auth, guards invertidos, descuadres al deshacer producción, p
 
 ## 🔴 Pendiente
 
+- 🏁 **AVÍOS AL COSTO + AVÍO EN UNA PIEZA + $/U DEL TABLERO (19-oct, pedido de Bruno; ⛔ deployado hasta aplicar el SQL)**:
+  (1) el lote congela `costoAviosUnit` aparte del material (precio del catálogo al ingresar × cuántos lleva la PIEZA) y lo suma al
+  unitario; la receta sale de `lib/produccion/avios.ts` (`recetaDeAvios`), la MISMA para descontar stock y para costear ·
+  (2) `etiqueta_catalogo.parte`: «sólo en bombacha» se elige en el catálogo de avíos (Editar). 🔑 va en el CATÁLOGO y ⛔ en la orden:
+  las 4 pantallas de la ficha de corte borran y recrean `orden_avios`, y un campo que no viajara en las 4 se perdería callado.
+  Un avío de una pieza que la prenda no tiene ⇒ el ingreso se PLANTA nombrándolo · (3) tablero: debajo del min/u de cada lote,
+  su $/u en curso (material/u + min/u × $/min); el $/u de la fila = material/u + costura del lote con MÁS min/u, con «≈»; el
+  del artículo, pesado por cortadas. Material/u = (tela+subl+corte) ÷ cortadas + avíos. Panel › Costos: «Por prenda, proyectado».
+  📊 `prisma/check-avios-al-costo.ts` (copia local, todo en rollback): corpiño $11,07 · bombacha $767,07 · bikini **$778,14** de avíos,
+  dije descuenta 3 por 3 bikinis y satén 6; `check-lote-corte-ejercicio.ts` 0 ❌; build limpio verde. Núcleo del escandallo ⛔ tocado.
+  ▶️ **Bruno**: `npx tsx --env-file=.env prisma/aplicar-sql-avios-al-costo.ts` (SQL `2026-10-19-avios-al-costo.sql`) → recién ahí push ·
+  marcar «Dije bikini» como **sólo Bombacha** en el catálogo · ¿la AYLA lleva dije? (14-oct «la tira espera el DIJE», y su OP ⛔ lo tiene).
+  ⚠️ `ficha-resumen` (escandallo) sigue sumando los avíos ×1 por prenda (el satén de la bikini da 1, no 2): la bikini ⛔ tiene escandallo con SKU todavía.
+- 🗣️ **TIRA PRESTADA ENTRE ENVÍOS (Bruno, 19-oct)**: cada OP estampada lleva TODOS los metros sublimados de su estampa (piezas + tira). Si a una orden le falta tira y sale del envío siguiente (las AYLA se cortaron sin el 10%), sumar esos metros a la ficha de la orden que los USA ⇒ si no, una queda barata y la otra cara.
+  🔑 19-oct: **⛔ hace falta código**: la ficha ofrece cualquier rollo DISPONIBLE o EN USO PARCIAL ⇒ se carga como una tizada más («Tira · envío N») con ese rollo y sus metros sublimados, y se le restan a la que los tenía. ⚠️ un rollo AGOTADO ⛔ aparece para elegir.
+- 🔑 **El % de material corpiño/bombacha YA ESTÁ en prod (49/51, desde el 14-oct)**, releído el 19-oct ⇒ ⛔ frena el ingreso de bikini (el README de bikinis-2027 decía lo contrario).
+
 - [ ] 🔴 **El pasaje a la marca arranca VACÍO y depende de una mano.** Medido el 25-ago: de los 121
   `movimientos_terminado`, **cero** tienen `origen='venta'` (son estampa, produccion, inicial y
   ajuste). O sea que `/costos/pasajes` no va a mostrar nada hasta que alguien cargue las salidas a

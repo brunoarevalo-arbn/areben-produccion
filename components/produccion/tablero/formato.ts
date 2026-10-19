@@ -49,6 +49,36 @@ export const CHIP_TONO = {
 } as const;
 
 /** «19,4 min/u» del lote, y el detalle para el tooltip. `null` si no hay minutos o unidades. */
+/** Los min/u de un lote: los propios + su cuota de lo común. null sin minutos. */
+export function minutosPorUnidad(l: LoteVista): number | null {
+  const m = l.minutos.propios + l.minutos.comunes;
+  return l.unidades && m > 0 ? m / l.unidades : null;
+}
+
+/** Costo en curso de UN lote, por prenda: material/u + sus min/u × $/min. */
+export function costoDeLote(o: TableroOrden, l: LoteVista, costoMinuto: number): number | null {
+  const m = o.costos?.materialUnit;
+  if (m == null) return null;
+  return m + (minutosPorUnidad(l) ?? 0) * costoMinuto;
+}
+
+/**
+ * $/u de la fila: material/u + la costura PROYECTADA con el lote más avanzado (el de más
+ * min/u: el que hizo más pasos). Es un estimado —el lote más avanzado puede no haber
+ * terminado— y se muestra con «≈». Antes era (material + TODOS los minutos) ÷ cortadas, que
+ * mezclaba el material de las 40 con la costura de un Lote 1 a medias.
+ */
+export function costoProyectado(o: TableroOrden, costoMinuto: number): { valor: number; lote: LoteVista | null; minU: number } | null {
+  const m = o.costos?.materialUnit;
+  if (m == null) return null;
+  let lote: LoteVista | null = null, minU = 0;
+  for (const l of lotesVista(o)) {
+    const mu = minutosPorUnidad(l) ?? 0;
+    if (mu > minU) { minU = mu; lote = l; }
+  }
+  return { valor: m + minU * costoMinuto, lote, minU };
+}
+
 export function minPorUDe(l: LoteVista): { texto: string; detalle: string } | null {
   const { propios, comunes } = l.minutos;
   if (!l.unidades || propios + comunes <= 0) return null;

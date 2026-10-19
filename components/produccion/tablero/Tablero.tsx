@@ -7,7 +7,7 @@ import { toast } from '@/components/ui/Toaster';
 import { LoadingState } from '@/components/ui/LoadingState';
 import { ErrorState } from '@/components/ui/ErrorState';
 import { PanelOrden } from './PanelOrden';
-import { CHIP, CHIP_TONO, avisosDe, horasMin, lotesVista, minPorUDe, num, pesos, type LoteVista } from './formato';
+import { CHIP, CHIP_TONO, avisosDe, costoDeLote, costoProyectado, horasMin, lotesVista, minPorUDe, num, pesos, type LoteVista } from './formato';
 import { LoteBoton } from './Lote';
 import { Geo } from './Geometral';
 import { MenuAcciones, ModalIngresar, useAccionesLote, useAccionesOrden } from './Acciones';
@@ -132,7 +132,7 @@ export function Tablero() {
               </div>
               {arts.length === 0
                 ? <p className="rounded-xl border border-dashed border-stone-300 bg-stone-50 px-4 py-3 text-[13px] text-stone-500">{texto ? 'Nada coincide con la búsqueda.' : vacio}</p>
-                : arts.map((a) => <Articulo key={a.id} a={a} conValores={data.conValores} sel={sel} onSel={setSel} onLote={alternar} onCambio={cargar} />)}
+                : arts.map((a) => <Articulo key={a.id} a={a} conValores={data.conValores} costoMinuto={data.costoMinuto ?? 0} sel={sel} onSel={setSel} onLote={alternar} onCambio={cargar} />)}
             </section>
           );
         })}
@@ -175,8 +175,8 @@ function Tile({ titulo, valor, bajada }: { titulo: string; valor: string; bajada
   );
 }
 
-function Articulo({ a, conValores, sel, onSel, onLote, onCambio }: {
-  a: TableroArticulo; conValores: boolean; sel: string | null; onSel: (id: string) => void; onLote: (o: TableroOrden, l: LoteVista) => void; onCambio: () => void;
+function Articulo({ a, conValores, costoMinuto, sel, onSel, onLote, onCambio }: {
+  a: TableroArticulo; conValores: boolean; costoMinuto: number; sel: string | null; onSel: (id: string) => void; onLote: (o: TableroOrden, l: LoteVista) => void; onCambio: () => void;
 }) {
   const [ingresarTodos, setIngresarTodos] = useState(false);
   const accionesLote = useAccionesLote(a, onCambio);
@@ -184,7 +184,10 @@ function Articulo({ a, conValores, sel, onSel, onLote, onCambio }: {
   const cort = a.ordenes.reduce((s, o) => s + o.cortado, 0);
   const ing = a.ordenes.reduce((s, o) => s + o.ingresado, 0);
   const min = a.ordenes.reduce((s, o) => s + o.tiempo.minutos, 0);
-  const costo = a.ordenes.reduce((s, o) => s + (o.costos?.total ?? 0), 0);
+  // El ≈ del artículo: el proyectado de cada color, pesado por lo cortado (ver `costoProyectado`).
+  const proy = a.ordenes.map((o) => ({ o, p: costoProyectado(o, costoMinuto) })).filter((x) => x.p && x.o.cortado);
+  const cortProy = proy.reduce((s, x) => s + x.o.cortado, 0);
+  const costoU = cortProy ? proy.reduce((s, x) => s + x.p!.valor * x.o.cortado, 0) / cortProy : null;
   // Las columnas siguen el ancho de la TARJETA (container query), no el de la ventana:
   // con el panel abierto la tarjeta se angosta y pasa a dos columnas en vez de cortarse.
   const cols = conValores
@@ -203,7 +206,7 @@ function Articulo({ a, conValores, sel, onSel, onLote, onCambio }: {
         <div className="flex flex-wrap gap-5">
           <Met titulo="Ingresadas" valor={`${ing} / ${cort}`} bajada={cort ? `${Math.round(ing / cort * 100)}%` : ''} />
           <Met titulo="Llevamos" valor={horasMin(min)} bajada={cort ? `en ${num(cort)} u cortadas` : ''} />
-          {conValores && <Met titulo="Costo/u hoy" valor={cort ? pesos(costo / cort) : '—'} bajada={a.ordenes.some((o) => !o.costos?.telaCargada) ? 'sin tela' : 'con tela'} />}
+          {conValores && <Met titulo="Costo/u" valor={costoU != null ? `≈ ${pesos(costoU)}` : '—'} bajada={a.ordenes.some((o) => !o.costos?.telaCargada) ? 'sin tela' : 'con tela'} />}
         </div>
         {enTaller.length > 1 && (
           <button type="button" onClick={() => setIngresarTodos(true)} className="h-8 px-3 rounded-lg border border-stone-300 bg-white text-[12.5px] font-semibold text-stone-700 hover:bg-stone-50">Ingresar varios colores</button>
@@ -216,7 +219,7 @@ function Articulo({ a, conValores, sel, onSel, onLote, onCambio }: {
         <span>Color</span><span>Avance</span><span>Tiempo</span>{conValores && <span>$/u hoy</span>}<span>Lotes · tablet y etiqueta</span>
       </div>
       {a.ordenes.map((o) => (
-        <Fila key={o.id} o={o} cols={cols} conValores={conValores} activa={sel === o.id} onSel={onSel} onLote={onLote} onCambio={onCambio} />
+        <Fila key={o.id} o={o} cols={cols} conValores={conValores} costoMinuto={costoMinuto} activa={sel === o.id} onSel={onSel} onLote={onLote} onCambio={onCambio} />
       ))}
     </article>
   );
@@ -232,13 +235,14 @@ function Met({ titulo, valor, bajada }: { titulo: string; valor: string; bajada:
   );
 }
 
-function Fila({ o, cols, conValores, activa, onSel, onLote, onCambio }: {
-  o: TableroOrden; cols: string; conValores: boolean; activa: boolean; onSel: (id: string) => void; onLote: (o: TableroOrden, l: LoteVista) => void; onCambio: () => void;
+function Fila({ o, cols, conValores, costoMinuto, activa, onSel, onLote, onCambio }: {
+  o: TableroOrden; cols: string; conValores: boolean; costoMinuto: number; activa: boolean; onSel: (id: string) => void; onLote: (o: TableroOrden, l: LoteVista) => void; onCambio: () => void;
 }) {
   const acciones = useAccionesOrden(o, onCambio);
   const [ingresar, setIngresar] = useState(false);
   const avisos = avisosDe(o);
   const pct = o.cortado ? Math.min(100, o.ingresado / o.cortado * 100) : 0;
+  const proy = conValores ? costoProyectado(o, costoMinuto) : null;
   return (
     <div className={`grid grid-cols-2 ${cols} gap-x-3.5 gap-y-2.5 items-center px-4 py-3 border-t border-stone-100 ${activa ? 'bg-amber-50' : 'hover:bg-stone-50'}`}>
       <button type="button" onClick={() => onSel(o.id)} className="col-span-2 @3xl:col-span-1 min-w-0 text-left group flex gap-2.5 items-start">
@@ -264,8 +268,12 @@ function Fila({ o, cols, conValores, activa, onSel, onLote, onCambio }: {
       </div>
       {conValores && (
         <div className="grid text-[13px]">
-          <b className="font-semibold tabular-nums">{o.costos && o.cortado ? pesos(o.costos.total / o.cortado) : '—'}</b>
-          <small className="text-[11.5px] text-stone-500">corte {o.costos && o.cortado ? pesos(o.costos.corte / o.cortado) : '—'}</small>
+          {/* ≈: material/u + la costura del lote más avanzado. El de antes —(material + TODOS
+              los minutos) ÷ cortadas— daba LUNCEL $3.895 y LUNCH $3.169 con la misma tela. */}
+          <b className="font-semibold tabular-nums" title={proy ? `material ${pesos(o.costos!.materialUnit!)}/u (con avíos ${pesos(o.costos!.aviosUnit)}) + ${num(proy.minU, 1)} min/u × ${pesos(costoMinuto)}${proy.lote ? ` (Lote ${proy.lote.numero}, el más avanzado)` : ''}` : undefined}>
+            {proy ? `≈ ${pesos(proy.valor)}` : '—'}
+          </b>
+          <small className="text-[11.5px] text-stone-500">{proy ? (proy.lote ? `material ${pesos(o.costos!.materialUnit!)} + ${proy.lote.unico ? 'costura' : `L${proy.lote.numero}`}` : `material ${pesos(o.costos!.materialUnit!)} · sin costura`) : 'sin corte'}</small>
         </div>
       )}
       <div className="col-span-2 @3xl:col-span-1 flex flex-wrap items-center gap-1.5">
@@ -275,6 +283,8 @@ function Fila({ o, cols, conValores, activa, onSel, onLote, onCambio }: {
             <span key={l.numero} className="grid gap-0.5 justify-items-start">
               <LoteBoton o={o} l={l} onLote={onLote} />
               <small className="pl-1 text-[11.5px] text-stone-500 tabular-nums" title={mu?.detalle}>{mu?.texto ?? 'sin minutos'}</small>
+              {/* Su costo en curso: material/u + SUS min/u × $/min. */}
+              {conValores && (() => { const c = costoDeLote(o, l, costoMinuto); return c != null && <small className="pl-1 text-[11.5px] text-stone-700 font-semibold tabular-nums" title="material/u + min/u del lote × $/min, hasta hoy">{pesos(c)}/u</small>; })()}
             </span>
           );
         })}

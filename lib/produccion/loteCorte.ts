@@ -3,6 +3,7 @@ import { calcularCostoMinuto } from '@/lib/costoMinuto';
 import { baseDeRepartoConOrigen, type OrigenBase } from './cantidades';
 import { skuDeParte } from './conjuntos';
 import { marcaDeMuestra } from '@/lib/tiempos/registrar';
+import { costoAviosDePieza, recetaDeAvios } from './avios';
 
 type Db = PrismaClient | Prisma.TransactionClient;
 
@@ -36,6 +37,7 @@ export interface OrdenParaCostear {
 export interface CostoCongelado {
   costoMaterialUnit: number;
   costoMoUnit: number;
+  costoAviosUnit: number;
   costoUnitario: number;
   minutosImputados: number;
   minutosCompartidos: number;
@@ -312,6 +314,11 @@ export async function minutosSinImputarPorParte(
  * 18-sep-2026). Lo que lo hace auditable es que el lote guarda los minutos y el $/min
  * con los que se calculó.
  *
+ * **Avíos**: los de la receta de la orden (`recetaDeAvios`, la misma que descuenta el
+ * stock) al precio del catálogo de HOY, por PIEZA: en la bikini el satén va en las dos y
+ * el dije sólo en la bombacha. No se dividen entre las buenas: cada pieza que entra lleva
+ * los suyos. Hasta el 19-oct-2026 no entraban (el dije de $756 quedaba afuera).
+ *
  * 🔴 `permitirSinCosto` es OBLIGATORIO a propósito. Una orden sin ficha de corte tiene
  * `costoTotal` en 0, y congelar ese 0 callado dejaría mercadería valuada en cero para
  * siempre. El default es plantarse; entrar igual tiene que ser algo que alguien AFIRME,
@@ -362,11 +369,13 @@ export async function calcularCostoCongelado(
     : minutosSinParte ?? { minutos: await minutosSinImputar(tx, orden), compartidos: 0 };
   const costoMinuto = await calcularCostoMinuto(tx);
   const costoMoUnit = dosDecimales((minutos * costoMinuto) / unidades);
+  const costoAviosUnit = dosDecimales(costoAviosDePieza(await recetaDeAvios(tx, orden.id, orden.sku), parte?.nombre ?? null));
 
   return {
     costoMaterialUnit,
     costoMoUnit,
-    costoUnitario: dosDecimales(costoMaterialUnit + costoMoUnit),
+    costoAviosUnit,
+    costoUnitario: dosDecimales(costoMaterialUnit + costoAviosUnit + costoMoUnit),
     minutosImputados: dosDecimales(minutos),
     minutosCompartidos: dosDecimales(compartidos),
     minutosComunes: dosDecimales(comunes),
@@ -479,6 +488,7 @@ export async function crearLoteCongelado(
       ingresadoPor: creadoPor,
       costoMaterialUnit: costo.costoMaterialUnit,
       costoMoUnit: costo.costoMoUnit,
+      costoAviosUnit: costo.costoAviosUnit,
       costoUnitario: costo.costoUnitario,
       minutosImputados: costo.minutosImputados,
       minutosCompartidos: costo.minutosCompartidos,

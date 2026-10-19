@@ -6,7 +6,7 @@ import type { TableroArticulo, TableroOrden } from '@/lib/produccion/tablero';
 import { LoteBoton, Ojo } from './Lote';
 import { Geo, ModalGeometral } from './Geometral';
 import { MenuAcciones, ModalIngresar, useAccionesOrden } from './Acciones';
-import { CHIP, CHIP_TONO, avisosDe, fechaCorta, horasMin, lotesVista, minPorUDe, num, ordenarTalles, pesos, type LoteVista } from './formato';
+import { CHIP, CHIP_TONO, avisosDe, costoProyectado, fechaCorta, horasMin, lotesVista, minPorUDe, num, ordenarTalles, pesos, type LoteVista } from './formato';
 
 const ESTADO_HISTORIAL: Record<string, string> = {
   PENDIENTE: 'Creada', CORTE: 'En corte', COSTURA: 'En el taller', TERMINADO_SIN_ESTAMPA: 'Lista',
@@ -171,6 +171,18 @@ function Costos({ o, costoMinuto }: { o: TableroOrden; costoMinuto: number }) {
         <Kv k="Total a la fecha" v={pesos(c.total)} fuerte />
         {o.cortado > 0 && <Kv k={`Por unidad cortada (${o.cortado})`} v={pesos(c.total / o.cortado)} />}
       </Bloque>
+      {c.materialUnit != null && (() => {
+        const p = costoProyectado(o, costoMinuto)!;
+        return (
+          <Bloque titulo="Por prenda, proyectado" kv>
+            <Kv k="Tela + sublimado + corte" v={pesos(c.materialUnit - c.aviosUnit)} />
+            <Kv k="Avíos" v={pesos(c.aviosUnit)} />
+            <Kv k={p.lote ? `Costura · ${num(p.minU, 1)} min/u${p.lote.unico ? '' : ` (Lote ${p.lote.numero}, el más avanzado)`}` : 'Costura · sin minutos todavía'} v={pesos(p.minU * costoMinuto)} />
+            <div className="col-span-2 border-t border-dashed border-stone-300" />
+            <Kv k="≈ $/u" v={`≈ ${pesos(p.valor)}`} fuerte />
+          </Bloque>
+        );
+      })()}
     </>
   );
 }

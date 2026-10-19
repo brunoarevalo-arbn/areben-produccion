@@ -10,6 +10,8 @@ import { toast } from '@/components/ui/Toaster';
 interface Etiqueta {
   id: string; nombre: string; tipo: string | null; precio: number; stock: number | null;
   categoria: string | null; frecuencia: string | null; unidad: string | null; marca: string | null; proveedorId: string | null;
+  /** La única pieza en la que va (el dije: 'Bombacha'); null = en todas. */
+  parte: string | null;
 }
 interface ProveedorOpt { id: string; nombre: string; activo: boolean; }
 interface AvioMov { id: string; tipo: string; cantidad: number; motivo: string | null; creadoPor: string; fecha: string; }
@@ -44,6 +46,8 @@ export function AviosCatalogoManager() {
   const [editSeguir, setEditSeguir] = useState(false);
   const [editStock, setEditStock] = useState(0);
   const [editFrecuencia, setEditFrecuencia] = useState('habitual');
+  const [editParte, setEditParte] = useState('');
+  const [partes, setPartes] = useState<string[]>([]);
   const [filtroCat, setFiltroCat] = useState('');
   const [filtroFrec, setFiltroFrec] = useState('');
 
@@ -100,6 +104,7 @@ export function AviosCatalogoManager() {
   useEffect(() => {
     cargar();
     fetch('/api/proveedores').then(r => r.ok ? r.json() : []).then(setProveedores).catch(() => {});
+    fetch('/api/costos/etiquetas/partes').then(r => r.ok ? r.json() : []).then(setPartes).catch(() => {});
   }, [cargar]);
 
   const agregar = async () => {
@@ -117,12 +122,13 @@ export function AviosCatalogoManager() {
     setEditId(it.id); setEditPrecio(it.precio);
     setEditSeguir(it.stock != null); setEditStock(it.stock ?? 0);
     setEditFrecuencia(it.frecuencia ?? 'habitual');
+    setEditParte(it.parte ?? '');
   };
 
   const guardar = async (id: string) => {
     const r = await fetch(`/api/costos/etiquetas/${id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ precio: editPrecio, stock: editSeguir ? editStock : null, frecuencia: editFrecuencia }),
+      body: JSON.stringify({ precio: editPrecio, stock: editSeguir ? editStock : null, frecuencia: editFrecuencia, parte: editParte || null }),
     });
     if (r.ok) { const it = await r.json(); setItems(prev => prev.map(x => x.id === id ? { ...it, precio: Number(it.precio) } : x)); setEditId(null); }
   };
@@ -182,6 +188,7 @@ export function AviosCatalogoManager() {
                 <span className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full ${(it.frecuencia ?? 'habitual') === 'ocasional' ? 'bg-amber-100 text-amber-700' : 'bg-stone-100 text-stone-500'}`}>
                   {(it.frecuencia ?? 'habitual') === 'ocasional' ? 'ocasional' : 'habitual'}
                 </span>
+                {it.parte && <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full bg-violet-50 text-violet-700">sólo {it.parte.toLowerCase()}</span>}
               </div>
               <p className="text-xs text-stone-400 capitalize">
                 {[it.categoria, it.marca, it.unidad ? `por ${it.unidad}` : null, it.tipo].filter(Boolean).join(' · ')}
@@ -201,6 +208,13 @@ export function AviosCatalogoManager() {
                 <select value={editFrecuencia} onChange={e => setEditFrecuencia(e.target.value)} className={`${inp} capitalize text-xs py-1`}>
                   {FRECUENCIAS.map(f => <option key={f} value={f} className="capitalize">{f}</option>)}
                 </select>
+                {/* En una prenda por partes (la bikini): en cuál va. El dije, sólo en la bombacha. */}
+                {(partes.length > 0 || editParte) && (
+                  <select value={editParte} onChange={e => setEditParte(e.target.value)} aria-label="Pieza en la que va" className={`${inp} text-xs py-1`}>
+                    <option value="">En todas las piezas</option>
+                    {[...new Set([...partes, ...(editParte ? [editParte] : [])])].map(p => <option key={p} value={p}>Sólo en {p.toLowerCase()}</option>)}
+                  </select>
+                )}
                 <button onClick={() => guardar(it.id)} className="text-xs bg-violet-600 text-white px-3 py-1.5 rounded-lg font-semibold">OK</button>
                 <button onClick={() => setEditId(null)} aria-label="Cancelar" className="text-xs text-stone-400 hover:text-stone-600">✕</button>
               </div>

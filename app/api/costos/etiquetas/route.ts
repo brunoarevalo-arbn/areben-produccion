@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!(await requireAlguno(req, ['costos', 'insumos']))) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
-  const { nombre, tipo, categoria, frecuencia, unidad, marca, precio, stock, proveedorId } = await req.json();
+  const { nombre, tipo, categoria, frecuencia, unidad, marca, precio, stock, proveedorId, parte } = await req.json();
   if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 });
   const item = await prisma.etiquetaCatalogo.create({
     data: {
@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
       precio: parseFloat(precio) || 0,
       stock: typeof stock === 'number' ? Math.max(0, Math.trunc(stock)) : null,
       proveedorId: proveedorId || null,
+      parte: parte?.trim() || null,
     },
   });
   return NextResponse.json(item, { status: 201 });
