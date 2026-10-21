@@ -121,6 +121,13 @@ _Última actualización: 2026-09-23_
 > Lote 1 = S6·M6·L3 = 15 en CUADAM/CUADRS/CUADRV (Lote 2 = 10·10·5, programado después de Remallado) · 🗣️ Bruno: la DUA es la DOBLE, esto es la NYA.
 > 🏁 **21-oct (Bruno), con `prisma/nya-ajustes-21oct.ts`:** FLOVIO va **ENTERA en el Lote 1** (8·8·4, «es lo mismo en tiempo») · corte **$450/u
 > ⇒ $63.000, VALIDADO** (sin imputar a pago) · ✅ muselina también 1,72×10 · geometral por color NYA-1..4 → FLOVIO/CUADAM/CUADRS/CUADRV (los 4 dan 200).
+> 🔴 **21-oct: la tizada NYA salió MAL — Fernando metió los 3 corpiños TAYRA (S·M·L) en la tizada NYA** (Bruno). Tela 1,45 doblada (725 mm) ⇒
+> 6 corpiños por tizada. Con los moldes de Moldea (`areben-moldea/salida/NYA|TAYRA-S-M-L-tizada.dxf`): NYA sola 1,17 (Moldea) / 1,24 (a mano +6%)
+> + corpiños 0,34 + huecos 0,14 = **1,72 real** · el 1,72 ⛔ incluye ribete (Bruno). 14 tizadas ⇒ **6,7 m de lycra subl. + 6,7 m de muselina ≈ $80.000**
+> si NO se cosen; en los cuadrillé era la tela del RIBETE (quedan ≈1,1 m c/u de 4,3) ⇒ re-sublimar ≈9,7 m (incluye ≈3,9 que faltaban igual por
+> cortar 40 en vez de 35); flores: 20 en vez de 30. **Completar 84 TAYRA ≈ $518.000 ($6.165/u, casi una TAYRA nueva $6.476)** — Bruno: sin bombacha
+> no sirven. PDF: `~/Downloads/NYA-corte-corpiños-TAYRA.pdf`. ▶️ **Bruno: contar los corpiños TAYRA (¿84 o 42?) y pasar los sobrantes** (NYA y los otros modelos).
+> 🗣️ **NYA lotes (Bruno, 21-oct): se remalla TODO junto y se separa después** — queda como está: Lote 2 programado «después de Remallado» (10·10·5).
 > 🗣️ **Bruno (19-oct): TAYRA estampada — remallado HECHO, hoy entra en COLLARETA, LLEGARON LOS DIJES ⇒ armar la RECETA (escandallo) «casi perfecta».**
 > 📊 en la tablet, al 19-oct 08:35: remallado **sólo cargado a LUNCEL** = bombacha 225,0 + corpiño 161,9 = **386,8 min** (¿las 5 del Lote 1 = 75 ⇒ 5,2 min/u, o sólo LUNCEL?) ·
 > el escandallo `cmubaznqp…` «Bikini Tayra» sigue SIN SKU y en $0 (tira 637 cm, merma 13% con descarte de unión SUPUESTO) · ▶️ faltan: dije (cuántos, dónde, $), $/kg tricot, $/m muselina, descarte de unión medido.
