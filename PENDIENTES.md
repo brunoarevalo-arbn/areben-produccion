@@ -49,6 +49,104 @@ _Última actualización: 2026-09-23_
 > 8-oct 07:41 el reloj de >9 h se descartó. Fue UN solo reloj con **remallado + pasaje** mezclados
 > ⇒ ▶️ Bruno mira las CÁMARAS: hora del cambio remalladora→pasaje, qué SKU/pieza, y fin; se cargan
 > 2 registros (Remalladora / Sin máquina) con script que corre Bruno con `!`.
+> 📊 **13-oct, MEDIDA la proporción del REMALLADO de la AYLA** (tablet, desde LUNAMA 8-oct 11:15, todo con pieza):
+> LUNAMA 40 u = corpiño 91 / bombacha 233 min (28/72) · RAYAZ 58 = 118 / 304 (28/72) · CUADNG 40 = 79 / 185 (30/70)
+> ⇒ **≈ 29% corpiño / 71% bombacha**, parejo en las tres. Por bikini: 8,1 → 7,3 → 6,6 min (va bajando).
+> 🔴 **La hipótesis «RAYAZ quedó cargado como RAYROS» se CAE**: RAYAZ tiene sus 421 min propios (9 y 13-oct).
+> 🗣️ **Bruno (13-oct)**: ese % es sólo del remallado; en el resto de los procesos, como se hacen combinados,
+> se pierde un poco, pero cree que es bastante parejo (⇒ el mitad y mitad de lo `Compartido` sigue).
+> 🔴 ⛔ **No es el `porcentajeMaterial`** (eso es TELA y sigue en NULL).
+> 🏁 **13-oct, Bruno: «sí, dale»** ⇒ los 2 registros SIN pieza de RAYROS del 8-oct (08:00 · 123,54 y 11:12 · 2,55)
+> pasados a **Bombacha** (por id, con guard `parte: null`). Releído: RAYROS = corpiño 160,45 · bombacha 126,09 ·
+> compartido 29,99. ▶️ falta el hueco del 7-oct 13:31→16:00 (cámaras).
+> 🏁 **14-oct: % de TELA CARGADO en prod: BIK = Corpiño 49 / Bombacha 51** (`seed-conjuntos-prenda.ts --aplicar --porcentajes BIK=49/51`,
+> releído de la base). Sale de tizar los moldes reales (PDF de la diseñadora → Moldea) como corta el taller (Bruno): **tela DOBLADA,
+> tizadas ≤1,2 m, a hilo, sólo tela, sin tira**. Por modelo (curva 4·4·2 doblada, sin sobrantes): TAYRA 53/47 · AYLA 26/74 · NYA 65/35 · DUA 74/26;
+> el 49/51 es el promedio pesado por los metros de la Tanda 1 (180·180·150·60). 🔴 **Es UNA fila para los 4 modelos** ⇒ en la AYLA
+> (5 de las 8 OP abiertas) le carga de más al corpiño (49 contra ~26). Aproximado, dicho por Bruno. PDF y datos en
+> `~/Documents/bikinis-2027/tizadas-moldea-14oct/`.
+> ~~▶️ **% de TELA**~~: Bruno pasa los MOLDES para medir el área por pieza (+ la tira por pieza, que ya está en
+> `~/Documents/bikinis-2027/`). ⚠️ `ConjuntoPrenda` es UNA fila `BIK` ⇒ un solo % para los 4 modelos.
+> 🗣️ **Bruno (13-oct): PLAN DE COSTURA DE LA TEMPORADA — «no sobra tanto tiempo»**: **LOTE 1 = 3 CURVAS de cada
+> modelo/estampa.** AYLA sublimadas (RAYROS·RAYAZ·LUNAMA·CUADNG): el remallado se termina en TODAS y de ahí sólo
+> el Lote 1 sigue a terminación. Las sublimadas que vayan entrando (TAYRA 1,2,3,5 · TAYRA-4 · NYA · DOBLE 1 y 3):
+> **Lote 1 desde el REMALLADO** (⛔ remallar todo primero). Contexto: medido 13-oct, todo lo cortado + lo que viene
+> ≈ 27 jornadas de Marisol (sola, ~410 min/día de bikini) ⇒ ~20-nov. 🔑 **CURVA = 6 S · 6 M · 3 L = 15** (Bruno; ya estaba en prod: el Lote 1 de las 4 AYLA sublimadas es S6 M6 L3) ⇒ Lote 1 de todo ≈ 11 jornadas.
+> 🗣️ **Bruno (13-oct): Marisol entra a las 7:00 desde el 14-oct (+1 h/día)** ⇒ ~470 min/día de bikini: Lote 1 ≈ 10 jornadas
+> (~27-oct), todo ≈ 25 (~17-nov). La tablet ⛔ asume hora de entrada (sólo descarta relojes de >9 h).
+> 📅 **13-oct, calendario pasado a Bruno** (470 min/día, lun-vie, feriados 9-nov papa y 23-nov): Lote 1 AYLA 14→15/10 ·
+> TAYRA 15→19 · TAYRA-4 19→20 · DOBLE 20→23 · NYA 1-4 23→27 · NYA-5 27/10 ⇒ **Lote 1 completo 27-oct**; Lote 2: AYLA →30/10 ·
+> TAYRA →6/11 · TAYRA-4 →10/11 · DOBLE →13/11 · NYA →**18-nov**. Supone la tela cortada a tiempo (sublimado 3 antes del 19-oct).
+> 🗣️ **Bruno (16-oct): el % corpiño/bombacha del REMALLADO de la AYLA NEGRA Lote 1 y de la TAYRA lisa (VER/MAR) ⛔ SIRVE**:
+> Marisol hacía por talle un par de bombachas y un par de corpiños y cambiaba, **sin cambiar la pieza en la tablet**. Desde el
+> Lote 2 de la NEGRA (15-oct 15:29) le dijo: **toda la bombacha, y después todo el corpiño** ⇒ ese registro es el BUENO. La negra
+> son **3 telas** (encaje) ⇒ su remallado demora más que la estampada. 📊 al 16-oct 09:23: bombacha 30,5 min · corpiño 141,4 (sigue).
+> ⚠️ 30,5 min para 20 bombachas = 1,5 min/u, contra ~5,8 en la estampada ⇒ ¿parte de las bombachas del Lote 2 ya se habían remallado en el Lote 1?
+> 🏁 **16-oct, RAYROS CORREGIDA EN PROD** (`prisma/corregir-remallado-rayros-7oct.ts --aplicar`, pedido por Bruno): hueco 7-oct
+> 13:31→16:00 cargado (Bruno: «sí, remalló RAYROS») · el ALMUERZO del 7-oct le cobraba 30 min (tenía SKU/pieza/máquina): limpiado —era
+> el ÚNICO almuerzo/descanso con SKU de la base— · el registro 7-oct 11:13 partido para llevar el remallado al **28,5% corpiño medido en
+> LUNAMA+RAYAZ+CUADNG** ⇒ releído: corpiño 124,21 · bombacha 311,11 = 8,4 min/u (la 1ª que remalló). ▶️ la NEGRA L1 y la TAYRA lisa
+> se corrigen igual cuando su propio % esté medido (la negra: su Lote 2, separando bombacha y corpiño).
+> 🏁 **`51dc94e` pausas y paradas ⛔ llevan orden** (`lib/constants/actividades.ts`): almuerzo/descanso sin orden ni máquina;
+> falla máquina/cambio hilo con máquina y sin orden. Tablet + alta + edición; limpia, ⛔ rechaza (no pierde el almuerzo).
+> 📊 **16-oct, AYLA NEGRA Lote 2 remallado TERMINADO (20 u)**: el registro 16-oct 07:02→09:23 decía Corpiño y era BOMBACHA (Marisol,
+> vía Bruno) ⇒ corregido en prod. Queda bombacha 171,94 (8,6 min/u) · corpiño 52,39 (2,6) = **23/77**, 11,2 min/u. El Lote 1 da 31/69
+> (8,1 / 3,7) ⇒ parejo; la negra ≈ 11,6 min/u contra ~7 la estampada. ⚠️ mi hipótesis «las bombachas del L2 se hicieron en el L1» era FALSA:
+> era el registro mal rotulado. 🏁 **L1 de la negra CORREGIDO al 23/77** (Bruno «dale»; `prisma/corregir-remallado-ng-lote1.ts --aplicar`,
+> partido el 29-sep 08:24) ⇒ releído L1 corpiño 115,37 · bombacha 378,64. ▶️ queda la TAYRA lisa (VER/MAR): se corrige con el % de la TAYRA estampada cuando se mida.
+> 🏁 **`88aab03` «Pedir corrección» suma la PIEZA** (corpiño/bombacha/las dos) — SQL `2026-10-16-solicitud-parte.sql` aplicado en prod
+> (⛔ en la base de TEST) · ⚠️ ⛔ caminado en la tablet: el oráculo es la próxima solicitud real.
+> `e234ee6` el tablero muestra el min/u DEBAJO DE CADA LOTE (propios + su cuota de lo común).
+> 🗣️ **Bruno (14-oct): la AYLA Lote 1 se hace PARCIAL** (cortacollareta → collareta → recta) y **la TIRA y el BORDE SUPERIOR esperan el DIJE**.
+> 📊 14-oct medido en la tablet: remallado de las 4 AYLA terminado el 13-oct 14:30 · parcial Lote 1: CUADNG 227 min, LUNAMA 184 (cerradas),
+> RAYROS 168 (le falta la recta, ~30-40), RAYAZ sin empezar (~200) ⇒ ≈ 4 h ⇒ termina **jue 15-oct ~11:30**. Tira + borde ⛔ medidos en la estampada.
+> 🗣️ **Bruno (14-oct): el corte de TAYRA llega el VIERNES 16-oct, ⛔ el jueves** ⇒ se AMPLÍA el Lote 1 de la RAYAZ (el último color) para cubrir
+> la tarde del jueves (~240 min ÷ ~13,3 min/u ≈ 18 ⇒ +7S·7M·4L: Lote 1 RAYAZ 13·13·7 = 33, Lote 2 11·11·3 = 25). 🏁 **APLICADO EN PROD 14-oct** (talles del
+> lote planificado + nota en el historial de la OP; el Lote 2 ⛔ tenía minutos, fallas ni ingresos). Con +6·6·3 terminaba ~15:00 ⇒ sobraba ~1 h.
+> 🏁 **16-oct: CARGADO EL CORTE DE LA TAYRA ESTAMPADA** (ficha del 15-oct, Fernando) con `prisma/cargar-tayra-estampas-oct26.ts`:
+> 5 OP en COSTURA, un lote de colores, **S16·M16·L8 = 40 c/u = 200** · `ZAT-BIK-LUNCEL/LUNCH/RAYVIO/CUADRJ/RAYCEL-001` = TAYRA-1/2/3/4/5
+> (5 colores nuevos en `sku_catalogo`) · tizadas lycra + muselina 1,06×10 · **Lote 1 = S6·M6·L3 = 15**, Lote 2 = S10·M10·L5 = 25,
+> programado «después de Remallado» (igual que la AYLA). 🏁 **Precio (Bruno, 16-oct): $450/u ⇒ $18.000 por estampa = $90.000, VALIDADO**
+> (sin imputar a pago). ✅ Bruno confirmó: son DOS tizadas, lycra y muselina, 1,06×10 cada una.
+> 🏁 **Geometral por color cargado** (TAYRA-1..5.png de `bikinis-2027/img` → Blob → `geometralUrl` de cada OP; las 5 URLs dan 200).
+> 🏁 **21-oct: collareta de la vichy roja (CUADRJ) 10:19-10:50 PARTIDA** (`prisma/partir-collareta-cuadrj-21oct.ts`, Bruno): la tira
+> superior del Lote 1 (≈115 cm, casi todo bretel) se encadenó con **19 escotes del Lote 2** (los ≈20 cm de fin de vuelta que se tiraban) ⇒
+> **Lote 1 24,3 min · Lote 2 6,0 min** (por cm daba 4,5; el bretel va más rápido). 🔑 encadenar el fin de vuelta en el lote siguiente
+> mezcla lotes en un mismo registro: la tablet ⛔ lo distingue.
+> ⛔ **Botón «cambiar de lote sin cortar el reloj»: NO (Bruno, 21-oct)** — el encadenado es sólo de bikinis y no cree que se repita; se parte a mano.
+> 🗣️ Vichy roja Lote 2: **remallado de corpiño COMPLETO** (09:01-10:03, 61,1 min); cómo se cose el resto del Lote 2 ⛔ está definido. Cortes de Fernando (TAYRA estampada $90.000 + NYA $63.000) **SIN PAGAR**.
+> 🏁 **21-oct: CARGADO EL CORTE DE LA NYA** (ficha del 16-oct, cortada el 20-oct, Fernando) con `prisma/cargar-nya-estampas-oct26.ts`:
+> 4 OP en COSTURA, un lote de colores, **140 u** · `ZAT-BIK-FLOVIO-001` flores violetas + cuadrillé violeta **S8·M8·L4 = 20** ·
+> `CUADAM` / `CUADRS` / `CUADRV` (cuadrillé amarillo / rosa / rosa y verde) **S16·M16·L8 = 40 c/u** · tizadas lycra + muselina **1,72×10** ·
+> Lote 1 = S6·M6·L3 = 15 en CUADAM/CUADRS/CUADRV (Lote 2 = 10·10·5, programado después de Remallado) · 🗣️ Bruno: la DUA es la DOBLE, esto es la NYA.
+> 🏁 **21-oct (Bruno), con `prisma/nya-ajustes-21oct.ts`:** FLOVIO va **ENTERA en el Lote 1** (8·8·4, «es lo mismo en tiempo») · corte **$450/u
+> ⇒ $63.000, VALIDADO** (sin imputar a pago) · ✅ muselina también 1,72×10 · geometral por color NYA-1..4 → FLOVIO/CUADAM/CUADRS/CUADRV (los 4 dan 200).
+> 🗣️ **Bruno (19-oct): TAYRA estampada — remallado HECHO, hoy entra en COLLARETA, LLEGARON LOS DIJES ⇒ armar la RECETA (escandallo) «casi perfecta».**
+> 📊 en la tablet, al 19-oct 08:35: remallado **sólo cargado a LUNCEL** = bombacha 225,0 + corpiño 161,9 = **386,8 min** (¿las 5 del Lote 1 = 75 ⇒ 5,2 min/u, o sólo LUNCEL?) ·
+> el escandallo `cmubaznqp…` «Bikini Tayra» sigue SIN SKU y en $0 (tira 637 cm, merma 13% con descarte de unión SUPUESTO) · ▶️ faltan: dije (cuántos, dónde, $), $/kg tricot, $/m muselina, descarte de unión medido.
+> 🗣️ **Bruno (19-oct): la TAYRA se cose UNIFICADA en la tablet, todo cargado a LUNCEL** (flujo más rápido, misma forrería, se toca menos la tablet) ⇒
+> **cuando termine, se reparten los minutos EN PARTES IGUALES entre las 5 OP** (LUNCEL·LUNCH·RAYVIO·CUADRJ·RAYCEL). ⛔ leer LUNCEL como un color solo.
+> 🗣️ **Dije: UNO por bombacha** (⇒ uno por bikini). ▶️ falta su precio.
+> 🏁 **19-oct: remallado TAYRA Lote 1 (75) REPARTIDO EN PROD** (`prisma/repartir-remallado-tayra-lote1.ts --aplicar`, Bruno: «hagamos la repartición»): 4 registros de LUNCEL
+> partidos en 5 tramos seguidos por color, todos a `lote 1` (antes sin lote ⇒ se iban también al Lote 2). Releído: cada color bombacha 45,0 · corpiño 32,4 = 77,4 min / 15 = **5,2 min/u**,
+> **42% corpiño / 58% bombacha**; total 386,84 sin cambio. 🗣️ **Desde la collareta, cada color se carga POR SEPARADO.**
+> 🏁 **19-oct: la división Lote 1/Lote 2 de la TAYRA fue ANTES del remallado** (Bruno), ⛔ «después de Remallado» como se cargó el 16-oct ⇒ EN PROD
+> (`prisma/tayra-lote-separado-antes-remallado.ts --aplicar`): Lote 2 de los 5 colores = «Todo cortado», activos desde que se separaron (16-oct 09:33);
+> 4 seguían PROGRAMADOS ⇒ la tablet le iba a volver a preguntar «¿terminaste el remallado?» en cada color.
+> 🗣️ **Bruno (13-oct): «me interesa principalmente el LOTE 1, eso me es importante»** ⇒ la vara es el 27-oct; el Lote 2 es secundario.
+> 🗣️ **Bruno (13-oct): la TAYRA 1,2,3,5 la corta el cortador HOY (13-oct)** · **el SUBLIMADO 3 ya está LISTO** (falta retirarlo y cortarlo antes del 19-oct).
+> 🗣️ **Bruno (13-oct): ORDEN DEL LOTE 1 = TAYRA → NYA → DOBLE, y después la 2ª vuelta (Lote 2)**; la DOBLE 1 y 3 se corta ENTERA de una vez.
+> 📅 AYLA 14→15/10 · TAYRA 1,2,3,5 15→19 · TAYRA-4 19→20 · NYA 1-4 20→22 · NYA-5 22→23 · DOBLE 23→**27/10**.
+> Cortado antes de: TAYRA-4 19/10 · NYA 1-4 20/10 · NYA-5 22/10 (sublimado 4, el riesgo: si no llega va después de la DOBLE) · DOBLE 23/10.
+> 🗣️ **Bruno (13-oct): TAYRA UNIFICADA** — retira el sublimado 3 el 14-oct y la TAYRA-4 Vichy se corta JUNTO con 1,2,3,5
+> (≈195: S80 M80 L35; del Vichy sólo 10 m, los otros 10 son DOBLE-3 ext). Lote 1 TAYRA = 75, costura jue 15 → mar 20/10.
+> 🗣️ **Bruno (13-oct): la NYA-5 SALE del Lote 1** (el sublimado 4 no llega la semana que viene) ⇒ va AL FINAL, con todo lo pendiente
+> de la 2ª vuelta. Lote 1 = AYLA · TAYRA 1-5 · NYA 1-4 · DOBLE 1 y 3 ⇒ termina **mar 27/10 a media mañana**.
+> 🗣️ **Bruno (13-oct): DESPUÉS DE LA DOBLE (27/10) entran**: las bikinis que no salieron (NYA-5, sublimado 4) + **los SHORTS DE BAÑO**
+> (todavía ⛔ entraron: ⛔ hay proyecto ni OP en el sistema al 13-oct) + el Lote 2 de cada bikini. Lote 2 solo ≈ 15 jornadas (~18-nov).
+> 🗣️ **Bruno: los SHORTS van ANTES del Lote 2** — tienen que salir para la CAMPAÑA DE MARKETING. ▶️ falta cantidad y min/u.
+> 🗣️ **Bruno: lanzamiento de los shorts 15/11 o 20/11** — ANTES, 1-2 por talle para FOTOS/marketing; para el lanzamiento, STOCK MÍNIMO.
+> Del 27/10 al 13/11 hay ~12,5 jornadas de Marisol (9-nov feriado; el 15/11 es DOMINGO) ⇒ el tiempo sobra: lo que traba es MOLDE/TELA/CORTE.
 > 🏁 **HECHO el 8-oct (`cb7680c`, EN PROD: el dominio contesta 401 JSON)**: API sin sesión ⇒ 401 (antes 307,
 > que axios seguía y DABA POR GUARDADO); la cookie se estira 7 días con cada uso; la tablet muestra «Se cerró
 > la sesión / Volver a entrar» y el reloj sobrevive; `crearTiempo` exige registro con id; **pieza OBLIGATORIA**
