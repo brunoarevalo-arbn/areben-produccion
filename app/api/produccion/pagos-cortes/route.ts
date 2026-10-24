@@ -41,7 +41,8 @@ export async function GET(req: NextRequest) {
         select: { fecha: true },
       },
     },
-    orderBy: { createdAt: 'desc' },
+    // Por fecha del corte, ⛔ no por cuándo se cargó (un corte cargado tarde va donde le toca).
+    orderBy: [{ fechaCorte: { sort: 'desc', nulls: 'last' } }, { createdAt: 'desc' }],
   });
 
   return NextResponse.json(ordenes);

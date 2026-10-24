@@ -16,7 +16,9 @@ export default async function CortadorAdminDetallePage({ params }: { params: Pro
   const [ordenes, cortadores] = await Promise.all([
     prisma.ordenProduccion.findMany({
       where: { cortadorId: id },
-      orderBy: [{ createdAt: 'desc' }],
+      // Por fecha del corte, ⛔ no por cuándo se cargó: un corte cargado tarde va donde le toca.
+      // Lo que todavía no se cortó (sin fecha) va primero.
+      orderBy: [{ fechaCorte: { sort: 'desc', nulls: 'first' } }, { createdAt: 'desc' }],
       select: { id: true, sku: true, descripcion: true, marca: true, cantidad: true, cantidadCortada: true, estado: true, fichaCorteCargada: true, corteEstado: true, fechaCorte: true, costoCorte: true, fichaCorteData: true },
     }),
     prisma.cortador.findMany({ where: { activo: true }, orderBy: { nombre: 'asc' }, select: { id: true, nombre: true } }),
