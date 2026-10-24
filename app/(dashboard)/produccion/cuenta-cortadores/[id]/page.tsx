@@ -23,7 +23,7 @@ export default async function CuentaCortadorPage({ params }: { params: Promise<{
     movimientosDe(id),
     prisma.ordenProduccion.findMany({
       where: { cortadorId: id, ...CORTE_COBRABLE, ...SIN_IMPUTAR },
-      select: { id: true, sku: true, costoCorte: true, fechaCorte: true }, orderBy: { fechaCorte: 'asc' },
+      select: { id: true, sku: true, costoCorte: true, fechaCorte: true }, orderBy: [{ fechaCorte: { sort: 'asc', nulls: 'last' } }, { createdAt: 'asc' }],
     }),
     prisma.corteMuestra.findMany({
       where: { cortadorId: id, ...MUESTRA_COBRABLE, ...SIN_IMPUTAR },

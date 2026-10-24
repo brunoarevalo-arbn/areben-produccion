@@ -408,6 +408,74 @@ model CostoCosturera {
   @@map("costos_costureras")
 }
 
+// Pago de horas de una costurera (sección Producción › Pago de horas). Toda la regla es
+// configurable acá; el cálculo vive en `lib/produccion/pago-horas.ts`.
+model ConfigPagoHoras {
+  id              String   @id @default(cuid())
+  usuarioId       String   @unique
+  // Minutos, no horas: la tolerancia y la fracción son de a minutos.
+  jornadaMin      Int      @default(540)
+  toleranciaMin   Int      @default(29)
+  fraccionMin     Int      @default(30)
+  // 'ABAJO' | 'CERCANO' | 'ARRIBA'
+  redondeo        String   @default("CERCANO")
+  // Se descuentan del tramo entrada–salida las pausas registradas (Almuerzo, Descanso).
+  descuentaPausas Boolean  @default(true)
+  recargoExtraPct Float    @default(0)
+  // 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
+  periodo         String   @default("QUINCENAL")
+  // Primer día de una quincena (YYYY-MM-DD); sólo se usa con QUINCENAL.
+  anclaPeriodo    String?
+  // 0 = domingo … 6 = sábado
+  diasSemana      Int[]    @default([1, 2, 3, 4, 5])
+  activo          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("config_pago_horas")
+}
+
+// Tarifa $/h con vigencia: cambiarla ⛔ reescribe un período ya cerrado.
+model TarifaHora {
+  id        String   @id @default(cuid())
+  usuarioId String
+  desde     String
+  montoHora Float
+  createdAt DateTime @default(now())
+
+  @@unique([usuarioId, desde])
+  @@map("tarifas_hora")
+}
+
+// Corrección manual de UN día (se fue antes y la tablet no lo muestra, etc.).
+model AjusteHorasDia {
+  id        String   @id @default(cuid())
+  usuarioId String
+  fecha     String
+  minutos   Int
+  nota      String?
+  createdAt DateTime @default(now())
+
+  @@unique([usuarioId, fecha])
+  @@map("ajustes_horas_dia")
+}
+
+// Foto de un período cerrado: ⛔ se recalcula, así lo pagado no se mueve si cambia la config.
+model LiquidacionHoras {
+  id          String    @id @default(cuid())
+  usuarioId   String
+  desde       String
+  hasta       String
+  totalMin    Int
+  totalMonto  Float
+  detalle     Json
+  pagadoEl    DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@unique([usuarioId, desde, hasta])
+  @@map("liquidaciones_horas")
+}
+
 model ConfigCostos {
   id                     String   @id @default("singleton")
   margenDesarrollo       Float    @default(10)

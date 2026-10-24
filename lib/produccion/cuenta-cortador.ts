@@ -174,9 +174,13 @@ export async function movimientosDe(cortadorId: string): Promise<Movimiento[]> {
     })),
   ];
 
-  // A igual fecha, el debe antes que el haber: si no, un pago del mismo día que el corte
+  // Se ordena por DÍA, no por instante: cada tipo guarda otra hora (cortes y muestras a las
+  // 12:00Z, pagos a las 00:00Z, un corte sin fecha elegida la hora real de carga), así que por
+  // instante un pago y un corte del mismo día nunca empataban y lo recién cargado caía fuera de
+  // lugar. A igual día, el debe antes que el haber: si no, un pago del mismo día que el corte
   // muestra un saldo negativo que nunca existió.
-  filas.sort((a, b) => a.fecha.getTime() - b.fecha.getTime() || b.debe - a.debe || a.orden - b.orden);
+  const dia = (d: Date) => d.toISOString().slice(0, 10);
+  filas.sort((a, b) => dia(a.fecha).localeCompare(dia(b.fecha)) || b.debe - a.debe || a.orden - b.orden);
 
   let acum = 0;
   return filas.map(({ orden: _orden, ...f }) => { acum += f.debe - f.haber; return { ...f, saldo: acum }; });

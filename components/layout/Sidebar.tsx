@@ -87,6 +87,7 @@ const NAV: { label: string; href: string; icon: NavIconName; seccion: string | s
       { label: 'Órdenes',          href: '/produccion', seccion: 'produccion', incluye: ['/produccion/'] },
       { label: 'Cortadores',       href: '/produccion/cortadores', seccion: 'produccion', incluye: ['/produccion/cortadores/', '/produccion/cuenta-cortadores', '/produccion/pagos-cortes', '/produccion/fichas'] },
       { label: 'Tiempos',          href: '/tiempos', seccion: 'produccion' },
+      { label: 'Pago de horas',    href: '/produccion/pago-horas', seccion: 'costos' },
       { label: 'Reportes',         href: '/produccion/reportes', seccion: 'produccion', incluye: ['/produccion/reportes/', '/produccion/solicitudes-cambio'] },
     ],
   },
