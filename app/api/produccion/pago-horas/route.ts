@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { requirePermiso } from '@/lib/auth';
+import { requireAdmin } from '@/lib/auth';
 import {
   calcularPeriodo, periodoDe, CONFIG_DEFECTO, type ConfigPago, type Periodo, type Redondeo, type ResultadoPeriodo,
 } from '@/lib/produccion/pago-horas';
 
-// Es plata y sueldo de una persona ⇒ permiso `costos`, igual que los sueldos de Parámetros.
+// Es plata y sueldo de una persona ⇒ sólo admin (Bruno y Darío). ⛔ `costos` no alcanza: lo tienen
+// también Lorena y Stefania.
 const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 const hoyAR = () => new Date(Date.now() - 3 * 3600_000).toISOString().slice(0, 10);
 
@@ -17,7 +18,7 @@ const aConfig = (c: ConfigDB): ConfigPago => c ? {
 } : CONFIG_DEFECTO;
 
 export async function GET(req: NextRequest) {
-  if (!await requirePermiso(req, 'costos')) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!await requireAdmin(req)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const sp = req.nextUrl.searchParams;
   const usuarioId = sp.get('usuarioId');
 
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
     ? { desde: desdeQ, hasta: hastaQ }
     : periodoDe(cfg.periodo, sp.get('ref') && FECHA.test(sp.get('ref')!) ? sp.get('ref')! : hoyAR(), cfg.anclaPeriodo);
 
-  const [tarifas, ajustes, liquidacion, registros] = await Promise.all([
+  const [tarifas, ajustes, liquidacion, registros, historial] = await Promise.all([
     prisma.tarifaHora.findMany({ where: { usuarioId }, orderBy: { desde: 'asc' } }),
     prisma.ajusteHorasDia.findMany({ where: { usuarioId, fecha: { gte: desde, lte: hasta } } }),
     prisma.liquidacionHoras.findUnique({ where: { usuarioId_desde_hasta: { usuarioId, desde, hasta } } }),
@@ -44,6 +45,11 @@ export async function GET(req: NextRequest) {
     prisma.tiemposProduccion.findMany({
       where: { usuario: usuario.nombre, fecha: { gte: desde, lte: hasta } },
       select: { fecha: true, actividad: true, horaInicio: true, horaFin: true, minutosNetos: true },
+    }),
+    // Lo cerrado: cada fila es la foto de un período, con lo que se pagó.
+    prisma.liquidacionHoras.findMany({
+      where: { usuarioId }, orderBy: { desde: 'desc' },
+      select: { desde: true, hasta: true, totalMin: true, totalMonto: true, pagadoEl: true },
     }),
   ]);
 
@@ -53,7 +59,7 @@ export async function GET(req: NextRequest) {
   const resultado = (liquidacion?.detalle as unknown as ResultadoPeriodo | null) ?? calculado;
   return NextResponse.json({
     usuario, config: cfg, configGuardada: !!cfgDB, tarifas, ajustes, desde, hasta,
-    resultado, cerrada: !!liquidacion, pagadoEl: liquidacion?.pagadoEl ?? null,
+    historial, resultado, cerrada: !!liquidacion, pagadoEl: liquidacion?.pagadoEl ?? null,
     // Si está cerrada y hoy daría otra cosa, se avisa: no se pisa sola.
     difiereDeHoy: !!liquidacion && Math.round(calculado.totalMonto) !== Math.round(liquidacion.totalMonto),
     totalHoy: calculado.totalMonto,
@@ -61,7 +67,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!await requirePermiso(req, 'costos')) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
+  if (!await requireAdmin(req)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   const b = await req.json();
   const usuarioId: string | undefined = b.usuarioId;
   if (!usuarioId) return NextResponse.json({ error: 'Costurera requerida' }, { status: 400 });

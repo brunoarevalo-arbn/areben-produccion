@@ -16,6 +16,7 @@ interface Respuesta {
   ajustes: { fecha: string; minutos: number; nota: string | null }[];
   desde: string; hasta: string; resultado: ResultadoPeriodo;
   cerrada: boolean; pagadoEl: string | null; difiereDeHoy: boolean; totalHoy: number;
+  historial: { desde: string; hasta: string; totalMin: number; totalMonto: number; pagadoEl: string | null }[];
 }
 
 const fmt$ = (n: number) => `$${Math.round(n).toLocaleString('es-AR')}`;
@@ -132,7 +133,7 @@ export function PagoHorasClient() {
             <table className="w-full text-sm">
               <thead><tr className="text-left text-xs text-stone-500 border-b border-stone-200">
                 <th className="px-4 py-2">Día</th><th className="px-2 py-2">Entrada</th><th className="px-2 py-2">Salida</th>
-                <th className="px-2 py-2 text-right">Pausas</th><th className="px-2 py-2 text-right">Trabajado</th>
+                <th className="px-2 py-2 text-right" title="El almuerzo y los descansos registrados; van incluidos en lo presente">Almuerzo/desc.</th><th className="px-2 py-2 text-right">Presente</th>
                 <th className="px-2 py-2 text-right">Se paga</th><th className="px-2 py-2 text-right">Monto</th><th className="px-4 py-2">Cómo</th>
               </tr></thead>
               <tbody>
@@ -151,6 +152,29 @@ export function PagoHorasClient() {
                       {editable && <button className="ml-2 text-amber-600 hover:underline" onClick={() => setAjuste({ fecha: x.fecha, horas: x.pagadoMin ? String(x.pagadoMin / 60).replace('.', ',') : '', nota: x.nota ?? '' })}>ajustar</button>}
                       {editable && x.motivo === 'ajuste' && <button className="ml-2 text-red-600 hover:underline" onClick={() => accion({ accion: 'borrar_ajuste', fecha: x.fecha })}>quitar</button>}
                     </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </Card>
+
+          <Card padding="none">
+            <div className="px-4 py-3 border-b border-stone-200 flex items-baseline justify-between">
+              <p className="text-sm font-semibold text-stone-800">Historial de pagos</p>
+              <p className="text-xs text-stone-500">{d.historial.length} períodos · {hm(d.historial.reduce((a, h) => a + h.totalMin, 0))} · {fmt$(d.historial.reduce((a, h) => a + h.totalMonto, 0))}</p>
+            </div>
+            <table className="w-full text-sm">
+              <thead><tr className="text-left text-xs text-stone-500 border-b border-stone-200">
+                <th className="px-4 py-2">Período</th><th className="px-2 py-2 text-right">Horas</th><th className="px-2 py-2 text-right">Monto</th><th className="px-4 py-2">Estado</th>
+              </tr></thead>
+              <tbody>
+                {d.historial.length === 0 && <tr><td colSpan={4} className="px-4 py-6 text-center text-stone-400">Todavía no hay períodos cerrados.</td></tr>}
+                {d.historial.map((h) => (
+                  <tr key={h.desde} className="border-b border-stone-100 last:border-0 cursor-pointer hover:bg-stone-50" onClick={() => setRango({ desde: h.desde, hasta: h.hasta })}>
+                    <td className="px-4 py-2 font-medium text-stone-800">{fechaCorta(h.desde)} al {fechaCorta(h.hasta)}</td>
+                    <td className="px-2 py-2 text-right text-stone-600">{hm(h.totalMin)}</td>
+                    <td className="px-2 py-2 text-right text-stone-900">{fmt$(h.totalMonto)}</td>
+                    <td className="px-4 py-2 text-xs text-stone-500">{h.pagadoEl ? `Pagado el ${new Date(h.pagadoEl).toLocaleDateString('es-AR')}` : 'Cerrado, sin pagar'}</td>
                   </tr>
                 ))}
               </tbody>

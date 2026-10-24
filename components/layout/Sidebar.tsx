@@ -16,6 +16,8 @@ interface SubItem {
   label: string; href: string; nuevoHref?: string; seccion?: string | string[];
   /** Otras rutas que marcan este ítem (las pestañas que agrupa). Un prefijo con `/` final abarca lo de abajo. */
   incluye?: string[];
+  /** Sólo lo ve un admin (plata de una persona: el permiso `costos` no alcanza). */
+  soloAdmin?: boolean;
 }
 
 // seccion puede ser una key o varias (OR) para módulos de unión (ej. Compras).
@@ -87,7 +89,7 @@ const NAV: { label: string; href: string; icon: NavIconName; seccion: string | s
       { label: 'Órdenes',          href: '/produccion', seccion: 'produccion', incluye: ['/produccion/'] },
       { label: 'Cortadores',       href: '/produccion/cortadores', seccion: 'produccion', incluye: ['/produccion/cortadores/', '/produccion/cuenta-cortadores', '/produccion/pagos-cortes', '/produccion/fichas'] },
       { label: 'Tiempos',          href: '/tiempos', seccion: 'produccion' },
-      { label: 'Pago de horas',    href: '/produccion/pago-horas', seccion: 'costos' },
+      { label: 'Pago de horas',    href: '/produccion/pago-horas', seccion: 'costos', soloAdmin: true },
       { label: 'Reportes',         href: '/produccion/reportes', seccion: 'produccion', incluye: ['/produccion/reportes/', '/produccion/solicitudes-cambio'] },
     ],
   },
@@ -176,7 +178,7 @@ const NAV: { label: string; href: string; icon: NavIconName; seccion: string | s
   },
 ];
 
-export function Sidebar({ permisos, nombre }: SidebarProps) {
+export function Sidebar({ permisos, nombre, rol }: SidebarProps) {
   const pathname = usePathname();
   const router   = useRouter();
   const [open, setOpen] = useState(false);
@@ -263,7 +265,7 @@ export function Sidebar({ permisos, nombre }: SidebarProps) {
 
               {tieneSub && abierto && (
                 <div className="ml-[18px] mt-0.5 mb-1.5 pl-3 border-l border-stone-800 space-y-px">
-                  {item.sub.filter((s) => tienePermiso(permisos, s.seccion ?? item.seccion)).map((s, _i, subs) => ({ ...s, activo: subActivo(subs, s) })).map((s) => (
+                  {item.sub.filter((s) => tienePermiso(permisos, s.seccion ?? item.seccion) && (!s.soloAdmin || rol === 'admin')).map((s, _i, subs) => ({ ...s, activo: subActivo(subs, s) })).map((s) => (
                     <div key={s.href} className="flex items-center gap-2 group">
                       <Link
                         href={s.href}
