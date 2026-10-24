@@ -6,7 +6,7 @@
 //
 //   npx tsx --env-file=.env prisma/repartir-remallado-tayra-lote1.ts            (ensayo)
 //   npx tsx --env-file=.env prisma/repartir-remallado-tayra-lote1.ts --aplicar
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient, type Prisma } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 
 const p = new PrismaClient({ adapter: new PrismaPg({ connectionString: process.env.DIRECT_URL || process.env.DATABASE_URL }) });
@@ -31,7 +31,7 @@ async function main() {
   if (Math.abs(total - TOTAL_ESPERADO) > 0.05) throw new Error(`el total cambió: ${total}`);
   if (rem.some((r) => r.parte !== 'Corpiño' && r.parte !== 'Bombacha')) throw new Error('hay remallado sin pieza');
 
-  const ops = [];
+  const ops: Prisma.PrismaPromise<unknown>[] = [];
   for (const r of rem) {
     const ini = seg(r.horaInicio!), fin = seg(r.horaFin!);
     const paso = (fin - ini) / SKUS.length;
