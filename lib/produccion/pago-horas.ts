@@ -1,7 +1,8 @@
 // Pago de horas de una costurera. Dueño único de la regla: la pantalla y la API sólo llaman acá.
 //
-// La regla del día (Bruno, 24-oct): se mide entrada→salida menos las pausas registradas y se
-// compara con la jornada. Si faltan hasta `toleranciaMin` minutos, se paga la JORNADA COMPLETA;
+// La regla del día (Bruno, 24-oct): se mide la PRESENCIA (primera entrada → última salida, con el
+// almuerzo adentro: así pagó él, 28-sep al 9-oct = 72,0 h × $6.000 exacto; descontándolo daba 65 h)
+// y se compara con la jornada. `descuentaPausas` queda como opción para otra costurera. Si faltan hasta `toleranciaMin` minutos, se paga la JORNADA COMPLETA;
 // si falta más (se fue antes), se paga lo trabajado redondeado a fracciones de `fraccionMin`.
 // Lo que pasa de la jornada es extra y lleva `recargoExtraPct`.
 //
@@ -27,7 +28,7 @@ export interface ConfigPago {
 
 export const CONFIG_DEFECTO: ConfigPago = {
   jornadaMin: 540, toleranciaMin: 29, fraccionMin: 30, redondeo: 'CERCANO',
-  descuentaPausas: true, recargoExtraPct: 0, periodo: 'QUINCENAL', anclaPeriodo: null,
+  descuentaPausas: false, recargoExtraPct: 0, periodo: 'QUINCENAL', anclaPeriodo: null,
   diasSemana: [1, 2, 3, 4, 5],
 };
 

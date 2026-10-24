@@ -420,7 +420,7 @@ model ConfigPagoHoras {
   // 'ABAJO' | 'CERCANO' | 'ARRIBA'
   redondeo        String   @default("CERCANO")
   // Se descuentan del tramo entrada–salida las pausas registradas (Almuerzo, Descanso).
-  descuentaPausas Boolean  @default(true)
+  descuentaPausas Boolean  @default(false)
   recargoExtraPct Float    @default(0)
   // 'SEMANAL' | 'QUINCENAL' | 'MENSUAL'
   periodo         String   @default("QUINCENAL")

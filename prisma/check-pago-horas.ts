@@ -1,6 +1,6 @@
 // Casos de la regla de pago de horas (sin base). npx tsx prisma/check-pago-horas.ts
 import { calcularDia, calcularPeriodo, periodoDe, CONFIG_DEFECTO, type Registro } from '../lib/produccion/pago-horas';
-const cfg = CONFIG_DEFECTO; // jornada 9 h, tolerancia 29, fracción 30, cercano
+const cfg = { ...CONFIG_DEFECTO, descuentaPausas: true }; // jornada 9 h, tolerancia 29, fracción 30, cercano; este bloque prueba la opción de descontar pausas
 const r = (fecha: string, a: string, i: string, f: string, m: number): Registro => ({ fecha, actividad: a, horaInicio: i, horaFin: f, minutosNetos: m });
 let mal = 0;
 const eq = (n: string, got: unknown, want: unknown) => { const ok = JSON.stringify(got) === JSON.stringify(want); if (!ok) mal++; console.log(ok ? 'OK ' : 'MAL', n, ok ? '' : `got ${JSON.stringify(got)} want ${JSON.stringify(want)}`); };
@@ -25,6 +25,8 @@ const e = calcularDia({ ...cfg, recargoExtraPct: 50 }, '2026-10-19', [r('2026-10
 eq('extra 60 min', [e.extraMin, e.monto], [60, 6000 * 9 + 6000 * 1.5]);
 // ajuste manual pisa
 eq('ajuste', calcularDia(cfg, '2026-10-19', [], 5500, { minutos: 300 }).pagadoMin, 300);
+// por defecto (presencia) el almuerzo NO se descuenta: 8:00–17:00 con 45 de almuerzo = 9 h
+eq('presencia', calcularDia(CONFIG_DEFECTO, '2026-10-19', [r('2026-10-19', 'Proceso Completado', '08:00', '17:00', 480), r('2026-10-19', 'Almuerzo', '12:00', '12:45', 45)], 6000).pagadoMin, 540);
 // quincena con ancla lun 12-oct: 12..25
 eq('quincena', periodoDe('QUINCENAL', '2026-10-24', '2026-10-12'), { desde: '2026-10-12', hasta: '2026-10-25' });
 eq('quincena siguiente', periodoDe('QUINCENAL', '2026-10-26', '2026-10-12'), { desde: '2026-10-26', hasta: '2026-11-08' });
