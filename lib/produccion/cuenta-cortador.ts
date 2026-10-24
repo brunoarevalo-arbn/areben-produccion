@@ -134,8 +134,10 @@ export interface Movimiento {
 }
 
 /**
- * El extracto: cortes y muestras al debe, pagos al haber, con el saldo acumulado. Va
- * ascendente por fecha, que es lo único que hace legible la columna del acumulado.
+ * El extracto: cortes y muestras al debe, pagos al haber, con el saldo acumulado. El saldo se
+ * acumula de lo más viejo a lo más nuevo (única forma de que cierre), pero se DEVUELVE lo más
+ * nuevo primero (Bruno, 24-oct): con 61 cortes, lo último cargado quedaba al fondo. La fila de
+ * arriba muestra el saldo actual y cada fila el saldo a esa fecha.
  */
 export async function movimientosDe(cortadorId: string): Promise<Movimiento[]> {
   const [cortes, muestras, pagos] = await Promise.all([
@@ -183,7 +185,7 @@ export async function movimientosDe(cortadorId: string): Promise<Movimiento[]> {
   filas.sort((a, b) => dia(a.fecha).localeCompare(dia(b.fecha)) || b.debe - a.debe || a.orden - b.orden);
 
   let acum = 0;
-  return filas.map(({ orden: _orden, ...f }) => { acum += f.debe - f.haber; return { ...f, saldo: acum }; });
+  return filas.map(({ orden: _orden, ...f }) => { acum += f.debe - f.haber; return { ...f, saldo: acum }; }).reverse();
 }
 
 /**
