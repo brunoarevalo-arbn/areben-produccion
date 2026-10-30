@@ -5,14 +5,25 @@ import type { EstadoCronometro } from '@/lib/hooks/useTiempos';
 interface CronometroProps {
   tiempoDisplay: string;
   estado: EstadoCronometro;
+  /** false mientras se lee el reloj guardado: ni 00:00:00 ni "Iniciar" (pisaría el tramo). */
+  restaurado?: boolean;
   onIniciar: () => void;
   onPausar: () => void;
   onReanudar: () => void;
   onDescartar: () => void;
 }
 
-export function Cronometro({ tiempoDisplay, estado, onIniciar, onPausar, onReanudar, onDescartar }: CronometroProps) {
+export function Cronometro({ tiempoDisplay, estado, restaurado = true, onIniciar, onPausar, onReanudar, onDescartar }: CronometroProps) {
   const color = estado === 'corriendo' ? '#fbbf24' : estado === 'pausado' ? '#38bdf8' : '#e7e5e4';
+
+  if (!restaurado) {
+    return (
+      <div className="bg-stone-900 rounded-xl px-4 py-3 flex items-center gap-3 shadow-lg">
+        <span className="font-mono text-2xl font-bold tracking-wider shrink-0 text-stone-600">--:--:--</span>
+        <span className="text-stone-500 text-xs">Recuperando el reloj…</span>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-stone-900 rounded-xl px-4 py-3 flex items-center gap-3 shadow-lg">

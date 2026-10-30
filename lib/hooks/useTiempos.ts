@@ -23,6 +23,10 @@ export function useTiempos(usuario: string) {
   const [registros, setRegistros] = useState<TiemposProduccion[]>([]);
   const [estado, setEstado] = useState<EstadoCronometro>('idle');
   const [tiempoDisplay, setTiempoDisplay] = useState('00:00:00');
+  // 🔴 Hasta leer localStorage NO se sabe si hay un reloj andando: mostrar 00:00:00 y
+  // "▶ Iniciar" en ese rato asustaba (al volver o actualizar) y, peor, apretar Iniciar
+  // ahí pisaba el tramo que estaba corriendo. Mientras sea false, el reloj no afirma nada.
+  const [restaurado, setRestaurado] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -58,7 +62,7 @@ export function useTiempos(usuario: string) {
   useEffect(() => {
     if (!usuario || typeof window === 'undefined') return;
     const raw = localStorage.getItem(storageKey(usuario));
-    if (!raw) return;
+    if (!raw) { setRestaurado(true); return; }
     try {
       const d = JSON.parse(raw) as {
         horaInicio: string; acumuladoMs?: number; segInicio?: string | null; estado?: EstadoCronometro;
@@ -81,6 +85,8 @@ export function useTiempos(usuario: string) {
       }
     } catch {
       localStorage.removeItem(storageKey(usuario));
+    } finally {
+      setRestaurado(true);
     }
   }, [usuario]);
 
@@ -188,6 +194,7 @@ export function useTiempos(usuario: string) {
   return {
     registros,
     estado,
+    restaurado,
     tiempoDisplay,
     loading,
     error,

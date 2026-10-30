@@ -41,9 +41,11 @@ interface SessionUser {
 interface Props {
   usuario: SessionUser;
   ordenesIniciales: OrdenActiva[];
+  /** La cola de la tablet ya armada (filas por lote): la misma que `GET /api/tiempos/cola`. */
+  colaInicial: (OrdenActiva & { partes: string[]; lote: number | null; confirmarDespuesDe: string | null })[];
 }
 
-export function TiemposClient({ usuario, ordenesIniciales }: Props) {
+export function TiemposClient({ usuario, ordenesIniciales, colaInicial }: Props) {
   const router  = useRouter();
   const tiempos = useTiempos(usuario.nombre);
 
@@ -111,6 +113,7 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
           <Cronometro
             tiempoDisplay={tiempos.tiempoDisplay}
             estado={tiempos.estado}
+            restaurado={tiempos.restaurado}
             onIniciar={tiempos.iniciar}
             onPausar={tiempos.pausar}
             onReanudar={tiempos.reanudar}
@@ -156,7 +159,7 @@ export function TiemposClient({ usuario, ordenesIniciales }: Props) {
         <div className="bg-white border-t border-stone-200 overflow-y-auto max-h-[50vh] md:max-h-[65vh] shrink-0">
           <FormTiempos
             usuario={usuario.nombre}
-            ordenesIniciales={ordenesIniciales}
+            ordenesIniciales={colaInicial}
             estado={tiempos.estado}
             onObtenerTiempos={tiempos.obtenerTiempos}
             onGuardar={tiempos.guardarRegistro}

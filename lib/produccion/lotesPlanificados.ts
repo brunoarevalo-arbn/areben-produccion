@@ -356,6 +356,12 @@ export async function deshacerLote(
     });
   }
   await tx.lotePlanificado.delete({ where: { id: lote.id } });
+  // 🔴 Deshacer el último lote PROGRAMADO deja la orden sin separación pendiente, pero el
+  // Lote 1 había nacido esperándola (`activadoAt` null) y nada lo activaba ya: quedaba
+  // invisible en la tablet para siempre, con el 👁 prendido (NYA FLOVIO, 21→30-oct).
+  if (!lotes.some((l) => l.numero > 1 && l.id !== lote.id && !l.activadoAt)) {
+    await tx.lotePlanificado.updateMany({ where: { ordenId, activadoAt: null }, data: { activadoAt: new Date() } });
+  }
 
   await tx.estadoTransicion.create({
     data: {
