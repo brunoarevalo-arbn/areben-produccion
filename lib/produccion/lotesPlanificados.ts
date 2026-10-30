@@ -652,6 +652,8 @@ export function lotesParaPantalla(lotes: EstadoLote[]): LotePlanificadoDTO[] {
 export interface LotesParaTablet {
   /** Los lotes visibles: una fila de la tablet por cada uno. */
   lotes: number[];
+  /** Las unidades de cada lote visible: lo que la fila muestra, ⛔ la orden entera. */
+  unidades: Record<number, number>;
   /** Si hay una separación esperando confirmación: el proceso que tiene que terminar. */
   confirmarDespuesDe: string | null;
 }
@@ -669,7 +671,9 @@ export async function lotesParaTablet(db: Db, ordenes: { id: string; sku: string
   });
   for (const { ordenId } of separadas) {
     const lotes = await estadoDeLotes(db, ordenes.find((o) => o.id === ordenId)!);
-    salida.set(ordenId, { lotes: lotesVisibles(lotes), confirmarDespuesDe: separacionProgramada(lotes) });
+    const visibles = lotesVisibles(lotes);
+    const unidades = Object.fromEntries(lotes.filter((l) => visibles.includes(l.numero)).map((l) => [l.numero, l.unidades]));
+    salida.set(ordenId, { lotes: visibles, unidades, confirmarDespuesDe: separacionProgramada(lotes) });
   }
   return salida;
 }

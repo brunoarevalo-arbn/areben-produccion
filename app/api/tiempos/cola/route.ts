@@ -46,7 +46,8 @@ export async function GET() {
       const l = lotes.get(o.id);
       if (!l) return [{ ...base, lote: null, confirmarDespuesDe: null }];
       if (l.confirmarDespuesDe) return [{ ...base, lote: null, confirmarDespuesDe: l.confirmarDespuesDe }];
-      return l.lotes.map((n) => ({ ...base, lote: n, confirmarDespuesDe: null }));
+      // La fila de un lote muestra SUS unidades: con `cantidad` decía 40 sobre un Lote 1 de 6 (DUA, 30-oct).
+      return l.lotes.map((n) => ({ ...base, cantidad: l.unidades[n] ?? base.cantidad, lote: n, confirmarDespuesDe: null }));
     });
     return NextResponse.json(filas);
   } catch (err) {
