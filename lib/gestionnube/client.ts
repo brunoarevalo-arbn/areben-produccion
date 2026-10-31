@@ -1,26 +1,34 @@
-// Cliente de la API de Gestión Nube (https://www.gestionnube.com/api/v1).
+// Cliente de la API de Gestión Nube (https://www.gestionnube.com/api/v1) — o del ERP, que contesta LO MISMO.
 // Token Bearer desde env. La API es inestable (500 intermitentes) y solo banca
 // páginas chicas (per_page <= 50), así que todo va con retry/backoff.
+//
+// 🔑 LEER DEL ERP (Bruno 19-oct / 31-oct): con `ERP_LLAVE_PRODUCCION` en el entorno, todo se lee de
+// `https://erp.arebensrl.com/api/v1` (el «lector con forma de GN» del motor: mismos recursos, campos y parámetros,
+// base de Zattia con Stunned). Sin la variable, Gestión Nube como siempre ⇒ se prende y se vuelve atrás SÓLO con
+// la variable de Vercel. La escritura de precios (`prisma/gn-precios-stunned.ts`) ⛔ pasa por acá: sigue en GN.
 
-const BASE = 'https://www.gestionnube.com/api/v1';
+const BASE_GN = 'https://www.gestionnube.com/api/v1';
+const BASE_ERP = 'https://erp.arebensrl.com/api/v1';
+
+/** De dónde se lee: el ERP si está su llave, si no GN. */
+export function origenLectura(env: Record<string, string | undefined> = process.env): { base: string; token: string | undefined; nombre: string; falta: string } {
+  if (env.ERP_LLAVE_PRODUCCION) return { base: BASE_ERP, token: env.ERP_LLAVE_PRODUCCION, nombre: 'El ERP', falta: 'ERP_LLAVE_PRODUCCION' };
+  return { base: BASE_GN, token: env.GESTIONNUBE_TOKEN, nombre: 'Gestión Nube', falta: 'GESTIONNUBE_TOKEN' };
+}
 const PROVEEDORES_PROPIOS = ['zattia', 'areben', 'stunned']; // producción propia
 
 export class GestionNubeError extends Error {}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-function token(): string {
-  const t = process.env.GESTIONNUBE_TOKEN;
-  if (!t) throw new GestionNubeError('Falta GESTIONNUBE_TOKEN en el entorno');
-  return t;
-}
-
 async function gnGet<T = unknown>(path: string, tries = 4): Promise<T> {
+  const o = origenLectura();
+  if (!o.token) throw new GestionNubeError(`Falta ${o.falta} en el entorno`);
   let last = '';
   for (let i = 0; i < tries; i++) {
     let r: Response;
     try {
-      r = await fetch(`${BASE}${path}`, { headers: { Authorization: `Bearer ${token()}`, Accept: 'application/json' } });
+      r = await fetch(`${o.base}${path}`, { headers: { Authorization: `Bearer ${o.token}`, Accept: 'application/json' } });
     } catch (e) {
       last = (e as Error).message; await sleep(400 * (i + 1)); continue;
     }
@@ -31,7 +39,7 @@ async function gnGet<T = unknown>(path: string, tries = 4): Promise<T> {
     last = `HTTP ${r.status}`;
     await sleep(500 * (i + 1));
   }
-  throw new GestionNubeError(`Gestión Nube no respondió (${last}). Su API está inestable, probá de nuevo en un rato.`);
+  throw new GestionNubeError(`${o.nombre} no respondió (${last}). Probá de nuevo en un rato.`);
 }
 
 export interface GnProducto {
