@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'no autorizado' }, { status: 401 });
   }
   const productos = await runSyncBatch({ budgetMs: 30000, reiniciar: true });
-  const stock = await syncStock({ budgetMs: 25000 });
+  const stock = await syncStock({ budgetMs: 35000 });
   const ventas = await syncVentas({ budgetMs: 40000 });
   return NextResponse.json({ productos, stock, ventas });
 }
