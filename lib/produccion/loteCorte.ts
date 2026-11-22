@@ -352,16 +352,14 @@ export async function calcularCostoCongelado(
   // El material se reparte entre las piezas del conjunto por un % DECLARADO. La suma de
   // los % la valida `partesDelLote`, que es quien los arma: acá ya llegan buenos.
   const proporcion = parte ? parte.porcentajeMaterial / 100 : 1;
-  // 🔑 La tela de una pieza FALLADA la pagan las buenas de esa pieza (8-oct, Bruno): la
-  // tela se consumió igual y la pieza ⛔ va a salir. El denominador es lo cortado menos las
-  // falladas de ESA pieza en toda la orden. ⚠️ Lo ya ingresado queda congelado con el
-  // denominador de su día: una falla cargada después sólo mueve los ingresos siguientes.
-  const falladas = base === null ? 0 : Number((await tx.fallaLote.aggregate({
-    where: { ordenId: orden.id, parte: parte?.nombre ?? null }, _sum: { cantidad: true },
-  }))._sum.cantidad ?? 0);
-  const unidadesBuenas = base === null ? 0 : Math.max(1, base.unidades - falladas);
+  // 🔑 La tela de una pieza FALLADA ⛔ la pagan las buenas (Bruno, 22-nov-2026: «van aparte como
+  // pérdida, no al costo de las buenas; está dentro del escandallo como fallas», el `margenFallas`).
+  // Reemplaza la regla del 8-oct, que dividía por lo cortado MENOS las falladas. El denominador es
+  // lo CORTADO: la parte de las falladas queda en la orden como pérdida (`FallaLote`) y ⛔ entra a
+  // ningún lote. ⚠️ Lo ya ingresado queda congelado con el denominador de su día.
+  const unidadesCortadas = base === null ? 0 : Math.max(1, base.unidades);
   const costoMaterialUnit = (costoMaterialTotal > 0 && base !== null)
-    ? dosDecimales((costoMaterialTotal * proporcion) / unidadesBuenas)
+    ? dosDecimales((costoMaterialTotal * proporcion) / unidadesCortadas)
     : 0;
 
   const { minutos, compartidos, comunes = 0 } = parte
@@ -381,8 +379,8 @@ export async function calcularCostoCongelado(
     minutosComunes: dosDecimales(comunes),
     costoMinuto: dosDecimales(costoMinuto),
     sinCostoMaterial: costoMaterialUnit === 0,
-    // El denominador que se USÓ: lo cortado menos las falladas de la pieza.
-    unidadesBase: base === null ? 0 : unidadesBuenas,
+    // El denominador que se USÓ: lo cortado (desde el 22-nov; antes, menos las falladas).
+    unidadesBase: base === null ? 0 : unidadesCortadas,
     baseMaterial: base?.origen ?? 'planificado',
   };
 }
