@@ -47,6 +47,8 @@ export interface CostoCongelado {
   /** Entre cuántas unidades se repartió el material, y si ésas son las cortadas o las planificadas. */
   unidadesBase: number;
   baseMaterial: OrigenBase;
+  /** Falladas en confección que se llevaron su parte de los minutos (pérdida, ⛔ las pagan las buenas). */
+  unidadesFalladasMo: number;
 }
 
 /**
@@ -331,6 +333,8 @@ export async function calcularCostoCongelado(
   permitirSinCosto: boolean,
   parte: ParteDelLote | null,
   minutosSinParte?: MinutosDeParte,
+  /** El lote planificado en el que entra (null = la orden no está separada). */
+  lotePlanId: string | null = null,
 ): Promise<CostoCongelado> {
   if (unidades <= 0) throw new LoteCorteError('Un lote no puede entrar con 0 unidades');
 
@@ -366,7 +370,22 @@ export async function calcularCostoCongelado(
     ? parte.minutos
     : minutosSinParte ?? { minutos: await minutosSinImputar(tx, orden), compartidos: 0 };
   const costoMinuto = await calcularCostoMinuto(tx);
-  const costoMoUnit = dosDecimales((minutos * costoMinuto) / unidades);
+  // 🔑 MO de las FALLADAS (Bruno, 22-nov-2026): depende de CUÁNDO se vio la falla. Una falla de
+  // corte ⛔ entró a confección ⇒ ⛔ tiene minutos y la MO va entera a las buenas. Una que falló
+  // DESPUÉS (remallada y fallada) se llevó su parte de los minutos: esa parte es PÉRDIDA (la bolsa
+  // de fallas del escandallo) ⇒ cuenta en el divisor, pero ⛔ entra al costo de las buenas ni pasa
+  // al lote siguiente (los minutos salen igual de la bolsa: `minutosImputados` los lleva todos).
+  // Cada falla se cobra UNA vez: la toma el primer ingreso de su lote y su pieza que la encuentre.
+  const dondeFalla = { ordenId: orden.id, loteId: lotePlanId, parte: parte?.nombre ?? null, proceso: { not: 'Corte' } };
+  const [enConfeccion, yaCobradas] = await Promise.all([
+    tx.fallaLote.aggregate({ where: dondeFalla, _sum: { cantidad: true } }),
+    tx.loteCorte.aggregate({
+      where: { ordenId: orden.id, lotePlanificadoId: lotePlanId, parte: parte?.nombre ?? null },
+      _sum: { unidadesFalladasMo: true },
+    }),
+  ]);
+  const unidadesFalladasMo = Math.max(0, Number(enConfeccion._sum.cantidad ?? 0) - Number(yaCobradas._sum.unidadesFalladasMo ?? 0));
+  const costoMoUnit = dosDecimales((minutos * costoMinuto) / (unidades + unidadesFalladasMo));
   const costoAviosUnit = dosDecimales(costoAviosDePieza(await recetaDeAvios(tx, orden.id, orden.sku), parte?.nombre ?? null));
 
   return {
@@ -381,6 +400,7 @@ export async function calcularCostoCongelado(
     sinCostoMaterial: costoMaterialUnit === 0,
     // El denominador que se USÓ: lo cortado (desde el 22-nov; antes, menos las falladas).
     unidadesBase: base === null ? 0 : unidadesCortadas,
+    unidadesFalladasMo,
     baseMaterial: base?.origen ?? 'planificado',
   };
 }
@@ -474,7 +494,7 @@ export async function crearLoteCongelado(
 ) {
   const positivos = talles.filter((t) => t.cantidad > 0);
   const unidades = positivos.reduce((s, t) => s + t.cantidad, 0);
-  const costo = await calcularCostoCongelado(tx, orden, unidades, permitirSinCosto, parte, lotePlan?.minutosSinParte);
+  const costo = await calcularCostoCongelado(tx, orden, unidades, permitirSinCosto, parte, lotePlan?.minutosSinParte, lotePlan?.id ?? null);
 
   return tx.loteCorte.create({
     data: {
@@ -495,6 +515,7 @@ export async function crearLoteCongelado(
       costoMinuto: costo.costoMinuto,
       sinCostoMaterial: costo.sinCostoMaterial,
       unidadesBase: costo.unidadesBase,
+      unidadesFalladasMo: costo.unidadesFalladasMo,
       baseMaterial: costo.baseMaterial,
       talles: { create: positivos.map((t) => ({ talle: t.talle, cantidad: t.cantidad })) },
     },

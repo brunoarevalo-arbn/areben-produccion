@@ -1668,6 +1668,13 @@ model LoteCorte {
   unidadesBase  Int    @default(0)
   baseMaterial  String @default("planificado") // cortado | planificado
 
+  // Piezas que fallaron DESPUÉS de entrar a confección (falla con proceso ≠ 'Corte') y que
+  // este lote contó al repartir sus minutos: su parte de la MO ⛔ la pagan las buenas, es
+  // PÉRDIDA, la bolsa de fallas del escandallo (Bruno, 22-nov-2026). MO unitaria =
+  // minutosImputados × costoMinuto ÷ (unidades + unidadesFalladasMo). Una falla de corte
+  // nunca entró a confección ⇒ ⛔ tiene minutos y ⛔ cuenta acá.
+  unidadesFalladasMo Int @default(0)
+
   // true = entró sin costo de material porque la orden todavía no tenía ficha de corte.
   // Es un ingreso que alguien AFIRMÓ, no un silencio: el ingreso normal se planta.
   sinCostoMaterial Boolean @default(false)

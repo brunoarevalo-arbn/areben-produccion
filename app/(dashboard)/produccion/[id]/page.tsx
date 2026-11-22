@@ -290,6 +290,13 @@ export default async function OrdenDetallePage({ params, searchParams }: { param
                       {', '}{fmt(l.minutosCompartidos)} sin pieza repartidos
                     </span>
                   )}
+                  {/* Falladas en confección: se llevaron su parte de los minutos, que ⛔ pagan
+                      las buenas (pérdida, bolsa de fallas). Sin esto «min ÷ unidades» no da la MO. */}
+                  {l.unidadesFalladasMo > 0 && (
+                    <span className="text-amber-700">
+                      {', '}÷ {l.unidades + l.unidadesFalladasMo}: {l.unidadesFalladasMo} {l.unidadesFalladasMo === 1 ? 'fallada' : 'falladas'} en confección, su parte va a fallas
+                    </span>
+                  )}
                   {/* De una orden separada en lotes: cuántos fueron de la bolsa común (los
                       minutos sin lote), repartidos por unidades. */}
                   {Number(l.minutosComunes) > 0 && (
